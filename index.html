@@ -1,0 +1,1120 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>決算1枚画像ジェネレーター V6.21</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text-main: #0f172a;
+            --text-sub: #475569;
+            --border: #cbd5e1;
+            --positive: #10b981;
+            --negative: #ef4444;
+            --accent: #2563eb;
+        }
+
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #e5e7eb; margin: 0; padding: 20px; display: flex; gap: 20px; }
+        
+        .control-panel { width: 380px; display: flex; flex-direction: column; gap: 12px; flex-shrink: 0; }
+        
+        .tool-section { background: #f8fafc; padding: 14px 16px; border-radius: 8px; border: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .section-heading { font-size: 15px; font-weight: bold; color: var(--text-main); margin-bottom: 2px; border-bottom: 2px solid var(--accent); padding-bottom: 4px; display: inline-block; }
+        
+        .input-row { display: flex; gap: 8px; align-items: center;}
+        .input-row input[type="text"], .input-row input[type="date"], .input-row select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; font-family: inherit; box-sizing: border-box; }
+        
+        .btn-sub { background: #e2e8f0; color: #475569; font-size: 13px; padding: 8px 6px; flex: 1; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s; white-space: nowrap;}
+        .btn-sub:hover { background: #cbd5e1; }
+        
+        .btn-prompt { background: #475569; color: white; font-size: 13px; padding: 10px 4px; flex: 1; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s; white-space: nowrap; text-align: center;}
+        .btn-prompt:hover { opacity: 0.9; }
+
+        textarea { width: 100%; height: 180px; font-family: monospace; padding: 10px; border: 1px solid #ccc; border-radius: 4px; resize: vertical; box-sizing: border-box;}
+        button.main-btn { padding: 14px; background: var(--accent); color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 15px;}
+        button.main-btn:hover { opacity: 0.9; }
+        .download-btn { background: var(--positive); }
+
+        .capture-wrapper { overflow: auto; border: 1px solid #ccc; background: white; flex-grow: 1;}
+        #capture-area {
+            width: 1200px;
+            min-height: 675px; 
+            background: var(--bg);
+            padding: 20px 24px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            color: var(--text-main);
+            position: relative; 
+            overflow: hidden;
+        }
+
+        #watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-30deg);
+            font-size: 130px;
+            font-weight: bold;
+            color: rgba(0, 0, 0, 0.03); 
+            white-space: nowrap;
+            pointer-events: none; 
+            z-index: 0; 
+            user-select: none;
+        }
+
+        #br-signature {
+            position: absolute;
+            bottom: 12px; 
+            right: 16px;
+            font-size: 15px;
+            font-weight: bold;
+            color: #64748b; 
+            background: rgba(255, 255, 255, 0.9);
+            padding: 6px 14px;
+            border-radius: 999px; 
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1); 
+            border: 1px solid var(--border);
+            z-index: 10; 
+            pointer-events: none;
+            user-select: none;
+        }
+
+        .card { background: var(--card); padding: 14px 16px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; flex-direction: column; position: relative; z-index: 1;}
+        .section-title { font-size: 15px; color: var(--text-sub); border-bottom: 2px solid var(--border); padding-bottom: 4px; margin-top: 0; margin-bottom: 8px; font-weight: bold; }
+
+        .header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid var(--accent); padding-bottom: 12px; position: relative; z-index: 1;}
+        .header-left { display: flex; align-items: baseline; flex-grow: 1; }
+
+        .company-name { font-size: 28px; font-weight: bold; margin: 0; }
+        .company-code { font-size: 18px; color: var(--text-sub); margin-left: 8px;}
+        .business-desc { font-size: 14px; color: var(--text-sub); margin-left: 16px; }
+        
+        .announcement-row {
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            gap: 12px;
+            margin-top: -8px; 
+            margin-bottom: -4px;
+            position: relative; 
+            z-index: 1;
+        }
+        .announcement-date { font-size: 15px; color: var(--text-main); font-weight: bold; margin: 0; }
+        .result-badge { background: var(--accent); color: white; padding: 6px 16px; border-radius: 999px; font-size: 15px; font-weight: bold; }
+
+        .top-zone { display: flex; gap: 16px; position: relative; z-index: 1;}
+        .top-zone > :first-child { width: 340px; flex-shrink: 0; }
+        .top-zone > :last-child { flex-grow: 1; min-width: 0; }
+
+        .middle-zone { display: flex; gap: 16px; position: relative; z-index: 1;}
+        .middle-zone > div { flex: 1; min-width: 0;}
+
+        .bottom-zone { display: flex; gap: 16px; position: relative; z-index: 1;}
+        .bottom-zone > div { flex: 1; min-width: 0;}
+
+        .basic-info-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; margin-bottom: auto;}
+        .info-box { background: #f1f5f9; padding: 10px; border-radius: 6px; text-align: center; width: calc(50% - 4px); box-sizing: border-box;}
+        .info-label { font-size: 11px; color: var(--text-sub); }
+        .info-value { font-size: 16px; font-weight: bold; margin-top: 4px; }
+        
+        .chart-wrapper { width: 100%; height: 160px; display: flex; align-items: center; justify-content: center; background: #ffffff; border: 1px solid var(--border); border-radius: 6px;}
+        canvas { display: block; width: 100%; height: 100%; }
+
+        table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+        th, td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
+        th { font-size: 12px; color: var(--text-sub); background: #f8fafc; font-weight: normal; }
+        td { font-size: 15px; font-weight: bold; }
+        
+        th:not(:first-child), td:not(:first-child) { text-align: right; white-space: nowrap; }
+        th:first-child, td:first-child { text-align: left; }
+        td:first-child { line-height: 1.3; font-size: 14px; }
+
+        .highlight { color: var(--positive); }
+        .lowlight { color: var(--negative); }
+        
+        .judgment-badge { font-size: 12px; padding: 4px 8px; border-radius: 4px; font-weight: bold; display: inline-block; }
+        .judg-good { background: #dcfce7; color: #166534; }
+        .judg-bad { background: #fee2e2; color: #991b1b; }
+        .judg-neutral { background: #f1f5f9; color: #475569; }
+
+        .guidance-badge { font-size: 13px; padding: 4px 12px; border-radius: 4px; background: var(--accent); color: white; font-weight: bold; display: inline-block; margin-bottom: 6px;}
+
+        .reason-box { background: #eff6ff; border-left: 4px solid var(--accent); padding: 10px 14px; border-radius: 0 6px 6px 0; font-size: 13px; line-height: 1.5; margin-top: auto;}
+        .reason-title { font-weight: bold; color: var(--accent); margin-bottom: 4px; font-size: 12px; }
+
+        .market-reaction-card { background: #fff7ed; border-left: 6px solid #f97316; }
+        .price-change-box { display: flex; gap: 20px; align-items: flex-end; margin-bottom: 12px; }
+        .price-col { display: flex; flex-direction: column; gap: 4px; }
+        .price-label { font-size: 12px; color: #7c2d12; font-weight: bold; }
+        .price-val-container { display: flex; align-items: baseline; gap: 8px; }
+        .price-val { font-size: 20px; font-weight: bold; }
+        .price-arrow { font-size: 18px; color: #7c2d12; font-weight: bold; padding-bottom: 2px; }
+        .price-change-val { font-size: 22px; font-weight: bold; color: #9a3412; }
+        .market-reaction-text { font-size: 13px; font-weight: bold; line-height: 1.5; color: #7c2d12; margin: 0; }
+
+        .next-actions { background: #fffbeb; border: 2px solid #fde68a; position: relative; z-index: 1;}
+        .next-actions ul { margin: 0; padding-left: 20px; }
+        .next-actions li { font-size: 14px; font-weight: bold; margin-bottom: 6px; line-height: 1.5; color: #92400e; }
+        .next-actions li:last-child { margin-bottom: 0; }
+
+        #mobile-preview-area { margin-top: 10px; display: none; background: white; padding: 10px; border-radius: 8px; border: 1px solid #ccc; }
+        #mobile-preview-img { max-width: 100%; border: 1px solid #e2e8f0; border-radius: 4px; display: block; }
+    </style>
+</head>
+<body>
+
+    <div class="control-panel">
+        
+        <div class="tool-section">
+            <div class="section-heading">1. 情報収集 ＆ AIプロンプト生成</div>
+            
+            <div class="input-row" style="margin-bottom: 4px;">
+                <label style="font-size:13px; cursor:pointer;"><input type="radio" name="p-market" value="jp" checked> 国内株</label>
+                <label style="font-size:13px; cursor:pointer; margin-left:12px;"><input type="radio" name="p-market" value="us"> 米国株</label>
+            </div>
+
+            <div class="input-row">
+                <input type="text" id="p-code" placeholder="コード" style="width: 30%;">
+                <input type="text" id="p-name" placeholder="銘柄名 (例: ダブル・スコープ)" style="flex:1;">
+            </div>
+            
+            <div class="input-row">
+                <button class="btn-sub" onclick="openKabutan()">🔍 株探</button>
+                <button class="btn-sub" onclick="openIR()">🔍 IR検索</button>
+                <button class="btn-sub" onclick="copyUrls(this)">📋 URLコピー</button>
+            </div>
+            
+            <div style="font-size: 12px; font-weight: bold; color: var(--text-sub); margin-top: 6px; border-bottom: 1px solid #ccc; padding-bottom: 2px;">▼ 決算日と株価の反応</div>
+            
+            <div class="input-row">
+                <label style="font-size:12px; width:45px; font-weight:bold;">決算日</label>
+                <input type="date" id="p-date" style="flex:1;">
+                <select id="p-timing" style="width:75px;">
+                    <option value="引け後">引け後</option>
+                    <option value="場中">場中</option>
+                </select>
+            </div>
+            <div class="input-row">
+                <label style="font-size:12px; width:45px; font-weight:bold; color:#7c2d12;">決算前</label>
+                <input type="date" id="p-pre-date" style="flex:1;">
+                <span style="font-size:12px; width:75px; text-align:center;">終値</span>
+            </div>
+            <div class="input-row">
+                <label style="font-size:12px; width:45px; font-weight:bold; color:#7c2d12;">決算後</label>
+                <input type="date" id="p-post-date" style="flex:1;">
+                <label style="font-size:12px; width:75px; display:flex; align-items:center; cursor:pointer;">
+                    <input type="checkbox" id="p-post-after-hours" checked style="margin-right:4px;">時間外
+                </label>
+            </div>
+            <div class="input-row">
+                <input type="text" id="p-reaction" placeholder="株価の反応 (例: -3.97%下落した)" style="width: 100%;">
+            </div>
+            
+            <div class="input-row" style="margin-top: 8px;">
+                <button class="btn-prompt" onclick="copyChatGPT(this)">💬 ChatGPT用</button>
+                <button class="btn-prompt" onclick="copyNotebookLM(this)">📓 NotebookLM</button>
+            </div>
+            <div class="input-row">
+                <button class="btn-prompt" onclick="copyFactCheck(this)">✅ ファクトCK</button>
+                <button class="btn-prompt" onclick="copyFactCheckFix(this)">🔧 FC修正指示</button>
+            </div>
+        </div>
+
+        <div class="tool-section">
+            <div class="section-heading" style="display: flex; justify-content: space-between; border-bottom: none; padding-bottom: 0; align-items:center;">
+                <span style="border-bottom: 2px solid var(--accent); padding-bottom: 4px;">2. データ入力 ＆ 画像生成</span>
+                <button class="btn-sub" onclick="pasteFromClipboard()" style="padding: 4px 12px; font-size: 11px; flex: none; background: #e2e8f0;">📋 貼付</button>
+            </div>
+            <textarea id="input-data" placeholder="NotebookLMで整形されたテキストをここにペーストしてください"></textarea>
+            <button class="main-btn" onclick="renderImage()" style="margin-bottom: 4px;">画像を生成（プレビュー反映）</button>
+            <button class="main-btn download-btn" onclick="downloadImage()">PCで画像を保存する</button>
+            
+            <div id="mobile-preview-area">
+                <p style="font-size:12px; color:var(--negative); font-weight:bold; margin-top:0;">※保存ダイアログが出ない場合は、下の画像を右クリック（スマホは長押し）して保存してください👇</p>
+                <img id="mobile-preview-img" src="" alt="生成画像プレビュー">
+            </div>
+        </div>
+
+    </div>
+
+    <div class="capture-wrapper">
+        <div id="capture-area">
+            
+            <div id="watermark">sumikko_money</div>
+            <div id="br-signature">すみっこマネー大学（@sumikko_money）</div>
+
+            <div class="header">
+                <div class="header-left">
+                    <div class="company-name" id="out-company">会社名</div>
+                    <div class="company-code" id="out-code">(0000)</div>
+                    <div class="business-desc" id="out-desc">事業内容</div>
+                </div>
+            </div>
+
+            <div class="top-zone">
+                <div class="card">
+                    <div class="section-title">🏢 基本情報</div>
+                    <div class="basic-info-grid">
+                        <div class="info-box"><div class="info-label">時価総額</div><div class="info-value" id="out-mcap">---</div></div>
+                        <div class="info-box"><div class="info-label">予想PER</div><div class="info-value" id="out-per">---</div></div>
+                        <div class="info-box"><div class="info-label">実績PBR</div><div class="info-value" id="out-pbr">---</div></div>
+                        <div class="info-box"><div class="info-label">配当利回り</div><div class="info-value" id="out-yield">---</div></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="section-title">📈 日足チャート (直近)</div>
+                    <div class="chart-wrapper" id="canvas-container">
+                        <canvas id="myChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="announcement-row">
+                <div class="announcement-date" id="out-date"></div>
+                <div class="result-badge" id="out-result" style="display: none;"></div>
+            </div>
+
+            <div class="middle-zone">
+                <div class="card">
+                    <div class="section-title">📊 業績サマリーと要因</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th></th>
+                                <th>実績</th>
+                                <th>前年比</th>
+                                <th id="out-consensus-label">市場予想</th>
+                                <th id="out-judgment-label">判定</th>
+                            </tr>
+                        </thead>
+                        <tbody id="out-kpi-tbody"></tbody>
+                    </table>
+                    <div class="reason-box">
+                        <div class="reason-title">💡 なぜこの数字になったのか？</div>
+                        <div id="out-kpi-reason"></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="section-title">🎯 通期予想・進捗率・株主還元</div>
+                    <div class="guidance-badge" id="out-guidance-status">---</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th></th>
+                                <th id="out-guidance-col1">前期実績/修正前</th>
+                                <th id="out-guidance-col2">今期予想/修正後</th>
+                                <th id="out-guidance-prog-th">進捗率</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td id="out-sales-label">売上高</td>
+                                <td id="out-sales-1">---</td>
+                                <td id="out-sales-2">---</td>
+                                <td id="out-sales-prog" style="color: var(--accent); font-weight: bold;">-</td>
+                            </tr>
+                            <tr>
+                                <td id="out-op-label">営業利益</td>
+                                <td id="out-op-1">---</td>
+                                <td id="out-op-2">---</td>
+                                <td id="out-op-prog" style="color: var(--accent); font-weight: bold;">---</td>
+                            </tr>
+                            <tr>
+                                <td id="out-ni-label">純利益</td>
+                                <td id="out-ni-1">---</td>
+                                <td id="out-ni-2">---</td>
+                                <td id="out-ni-prog" style="color: var(--accent); font-weight: bold;">---</td>
+                            </tr>
+                            <tr>
+                                <td>配当</td>
+                                <td id="out-div-1">---</td>
+                                <td id="out-div-2">---</td>
+                                <td id="out-div-prog">-</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="reason-box">
+                        <div class="reason-title">💡 なぜこのガイダンスなのか？</div>
+                        <div id="out-guidance-reason"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bottom-zone">
+                <div class="card market-reaction-card">
+                    <div class="section-title" style="color: #c2410c; border-bottom-color: #fdba74;">🗣️ 市場の反応と株価</div>
+                    <div class="price-change-box">
+                        <div class="price-col">
+                            <span class="price-label" id="out-pre-label">決算前</span>
+                            <span class="price-val" id="out-pre-price">---</span>
+                        </div>
+                        <div class="price-arrow">→</div>
+                        <div class="price-col">
+                            <span class="price-label" id="out-post-label">決算後</span>
+                            <div class="price-val-container">
+                                <span class="price-val" id="out-post-price">---</span>
+                                <span class="price-change-val" id="out-price-change">---</span>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="market-reaction-text" id="out-reaction">---</p>
+                </div>
+
+                <div class="card next-actions">
+                    <div class="section-title" style="color: #92400e; border-bottom: none; margin-bottom: 4px;">🚀 今後の注目点・投資判断のポイント</div>
+                    <ul id="out-next-actions"></ul>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // ---------------------------------------------
+        // プロンプト生成＆検索ショートカット機能
+        // ---------------------------------------------
+        
+        const holidays = [
+            '2025-07-21', '2025-08-11', '2025-09-15', '2025-09-23',
+            '2025-10-13', '2025-11-03', '2025-11-23', '2025-11-24', '2025-12-31',
+            '2026-01-01', '2026-01-02', '2026-01-12', '2026-02-11', '2026-02-23',
+            '2026-03-20', '2026-04-29', '2026-05-03', '2026-05-04', '2026-05-05',
+            '2026-05-06', '2026-07-20', '2026-08-11', '2026-09-21', '2026-09-22',
+            '2026-09-23', '2026-10-12', '2026-11-03', '2026-11-23', '2026-12-31'
+        ];
+
+        function isBusinessDay(date) {
+            const day = date.getDay();
+            if (day === 0 || day === 6) return false;
+            
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            const dateString = `${y}-${m}-${d}`;
+            
+            return !holidays.includes(dateString);
+        }
+
+        function getMarket() {
+            const radios = document.getElementsByName('p-market');
+            for(let r of radios) {
+                if(r.checked) return r.value;
+            }
+            return 'jp';
+        }
+
+        function setupDateSync() {
+            const pDate = document.getElementById('p-date');
+            const pTiming = document.getElementById('p-timing');
+
+            function syncDates() {
+                const baseDateVal = pDate.value;
+                if (!baseDateVal) return;
+                
+                const baseDate = new Date(baseDateVal);
+                const timing = pTiming.value;
+                
+                const preDateInput = document.getElementById('p-pre-date');
+                const postDateInput = document.getElementById('p-post-date');
+                const afterHoursCheck = document.getElementById('p-post-after-hours');
+                
+                if (timing === '引け後') {
+                    preDateInput.value = baseDateVal;
+                    postDateInput.value = baseDateVal;
+                    afterHoursCheck.checked = true;
+                } else if (timing === '場中') {
+                    let prevDate = new Date(baseDate);
+                    prevDate.setDate(prevDate.getDate() - 1);
+                    
+                    while (!isBusinessDay(prevDate)) {
+                        prevDate.setDate(prevDate.getDate() - 1);
+                    }
+                    
+                    const y = prevDate.getFullYear();
+                    const m = String(prevDate.getMonth() + 1).padStart(2, '0');
+                    const d = String(prevDate.getDate()).padStart(2, '0');
+                    
+                    preDateInput.value = `${y}-${m}-${d}`;
+                    postDateInput.value = baseDateVal;
+                    afterHoursCheck.checked = false;
+                }
+            }
+
+            pDate.addEventListener('change', syncDates);
+            pTiming.addEventListener('change', syncDates);
+        }
+
+        function openKabutan() {
+            const code = document.getElementById('p-code').value;
+            const market = getMarket();
+            if(!code) {
+                alert('証券コードを入力してください');
+                return;
+            }
+            if(market === 'jp') {
+                window.open(`https://kabutan.jp/stock/kabuka?code=${code}`, '_blank');
+            } else {
+                window.open(`https://us.kabutan.jp/stocks/${code}/`, '_blank');
+            }
+        }
+
+        function openIR() {
+            const name = document.getElementById('p-name').value;
+            const code = document.getElementById('p-code').value;
+            const market = getMarket();
+            let query = name ? name : code;
+            if(!query) {
+                alert('銘柄名または証券コードを入力してください');
+                return;
+            }
+            const suffix = market === 'jp' ? 'IR情報' : 'Investor Relations';
+            window.open(`https://www.google.com/search?q=${encodeURIComponent(query + ' ' + suffix)}`, '_blank');
+        }
+
+        function copyUrls(btnElement) {
+            const code = document.getElementById('p-code').value;
+            const market = getMarket();
+            if(!code) {
+                alert('証券コードを入力してください');
+                return;
+            }
+            let urls = '';
+            if(market === 'jp') {
+                urls = `https://kabutan.jp/stock/kabuka?code=${code}\nhttps://kabutan.jp/stock/finance?code=${code}`;
+            } else {
+                urls = `https://us.kabutan.jp/stocks/${code}/\nhttps://us.kabutan.jp/stocks/${code}/finance`;
+            }
+            copyToClipboard(urls, btnElement, '✔ コピー完了！');
+        }
+
+        async function pasteFromClipboard() {
+            try {
+                const text = await navigator.clipboard.readText();
+                document.getElementById('input-data').value = text;
+                renderImage(); 
+            } catch (err) {
+                alert('クリップボードの読み取りに失敗しました。ブラウザの権限が許可されていない可能性があります。手動で長押ししてペーストしてください。');
+            }
+        }
+
+        function copyToClipboard(text, btnElement, successMsg) {
+            navigator.clipboard.writeText(text).then(() => {
+                const originalText = btnElement.innerText;
+                btnElement.innerText = successMsg;
+                btnElement.style.background = 'var(--positive)';
+                setTimeout(() => {
+                    btnElement.innerText = originalText;
+                    btnElement.style.background = ''; 
+                }, 2000);
+            }).catch(err => {
+                const dummy = document.createElement("textarea");
+                document.body.appendChild(dummy);
+                dummy.value = text;
+                dummy.select();
+                document.execCommand("copy");
+                document.body.removeChild(dummy);
+                const originalText = btnElement.innerText;
+                btnElement.innerText = successMsg;
+                btnElement.style.background = 'var(--positive)';
+                setTimeout(() => {
+                    btnElement.innerText = originalText;
+                    btnElement.style.background = '';
+                }, 2000);
+            });
+        }
+
+        function formatDateJP(dateRaw) {
+            if (!dateRaw) return '〇〇年〇月〇日';
+            const d = new Date(dateRaw);
+            return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`;
+        }
+
+        function formatDateShort(dateRaw) {
+            if (!dateRaw) return '〇月〇日';
+            const d = new Date(dateRaw);
+            return `${d.getMonth()+1}月${d.getDate()}日`;
+        }
+
+        function getChatGPTPrompt() {
+            const code = document.getElementById('p-code').value || '〇〇〇〇';
+            const name = document.getElementById('p-name').value || '〇〇〇〇';
+            const market = getMarket();
+            
+            const dateStr = formatDateJP(document.getElementById('p-date').value);
+            const timingStr = document.getElementById('p-timing').value;
+            
+            const preDateStr = formatDateShort(document.getElementById('p-pre-date').value);
+            const postDateStr = formatDateShort(document.getElementById('p-post-date').value);
+            const isAfterHours = document.getElementById('p-post-after-hours').checked;
+            
+            const postTimingStr = isAfterHours ? (market === 'jp' ? 'PTS' : '時間外') : '終値';
+            const reaction = document.getElementById('p-reaction').value || '〇〇';
+
+            return `あなたはプロの証券アナリストです。
+以下の銘柄について、ウェブ検索機能を用いて調査し、結果をまとめてください。
+
+【対象銘柄】
+・銘柄名とコード：${name} ${code}
+・決算発表日：${dateStr} ${timingStr}
+・株価の比較：${preDateStr} 終値 → ${postDateStr} ${postTimingStr}
+・株価の反応：${reaction}
+
+【調査項目】
+1. 事前コンセンサスと株価変動の理由
+※注意：実際の決算数値の羅列、株価の騰落率の計算、全体要約、実績値との比較・評価などは一切書かないでください。以下の2点のみを簡潔に出力してください。
+- 今回の決算に対する「事前コンセンサス（売上高、営業利益など）」の数値。（情報源のURLも記載）
+- 実際のニュースや市場の解説記事を検索し、「なぜ株価がそのように反応したのか（例：材料出尽くし、実質上方修正など）」という理由部分。
+
+2. X（Twitter）投稿用テキストの作成
+- 冒頭の見出しは「【${name}（${code}）】」としてください。
+- 画像に詳細な業績数値は記載するため、投稿文に細かい数字（売上〇〇億円など）は書かないでください。
+- 以下の要素を自然な文章で、全角140文字（280バイト）程度で簡潔にまとめてください（無理な体言止めは不要です。Xの投稿として魅力的な文章にしてください）。
+  ・どんな決算内容だったか
+  ・株価がどう動いたか
+  ・なぜそのように株価が反応したのか（本質的な理由）
+  ・今後の注目点
+  ・画像への誘導（例「詳細は図解で👇」など）
+- ハッシュタグ（#${name} #${code}）を末尾に含めてください。
+
+【出力形式の厳守】
+以下の2つを、それぞれ別々のMarkdownのコードブロック形式（\`\`\`テキスト\`\`\`）で出力してください。
+※重要：コードブロックの「中」には、【ブロック2】や【X投稿用テキスト】といった見出しを絶対に書かないでください。私がコピーボタンを押したときに、コピペしてそのまま使える純粋なテキストのみを記述してください。
+
+・1つ目のコードブロック：「1. 事前コンセンサスと株価変動の理由」の調査結果
+・2つ目のコードブロック：「2. X投稿用テキスト」`;
+        }
+
+        function getFactCheckPrompt() {
+            const code = document.getElementById('p-code').value || '〇〇〇〇';
+            const name = document.getElementById('p-name').value || '〇〇〇〇';
+            const market = getMarket();
+            
+            const dateStr = formatDateJP(document.getElementById('p-date').value);
+            const timingStr = document.getElementById('p-timing').value;
+            
+            const preDateStr = formatDateShort(document.getElementById('p-pre-date').value);
+            const postDateStr = formatDateShort(document.getElementById('p-post-date').value);
+            const isAfterHours = document.getElementById('p-post-after-hours').checked;
+            
+            const postTimingStr = isAfterHours ? (market === 'jp' ? 'PTS' : '時間外') : '終値';
+            const reaction = document.getElementById('p-reaction').value || '〇〇';
+
+            return `あなたはプロの証券アナリストです。
+以下の銘柄について、ウェブ検索機能を用いて調査し、結果をまとめてください。
+
+【対象銘柄】
+・銘柄名とコード：${name} ${code}
+・決算発表日：${dateStr} ${timingStr}
+・株価の比較：${preDateStr} 終値 → ${postDateStr} ${postTimingStr}
+・株価の反応：${reaction}
+
+【調査項目】
+1. 事前コンセンサスと株価変動の理由
+※注意：実際の決算数値の羅列、株価の騰落率の計算、全体要約、実績値との比較・評価などは一切書かないでください。以下の2点のみを簡潔に出力してください。
+- 今回の決算に対する「事前コンセンサス（売上高、営業利益など）」の数値。（情報源のURLも記載）
+- 実際のニュースや市場の解説記事を検索し、「なぜ株価がそのように反応したのか（例：材料出尽くし、実質上方修正など）」という理由部分。`;
+        }
+
+        function copyChatGPT(btnElement) {
+            copyToClipboard(getChatGPTPrompt(), btnElement, '✔ コピー完了！');
+        }
+
+        function copyFactCheck(btnElement) {
+            const basePrompt = getFactCheckPrompt();
+            const factCheckAddon = `以下のレポートは、以下の指示でAIが生成したものです。\nレポートのファクトチェックを行い、誤っている個所と指示に沿っていない箇所のみを指摘してください。\n指摘は件数が多くても構わないので、すべて指摘してください。\n指摘がある場合には、指摘箇所、指摘内容、修正後内容を記載してください。\nレイアウトや出力形式に関する指摘は不要です。\n\n--指示--\n${basePrompt}\n\n--レポート--\n\n`;
+            copyToClipboard(factCheckAddon, btnElement, '✔ コピー完了！');
+        }
+
+        function copyFactCheckFix(btnElement) {
+            const prompt = `指摘箇所を指示の内容に沿って修正し、全文出力してください。\nただし、指摘していない箇所は一切変更しないでください。`;
+            copyToClipboard(prompt, btnElement, '✔ コピー完了！');
+        }
+
+        // 💡 【改修】NotebookLM用プロンプト：「株式会社」の削除、コンセンサス列の切り替え指定を追加
+        function copyNotebookLM(btnElement) {
+            const market = getMarket();
+            const preDateStr = formatDateShort(document.getElementById('p-pre-date').value);
+            const postDateStr = formatDateShort(document.getElementById('p-post-date').value);
+            const isAfterHours = document.getElementById('p-post-after-hours').checked;
+            
+            const postTimingStr = isAfterHours ? (market === 'jp' ? 'PTS' : '時間外') : '終値';
+
+            const prompt = `あなたはプロの証券アナリストであり、データ整形のエキスパートです。
+読み込んだソースを総合して分析し、下記の【出力フォーマット】に厳密に従ってテキストを出力してください。
+
+## 重要なルール（必ず守ること）
+1. 決算資料から「主力セグメントの状況（どの事業が牽引・足かせになったか）」や「増減益の理由」「ガイダンスの背景」を深く読み取り、各項目の reason に1〜2行で簡潔に記載してください。
+2. 金額は「兆・億・万円」の単位に変換しカンマを入れてください。（例：12,345百万円 → 123億円）
+3. 【予想との比較】業績サマリー（KPI）の実績と比較する「予想数値（consensus）」は、「市場予想（コンセンサス）」があればそれを優先し、無ければ「直前の会社予想」を記載してください。どちらも不明な場合は「-」としてください。比較した対象が市場予想なら [KPI_HEADER] の consensus_label を「市場予想」、会社予想なら「会社予想」とし、どちらもない場合は「なし」と出力してください。
+4. 【コンセンサス判定】実績値と予想数値を比較し、実績が上回っていれば「クリア」、下回っていれば「未達」など、結果判定（judgment）を出力してください。予想数値がない場合は「-」としてください。
+5. 【項目名の適正化】IFRS（国際財務報告基準）などの会計基準に合わせて、項目名は決算資料で実際に使われている名称（「収益」「事業利益」など）を読み取り、[KPI_1〜3]の display_label や [GUIDANCE]の各 _label に出力してください。ただし、「親会社株主に帰属する四半期純利益」のような長すぎる名称は「純利益」や「当期純利益」など簡潔に省略してください。
+6. 【ヘッダー情報】[HEADER]の company は必ず「株式会社」を省略した名称にしてください。quarter には「〇〇年〇月期 第〇四半期」または「本決算」と決算期を記載し、result_label には決算の全体的な印象を一言（例：赤字転落、上方修正、など5文字程度）で記載してください。
+7. 【ガイダンスと進捗率】四半期決算の場合は、通期予想に対する「売上高」「営業利益」「純利益」の進捗率をそれぞれ計算し、[GUIDANCE]の sales_progress, op_progress, ni_progress に「〇〇%」と記載してください。ただし、実績または通期予想のいずれかが「赤字（マイナス）」の場合は進捗率は意味を持たないため計算せず「-」としてください。通期予想の修正がない場合は status=据え置き とし、修正がある場合は col1_header=修正前, col2_header=修正後 として新旧の数値を比較できるようにしてください。
+8. 【株価・市場反応】pre_price_label は「決算前（${preDateStr} 終値）」、post_price_label は「決算後（${postDateStr} ${postTimingStr}）」としてください。[MARKET_REACTION]の price_change には株価の変動率（例：-6.31%）のみを記載し、値幅（円）は含めないでください。
+9. [CHART_DATA]の data は「YYYY-MM-DD,始値,高値,安値,終値;」の形式で繋げた文字列にしてください。
+10. コードブロック（\`\`\`）は不要です。テキストのみ出力してください。
+
+---
+## 【出力フォーマット】
+[HEADER]
+company=
+code=
+business_description=
+announcement_date=
+quarter=
+result_label=
+
+[BASIC_INFO]
+market_cap=
+per=
+pbr=
+yield=
+
+[CHART_DATA]
+data=
+
+[KPI_HEADER]
+consensus_label=
+
+[KPI_1]
+display_label=売上高
+value=
+yoy=
+consensus=
+judgment=
+reason=
+
+[KPI_2]
+display_label=営業利益
+value=
+yoy=
+consensus=
+judgment=
+reason=
+
+[KPI_3]
+display_label=純利益
+value=
+yoy=
+consensus=
+judgment=
+
+[GUIDANCE]
+status=
+col1_header=
+col2_header=
+sales_label=売上高
+sales_1=
+sales_2=
+sales_progress=
+op_label=営業利益
+op_1=
+op_2=
+op_progress=
+ni_label=純利益
+ni_1=
+ni_2=
+ni_progress=
+div_1=
+div_2=
+reason=
+
+[MARKET_REACTION]
+pre_price_label=
+pre_price=
+post_price_label=
+post_price=
+price_change=
+reaction_summary=
+
+[NEXT_ACTIONS]
+point_1=
+point_2=`;
+
+            copyToClipboard(prompt, btnElement, '✔ コピー完了！');
+        }
+
+        // ---------------------------------------------
+        // 画像生成・描画機能
+        // ---------------------------------------------
+        function parseInput(text) {
+            const data = {};
+            let currentSection = null;
+            text.split('\n').forEach(line => {
+                line = line.trim();
+                if (!line) return;
+                if (line.startsWith('[') && line.endsWith(']')) {
+                    currentSection = line.substring(1, line.length - 1);
+                    data[currentSection] = {};
+                } else if (currentSection && line.includes('=')) {
+                    const idx = line.indexOf('=');
+                    data[currentSection][line.substring(0, idx).trim()] = line.substring(idx + 1).trim();
+                }
+            });
+            return data;
+        }
+
+        function colorize(val) {
+            if (!val || val === '---') return '---';
+            if (val.match(/赤字|未達|下方|下回|悪化|減|-/)) return `<span class="lowlight">${val}</span>`;
+            if (val.match(/黒字|超過|クリア|上方|上回|増|\+/)) return `<span class="highlight">${val}</span>`;
+            return val;
+        }
+
+        function createJudgmentBadge(val) {
+            if (!val || val === '---') return '---';
+            if (val.match(/クリア|超過|上回|上方/)) return `<span class="judgment-badge judg-good">${val}</span>`;
+            if (val.match(/未達|下回|赤字|下方/)) return `<span class="judgment-badge judg-bad">${val}</span>`;
+            return `<span class="judgment-badge judg-neutral">${val}</span>`;
+        }
+
+        function renderImage() {
+            const data = parseInput(document.getElementById('input-data').value);
+
+            if (data.HEADER) {
+                document.getElementById('out-company').innerText = data.HEADER.company || '';
+                document.getElementById('out-code').innerText = data.HEADER.code ? `(${data.HEADER.code})` : '';
+                document.getElementById('out-desc').innerText = data.HEADER.business_description || '';
+                
+                // 💡 【改修】バッジを削除し、テキストでシンプルに表示
+                const dateStr = data.HEADER.announcement_date || '';
+                const quarterStr = data.HEADER.quarter || '';
+                let dateText = "";
+                if(quarterStr && dateStr) {
+                    dateText = `${quarterStr}（${dateStr}発表）`;
+                } else if(quarterStr) {
+                    dateText = quarterStr;
+                } else if(dateStr) {
+                    dateText = `${dateStr}発表`;
+                }
+                document.getElementById('out-date').innerText = dateText;
+
+                const resultLabel = data.HEADER.result_label || '';
+                const resultBadge = document.getElementById('out-result');
+                if (resultLabel) {
+                    resultBadge.innerText = resultLabel;
+                    resultBadge.style.display = 'block';
+                    if(resultLabel.match(/上方|黒字|増益|最高/)) { resultBadge.style.background = 'var(--positive)'; }
+                    else if(resultLabel.match(/下方|赤字|減益|未達/)) { resultBadge.style.background = 'var(--negative)'; }
+                    else { resultBadge.style.background = 'var(--accent)'; }
+                } else {
+                    resultBadge.style.display = 'none';
+                }
+            }
+            
+            if (data.BASIC_INFO) {
+                document.getElementById('out-mcap').innerText = data.BASIC_INFO.market_cap || '---';
+                document.getElementById('out-per').innerText = data.BASIC_INFO.per || '---';
+                document.getElementById('out-pbr').innerText = data.BASIC_INFO.pbr || '---';
+                document.getElementById('out-yield').innerText = data.BASIC_INFO.yield || '---';
+            }
+
+            // 💡 【改修】市場予想（コンセンサス）列の動的表示切替
+            const consensusLabel = (data.KPI_HEADER && data.KPI_HEADER.consensus_label) ? data.KPI_HEADER.consensus_label : '';
+            const showConsensus = consensusLabel && consensusLabel !== 'なし';
+            
+            const thConsensus = document.getElementById('out-consensus-label');
+            const thJudgment = document.getElementById('out-judgment-label'); // 判定列のヘッダー
+
+            if (showConsensus) {
+                thConsensus.innerText = consensusLabel;
+                thConsensus.style.display = '';
+                thJudgment.style.display = ''; // 比較対象があるなら判定列も出す
+            } else {
+                thConsensus.style.display = 'none';
+                thJudgment.style.display = 'none'; // 比較対象がないなら判定列も消す
+            }
+
+            const tbody = document.getElementById('out-kpi-tbody');
+            tbody.innerHTML = '';
+            let combinedReason = '';
+            Object.keys(data).filter(k => k.startsWith('KPI_') && k !== 'KPI_HEADER').sort().forEach(k => {
+                const kpi = data[k];
+                tbody.innerHTML += `<tr>
+                    <td>${kpi.display_label}</td>
+                    <td>${colorize(kpi.value)}</td>
+                    <td>${colorize(kpi.yoy)}</td>
+                    ${showConsensus ? `<td>${kpi.consensus || '---'}</td>` : ''}
+                    ${showConsensus ? `<td>${createJudgmentBadge(kpi.judgment)}</td>` : ''}
+                </tr>`;
+                if (kpi.reason) combinedReason += `<div><b>【${kpi.display_label}】</b> ${kpi.reason}</div>`;
+            });
+            document.getElementById('out-kpi-reason').innerHTML = combinedReason;
+
+            if (data.GUIDANCE) {
+                const statusStr = data.GUIDANCE.status || '---';
+                document.getElementById('out-guidance-status').innerText = statusStr;
+                const badgeEl = document.getElementById('out-guidance-status');
+                if(statusStr.match(/上方|黒字転換|増益/)) { badgeEl.style.background = 'var(--positive)'; }
+                else if(statusStr.match(/下方|赤字|減益/)) { badgeEl.style.background = 'var(--negative)'; }
+                else { badgeEl.style.background = 'var(--accent)'; }
+
+                const thCol1 = document.getElementById('out-guidance-col1');
+                const thCol2 = document.getElementById('out-guidance-col2');
+                const tdSales1 = document.getElementById('out-sales-1');
+                const tdOp1 = document.getElementById('out-op-1');
+                const tdNi1 = document.getElementById('out-ni-1');
+                const tdDiv1 = document.getElementById('out-div-1');
+
+                if (statusStr.includes('据え置き') || statusStr.includes('修正なし')) {
+                    thCol1.style.display = 'none';
+                    tdSales1.style.display = 'none';
+                    tdOp1.style.display = 'none';
+                    tdNi1.style.display = 'none';
+                    tdDiv1.style.display = 'none';
+                    thCol2.innerText = '通期予想';
+                } else {
+                    thCol1.style.display = '';
+                    tdSales1.style.display = '';
+                    tdOp1.style.display = '';
+                    tdNi1.style.display = '';
+                    tdDiv1.style.display = '';
+                    thCol1.innerText = data.GUIDANCE.col1_header || '修正前';
+                    thCol2.innerText = data.GUIDANCE.col2_header || '修正後';
+                    tdSales1.innerHTML = colorize(data.GUIDANCE.sales_1);
+                    tdOp1.innerHTML = colorize(data.GUIDANCE.op_1);
+                    tdNi1.innerHTML = colorize(data.GUIDANCE.ni_1);
+                    tdDiv1.innerText = data.GUIDANCE.div_1 || '---';
+                }
+
+                document.getElementById('out-sales-label').innerText = data.GUIDANCE.sales_label || '売上高';
+                document.getElementById('out-op-label').innerText = data.GUIDANCE.op_label || '営業利益';
+                document.getElementById('out-ni-label').innerText = data.GUIDANCE.ni_label || '純利益';
+
+                document.getElementById('out-sales-2').innerHTML = colorize(data.GUIDANCE.sales_2);
+                document.getElementById('out-op-2').innerHTML = colorize(data.GUIDANCE.op_2);
+                document.getElementById('out-ni-2').innerHTML = colorize(data.GUIDANCE.ni_2);
+                document.getElementById('out-div-2').innerHTML = colorize(data.GUIDANCE.div_2);
+
+                const sProg = data.GUIDANCE.sales_progress;
+                const oProg = data.GUIDANCE.op_progress;
+                const nProg = data.GUIDANCE.ni_progress;
+
+                document.getElementById('out-sales-prog').innerText = (sProg && sProg !== '---') ? sProg : '-';
+                document.getElementById('out-op-prog').innerText = (oProg && oProg !== '---') ? oProg : '-';
+                document.getElementById('out-ni-prog').innerText = (nProg && nProg !== '---') ? nProg : '-';
+
+                document.getElementById('out-guidance-reason').innerText = data.GUIDANCE.reason || '';
+            }
+
+            if (data.MARKET_REACTION) {
+                document.getElementById('out-pre-label').innerText = data.MARKET_REACTION.pre_price_label || '決前';
+                document.getElementById('out-pre-price').innerText = data.MARKET_REACTION.pre_price || '---';
+                document.getElementById('out-post-label').innerText = data.MARKET_REACTION.post_price_label || '決後';
+                document.getElementById('out-post-price').innerText = data.MARKET_REACTION.post_price || '---';
+                const pc = data.MARKET_REACTION.price_change || '---';
+                let formattedPc = pc;
+                if(pc !== '---' && !pc.startsWith('(')) formattedPc = `(${pc})`;
+                document.getElementById('out-price-change').innerHTML = formattedPc !== '---' ? colorize(formattedPc) : '---';
+                document.getElementById('out-reaction').innerText = data.MARKET_REACTION.reaction_summary || '---';
+            }
+
+            const ul = document.getElementById('out-next-actions');
+            ul.innerHTML = '';
+            if (data.NEXT_ACTIONS) {
+                for (let i = 1; i <= 3; i++) {
+                    if (data.NEXT_ACTIONS[`point_${i}`]) ul.innerHTML += `<li>${data.NEXT_ACTIONS[`point_${i}`]}</li>`;
+                }
+            }
+
+            const chartDataStr = (data.CHART_DATA && data.CHART_DATA.data) ? data.CHART_DATA.data : '';
+            drawAdvancedChart(chartDataStr);
+        }
+
+        function drawAdvancedChart(dataStr) {
+            const container = document.getElementById('canvas-container');
+            const canvas = document.getElementById('myChart');
+            
+            let cWidth = container.clientWidth;
+            let cHeight = container.clientHeight;
+            if (cWidth === 0) cWidth = 796; 
+            if (cHeight === 0) cHeight = 160;
+
+            canvas.width = cWidth * 2;
+            canvas.height = cHeight * 2;
+            canvas.style.width = cWidth + 'px';
+            canvas.style.height = cHeight + 'px';
+            
+            const ctx = canvas.getContext('2d');
+            ctx.scale(2, 2);
+            ctx.clearRect(0, 0, cWidth, cHeight);
+
+            if (!dataStr || dataStr.trim() === '') {
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = 'bold 14px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('時系列データが入力されていません', cWidth/2, cHeight/2);
+                return;
+            }
+
+            const chartData = [];
+            dataStr.split(';').forEach(row => {
+                if (!row) return;
+                const cols = row.split(',');
+                if (cols.length >= 5) {
+                    const d = cols[0].split('-');
+                    const dateLabel = d.length === 3 ? `${parseInt(d[1])}/${parseInt(d[2])}` : cols[0];
+                    chartData.push({
+                        date: dateLabel,
+                        open: parseFloat(cols[1]),
+                        high: parseFloat(cols[2]),
+                        low: parseFloat(cols[3]),
+                        close: parseFloat(cols[4])
+                    });
+                }
+            });
+
+            if (chartData.length === 0) return;
+
+            const paddingRight = 45; 
+            const paddingBottom = 20; 
+            const paddingTop = 10;
+            const paddingLeft = 10;
+            const chartW = cWidth - paddingLeft - paddingRight;
+            const chartH = cHeight - paddingTop - paddingBottom;
+
+            let minPrice = Infinity;
+            let maxPrice = -Infinity;
+            chartData.forEach(d => {
+                if (d.low < minPrice) minPrice = d.low;
+                if (d.high > maxPrice) maxPrice = d.high;
+            });
+
+            const paddingPrice = (maxPrice - minPrice) * 0.1;
+            minPrice = Math.floor(minPrice - paddingPrice);
+            maxPrice = Math.ceil(maxPrice + paddingPrice);
+            const midPrice = Math.round((maxPrice + minPrice) / 2);
+
+            ctx.fillStyle = '#64748b';
+            ctx.font = '11px Arial';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.strokeStyle = '#e2e8f0';
+            ctx.lineWidth = 1;
+
+            const drawYLine = (price) => {
+                const y = paddingTop + chartH - ((price - minPrice) / (maxPrice - minPrice)) * chartH;
+                ctx.beginPath();
+                ctx.moveTo(paddingLeft, y);
+                ctx.lineTo(paddingLeft + chartW, y);
+                ctx.stroke();
+                ctx.fillText(price.toLocaleString(), paddingLeft + chartW + 5, y);
+            };
+
+            drawYLine(maxPrice);
+            drawYLine(midPrice);
+            drawYLine(minPrice);
+
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            const yDate = paddingTop + chartH + 5;
+            ctx.fillText(chartData[0].date, paddingLeft + 15, yDate);
+            ctx.fillText(chartData[chartData.length-1].date, paddingLeft + chartW - 15, yDate);
+
+            const scaleY = chartH / (maxPrice - minPrice);
+            const stepX = chartW / chartData.length;
+
+            chartData.forEach((d, i) => {
+                const x = paddingLeft + (i * stepX) + (stepX / 2);
+                const yHigh = paddingTop + chartH - (d.high - minPrice) * scaleY;
+                const yLow = paddingTop + chartH - (d.low - minPrice) * scaleY;
+                const yOpen = paddingTop + chartH - (d.open - minPrice) * scaleY;
+                const yClose = paddingTop + chartH - (d.close - minPrice) * scaleY;
+
+                const isUp = d.close >= d.open;
+                const color = isUp ? '#ef4444' : '#10b981';
+
+                ctx.beginPath();
+                ctx.moveTo(x, yHigh);
+                ctx.lineTo(x, yLow);
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 1.2;
+                ctx.stroke();
+
+                const bodyTop = Math.min(yOpen, yClose);
+                const bodyHeight = Math.max(Math.abs(yOpen - yClose), 1);
+                const bodyWidth = Math.max(stepX * 0.6, 2);
+                ctx.fillStyle = color;
+                ctx.fillRect(x - bodyWidth/2, bodyTop, bodyWidth, bodyHeight);
+            });
+        }
+
+        function downloadImage() {
+            const captureArea = document.getElementById('capture-area');
+            const mobilePreviewArea = document.getElementById('mobile-preview-area');
+            const previewImg = document.getElementById('mobile-preview-img');
+            
+            window.scrollTo(0, 0); 
+
+            const canvas = document.getElementById('myChart');
+            const chartWrapper = document.getElementById('canvas-container');
+            const chartDataUrl = canvas.toDataURL('image/png');
+            
+            canvas.style.display = 'none';
+            let tempImg = document.getElementById('temp-chart-img');
+            if (!tempImg) {
+                tempImg = document.createElement('img');
+                tempImg.id = 'temp-chart-img';
+                chartWrapper.appendChild(tempImg);
+            }
+            tempImg.src = chartDataUrl;
+            tempImg.style.width = canvas.style.width;
+            tempImg.style.height = canvas.style.height;
+            tempImg.style.display = 'block';
+
+            setTimeout(() => {
+                html2canvas(captureArea, { 
+                    scale: 2, 
+                    useCORS: true,
+                    backgroundColor: "#ffffff",
+                    logging: false
+                }).then(renderedCanvas => { 
+                    const codeRaw = document.getElementById('out-code').innerText || '';
+                    const code = codeRaw.replace(/[^0-9A-Za-z]/g, '');
+                    const dateRaw = document.getElementById('out-date').innerText || '';
+                    const dateObj = dateRaw.replace(/[^0-9]/g, '');
+                    const fileName = `決算分析_${code}_${dateObj}.png`;
+
+                    const dataUrl = renderedCanvas.toDataURL('image/png');
+
+                    const link = document.createElement('a');
+                    link.download = fileName;
+                    link.href = dataUrl;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+
+                    previewImg.src = dataUrl;
+                    mobilePreviewArea.style.display = 'block';
+
+                    canvas.style.display = 'block';
+                    tempImg.style.display = 'none';
+
+                }).catch(err => {
+                    canvas.style.display = 'block';
+                    tempImg.style.display = 'none';
+                    alert("画像の生成に失敗しました。\n画面下部のプレビューが表示されていれば、そこから保存してください。");
+                });
+            }, 100);
+        }
+
+        // 初回読み込み時の設定
+        window.onload = () => {
+            setupDateSync(); 
+            
+            const dateInput = document.getElementById('p-date');
+            const today = new Date();
+            dateInput.value = today.toISOString().split('T')[0];
+            dateInput.dispatchEvent(new Event('change')); 
+            
+            renderImage();
+        };
+    </script>
+</body>
+</html>
