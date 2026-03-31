@@ -125,7 +125,7 @@
         .chart-wrapper { width: 100%; height: 160px; display: flex; align-items: center; justify-content: center; background: #ffffff; border: 1px solid var(--border); border-radius: 6px;}
         canvas { display: block; width: 100%; height: 100%; }
 
-        table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 0; }
         th, td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
         th { font-size: 12px; color: var(--text-sub); background: #f8fafc; font-weight: normal; }
         td { font-size: 15px; font-weight: bold; }
@@ -144,7 +144,7 @@
 
         .guidance-badge { font-size: 13px; padding: 4px 12px; border-radius: 4px; background: var(--accent); color: white; font-weight: bold; display: inline-block; margin-bottom: 6px;}
 
-        .reason-box { background: #eff6ff; border-left: 4px solid var(--accent); padding: 10px 14px; border-radius: 0 6px 6px 0; font-size: 13px; line-height: 1.5; margin-top: auto;}
+        .reason-box { background: #eff6ff; border-left: 4px solid var(--accent); padding: 10px 14px; border-radius: 0 6px 6px 0; font-size: 13px; line-height: 1.5; margin-top: 4px;}
         .reason-title { font-weight: bold; color: var(--accent); margin-bottom: 4px; font-size: 12px; }
 
         .market-reaction-card { background: #fff7ed; border-left: 6px solid #f97316; }
@@ -276,20 +276,22 @@
 
             <div class="announcement-row">
                 <div class="announcement-date" id="out-date"></div>
-                <div class="result-badge" id="out-result" style="display: none;"></div>
             </div>
 
             <div class="middle-zone">
                 <div class="card">
-                    <div class="section-title">📊 業績サマリーと要因</div>
+                    <div class="section-title" style="display:flex; justify-content:space-between; align-items:center;">
+                        <span>📊 業績サマリーと要因</span>
+                        <span id="out-result" style="display:none; font-size:11px; padding:2px 8px; border-radius:4px; font-weight:bold; white-space:nowrap; color:white;"></span>
+                    </div>
                     <table>
                         <thead>
                             <tr>
                                 <th></th>
                                 <th>実績</th>
-                                <th>前年比</th>
-                                <th id="out-consensus-label">市場予想</th>
-                                <th id="out-judgment-label">判定</th>
+                                <th id="out-consensus-label" style="display:none;">市場予想</th>
+                                <th id="out-rate-label">前年比</th>
+                                <th id="out-judgment-label" style="display:none;">判定</th>
                             </tr>
                         </thead>
                         <tbody id="out-kpi-tbody"></tbody>
@@ -301,14 +303,17 @@
                 </div>
 
                 <div class="card">
-                    <div class="section-title">🎯 通期予想・進捗率・株主還元</div>
-                    <div class="guidance-badge" id="out-guidance-status">---</div>
+                    <div class="section-title" style="display:flex; justify-content:space-between; align-items:center;">
+                        <span>🎯 通期予想・進捗率・株主還元</span>
+                        <span class="guidance-badge" id="out-guidance-status" style="margin-bottom:0; font-size:11px; padding:2px 8px; white-space:nowrap;">---</span>
+                    </div>
                     <table>
                         <thead>
                             <tr>
                                 <th></th>
                                 <th id="out-guidance-col1">前期実績/修正前</th>
                                 <th id="out-guidance-col2">今期予想/修正後</th>
+                                <th id="out-guidance-diff-th" style="display:none;">修正率</th>
                                 <th id="out-guidance-prog-th">進捗率</th>
                             </tr>
                         </thead>
@@ -317,24 +322,28 @@
                                 <td id="out-sales-label">売上高</td>
                                 <td id="out-sales-1">---</td>
                                 <td id="out-sales-2">---</td>
+                                <td id="out-sales-diff" style="display:none; color: var(--accent); font-weight: bold;">-</td>
                                 <td id="out-sales-prog" style="color: var(--accent); font-weight: bold;">-</td>
                             </tr>
                             <tr>
                                 <td id="out-op-label">営業利益</td>
                                 <td id="out-op-1">---</td>
                                 <td id="out-op-2">---</td>
+                                <td id="out-op-diff" style="display:none; color: var(--accent); font-weight: bold;">-</td>
                                 <td id="out-op-prog" style="color: var(--accent); font-weight: bold;">---</td>
                             </tr>
                             <tr>
                                 <td id="out-ni-label">純利益</td>
                                 <td id="out-ni-1">---</td>
                                 <td id="out-ni-2">---</td>
+                                <td id="out-ni-diff" style="display:none; color: var(--accent); font-weight: bold;">-</td>
                                 <td id="out-ni-prog" style="color: var(--accent); font-weight: bold;">---</td>
                             </tr>
                             <tr>
                                 <td>配当</td>
                                 <td id="out-div-1">---</td>
                                 <td id="out-div-2">---</td>
+                                <td id="out-div-diff" style="display:none;">-</td>
                                 <td id="out-div-prog">-</td>
                             </tr>
                         </tbody>
@@ -367,7 +376,7 @@
                 </div>
 
                 <div class="card next-actions">
-                    <div class="section-title" style="color: #92400e; border-bottom: none; margin-bottom: 4px;">🚀 今後の注目点・投資判断のポイント</div>
+                    <div class="section-title" style="color: #92400e; border-bottom-color: #fde68a;">🚀 今後の注目点・投資判断のポイント</div>
                     <ul id="out-next-actions"></ul>
                 </div>
             </div>
@@ -448,6 +457,7 @@
 
             pDate.addEventListener('change', syncDates);
             pTiming.addEventListener('change', syncDates);
+
         }
 
         function openKabutan() {
@@ -545,16 +555,30 @@
             const code = document.getElementById('p-code').value || '〇〇〇〇';
             const name = document.getElementById('p-name').value || '〇〇〇〇';
             const market = getMarket();
-            
+
             const dateStr = formatDateJP(document.getElementById('p-date').value);
             const timingStr = document.getElementById('p-timing').value;
-            
+
             const preDateStr = formatDateShort(document.getElementById('p-pre-date').value);
             const postDateStr = formatDateShort(document.getElementById('p-post-date').value);
             const isAfterHours = document.getElementById('p-post-after-hours').checked;
-            
             const postTimingStr = isAfterHours ? (market === 'jp' ? 'PTS' : '時間外') : '終値';
-            const reaction = document.getElementById('p-reaction').value || '〇〇';
+
+            const reactionRaw = document.getElementById('p-reaction').value.trim();
+            const reaction = reactionRaw || '〇〇';
+            const noPriceChange = !reactionRaw || reactionRaw.includes('変動なし') || reactionRaw.includes('横ばい') || reactionRaw.includes('ほぼ変わらず');
+
+            const stockPriceInfo = noPriceChange
+                ? `・株価の比較：${preDateStr} 終値 → ${postDateStr} ${postTimingStr}（大きな変動なし）`
+                : `・株価の比較：${preDateStr} 終値 → ${postDateStr} ${postTimingStr}\n・株価の反応：${reaction}`;
+
+            const consensusInstruction = `今回発表された決算の対象期間（例：第3四半期なら第3四半期累計、本決算なら通期）に対して、決算発表前に市場関係者が予想していた「事前コンセンサス（売上高、営業利益など）」の数値を調べてください。コンセンサスがどの決算期のものかを明記したうえで、情報源のURLも記載してください。（※今回発表した数値ではなく、発表前の市場予想です）`;
+
+            const stockReasonInstruction = noPriceChange ? `` : `\n- 実際のニュースや市場の解説記事を検索し、「なぜ株価がそのように反応したのか（例：材料出尽くし、実質上方修正など）」という理由部分。`;
+
+            const xPostElements = noPriceChange
+                ? `  ・どんな決算内容だったか（良かった点・悪かった点）\n  ・今後の注目点・投資家が注目すべきポイント\n  ・画像への誘導（例「詳細は図解で👇」など）`
+                : `  ・どんな決算内容だったか\n  ・株価がどう動いたか\n  ・なぜそのように株価が反応したのか（本質的な理由）\n  ・今後の注目点\n  ・画像への誘導（例「詳細は図解で👇」など）`;
 
             return `あなたはプロの証券アナリストです。
 以下の銘柄について、ウェブ検索機能を用いて調査し、結果をまとめてください。
@@ -562,24 +586,18 @@
 【対象銘柄】
 ・銘柄名とコード：${name} ${code}
 ・決算発表日：${dateStr} ${timingStr}
-・株価の比較：${preDateStr} 終値 → ${postDateStr} ${postTimingStr}
-・株価の反応：${reaction}
+${stockPriceInfo}
 
 【調査項目】
 1. 事前コンセンサスと株価変動の理由
-※注意：実際の決算数値の羅列、株価の騰落率の計算、全体要約、実績値との比較・評価などは一切書かないでください。以下の2点のみを簡潔に出力してください。
-- 今回の決算に対する「事前コンセンサス（売上高、営業利益など）」の数値。（情報源のURLも記載）
-- 実際のニュースや市場の解説記事を検索し、「なぜ株価がそのように反応したのか（例：材料出尽くし、実質上方修正など）」という理由部分。
+※注意：実際の決算数値の羅列、株価の騰落率の計算、全体要約、実績値との比較・評価などは一切書かないでください。以下の${noPriceChange ? '1点' : '2点'}のみを簡潔に出力してください。
+- ${consensusInstruction}${stockReasonInstruction}
 
 2. X（Twitter）投稿用テキストの作成
 - 冒頭の見出しは「【${name}（${code}）】」としてください。
 - 画像に詳細な業績数値は記載するため、投稿文に細かい数字（売上〇〇億円など）は書かないでください。
 - 以下の要素を自然な文章で、全角140文字（280バイト）程度で簡潔にまとめてください（無理な体言止めは不要です。Xの投稿として魅力的な文章にしてください）。
-  ・どんな決算内容だったか
-  ・株価がどう動いたか
-  ・なぜそのように株価が反応したのか（本質的な理由）
-  ・今後の注目点
-  ・画像への誘導（例「詳細は図解で👇」など）
+${xPostElements}
 - ハッシュタグ（#${name} #${code}）を末尾に含めてください。
 
 【出力形式の厳守】
@@ -594,16 +612,25 @@
             const code = document.getElementById('p-code').value || '〇〇〇〇';
             const name = document.getElementById('p-name').value || '〇〇〇〇';
             const market = getMarket();
-            
+
             const dateStr = formatDateJP(document.getElementById('p-date').value);
             const timingStr = document.getElementById('p-timing').value;
-            
+
             const preDateStr = formatDateShort(document.getElementById('p-pre-date').value);
             const postDateStr = formatDateShort(document.getElementById('p-post-date').value);
             const isAfterHours = document.getElementById('p-post-after-hours').checked;
-            
             const postTimingStr = isAfterHours ? (market === 'jp' ? 'PTS' : '時間外') : '終値';
-            const reaction = document.getElementById('p-reaction').value || '〇〇';
+
+            const reactionRaw = document.getElementById('p-reaction').value.trim();
+            const reaction = reactionRaw || '〇〇';
+            const noPriceChange = !reactionRaw || reactionRaw.includes('変動なし') || reactionRaw.includes('横ばい') || reactionRaw.includes('ほぼ変わらず');
+
+            const stockPriceInfo = noPriceChange
+                ? `・株価の比較：${preDateStr} 終値 → ${postDateStr} ${postTimingStr}（大きな変動なし）`
+                : `・株価の比較：${preDateStr} 終値 → ${postDateStr} ${postTimingStr}\n・株価の反応：${reaction}`;
+
+            const consensusInstructionFC = `今回発表された決算の対象期間（例：第3四半期なら第3四半期累計、本決算なら通期）に対して、決算発表前に市場関係者が予想していた「事前コンセンサス（売上高、営業利益など）」の数値を調べてください。コンセンサスがどの決算期のものかを明記したうえで、情報源のURLも記載してください。（※今回発表した数値ではなく、発表前の市場予想です）`;
+            const stockReasonInstruction = noPriceChange ? `` : `\n- 実際のニュースや市場の解説記事を検索し、「なぜ株価がそのように反応したのか（例：材料出尽くし、実質上方修正など）」という理由部分。`;
 
             return `あなたはプロの証券アナリストです。
 以下の銘柄について、ウェブ検索機能を用いて調査し、結果をまとめてください。
@@ -611,14 +638,12 @@
 【対象銘柄】
 ・銘柄名とコード：${name} ${code}
 ・決算発表日：${dateStr} ${timingStr}
-・株価の比較：${preDateStr} 終値 → ${postDateStr} ${postTimingStr}
-・株価の反応：${reaction}
+${stockPriceInfo}
 
 【調査項目】
 1. 事前コンセンサスと株価変動の理由
-※注意：実際の決算数値の羅列、株価の騰落率の計算、全体要約、実績値との比較・評価などは一切書かないでください。以下の2点のみを簡潔に出力してください。
-- 今回の決算に対する「事前コンセンサス（売上高、営業利益など）」の数値。（情報源のURLも記載）
-- 実際のニュースや市場の解説記事を検索し、「なぜ株価がそのように反応したのか（例：材料出尽くし、実質上方修正など）」という理由部分。`;
+※注意：実際の決算数値の羅列、株価の騰落率の計算、全体要約、実績値との比較・評価などは一切書かないでください。以下の${noPriceChange ? '1点' : '2点'}のみを簡潔に出力してください。
+- ${consensusInstructionFC}${stockReasonInstruction}`;
         }
 
         function copyChatGPT(btnElement) {
@@ -636,13 +661,11 @@
             copyToClipboard(prompt, btnElement, '✔ コピー完了！');
         }
 
-        // 💡 【改修】NotebookLM用プロンプト：「株式会社」の削除、コンセンサス列の切り替え指定を追加
         function copyNotebookLM(btnElement) {
             const market = getMarket();
             const preDateStr = formatDateShort(document.getElementById('p-pre-date').value);
             const postDateStr = formatDateShort(document.getElementById('p-post-date').value);
             const isAfterHours = document.getElementById('p-post-after-hours').checked;
-            
             const postTimingStr = isAfterHours ? (market === 'jp' ? 'PTS' : '時間外') : '終値';
 
             const prompt = `あなたはプロの証券アナリストであり、データ整形のエキスパートです。
@@ -651,12 +674,12 @@
 ## 重要なルール（必ず守ること）
 1. 決算資料から「主力セグメントの状況（どの事業が牽引・足かせになったか）」や「増減益の理由」「ガイダンスの背景」を深く読み取り、各項目の reason に1〜2行で簡潔に記載してください。
 2. 金額は「兆・億・万円」の単位に変換しカンマを入れてください。（例：12,345百万円 → 123億円）
-3. 【予想との比較】業績サマリー（KPI）の実績と比較する「予想数値（consensus）」は、「市場予想（コンセンサス）」があればそれを優先し、無ければ「直前の会社予想」を記載してください。どちらも不明な場合は「-」としてください。比較した対象が市場予想なら [KPI_HEADER] の consensus_label を「市場予想」、会社予想なら「会社予想」とし、どちらもない場合は「なし」と出力してください。
-4. 【コンセンサス判定】実績値と予想数値を比較し、実績が上回っていれば「クリア」、下回っていれば「未達」など、結果判定（judgment）を出力してください。予想数値がない場合は「-」としてください。
+3. 【予想との比較】業績サマリー（KPI）の実績と比較する「予想数値（consensus）」は、「市場予想（コンセンサス）」があればそれを優先し、無ければ「直前の会社予想」、それもなければ「前年同期の実績値」を記載してください。比較した対象が市場予想なら [KPI_HEADER] の consensus_label を「市場予想」、会社予想なら「会社予想」、前年同期なら「前年同期」とし、どれも不明な場合のみ「なし」と出力してください。
+4. 【コンセンサス判定】実績値と予想数値を比較し、実績が上回っていれば「クリア」、下回っていれば「未達」など、結果判定（judgment）を出力してください。予想数値がない場合は「-」としてください。前年同期比較の場合は「増収」「減収」「増益」「減益」などの表現を使ってください。
 5. 【項目名の適正化】IFRS（国際財務報告基準）などの会計基準に合わせて、項目名は決算資料で実際に使われている名称（「収益」「事業利益」など）を読み取り、[KPI_1〜3]の display_label や [GUIDANCE]の各 _label に出力してください。ただし、「親会社株主に帰属する四半期純利益」のような長すぎる名称は「純利益」や「当期純利益」など簡潔に省略してください。
-6. 【ヘッダー情報】[HEADER]の company は必ず「株式会社」を省略した名称にしてください。quarter には「〇〇年〇月期 第〇四半期」または「本決算」と決算期を記載し、result_label には決算の全体的な印象を一言（例：赤字転落、上方修正、など5文字程度）で記載してください。
-7. 【ガイダンスと進捗率】四半期決算の場合は、通期予想に対する「売上高」「営業利益」「純利益」の進捗率をそれぞれ計算し、[GUIDANCE]の sales_progress, op_progress, ni_progress に「〇〇%」と記載してください。ただし、実績または通期予想のいずれかが「赤字（マイナス）」の場合は進捗率は意味を持たないため計算せず「-」としてください。通期予想の修正がない場合は status=据え置き とし、修正がある場合は col1_header=修正前, col2_header=修正後 として新旧の数値を比較できるようにしてください。
-8. 【株価・市場反応】pre_price_label は「決算前（${preDateStr} 終値）」、post_price_label は「決算後（${postDateStr} ${postTimingStr}）」としてください。[MARKET_REACTION]の price_change には株価の変動率（例：-6.31%）のみを記載し、値幅（円）は含めないでください。
+6. 【ヘッダー情報】[HEADER]の company は必ず「株式会社」を省略した名称にしてください。quarter には「〇〇年〇月期 第〇四半期」または「本決算」と決算期を記載してください。result_label には「今回の実績」に対する端的な評価を5文字程度で記載してください。これは業績サマリー（実績）カードに表示されるラベルです。例：「過去最高益」「大幅増益」「2期連続減益」「黒字転換」「赤字転落」など、あくまでも今期の実績を表現してください。通期予想の修正状況（上方・下方修正など）は [GUIDANCE] の status に記載するため、result_label には書かないでください。business_description には、その会社が「何をしている会社か」を20〜30文字で具体的に記載してください。業種カテゴリ（「情報・通信業」「小売業」など）ではなく、主力事業・サービス・特徴が伝わる表現にしてください（例：「スマホ・光回線・金融を展開する通信大手」「国内最大手のコンビニチェーンを運営」「半導体製造装置の設計・製造・販売」）。
+7. 【ガイダンスと進捗率・前年比】四半期決算の場合は、通期予想に対する「売上高」「営業利益」「純利益」の進捗率をそれぞれ計算し、[GUIDANCE]の sales_progress, op_progress, ni_progress に「〇〇%」と記載してください。ただし、実績または通期予想のいずれかが「赤字（マイナス）」の場合は進捗率は意味を持たないため「-」としてください。本決算の場合は進捗率ではなく、来期通期予想の前年比成長率（今期最終実績との比較）を記載してください（例：+12.5%）。来期予想がない場合は「-」としてください。四半期決算で通期予想の修正がない場合は status=据え置き とし、修正がある場合は col1_header=修正前, col2_header=修正後 として新旧の数値を比較できるようにしてください。本決算の場合は col1_header=今期実績, col2_header=来期予想 としてください。また修正がある場合は、各項目の修正率（修正後÷修正前−1）を sales_rate, op_rate, ni_rate に「+〇〇%」「-〇〇%」の形式で記載してください。
+8. 【株価・市場反応】pre_price_label は「決算前（${preDateStr} 終値）」としてください。post_price_label は「決算後（${postDateStr} ${postTimingStr}）」としてください。ただし時間外（PTS）の場合は、ソース（株探など）に記載されているPTS取引の時刻も読み取り、「決算後（${postDateStr} PTS HH:MM）」の形式で記載してください。[MARKET_REACTION]の price_change には株価の変動率（例：-6.31%）のみを記載し、値幅（円）は含めないでください。株価変動率が概ね0%（変動なし）の場合は、reaction_summary に株価変動の分析は不要です。代わりに今回の決算の特徴的なポイントや主要な内容を2〜3文で簡潔に記載してください。
 9. [CHART_DATA]の data は「YYYY-MM-DD,始値,高値,安値,終値;」の形式で繋げた文字列にしてください。
 10. コードブロック（\`\`\`）は不要です。テキストのみ出力してください。
 
@@ -712,14 +735,17 @@ col2_header=
 sales_label=売上高
 sales_1=
 sales_2=
+sales_rate=
 sales_progress=
 op_label=営業利益
 op_1=
 op_2=
+op_rate=
 op_progress=
 ni_label=純利益
 ni_1=
 ni_2=
+ni_rate=
 ni_progress=
 div_1=
 div_2=
@@ -799,9 +825,9 @@ point_2=`;
                 const resultBadge = document.getElementById('out-result');
                 if (resultLabel) {
                     resultBadge.innerText = resultLabel;
-                    resultBadge.style.display = 'block';
-                    if(resultLabel.match(/上方|黒字|増益|最高/)) { resultBadge.style.background = 'var(--positive)'; }
-                    else if(resultLabel.match(/下方|赤字|減益|未達/)) { resultBadge.style.background = 'var(--negative)'; }
+                    resultBadge.style.display = 'inline-block';
+                    if(resultLabel.match(/上方|黒字|増益|最高|好調|過去最高|大幅増/)) { resultBadge.style.background = 'var(--positive)'; }
+                    else if(resultLabel.match(/下方|赤字|減益|未達|悪化|大幅減/)) { resultBadge.style.background = 'var(--negative)'; }
                     else { resultBadge.style.background = 'var(--accent)'; }
                 } else {
                     resultBadge.style.display = 'none';
@@ -815,20 +841,33 @@ point_2=`;
                 document.getElementById('out-yield').innerText = data.BASIC_INFO.yield || '---';
             }
 
-            // 💡 【改修】市場予想（コンセンサス）列の動的表示切替
+            // 列構成の決定
+            // consensus_label: 市場予想 / 会社予想 / 前年同期 / なし
             const consensusLabel = (data.KPI_HEADER && data.KPI_HEADER.consensus_label) ? data.KPI_HEADER.consensus_label : '';
             const showConsensus = consensusLabel && consensusLabel !== 'なし';
-            
-            const thConsensus = document.getElementById('out-consensus-label');
-            const thJudgment = document.getElementById('out-judgment-label'); // 判定列のヘッダー
 
+            const thConsensus = document.getElementById('out-consensus-label');
+            const thRate = document.getElementById('out-rate-label');
+            const thJudgment = document.getElementById('out-judgment-label');
+
+            // HTMLのth順: 実績 | [out-consensus-label] | [out-rate-label] | 判定
+            // 市場予想: td順= value|yoy|consensus → th3=前年比, th4=市場予想
+            // 会社予想/前年同期: td順= value|consensus|yoy → th3=比較対象, th4=乖離率or前年比
+            const isMarketConsensus = consensusLabel === '市場予想';
             if (showConsensus) {
-                thConsensus.innerText = consensusLabel;
                 thConsensus.style.display = '';
-                thJudgment.style.display = ''; // 比較対象があるなら判定列も出す
+                thJudgment.style.display = '';
+                if (isMarketConsensus) {
+                    thConsensus.innerText = '前年比';   // position3 = yoyの値
+                    thRate.innerText = '市場予想';      // position4 = consensusの値
+                } else {
+                    thConsensus.innerText = consensusLabel; // position3 = consensusの値（会社予想/前年同期）
+                    thRate.innerText = (consensusLabel === '前年同期') ? '前年比' : '乖離率'; // position4 = yoyの値
+                }
             } else {
                 thConsensus.style.display = 'none';
-                thJudgment.style.display = 'none'; // 比較対象がないなら判定列も消す
+                thJudgment.style.display = 'none';
+                thRate.innerText = '前年比';
             }
 
             const tbody = document.getElementById('out-kpi-tbody');
@@ -836,24 +875,45 @@ point_2=`;
             let combinedReason = '';
             Object.keys(data).filter(k => k.startsWith('KPI_') && k !== 'KPI_HEADER').sort().forEach(k => {
                 const kpi = data[k];
-                tbody.innerHTML += `<tr>
-                    <td>${kpi.display_label}</td>
-                    <td>${colorize(kpi.value)}</td>
-                    <td>${colorize(kpi.yoy)}</td>
-                    ${showConsensus ? `<td>${kpi.consensus || '---'}</td>` : ''}
-                    ${showConsensus ? `<td>${createJudgmentBadge(kpi.judgment)}</td>` : ''}
-                </tr>`;
+                let row;
+                if (!showConsensus) {
+                    // 比較対象なし: 実績 | 前年比
+                    row = `<td>${kpi.display_label}</td><td>${colorize(kpi.value)}</td><td>${colorize(kpi.yoy)}</td>`;
+                } else if (isMarketConsensus) {
+                    // 市場予想: 実績 | 前年比 | 市場予想 | 判定
+                    row = `<td>${kpi.display_label}</td><td>${colorize(kpi.value)}</td><td>${colorize(kpi.yoy)}</td><td>${kpi.consensus || '---'}</td><td>${createJudgmentBadge(kpi.judgment)}</td>`;
+                } else {
+                    // 会社予想/前年同期: 実績 | 比較対象 | 乖離率or前年比 | 判定
+                    row = `<td>${kpi.display_label}</td><td>${colorize(kpi.value)}</td><td>${kpi.consensus || '---'}</td><td>${colorize(kpi.yoy)}</td><td>${createJudgmentBadge(kpi.judgment)}</td>`;
+                }
+                tbody.innerHTML += `<tr>${row}</tr>`;
                 if (kpi.reason) combinedReason += `<div><b>【${kpi.display_label}】</b> ${kpi.reason}</div>`;
             });
             document.getElementById('out-kpi-reason').innerHTML = combinedReason;
 
             if (data.GUIDANCE) {
                 const statusStr = data.GUIDANCE.status || '---';
-                document.getElementById('out-guidance-status').innerText = statusStr;
                 const badgeEl = document.getElementById('out-guidance-status');
+                badgeEl.innerText = statusStr;
                 if(statusStr.match(/上方|黒字転換|増益/)) { badgeEl.style.background = 'var(--positive)'; }
                 else if(statusStr.match(/下方|赤字|減益/)) { badgeEl.style.background = 'var(--negative)'; }
                 else { badgeEl.style.background = 'var(--accent)'; }
+
+                const isAnnual = data.HEADER && data.HEADER.quarter && data.HEADER.quarter.includes('本決算');
+                const isRevision = statusStr.includes('修正') && !statusStr.includes('据え置き') && !statusStr.includes('修正なし');
+
+                // 進捗率 or 前年比 ヘッダー切替
+                document.getElementById('out-guidance-prog-th').innerText = isAnnual ? '前年比' : '進捗率';
+
+                // 修正率列の表示切替
+                const diffIds = ['out-guidance-diff-th', 'out-sales-diff', 'out-op-diff', 'out-ni-diff', 'out-div-diff'];
+                diffIds.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = isRevision ? '' : 'none'; });
+                if (isRevision) {
+                    document.getElementById('out-sales-diff').innerHTML = colorize(data.GUIDANCE.sales_rate || '-');
+                    document.getElementById('out-op-diff').innerHTML = colorize(data.GUIDANCE.op_rate || '-');
+                    document.getElementById('out-ni-diff').innerHTML = colorize(data.GUIDANCE.ni_rate || '-');
+                    document.getElementById('out-div-diff').innerText = data.GUIDANCE.div_rate || '-';
+                }
 
                 const thCol1 = document.getElementById('out-guidance-col1');
                 const thCol2 = document.getElementById('out-guidance-col2');
@@ -868,15 +928,15 @@ point_2=`;
                     tdOp1.style.display = 'none';
                     tdNi1.style.display = 'none';
                     tdDiv1.style.display = 'none';
-                    thCol2.innerText = '通期予想';
+                    thCol2.innerText = isAnnual ? '来期予想' : '通期予想';
                 } else {
                     thCol1.style.display = '';
                     tdSales1.style.display = '';
                     tdOp1.style.display = '';
                     tdNi1.style.display = '';
                     tdDiv1.style.display = '';
-                    thCol1.innerText = data.GUIDANCE.col1_header || '修正前';
-                    thCol2.innerText = data.GUIDANCE.col2_header || '修正後';
+                    thCol1.innerText = data.GUIDANCE.col1_header || (isAnnual ? '今期実績' : '修正前');
+                    thCol2.innerText = data.GUIDANCE.col2_header || (isAnnual ? '来期予想' : '修正後');
                     tdSales1.innerHTML = colorize(data.GUIDANCE.sales_1);
                     tdOp1.innerHTML = colorize(data.GUIDANCE.op_1);
                     tdNi1.innerHTML = colorize(data.GUIDANCE.ni_1);
@@ -896,9 +956,9 @@ point_2=`;
                 const oProg = data.GUIDANCE.op_progress;
                 const nProg = data.GUIDANCE.ni_progress;
 
-                document.getElementById('out-sales-prog').innerText = (sProg && sProg !== '---') ? sProg : '-';
-                document.getElementById('out-op-prog').innerText = (oProg && oProg !== '---') ? oProg : '-';
-                document.getElementById('out-ni-prog').innerText = (nProg && nProg !== '---') ? nProg : '-';
+                document.getElementById('out-sales-prog').innerHTML = (sProg && sProg !== '---') ? colorize(sProg) : '-';
+                document.getElementById('out-op-prog').innerHTML = (oProg && oProg !== '---') ? colorize(oProg) : '-';
+                document.getElementById('out-ni-prog').innerHTML = (nProg && nProg !== '---') ? colorize(nProg) : '-';
 
                 document.getElementById('out-guidance-reason').innerText = data.GUIDANCE.reason || '';
             }
@@ -986,10 +1046,25 @@ point_2=`;
                 if (d.high > maxPrice) maxPrice = d.high;
             });
 
-            const paddingPrice = (maxPrice - minPrice) * 0.1;
-            minPrice = Math.floor(minPrice - paddingPrice);
-            maxPrice = Math.ceil(maxPrice + paddingPrice);
-            const midPrice = Math.round((maxPrice + minPrice) / 2);
+            const rawRange = maxPrice - minPrice;
+
+            // 補助線の刻み幅を価格帯・変動幅に応じて決定
+            let gridStep;
+            if (rawRange <= 50) gridStep = 10;
+            else if (rawRange <= 200) gridStep = 50;
+            else if (rawRange <= 500) gridStep = 100;
+            else if (rawRange <= 2000) gridStep = 500;
+            else if (rawRange <= 5000) gridStep = 1000;
+            else if (rawRange <= 20000) gridStep = 5000;
+            else gridStep = 10000;
+
+            // gridStep 刻みで補助線範囲を決定（データ最高値の上・最安値の下に補助線が来るよう切り上げ/切り下げ）
+            const gridMin = Math.floor(minPrice / gridStep) * gridStep;
+            const gridMax = Math.ceil(maxPrice / gridStep) * gridStep;
+
+            // チャートの描画範囲をグリッド範囲に合わせ、外側に少し余白を追加
+            minPrice = gridMin - gridStep * 0.3;
+            maxPrice = gridMax + gridStep * 0.3;
 
             ctx.fillStyle = '#64748b';
             ctx.font = '11px Arial';
@@ -1007,9 +1082,9 @@ point_2=`;
                 ctx.fillText(price.toLocaleString(), paddingLeft + chartW + 5, y);
             };
 
-            drawYLine(maxPrice);
-            drawYLine(midPrice);
-            drawYLine(minPrice);
+            for (let p = gridMin; p <= gridMax; p += gridStep) {
+                drawYLine(p);
+            }
 
             ctx.textAlign = 'center';
             ctx.textBaseline = 'top';
