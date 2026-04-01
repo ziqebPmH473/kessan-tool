@@ -261,7 +261,7 @@
                     <div class="section-title">🏢 基本情報</div>
                     <div class="basic-info-grid">
                         <div class="info-box"><div class="info-label">時価総額</div><div class="info-value" id="out-mcap">---</div></div>
-                        <div class="info-box"><div class="info-label">予想PER</div><div class="info-value" id="out-per">---</div></div>
+                        <div class="info-box"><div class="info-label" id="out-per-label">予想PER</div><div class="info-value" id="out-per">---</div></div>
                         <div class="info-box"><div class="info-label">実績PBR</div><div class="info-value" id="out-pbr">---</div></div>
                         <div class="info-box"><div class="info-label">配当利回り</div><div class="info-value" id="out-yield">---</div></div>
                     </div>
@@ -302,7 +302,7 @@
                     </div>
                 </div>
 
-                <div class="card">
+                <div class="card" id="guidance-card">
                     <div class="section-title" style="display:flex; justify-content:space-between; align-items:center;">
                         <span>🎯 通期予想・進捗率・株主還元</span>
                         <span class="guidance-badge" id="out-guidance-status" style="margin-bottom:0; font-size:11px; padding:2px 8px; white-space:nowrap;">---</span>
@@ -676,7 +676,7 @@ ${stockPriceInfo}
 2. 金額は「兆・億・万円」の単位に変換しカンマを入れてください。（例：12,345百万円 → 123億円）
 2a. 【基本情報の算出】[BASIC_INFO]の各値は株探の表示値をそのまま使わず、以下の方法で算出してください。株探の現在株価（または直近終値）と決算資料の数値を使って計算します。
   - 時価総額：現在株価 × 発行済株式数。「〇〇億円」「〇〇兆〇〇億円」の形式で。
-  - 予想PER：現在株価 ÷ 今期1株当たり予想純利益（EPS）。小数点第1位まで（例：15.3倍）。
+  - PER：国内株の場合は「予想PER」として現在株価 ÷ 今期1株当たり予想純利益（EPS）、米国株の場合は「実績PER」として現在株価 ÷ 直近12ヶ月（TTM）の1株当たり純利益（EPS）で算出してください。小数点第1位まで（例：15.3倍）。
   - 実績PBR：現在株価 ÷ 直近決算時点の1株当たり純資産（BPS）。小数点第1位まで（例：2.1倍）。
   - 配当利回り：四半期決算の場合は今期予想1株配当、本決算の場合は来期予想1株配当（次期予想配当）を使って計算してください。÷ 現在株価 × 100。小数点第2位まで（例：2.35%）。来期予想配当が未定の場合は今期実績配当を使用してください。
 3. 【予想との比較】業績サマリー（KPI）の実績と比較する「予想数値（consensus）」は、「市場予想（コンセンサス）」があればそれを優先し、無ければ「直前の会社予想」、それもなければ「前年同期の実績値」を記載してください。比較した対象が市場予想なら [KPI_HEADER] の consensus_label を「市場予想」、会社予想なら「会社予想」、前年同期なら「前年同期」とし、どれも不明な場合のみ「なし」と出力してください。
@@ -700,6 +700,7 @@ result_label=
 
 [BASIC_INFO]
 market_cap=
+per_label=
 per=
 pbr=
 yield=
@@ -842,6 +843,7 @@ point_2=`;
             if (data.BASIC_INFO) {
                 document.getElementById('out-mcap').innerText = data.BASIC_INFO.market_cap || '---';
                 document.getElementById('out-per').innerText = data.BASIC_INFO.per || '---';
+                document.getElementById('out-per-label').innerText = data.BASIC_INFO.per_label || '予想PER';
                 document.getElementById('out-pbr').innerText = data.BASIC_INFO.pbr || '---';
                 document.getElementById('out-yield').innerText = data.BASIC_INFO.yield || '---';
             }
@@ -895,6 +897,11 @@ point_2=`;
                 if (kpi.reason) combinedReason += `<div><b>【${kpi.display_label}】</b> ${kpi.reason}</div>`;
             });
             document.getElementById('out-kpi-reason').innerHTML = combinedReason;
+
+            const guidanceCard = document.getElementById('guidance-card');
+            const hasGuidanceValue = v => v && v !== '-' && v !== '---';
+            const hasGuidance = data.GUIDANCE && (hasGuidanceValue(data.GUIDANCE.sales_2) || hasGuidanceValue(data.GUIDANCE.op_2) || hasGuidanceValue(data.GUIDANCE.ni_2));
+            guidanceCard.style.display = hasGuidance ? '' : 'none';
 
             if (data.GUIDANCE) {
                 const statusStr = data.GUIDANCE.status || '---';
