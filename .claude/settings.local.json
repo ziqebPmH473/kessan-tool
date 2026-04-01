@@ -10,7 +10,10 @@
       "Bash(git add:*)",
       "Bash(git remote:*)",
       "Bash(git push:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(cat /c/work/kessan_tool/.github/workflows/*.yml)",
+      "Bash(gh api:*)",
+      "Bash(git mv:*)"
     ]
   }
 }
