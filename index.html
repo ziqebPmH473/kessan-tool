@@ -186,7 +186,6 @@
             <div class="input-row">
                 <button class="btn-sub" onclick="openKabutan()">🔍 株探</button>
                 <button class="btn-sub" onclick="openIR()">🔍 IR検索</button>
-                <button class="btn-sub" onclick="copyUrls(this)">📋 URLコピー</button>
             </div>
             
             <div style="font-size: 12px; font-weight: bold; color: var(--text-sub); margin-top: 6px; border-bottom: 1px solid #ccc; padding-bottom: 2px;">▼ 決算日と株価の反応</div>
@@ -217,11 +216,19 @@
             
             <div class="input-row" style="margin-top: 8px;">
                 <button class="btn-prompt" onclick="copyChatGPT(this)">💬 ChatGPT用</button>
-                <button class="btn-prompt" onclick="copyNotebookLM(this)">📓 NotebookLM</button>
             </div>
-            <div class="input-row">
+            <div class="input-row" style="margin-top: 4px; align-items: center; justify-content: space-between;">
+                <label style="font-size:11px; color:#555; font-weight:bold;">FCレポート貼付欄</label>
+                <button class="btn-sub" onclick="pasteFactCheckReport()" style="padding: 3px 10px; font-size: 11px; flex: none; background: #e2e8f0;">📋 貼付</button>
+            </div>
+            <textarea id="fc-report" placeholder="ファクトチェック対象のレポートをここに貼り付けてください（ファクトCKボタンで末尾に自動追加されます）" style="font-size:11px; min-height:80px; margin-top:2px;"></textarea>
+            <div class="input-row" style="margin-top: 4px;">
                 <button class="btn-prompt" onclick="copyFactCheck(this)">✅ ファクトCK</button>
                 <button class="btn-prompt" onclick="copyFactCheckFix(this)">🔧 FC修正指示</button>
+            </div>
+            <div class="input-row" style="margin-top: 4px;">
+                <button class="btn-sub" onclick="copyUrls(this)">📋 URLコピー</button>
+                <button class="btn-prompt" onclick="copyNotebookLM(this)">📓 NotebookLM</button>
             </div>
         </div>
 
@@ -562,7 +569,7 @@
             const preDateStr = formatDateShort(document.getElementById('p-pre-date').value);
             const postDateStr = formatDateShort(document.getElementById('p-post-date').value);
             const isAfterHours = document.getElementById('p-post-after-hours').checked;
-            const postTimingStr = isAfterHours ? (market === 'jp' ? 'PTS' : '時間外') : '終値';
+            const postTimingStr = isAfterHours ? (market === 'jp' ? 'PTS' : '時間外') : (timingStr === '場中' ? '場中' : '終値');
 
             const reactionRaw = document.getElementById('p-reaction').value.trim();
             const reaction = reactionRaw || '〇〇';
@@ -619,7 +626,7 @@ ${xPostElements}
             const preDateStr = formatDateShort(document.getElementById('p-pre-date').value);
             const postDateStr = formatDateShort(document.getElementById('p-post-date').value);
             const isAfterHours = document.getElementById('p-post-after-hours').checked;
-            const postTimingStr = isAfterHours ? (market === 'jp' ? 'PTS' : '時間外') : '終値';
+            const postTimingStr = isAfterHours ? (market === 'jp' ? 'PTS' : '時間外') : (timingStr === '場中' ? '場中' : '終値');
 
             const reactionRaw = document.getElementById('p-reaction').value.trim();
             const reaction = reactionRaw || '〇〇';
@@ -652,8 +659,19 @@ ${stockPriceInfo}
 
         function copyFactCheck(btnElement) {
             const basePrompt = getFactCheckPrompt();
-            const factCheckAddon = `以下のレポートは、以下の指示でAIが生成したものです。\nレポートのファクトチェックを行い、誤っている個所と指示に沿っていない箇所のみを指摘してください。\n指摘は件数が多くても構わないので、すべて指摘してください。\n指摘がある場合には、指摘箇所、指摘内容、修正後内容を記載してください。\nレイアウトや出力形式に関する指摘は不要です。\n\n--指示--\n${basePrompt}\n\n--レポート--\n\n`;
+            const report = (document.getElementById('fc-report').value || '').trim();
+            const reportSection = report ? `\n\n--レポート--\n\n${report}` : `\n\n--レポート--\n\n`;
+            const factCheckAddon = `以下のレポートは、以下の指示でAIが生成したものです。\nレポートのファクトチェックを行い、誤っている個所と指示に沿っていない箇所のみを指摘してください。\n指摘は件数が多くても構わないので、すべて指摘してください。\n指摘がある場合には、指摘箇所、指摘内容、修正後内容を記載してください。\nレイアウトや出力形式に関する指摘は不要です。\n\n--指示--\n${basePrompt}${reportSection}`;
             copyToClipboard(factCheckAddon, btnElement, '✔ コピー完了！');
+        }
+
+        async function pasteFactCheckReport() {
+            try {
+                const text = await navigator.clipboard.readText();
+                document.getElementById('fc-report').value = text;
+            } catch (e) {
+                alert('クリップボードの読み取りに失敗しました。手動で貼り付けてください。');
+            }
         }
 
         function copyFactCheckFix(btnElement) {
@@ -663,10 +681,11 @@ ${stockPriceInfo}
 
         function copyNotebookLM(btnElement) {
             const market = getMarket();
+            const timingStr = document.getElementById('p-timing').value;
             const preDateStr = formatDateShort(document.getElementById('p-pre-date').value);
             const postDateStr = formatDateShort(document.getElementById('p-post-date').value);
             const isAfterHours = document.getElementById('p-post-after-hours').checked;
-            const postTimingStr = isAfterHours ? (market === 'jp' ? 'PTS' : '時間外') : '終値';
+            const postTimingStr = isAfterHours ? (market === 'jp' ? 'PTS' : '時間外') : (timingStr === '場中' ? '場中' : '終値');
 
             const prompt = `あなたはプロの証券アナリストであり、データ整形のエキスパートです。
 読み込んだソースを総合して分析し、下記の【出力フォーマット】に厳密に従ってテキストを出力してください。
@@ -684,7 +703,10 @@ ${stockPriceInfo}
 5. 【項目名の適正化】IFRS（国際財務報告基準）などの会計基準に合わせて、項目名は決算資料で実際に使われている名称（「収益」「事業利益」など）を読み取り、[KPI_1〜3]の display_label や [GUIDANCE]の各 _label に出力してください。ただし、「親会社株主に帰属する四半期純利益」のような長すぎる名称は「純利益」や「当期純利益」など簡潔に省略してください。
 6. 【ヘッダー情報】[HEADER]の company は必ず「株式会社」を省略した名称にしてください。quarter には「〇〇年〇月期 第〇四半期」または「本決算」と決算期を記載してください。result_label には「今回の実績」に対する端的な評価を5文字程度で記載してください。これは業績サマリー（実績）カードに表示されるラベルです。例：「過去最高益」「大幅増益」「2期連続減益」「黒字転換」「赤字転落」など、あくまでも今期の実績を表現してください。通期予想の修正状況（上方・下方修正など）は [GUIDANCE] の status に記載するため、result_label には書かないでください。business_description には、その会社が「何をしている会社か」を20〜30文字で具体的に記載してください。業種カテゴリ（「情報・通信業」「小売業」など）ではなく、主力事業・サービス・特徴が伝わる表現にしてください（例：「スマホ・光回線・金融を展開する通信大手」「国内最大手のコンビニチェーンを運営」「半導体製造装置の設計・製造・販売」）。
 7. 【ガイダンスと進捗率・前年比】四半期決算の場合は、通期予想に対する「売上高」「営業利益」「純利益」の進捗率をそれぞれ計算し、[GUIDANCE]の sales_progress, op_progress, ni_progress に「〇〇%」と記載してください。ただし、実績または通期予想のいずれかが「赤字（マイナス）」の場合は進捗率は意味を持たないため「-」としてください。本決算の場合は進捗率ではなく、来期通期予想の前年比成長率（今期最終実績との比較）を記載してください（例：+12.5%）。来期予想がない場合は「-」としてください。四半期決算で通期予想の修正がない場合は status=据え置き とし、修正がある場合は col1_header=修正前, col2_header=修正後 として新旧の数値を比較できるようにしてください。本決算の場合は col1_header=今期実績, col2_header=来期予想 としてください。また修正がある場合は、各項目の修正率（修正後÷修正前−1）を sales_rate, op_rate, ni_rate に「+〇〇%」「-〇〇%」の形式で記載してください。
-8. 【株価・市場反応】pre_price_label は「決算前（${preDateStr} 終値）」としてください。post_price_label は「決算後（${postDateStr} ${postTimingStr}）」としてください。ただし時間外（PTS）の場合は、ソース（株探など）に記載されているPTS取引の時刻も読み取り、「決算後（${postDateStr} PTS HH:MM）」の形式で記載してください。[MARKET_REACTION]の price_change には株価の変動率（例：-6.31%）のみを記載し、値幅（円）は含めないでください。株価変動率が概ね0%（変動なし）の場合は、reaction_summary に株価変動の分析は不要です。代わりに今回の決算の特徴的なポイントや主要な内容を2〜3文で簡潔に記載してください。
+8. 【株価・市場反応】pre_price_label は「決算前（${preDateStr} 終値）」としてください。post_price_label は「決算後（${postDateStr} ${postTimingStr}）」としてください。ただし時間外（PTS）または場中の場合は、株探等のソースに記載されている時刻を読み取り、以下の形式で記載してください。時刻は必ずHH:MM形式にしてください。
+   - 時間外（PTS）：「決算後（${postDateStr} PTS HH:MM）」
+   - 場中：「決算後（${postDateStr} 場中 HH:MM）」
+   なお、post_price_labelを決定する際の終値判定基準（株探の表示時刻がこの時刻なら終値扱い）は以下のとおりです。日本株の場合は15:30、米国株の場合は夏時間期間（3月第2日曜〜11月第1日曜）は5:00（日本時間）、冬時間は6:00（日本時間）。なお米国株の時刻は日本時間で記載してください。それ以外の時刻なら場中と判断してください。[MARKET_REACTION]の price_change には株価の変動率（例：-6.31%）のみを記載し、値幅（円）は含めないでください。株価変動率が概ね0%（変動なし）の場合は、reaction_summary に株価変動の分析は不要です。代わりに今回の決算の特徴的なポイントや主要な内容を2〜3文で簡潔に記載してください。
 9. [CHART_DATA]の data は「YYYY-MM-DD,始値,高値,安値,終値;」の形式で繋げた文字列にしてください。期間は取得できる限りの期間を出力してください。
 10. コードブロック（\`\`\`）は不要です。テキストのみ出力してください。
 
