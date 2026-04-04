@@ -13,7 +13,12 @@
       "Bash(git commit:*)",
       "Bash(cat /c/work/kessan_tool/.github/workflows/*.yml)",
       "Bash(gh api:*)",
-      "Bash(git mv:*)"
+      "Bash(git mv:*)",
+      "Bash(copy \"C:\\\\work\\\\kessan_tool\\\\index.html\" \"C:\\\\work\\\\kessan_tool\\\\index_backup_20260405.html\")",
+      "Read(//mnt/c/**)",
+      "Read(//c/work//**)",
+      "Read(//c/Users/shupc/**)",
+      "Read(//c//**)"
     ]
   }
 }

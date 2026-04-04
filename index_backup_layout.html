@@ -253,70 +253,32 @@
         /* SA グリッドレイアウト */
         #sa-grid { display: grid; gap: 14px; position: relative; z-index: 1; grid-template-columns: 1fr 1fr; }
 
-        /* ──────────────────────────────────────────────
-           基本情報ラッパー（共通）
-           ・カードスタイルはラッパーが担う
-           ・見出し（共通タイトル行）は全幅で表示
-           ・見出し右端にバッジを配置
-        ────────────────────────────────────────────── */
-        #sa-basic-wrap {
-            background: var(--card); border-radius: 12px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            padding: 14px 16px; position: relative; z-index: 1;
-            display: flex; flex-direction: column;
-        }
-        /* 共通見出し：全幅・バッジ右端 */
-        #sa-basic-title {
-            font-size: 15px; font-weight: bold; color: var(--text-sub);
-            border-bottom: 2px solid var(--border); padding-bottom: 4px; margin-bottom: 10px;
-            display: flex; justify-content: space-between; align-items: center;
-        }
-        /* コンテンツエリア（左右に分かれる部分） */
-        #sa-basic-content { display: flex; flex: 1; min-height: 0; }
-        /* 内側のカードはラッパーに任せてフラット化 */
-        #sa-card-basic-left, #sa-card-basic-right {
-            background: transparent; box-shadow: none; border-radius: 0; padding: 0;
-        }
+        /* 基本情報カード内レイアウト（モードで縦／横を切替） */
+        .sa-basic-inner { display: flex; min-width: 0; }
+        #sa-grid.mode-normal   .sa-basic-inner { flex-direction: column; gap: 8px; }
+        #sa-grid.mode-revision .sa-basic-inner { flex-direction: row; gap: 24px; align-items: flex-start; }
+        #sa-grid.mode-revision .sa-basic-prices { flex: 1; min-width: 0; }
+        #sa-grid.mode-revision .sa-basic-metrics { flex: 1; min-width: 0; }
 
-        /* ──────────────────────────────────────────────
-           非修正モード (mode-normal)
-             上段: 基本情報(統合1枚) | チャート
-             中段: なぜ | インパクト
-             下段: 注目点 | リスク
-        ────────────────────────────────────────────── */
-        #sa-grid.mode-normal #sa-basic-wrap  { grid-column: 1; grid-row: 1; }
-        #sa-grid.mode-normal #sa-card-chart  { grid-column: 2; grid-row: 1; }
-        #sa-grid.mode-normal #sa-card-naze   { grid-column: 1; grid-row: 2; }
-        #sa-grid.mode-normal #sa-card-impact { grid-column: 2; grid-row: 2; }
-        #sa-grid.mode-normal #sa-card-focus  { grid-column: 1; grid-row: 3; }
-        #sa-grid.mode-normal #sa-card-risk   { grid-column: 2; grid-row: 3; }
-        #sa-grid.mode-normal .chart-wrapper  { height: 160px; }
-        /* 縦積み: 株価・出来高 → 区切り線 → 指標 */
-        #sa-grid.mode-normal #sa-basic-content { flex-direction: column; }
-        #sa-grid.mode-normal #sa-card-basic-left {
-            padding-bottom: 10px; margin-bottom: 0px;
-        }
+        /* ── 非修正モード: 上段=基本情報|チャート、中段=なぜ|インパクト ── */
+        #sa-grid.mode-normal #sa-card-basic-merged { grid-column: 1; grid-row: 1; }
+        #sa-grid.mode-normal #sa-card-chart        { grid-column: 2; grid-row: 1; }
+        #sa-grid.mode-normal #sa-card-naze         { grid-column: 1; grid-row: 2; }
+        #sa-grid.mode-normal #sa-card-impact       { grid-column: 2; grid-row: 2; }
+        #sa-grid.mode-normal #sa-card-focus        { grid-column: 1; grid-row: 3; }
+        #sa-grid.mode-normal #sa-card-risk         { grid-column: 2; grid-row: 3; }
 
-        /* ──────────────────────────────────────────────
-           業績修正モード (mode-revision)
-             行1: 基本情報（全幅1枚・左=株価/出来高・右=指標縦中央）
-             行2-3: なぜ(左span2) | チャート(右行2) + インパクト(右行3)
-             行4: 注目点 | リスク
-        ────────────────────────────────────────────── */
-        #sa-grid.mode-revision #sa-basic-wrap  { grid-column: 1 / span 2; grid-row: 1; padding: 5px 16px; align-self: start;  }
-        #sa-grid.mode-revision #sa-card-naze   { grid-column: 1; grid-row: 2 / span 2; }
-        #sa-grid.mode-revision #sa-card-chart  { grid-column: 2; grid-row: 2; padding: 10px 16px; align-self: start; }
-        #sa-grid.mode-revision #sa-card-impact { grid-column: 2; grid-row: 3; padding: 10px 16px; align-self: start;  }
-        #sa-grid.mode-revision #sa-card-focus  { grid-column: 1; grid-row: 4; }
-        #sa-grid.mode-revision #sa-card-risk   { grid-column: 2; grid-row: 4; }
-        #sa-grid.mode-revision .chart-wrapper  { height: 250px; }
-        /* 横並び: 左=株価・出来高、右=指標（縦中央） */
-        #sa-grid.mode-revision #sa-basic-content { flex-direction: row; }
-        #sa-grid.mode-revision #sa-card-basic-left  { flex: 1; min-width: 0; }
-        #sa-grid.mode-revision #sa-card-basic-right {
-            flex: 1; min-width: 0;
-            display: flex; flex-direction: column; justify-content: center;
-        }
+        /* ── 修正モード: 上段=基本情報（全幅）、左列=なぜ×2、右列=チャート/インパクト ── */
+        #sa-grid.mode-revision #sa-card-basic-merged { grid-column: 1 / span 2; grid-row: 1; }
+        #sa-grid.mode-revision #sa-card-naze         { grid-column: 1; grid-row: 2 / span 2; }
+        #sa-grid.mode-revision #sa-card-chart        { grid-column: 2; grid-row: 2; }
+        #sa-grid.mode-revision #sa-card-impact       { grid-column: 2; grid-row: 3; }
+        #sa-grid.mode-revision #sa-card-focus        { grid-column: 1; grid-row: 4; }
+        #sa-grid.mode-revision #sa-card-risk         { grid-column: 2; grid-row: 4; }
+
+        /* チャート高さ（モード別に変更可） */
+        #sa-grid.mode-normal   .chart-wrapper { height: 185px; }
+        #sa-grid.mode-revision .chart-wrapper { height: 160px; }
 
         /* なぜ株価が動いたのか（オレンジ・市場の反応スタイル） */
         .sa-naze-card { background: #fff7ed; border-left: 6px solid #f97316; }
@@ -643,7 +605,7 @@
         <div id="capture-area-stock">
 
             <div id="watermark-stock">sumikko_money</div>
-            <div id="br-signature-stock" style="position:absolute; bottom:6px; right:12px; font-size:12px; font-weight:bold; color:#64748b; background:rgba(255,255,255,0.9); padding:6px 14px; border-radius:999px; box-shadow:0 2px 6px rgba(0,0,0,0.1); border:1px solid var(--border); z-index:10; pointer-events:none; user-select:none;">すみっこマネー大学（@sumikko_money）</div>
+            <div id="br-signature-stock" style="position:absolute; bottom:12px; right:16px; font-size:15px; font-weight:bold; color:#64748b; background:rgba(255,255,255,0.9); padding:6px 14px; border-radius:999px; box-shadow:0 2px 6px rgba(0,0,0,0.1); border:1px solid var(--border); z-index:10; pointer-events:none; user-select:none;">すみっこマネー大学（@sumikko_money）</div>
 
             <div class="header">
                 <div class="header-left">
@@ -662,64 +624,49 @@
             <!-- グリッドレイアウト -->
             <div id="sa-grid">
 
-                <!-- ① 基本情報ラッパー
-                     mode-normal  : col1/row1, 見出し全幅→縦積み(株価|指標)
-                     mode-revision: col1-2/row1, 見出し全幅→横並び(株価|指標縦中央) -->
-                <div id="sa-basic-wrap">
-
-                    <!-- 共通見出し（全幅・バッジ右端） -->
-                    <div id="sa-basic-title">
-                        🏢 基本情報
-                        <span class="sa-move-badge" id="sa-move-badge"></span>
+                <!-- ① 基本情報カード（左：株価・出来高） -->
+                <div class="card" id="sa-card-basic-left">
+                    <div class="section-title">🏢 基本情報</div>
+                    <div class="sa-price-block">
+                        <div class="sa-prow">
+                            <div></div>
+                            <div class="sa-date-lbl" id="sa-out-pre-label">変動前</div>
+                            <div></div>
+                            <div class="sa-date-lbl" id="sa-out-post-label">変動後</div>
+                            <div></div>
+                        </div>
+                        <div class="sa-prow">
+                            <div class="sa-row-cat">株価</div>
+                            <div class="sa-price-num" id="sa-out-pre-price">---</div>
+                            <div class="sa-arrow">→</div>
+                            <div style="display:flex; align-items:baseline; min-width:0;">
+                                <span class="sa-price-num" id="sa-out-post-price">---</span>
+                                <span class="sa-change-num" id="sa-out-price-change"></span>
+                            </div>
+                            <span class="sa-move-badge" id="sa-move-badge"></span>
+                        </div>
+                        <div class="sa-prow">
+                            <div class="sa-vol-cat">出来高</div>
+                            <div class="sa-vol-num" id="sa-out-pre-volume">---</div>
+                            <div class="sa-arrow" id="sa-vol-arrow">→</div>
+                            <div id="sa-out-post-volume-container">
+                                <span class="sa-vol-num" id="sa-out-post-volume"></span>
+                            </div>
+                            <span class="sa-vol-badge" id="sa-vol-badge"></span>
+                        </div>
                     </div>
+                </div>
 
-                    <!-- コンテンツエリア（左右） -->
-                    <div id="sa-basic-content">
-
-                        <!-- 左：株価・出来高 -->
-                        <div id="sa-card-basic-left">
-                            <div class="sa-price-block">
-                                <div class="sa-prow">
-                                    <div></div>
-                                    <div class="sa-date-lbl" id="sa-out-pre-label">変動前</div>
-                                    <div></div>
-                                    <div class="sa-date-lbl" id="sa-out-post-label">変動後</div>
-                                    <div></div>
-                                </div>
-                                <div class="sa-prow">
-                                    <div class="sa-row-cat">株価</div>
-                                    <div class="sa-price-num" id="sa-out-pre-price">---</div>
-                                    <div class="sa-arrow">→</div>
-                                    <div style="display:flex; align-items:baseline; min-width:0;">
-                                        <span class="sa-price-num" id="sa-out-post-price">---</span>
-                                        <span class="sa-change-num" id="sa-out-price-change"></span>
-                                    </div>
-                                </div>
-                                <div class="sa-prow">
-                                    <div class="sa-vol-cat">出来高</div>
-                                    <div class="sa-vol-num" id="sa-out-pre-volume">---</div>
-                                    <div class="sa-arrow" id="sa-vol-arrow">→</div>
-                                    <div id="sa-out-post-volume-container">
-                                        <span class="sa-vol-num" id="sa-out-post-volume"></span>
-                                    </div>
-                                    <span class="sa-vol-badge" id="sa-vol-badge"></span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 右：株価指標 -->
-                        <div id="sa-card-basic-right">
-                            <div class="sa-info-row" style="flex-wrap:wrap; gap:8px;">
-                                <div class="sa-info-box"><div class="sa-info-lbl">時価総額</div><div class="sa-info-val" id="sa-card-mcap">---</div></div>
-                                <div class="sa-info-box"><div class="sa-info-lbl" id="sa-card-per-label">予想PER</div><div class="sa-info-val" id="sa-card-per">---</div></div>
-                                <div class="sa-info-box"><div class="sa-info-lbl">実績PBR</div><div class="sa-info-val" id="sa-card-pbr">---</div></div>
-                                <div class="sa-info-box"><div class="sa-info-lbl">配当利回り</div><div class="sa-info-val" id="sa-card-yield">---</div></div>
-                            </div>
-                        </div>
-
-                    </div><!-- /#sa-basic-content -->
-
-                </div><!-- /#sa-basic-wrap -->
+                <!-- ① 基本情報カード（右：株価指標） -->
+                <div class="card" id="sa-card-basic-right">
+                    <div class="section-title">📊 株価指標</div>
+                    <div class="sa-info-row" style="flex-wrap:wrap; gap:8px;">
+                        <div class="sa-info-box"><div class="sa-info-lbl">時価総額</div><div class="sa-info-val" id="sa-card-mcap">---</div></div>
+                        <div class="sa-info-box"><div class="sa-info-lbl" id="sa-card-per-label">予想PER</div><div class="sa-info-val" id="sa-card-per">---</div></div>
+                        <div class="sa-info-box"><div class="sa-info-lbl">実績PBR</div><div class="sa-info-val" id="sa-card-pbr">---</div></div>
+                        <div class="sa-info-box"><div class="sa-info-lbl">配当利回り</div><div class="sa-info-val" id="sa-card-yield">---</div></div>
+                    </div>
+                </div>
 
                 <!-- ② チャートカード -->
                 <div class="card" id="sa-card-chart">
@@ -2033,10 +1980,7 @@ risk_3=`;
             const hasRevision = data.GUIDANCE_REVISION &&
                 (data.GUIDANCE_REVISION.sales_2 || data.GUIDANCE_REVISION.op_2 || data.GUIDANCE_REVISION.ni_2);
 
-            // 業績修正の有無でグリッドレイアウトを切替
-            const saGrid = document.getElementById('sa-grid');
-            saGrid.classList.toggle('mode-revision', !!hasRevision);
-            saGrid.classList.toggle('mode-normal',   !hasRevision);
+            // グリッドレイアウトは統一（モード切替なし）
 
             if (hasRevision) {
                 revInline.style.display   = '';
