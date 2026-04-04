@@ -33,7 +33,7 @@
         .btn-prompt { background: #475569; color: white; font-size: 13px; padding: 10px 4px; flex: 1; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s; white-space: nowrap; text-align: center;}
         .btn-prompt:hover { opacity: 0.9; }
 
-        textarea { width: 100%; height: 180px; font-family: monospace; padding: 10px; border: 1px solid #ccc; border-radius: 4px; resize: vertical; box-sizing: border-box;}
+        textarea { width: 100%; height: 120px; font-family: monospace; padding: 10px; border: 1px solid #ccc; border-radius: 4px; resize: vertical; box-sizing: border-box;}
         button.main-btn { padding: 14px; background: var(--accent); color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 15px;}
         button.main-btn:hover { opacity: 0.9; }
         .download-btn { background: var(--positive); }
@@ -239,7 +239,10 @@
             </div>
             <textarea id="input-data" placeholder="NotebookLMで整形されたテキストをここにペーストしてください"></textarea>
             <button class="main-btn" onclick="renderImage()" style="margin-bottom: 4px;">画像を生成（プレビュー反映）</button>
-            <button class="main-btn download-btn" onclick="downloadImage()">PCで画像を保存する</button>
+            <div style="display:flex; gap:6px;">
+                <button class="main-btn download-btn" style="flex:1; font-size:13px; padding:10px 4px;" onclick="downloadImage()">💾 通常保存</button>
+                <button class="main-btn" style="flex:1; background:#7c3aed; font-size:13px; padding:10px 4px;" onclick="downloadSquareImage()">▶ YouTube用</button>
+            </div>
             
             <div id="mobile-preview-area">
                 <p style="font-size:12px; color:var(--negative); font-weight:bold; margin-top:0;">※保存ダイアログが出ない場合は、下の画像を右クリック（スマホは長押し）して保存してください👇</p>
@@ -1209,6 +1212,80 @@ point_2=`;
                     canvas.style.display = 'block';
                     tempImg.style.display = 'none';
                     alert("画像の生成に失敗しました。\n画面下部のプレビューが表示されていれば、そこから保存してください。");
+                });
+            }, 100);
+        }
+
+        function downloadSquareImage() {
+            const captureArea = document.getElementById('capture-area');
+            const mobilePreviewArea = document.getElementById('mobile-preview-area');
+            const previewImg = document.getElementById('mobile-preview-img');
+
+            window.scrollTo(0, 0);
+
+            const canvas = document.getElementById('myChart');
+            const chartWrapper = document.getElementById('canvas-container');
+            const chartDataUrl = canvas.toDataURL('image/png');
+
+            canvas.style.display = 'none';
+            let tempImg = document.getElementById('temp-chart-img');
+            if (!tempImg) {
+                tempImg = document.createElement('img');
+                tempImg.id = 'temp-chart-img';
+                chartWrapper.appendChild(tempImg);
+            }
+            tempImg.src = chartDataUrl;
+            tempImg.style.width = canvas.style.width;
+            tempImg.style.height = canvas.style.height;
+            tempImg.style.display = 'block';
+
+            setTimeout(() => {
+                html2canvas(captureArea, {
+                    scale: 2,
+                    useCORS: true,
+                    backgroundColor: "#ffffff",
+                    logging: false
+                }).then(renderedCanvas => {
+                    const srcW = renderedCanvas.width;
+                    const srcH = renderedCanvas.height;
+                    const side = Math.max(srcW, srcH);
+
+                    const squareCanvas = document.createElement('canvas');
+                    squareCanvas.width = side;
+                    squareCanvas.height = side;
+                    const ctx = squareCanvas.getContext('2d');
+
+                    ctx.fillStyle = '#f8fafc';
+                    ctx.fillRect(0, 0, side, side);
+
+                    const offsetX = Math.floor((side - srcW) / 2);
+                    const offsetY = Math.floor((side - srcH) / 2);
+                    ctx.drawImage(renderedCanvas, offsetX, offsetY);
+
+                    const codeRaw = document.getElementById('out-code').innerText || '';
+                    const code = codeRaw.replace(/[^0-9A-Za-z]/g, '');
+                    const dateRaw = document.getElementById('out-date').innerText || '';
+                    const dateObj = dateRaw.replace(/[^0-9]/g, '');
+                    const fileName = `決算分析_${code}_${dateObj}_square.png`;
+
+                    const dataUrl = squareCanvas.toDataURL('image/png');
+
+                    const link = document.createElement('a');
+                    link.download = fileName;
+                    link.href = dataUrl;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+
+                    previewImg.src = dataUrl;
+                    mobilePreviewArea.style.display = 'block';
+
+                    canvas.style.display = 'block';
+                    tempImg.style.display = 'none';
+                }).catch(err => {
+                    canvas.style.display = 'block';
+                    tempImg.style.display = 'none';
+                    alert("画像の生成に失敗しました。");
                 });
             }, 100);
         }
