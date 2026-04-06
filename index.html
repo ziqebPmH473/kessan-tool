@@ -1455,10 +1455,12 @@ point_2=`;
                 if (!row.trim()) return;
                 const cols = row.split(',');
                 if (cols.length >= 5) {
-                    const d = cols[0].trim().split('-');
-                    const dateLabel = d.length === 3 ? `${parseInt(d[1])}/${parseInt(d[2])}` : cols[0].trim();
+                    const rawDate = cols[0].trim();
+                    const d = rawDate.split('-');
+                    const dateLabel = d.length === 3 ? `${parseInt(d[1])}/${parseInt(d[2])}` : rawDate;
                     const vol = cols.length >= 6 ? parseFloat(cols[5]) : NaN;
                     chartData.push({
+                        rawDate,
                         date: dateLabel,
                         open:   parseFloat(cols[1]),
                         high:   parseFloat(cols[2]),
@@ -1468,6 +1470,7 @@ point_2=`;
                     });
                 }
             });
+            chartData.sort((a, b) => a.rawDate.localeCompare(b.rawDate));
 
             if (chartData.length === 0) return;
 
