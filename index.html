@@ -1289,7 +1289,7 @@ point_2=`;
                     thRate.innerText = '市場予想';      // position4 = consensusの値
                 } else {
                     thConsensus.innerText = consensusLabel; // position3 = consensusの値（会社予想/前年同期）
-                    thRate.innerText = (consensusLabel === '前年同期') ? '前年比' : '乖離率'; // position4 = yoyの値
+                    thRate.innerText = (consensusLabel === '前年同期'||consensusLabel === '会社予想') ? '前年比' : '乖離率'; // position4 = yoyの値
                 }
             } else {
                 thConsensus.style.display = 'none';
