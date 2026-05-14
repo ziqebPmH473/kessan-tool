@@ -413,6 +413,7 @@
             <div style="display:flex; gap:6px;">
                 <button class="main-btn download-btn" style="flex:1; font-size:13px; padding:10px 4px;" onclick="downloadImage()">💾 通常保存</button>
                 <button class="main-btn" style="flex:1; background:#7c3aed; font-size:13px; padding:10px 4px;" onclick="downloadSquareImage()">▶ YouTube用</button>
+                <button class="main-btn" style="flex:1; background:#0ea5e9; font-size:13px; padding:10px 4px;" onclick="downloadWideImage()">🎬 動画用(16:9)</button>
             </div>
             
             <div id="mobile-preview-area">
@@ -487,6 +488,7 @@
             <div style="display:flex; gap:6px;">
                 <button class="main-btn download-btn" style="flex:1; font-size:13px; padding:10px 4px;" onclick="downloadImageStock()">💾 通常保存</button>
                 <button class="main-btn" style="flex:1; background:#7c3aed; font-size:13px; padding:10px 4px;" onclick="downloadSquareImageStock()">▶ YouTube用</button>
+                <button class="main-btn" style="flex:1; background:#0ea5e9; font-size:13px; padding:10px 4px;" onclick="downloadWideImageStock()">🎬 動画用(16:9)</button>
             </div>
 
             <div id="sa-mobile-preview-area" style="margin-top: 10px; display: none; background: white; padding: 10px; border-radius: 8px; border: 1px solid #ccc;">
@@ -1416,6 +1418,7 @@ point_2=`;
             }
 
             const chartDataStr = (data.CHART_DATA && data.CHART_DATA.data) ? data.CHART_DATA.data : '';
+            window._lastChartDataEarnings = chartDataStr;
             drawAdvancedChart(chartDataStr);
         }
 
@@ -1707,6 +1710,91 @@ point_2=`;
                     alert("画像の生成に失敗しました。");
                 });
             }, 100);
+        }
+
+        // 16:9動画用キャプチャ：capture-area を物理的に横に広げてレイアウトを再フロー
+        // させ、高さが 16:9 になる幅に収束させてからキャプチャする（画像の引き伸ばしではない）
+        function _captureWide16x9(areaId, chartContainerId, chartCanvasId, chartData, tempImgId, onDataUrl) {
+            const area = document.getElementById(areaId);
+            const canvas = document.getElementById(chartCanvasId);
+            const chartWrapper = document.getElementById(chartContainerId);
+
+            // 高さ×16/9 を目標幅として数回反復し、16:9 になる幅へ収束させる
+            let w = 1200;
+            area.style.width = w + 'px';
+            for (let i = 0; i < 12; i++) {
+                drawChart(chartContainerId, chartCanvasId, chartData);
+                const h = area.offsetHeight;
+                const targetW = h * 16 / 9;
+                if (Math.abs(targetW - w) < 4) break;
+                w = Math.round(targetW);
+                area.style.width = w + 'px';
+            }
+            drawChart(chartContainerId, chartCanvasId, chartData);
+
+            // 既存処理に倣い canvas を img に差し替えてからキャプチャ
+            const chartDataUrl = canvas.toDataURL('image/png');
+            canvas.style.display = 'none';
+            let tempImg = document.getElementById(tempImgId);
+            if (!tempImg) {
+                tempImg = document.createElement('img');
+                tempImg.id = tempImgId;
+                chartWrapper.appendChild(tempImg);
+            }
+            tempImg.src = chartDataUrl;
+            tempImg.style.width = canvas.style.width;
+            tempImg.style.height = canvas.style.height;
+            tempImg.style.display = 'block';
+
+            const restore = () => {
+                canvas.style.display = 'block';
+                tempImg.style.display = 'none';
+                area.style.width = '';
+                drawChart(chartContainerId, chartCanvasId, chartData);
+            };
+
+            setTimeout(() => {
+                html2canvas(area, {
+                    scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false
+                }).then(rendered => {
+                    // 厳密に 1920x1080 へ。収束後はほぼ 16:9 なので歪みなく等倍配置、
+                    // 端数のみ背景色でレターボックス
+                    const out = document.createElement('canvas');
+                    out.width = 1920;
+                    out.height = 1080;
+                    const ctx = out.getContext('2d');
+                    ctx.fillStyle = '#f8fafc';
+                    ctx.fillRect(0, 0, 1920, 1080);
+                    const scale = Math.min(1920 / rendered.width, 1080 / rendered.height);
+                    const dw = rendered.width * scale;
+                    const dh = rendered.height * scale;
+                    ctx.drawImage(rendered, Math.floor((1920 - dw) / 2), Math.floor((1080 - dh) / 2), dw, dh);
+                    restore();
+                    onDataUrl(out.toDataURL('image/png'));
+                }).catch(err => {
+                    restore();
+                    alert('画像の生成に失敗しました。');
+                });
+            }, 100);
+        }
+
+        function downloadWideImage() {
+            window.scrollTo(0, 0);
+            _captureWide16x9('capture-area', 'canvas-container', 'myChart',
+                window._lastChartDataEarnings || '', 'temp-chart-img', (dataUrl) => {
+                const codeRaw = document.getElementById('out-code').innerText || '';
+                const code = codeRaw.replace(/[^0-9A-Za-z]/g, '');
+                const dateRaw = document.getElementById('out-date').innerText || '';
+                const dateObj = dateRaw.replace(/[^0-9]/g, '');
+                const link = document.createElement('a');
+                link.download = `決算分析_${code}_${dateObj}_16x9.png`;
+                link.href = dataUrl;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                document.getElementById('mobile-preview-img').src = dataUrl;
+                document.getElementById('mobile-preview-area').style.display = 'block';
+            });
         }
 
         // =====================================================
@@ -2157,6 +2245,7 @@ risk_3=`;
             }
 
             const chartDataStr = (data.CHART_DATA && data.CHART_DATA.data) ? data.CHART_DATA.data : '';
+            window._lastChartDataStock = chartDataStr;
             drawChart('sa-canvas-container', 'saChart', chartDataStr);
         }
 
@@ -2234,6 +2323,22 @@ risk_3=`;
                 document.body.appendChild(link); link.click(); document.body.removeChild(link);
                 previewImg.src = dataUrl;
                 mobilePreviewArea.style.display = 'block';
+            });
+        }
+
+        function downloadWideImageStock() {
+            window.scrollTo(0, 0);
+            _captureWide16x9('capture-area-stock', 'sa-canvas-container', 'saChart',
+                window._lastChartDataStock || '', 'sa-temp-chart-img', (dataUrl) => {
+                const codeRaw  = document.getElementById('sa-out-code').innerText || '';
+                const code     = codeRaw.replace(/[^0-9A-Za-z]/g, '');
+                const dateObj  = (document.getElementById('sa-pre-date').value || '').replace(/-/g, '');
+                const link     = document.createElement('a');
+                link.download  = `銘柄分析_${code}_${dateObj}_16x9.png`;
+                link.href      = dataUrl;
+                document.body.appendChild(link); link.click(); document.body.removeChild(link);
+                document.getElementById('sa-mobile-preview-img').src = dataUrl;
+                document.getElementById('sa-mobile-preview-area').style.display = 'block';
             });
         }
 
