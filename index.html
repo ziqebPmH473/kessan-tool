@@ -2135,7 +2135,14 @@ reason_4=`;
 
         // ===== NotebookLMに「ソース」として読み込ませる取得データを出力（プロンプトとは別） =====
         // URLをNotebookLMに読み取らせる代わりに、取得済みの全データ（時系列株価含む）をそのまま渡す用。
-        function buildKabutanSourceText(f, code, market, extraLines) {
+        // 日付から取得済み日足の出来高を引く
+        function _volOf(f, ymd) {
+            if (!ymd || !f || !f.days) return '';
+            const r = f.days.find(x => x.date === ymd);
+            return r ? r.volume : '';
+        }
+        // move = { preLabel,preDate,prePrice,preVol, postLabel,postDate,postPrice,postVol, change }
+        function buildKabutanSourceText(f, code, market, move) {
             if (!f) return '';
             const L = [];
             L.push(`【株探 取得データ${f.name ? '：' + f.name : ''}${code ? '（' + code + '）' : ''}】`);
@@ -2149,11 +2156,14 @@ reason_4=`;
             if (f.yield) L.push(`利回り：${f.yield}`);
             if (f.business) L.push(`事業内容：${f.business}`);
             L.push('');
-            L.push('■ 株価');
-            if (f.current) L.push(`直近終値（${f.current.date}）：${f.current.close}　出来高 ${f.current.volume}`);
-            if (f.prev)    L.push(`前営業日終値（${f.prev.date}）：${f.prev.close}　出来高 ${f.prev.volume}`);
-            if (f.high && f.high.price) L.push(`取得範囲内の高値：${f.high.price}（${f.high.date}）`);
-            if (extraLines && extraLines.length) { L.push(''); extraLines.forEach(x => L.push(x)); }
+            L.push('■ 株価（変動前 → 変動後）');
+            if (move) {
+                const line = (lbl, d, p, v) => `${lbl}${d ? '（' + d + '）' : ''}：${p || '-'}${v ? '　出来高 ' + v : ''}`;
+                L.push(line(move.preLabel || '変動前',  move.preDate,  move.prePrice,  move.preVol));
+                L.push(line(move.postLabel || '変動後', move.postDate, move.postPrice, move.postVol));
+                if (move.change) L.push(`変動率：${move.change}`);
+            }
+            if (f.high && f.high.price) L.push(`（参考）取得範囲内の高値：${f.high.price}（${f.high.date}）`);
             L.push('');
             L.push('■ 日足（時系列）  列：日付,始値,高値,安値,終値,出来高');
             if (f.chartData) L.push(f.chartData.split(';').filter(Boolean).join('\n'));
@@ -2161,20 +2171,42 @@ reason_4=`;
         }
 
         function copySaSourceData(btn) {
-            if (!window._saFetched) { alert('先に「📥 自動取得」で株探データを取得してください（このボタンは再取得しません）'); return; }
+            const f = window._saFetched;
+            if (!f) { alert('先に「📥 自動取得」で株探データを取得してください（このボタンは再取得しません）'); return; }
             const code = document.getElementById('sa-code-input').value.trim();
-            copyToClipboard(buildKabutanSourceText(window._saFetched, code, getSaMarket()), btn, '✔ コピー完了！');
+            const market = getSaMarket();
+            let move;
+            if (getSaCompareMode() === 'period') {
+                // 期間・基準比較：選択した変動前/変動後の日付・株価・その日の出来高
+                const preDate  = document.getElementById('sa-pre-date-p').value;
+                const postDate = document.getElementById('sa-post-date-p').value;
+                move = {
+                    preLabel: '変動前', preDate,  prePrice: document.getElementById('sa-pre-price-input').value.trim(),  preVol: _volOf(f, preDate),
+                    postLabel: '変動後', postDate, postPrice: document.getElementById('sa-post-price-input').value.trim(), postVol: _volOf(f, postDate),
+                    change: document.getElementById('sa-change-input').value.trim() || document.getElementById('sa-basis').value.trim()
+                };
+            } else {
+                // 前営業日比較：変動前=前営業日、変動後=直近
+                move = {
+                    preLabel: '変動前(前営業日)',  preDate: f.prev && f.prev.date,    prePrice: f.prev && f.prev.close,    preVol: f.prev && f.prev.volume,
+                    postLabel: '変動後(直近)',     postDate: f.current && f.current.date, postPrice: f.current && f.current.close, postVol: f.current && f.current.volume,
+                    change: _pctFromTo(f.prev && f.prev.close, f.current && f.current.close)
+                };
+            }
+            copyToClipboard(buildKabutanSourceText(f, code, market, move), btn, '✔ コピー完了！');
         }
 
         function copyEarnSourceData(btn) {
             const ef = window._earnFetched;
             if (!ef || !ef.d) { alert('先に「📥 自動取得」で株探データを取得してください（このボタンは再取得しません）'); return; }
+            const f = ef.d;
             const code = document.getElementById('p-code').value.trim();
-            const extra = [];
-            if (ef.prePrice)  extra.push(`決算前（${formatDateShort(ef.preDate)} 終値）：${ef.prePrice}`);
-            if (ef.postPrice) extra.push(`決算後（${formatDateShort(ef.postDate)} 終値）：${ef.postPrice}`);
-            if (ef.price_change) extra.push(`株価変動率：${ef.price_change}`);
-            copyToClipboard(buildKabutanSourceText(ef.d, code, getMarket(), extra), btn, '✔ コピー完了！');
+            const move = {
+                preLabel: '決算前',  preDate: ef.preDate,  prePrice: ef.prePrice,  preVol: _volOf(f, ef.preDate),
+                postLabel: '決算後', postDate: ef.postDate, postPrice: ef.postPrice, postVol: _volOf(f, ef.postDate),
+                change: ef.price_change
+            };
+            copyToClipboard(buildKabutanSourceText(f, code, getMarket(), move), btn, '✔ コピー完了！');
         }
 
         // ===== 株探取得値の補助（変動率・反応テキスト） =====
