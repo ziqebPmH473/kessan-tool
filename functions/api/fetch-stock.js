@@ -103,15 +103,31 @@ export async function onRequest(context) {
     return json({ ok: false, reason: "米国株の自動取得は未対応です。手入力またはNotebookLMをご利用ください。" });
   }
 
+  // 日足を何ページ取得するか（1ページ≒30営業日）。?pages= で上書き可（最大24 ≒ 約2.5年）。
+  const PAGES = Math.min(24, Math.max(1, parseInt(url.searchParams.get("pages") || "6", 10) || 6));
+
   try {
-    const topUrl    = `https://kabutan.jp/stock/?code=${encodeURIComponent(code)}`;
-    const kabukaUrl = `https://kabutan.jp/stock/kabuka?code=${encodeURIComponent(code)}`;
-    const [topHtml, kabukaHtml] = await Promise.all([fetchHtml(topUrl), fetchHtml(kabukaUrl)]);
+    const topUrl = `https://kabutan.jp/stock/?code=${encodeURIComponent(code)}`;
+    const kabukaUrl = p => `https://kabutan.jp/stock/kabuka?code=${encodeURIComponent(code)}&ashi=day&page=${p}`;
+
+    // トップページ（指標）＋日足の複数ページを並列取得
+    const pageNums = Array.from({ length: PAGES }, (_, i) => i + 1);
+    const [topHtml, ...kabHtmls] = await Promise.all([
+      fetchHtml(topUrl),
+      ...pageNums.map(p => fetchHtml(kabukaUrl(p)).catch(() => "")),
+    ]);
 
     const top = parseTopPage(topHtml);
-    const kab = parseKabuka(kabukaHtml);
 
-    const rows = kab.rows;
+    // 全ページの日足行を結合し、日付で重複排除して降順に整列
+    const byDate = new Map();
+    for (const html of kabHtmls) {
+      for (const r of parseKabuka(html).rows) {
+        if (r.date && !byDate.has(r.date)) byDate.set(r.date, r);
+      }
+    }
+    const rows = Array.from(byDate.values()).sort((a, b) => (a.date < b.date ? 1 : -1));
+
     if (!rows.length && !top.name) {
       return json({ ok: false, reason: "株探ページからデータを取得できませんでした（コードをご確認ください）" });
     }
@@ -119,13 +135,16 @@ export async function onRequest(context) {
     const current = rows[0] ? { date: rows[0].date, close: rows[0].close, volume: rows[0].volume } : null;
     const prev    = rows[1] ? { date: rows[1].date, close: rows[1].close, volume: rows[1].volume } : null;
 
-    // 取得範囲内の高値（期間・基準比較の基準候補）
+    // 取得範囲内の高値（＋その日付）＝期間・基準比較の基準候補
     let high = null;
     for (const r of rows) {
       const n = toNum(r.high);
       if (n != null && (!high || n > high._n)) high = { date: r.date, price: r.high, _n: n };
     }
     if (high) delete high._n;
+
+    // 日付→株価ルックアップ用（終値・出来高）
+    const days = rows.map(r => ({ date: r.date, close: r.close, volume: r.volume }));
 
     return json({
       ok: true,
@@ -138,7 +157,9 @@ export async function onRequest(context) {
       current,
       prev,
       high,
-      source: { top: topUrl, kabuka: kabukaUrl },
+      days,
+      range: rows.length ? { newest: rows[0].date, oldest: rows[rows.length - 1].date, pages: PAGES } : null,
+      source: { top: topUrl, kabuka: kabukaUrl(1) },
     });
   } catch (e) {
     return json({ ok: false, reason: String(e && e.message ? e.message : e) });

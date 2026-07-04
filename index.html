@@ -444,16 +444,15 @@
             <div class="input-row">
                 <button class="btn-sub" onclick="openSaKabutan()">🔍 株探</button>
                 <button class="btn-sub" onclick="openSaIR()">🔍 IR検索</button>
-            </div>
-            <div class="input-row" style="margin-top:4px;">
-                <button class="btn-prompt" id="sa-fetch-btn" onclick="fetchSaFromKabutan(this)" style="width:100%; background:#0891b2;">📥 株探から自動取得（株価・出来高・時価総額）</button>
+                <button class="btn-sub" id="sa-fetch-btn" onclick="fetchSaFromKabutan(this)" style="background:#0891b2; color:#fff;">📥 自動取得</button>
             </div>
 
-            <div style="font-size: 12px; font-weight: bold; color: var(--text-sub); margin-top: 6px; border-bottom: 1px solid #ccc; padding-bottom: 2px;">▼ 株価の変動</div>
-
-            <div class="input-row" style="margin-top:4px;">
-                <label style="font-size:12px; cursor:pointer;"><input type="radio" name="sa-compare-mode" value="prevday" checked onchange="switchSaCompareMode('prevday')"> 前営業日比較</label>
-                <label style="font-size:12px; cursor:pointer; margin-left:12px;"><input type="radio" name="sa-compare-mode" value="period" onchange="switchSaCompareMode('period')"> 期間・基準比較</label>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px; border-bottom:1px solid #ccc; padding-bottom:2px;">
+                <span style="font-size:12px; font-weight:bold; color:var(--text-sub);">▼ 株価の変動</span>
+                <span style="display:flex; gap:10px;">
+                    <label style="font-size:11px; cursor:pointer;"><input type="radio" name="sa-compare-mode" value="prevday" checked onchange="switchSaCompareMode('prevday')"> 前営業日</label>
+                    <label style="font-size:11px; cursor:pointer;"><input type="radio" name="sa-compare-mode" value="period" onchange="switchSaCompareMode('period')"> 期間・基準</label>
+                </span>
             </div>
 
             <!-- 前営業日比較 -->
@@ -475,24 +474,24 @@
                 </div>
             </div>
 
-            <!-- 期間・基準比較 -->
+            <!-- 期間・基準比較（前/後/文言の骨格を前営業日比較に合わせる） -->
+            <!-- 日付を入れるとその日の株価を自動表示（株探取得済みの直近期間内のみ）／変換で期間文言＋変動率を生成 -->
             <div id="sa-mode-period" style="display:none;">
-                <div class="input-row">
-                    <input type="text" id="sa-basis" placeholder="比較基準（例: 2022年3月の最高値比 / 年初来高値比）" style="width:100%;">
-                </div>
                 <div class="input-row" style="gap:4px; flex-wrap:nowrap;">
                     <label style="font-size:12px; width:45px; font-weight:bold; color:#7c2d12;">変動前</label>
-                    <input type="text" id="sa-pre-price-input" placeholder="変動前株価" style="flex:1; min-width:0;">
+                    <input type="date" id="sa-pre-date-p" style="flex:1; min-width:0;" onchange="onSaPeriodDate('pre')">
+                    <input type="text" id="sa-pre-price-input" placeholder="株価" style="width:78px; flex:none;">
                 </div>
                 <div class="input-row" style="gap:4px; flex-wrap:nowrap;">
                     <label style="font-size:12px; width:45px; font-weight:bold; color:#7c2d12;">変動後</label>
-                    <input type="text" id="sa-post-price-input" placeholder="変動後株価" style="flex:1; min-width:0;">
-                    <button class="btn-sub" onclick="convertSaChange()" style="flex:none;">→ 変換</button>
+                    <input type="date" id="sa-post-date-p" style="flex:1; min-width:0;" onchange="onSaPeriodDate('post')">
+                    <input type="text" id="sa-post-price-input" placeholder="株価" style="width:78px; flex:none;">
+                    <button class="btn-sub" onclick="convertSaChange()" style="flex:none;">変換</button>
                 </div>
-                <div class="input-row" style="gap:4px; flex-wrap:nowrap;">
-                    <label style="font-size:12px; width:45px; font-weight:bold; color:#7c2d12;">変動率</label>
-                    <input type="text" id="sa-change-input" placeholder="変動率（例: -71%）" style="flex:1; min-width:0;">
+                <div class="input-row">
+                    <input type="text" id="sa-basis" placeholder="期間（例: 2022年3月の最高値から71% / 5ヶ月で63%）" style="width:100%;">
                 </div>
+                <input type="hidden" id="sa-change-input">
             </div>
 
             <div class="input-row" style="margin-top: 8px;">
@@ -1881,18 +1880,40 @@ point_2=`;
             if (radio) radio.checked = true;
         }
 
-        // 変動前株価・変動後株価から変動率(±%)を算出
+        const _saPprice = s => { const n = parseFloat(String(s).replace(/[,，円$¥\s　]/g, '')); return isNaN(n) ? null : n; };
+        const _saPdate  = s => { const d = new Date(String(s || '').trim()); return isNaN(d) ? null : d; };
+
+        // 入力日付から、株探取得済みの直近データ（_saFetched.days）でその日の終値を自動表示
+        function onSaPeriodDate(which) {
+            const days = (window._saFetched && window._saFetched.days) || [];
+            const dateEl  = document.getElementById(which === 'pre' ? 'sa-pre-date-p' : 'sa-post-date-p');
+            const priceEl = document.getElementById(which === 'pre' ? 'sa-pre-price-input' : 'sa-post-price-input');
+            const v = dateEl.value;
+            if (!v) return;
+            const row = days.find(r => r.date === v);
+            if (row && row.close) { priceEl.value = row.close; saveState(); }
+            // 取得範囲外の日付（例: 数年前の最高値）は株探日足に無いため手入力
+        }
+
+        // 変動前後の日付・株価から、期間文言「Nヶ月で±X%」と変動率(±%)を生成
         function convertSaChange() {
-            const pprice = s => { const n = parseFloat(String(s).replace(/[,，円$¥\s　]/g, '')); return isNaN(n) ? null : n; };
-            const pre  = pprice(document.getElementById('sa-pre-price-input').value);
-            const post = pprice(document.getElementById('sa-post-price-input').value);
+            const pre  = _saPprice(document.getElementById('sa-pre-price-input').value);
+            const post = _saPprice(document.getElementById('sa-post-price-input').value);
             if (pre == null || post == null || pre === 0) {
-                alert('変動前株価・変動後株価を数値で入力してください');
+                alert('変動前株価・変動後株価を数値で入力してください（日付を入れると株探取得済みの株価が自動表示されます）');
                 return;
             }
-            const pct = Math.round(Math.abs(post - pre) / pre * 1000) / 10; // 小数第1位
+            const pct  = Math.round(Math.abs(post - pre) / pre * 1000) / 10; // 小数第1位
             const sign = post >= pre ? '+' : '-';
-            document.getElementById('sa-change-input').value = `${sign}${pct}%`;
+            document.getElementById('sa-change-input').value = `${sign}${pct}%`; // 変動率（内部保持）
+
+            // 期間文言：両日付があれば「Nヶ月で±X%」を生成（既存の文言があっても上書き。手修正可）
+            const bd = _saPdate(document.getElementById('sa-pre-date-p').value);
+            const cd = _saPdate(document.getElementById('sa-post-date-p').value);
+            if (bd && cd) {
+                const months = Math.max(1, Math.round((cd - bd) / 86400000 / 30.44));
+                document.getElementById('sa-basis').value = `${months}ヶ月で${sign}${pct}%`;
+            }
             saveState();
         }
 
@@ -1915,21 +1936,33 @@ point_2=`;
                 const nameEl = document.getElementById('sa-name-input');
                 if (d.name && !nameEl.value.trim()) nameEl.value = d.name;
 
-                const mode = getSaCompareMode();
-                if (mode === 'prevday') {
-                    // 前営業日比較：株価入力欄が無いため確定値（_saFetched）としてNotebookLMプロンプトへ渡す
-                } else {
-                    // 期間・基準比較：変動後=直近終値、基準側=取得範囲内の高値を候補入力
-                    if (d.current && d.current.close) document.getElementById('sa-post-price-input').value = d.current.close;
-                    if (d.high && d.high.price) {
-                        document.getElementById('sa-pre-price-input').value = d.high.price;
-                        const basisEl = document.getElementById('sa-basis');
-                        if (!basisEl.value.trim()) basisEl.value = '期間内高値比';
-                    }
-                    convertSaChange();
-                }
-
                 window._saFetched = d;
+
+                const mode = getSaCompareMode();
+                if (mode === 'period') {
+                    // 期間・基準比較：
+                    //  変動後＝直近営業日（日付＋終値）を自動セット
+                    //  変動前＝未設定なら取得範囲内の高値（日付＋高値）を基準候補に。
+                    //          既にユーザーが日付を選んでいればその日の終値を反映。
+                    if (d.current && d.current.date)  document.getElementById('sa-post-date-p').value  = d.current.date;
+                    if (d.current && d.current.close) document.getElementById('sa-post-price-input').value = d.current.close;
+
+                    const preDateEl = document.getElementById('sa-pre-date-p');
+                    if (!preDateEl.value && d.high && d.high.date) {
+                        preDateEl.value = d.high.date;                                   // 高値の日付
+                        if (d.high.price) document.getElementById('sa-pre-price-input').value = d.high.price; // 高値（終値ではない）
+                    } else if (preDateEl.value) {
+                        onSaPeriodDate('pre');                                           // ユーザー選択日の終値を反映
+                    }
+
+                    // 前後が揃っていれば期間文言・変動率まで生成
+                    if (document.getElementById('sa-pre-price-input').value.trim() &&
+                        document.getElementById('sa-post-price-input').value.trim()) {
+                        try { convertSaChange(); } catch (e) {}
+                    }
+                }
+                // 前営業日比較：株価欄が無いため確定値（_saFetched）としてNotebookLMプロンプトへ渡す
+
                 saveState();
                 if (btnEl) btnEl.innerText = '✔ 取得完了';
                 setTimeout(() => { if (btnEl) { btnEl.disabled = false; btnEl.innerText = label; } }, 1500);
@@ -1946,6 +1979,7 @@ point_2=`;
             'input-data',
             'sa-input-data', 'sa-fc-report', 'sa-code-input', 'sa-name-input',
             'sa-pre-date', 'sa-post-date', 'sa-post-after-hours', 'sa-reaction',
+            'sa-pre-date-p', 'sa-post-date-p',
             'sa-basis', 'sa-pre-price-input', 'sa-post-price-input', 'sa-change-input'
         ];
         const PERSIST_RADIO_NAMES = ['sa-market', 'sa-compare-mode'];
@@ -2047,10 +2081,10 @@ point_2=`;
             const dateStr      = formatDateJP(document.getElementById('sa-post-date').value);
             const market       = getSaMarket();
             if (getSaCompareMode() === 'period') {
-                const basis  = document.getElementById('sa-basis').value.trim() || '基準時点比';
-                const change = document.getElementById('sa-change-input').value.trim();
-                const intro  = `株価が${basis}${change ? ' ' + change : ''}となった`;
-                const timingNote = `株価変動の要因は、${basis}の時点から現在までの期間で起きた出来事として説明してください（特定の1日に限定しないでください）`;
+                // sa-basis は期間文言（例「5ヶ月で-30%」「2022年3月の最高値から-71%」）で変動率を内包
+                const basis = document.getElementById('sa-basis').value.trim() || '基準時点比';
+                const intro = `株価が${basis}となった`;
+                const timingNote = `株価変動の要因は、${basis}の期間で起きた出来事として説明してください（特定の1日に限定しないでください）`;
                 return { intro, timingNote };
             }
             // 前営業日比較（従来）
@@ -2182,7 +2216,11 @@ ${name}（${code}）の${intro}理由と今後の見通しについて、
             if (getSaCompareMode() === 'period') {
                 const basis  = document.getElementById('sa-basis').value.trim() || '基準時点比';
                 const change = document.getElementById('sa-change-input').value.trim();
-                rule3 = `3. [STOCK_MOVE]のpre_price_labelは「変動前（${basis}）」、post_price_labelは「変動後（直近終値）」としてください。pre_priceには基準（${basis}）の株価、post_priceには直近終値を記載してください。price_changeには変動率（${change || '例：-71%'}）を記載してください。pre_volume・post_volumeは、期間比較のため空欄でも構いません。vol_labelは空欄にしてください。`;
+                const preD   = formatDateShort(document.getElementById('sa-pre-date-p').value);
+                const postD  = formatDateShort(document.getElementById('sa-post-date-p').value);
+                const preP   = document.getElementById('sa-pre-price-input').value.trim();
+                const postP  = document.getElementById('sa-post-price-input').value.trim();
+                rule3 = `3. [STOCK_MOVE]のpre_price_labelは「変動前（${preD || '基準時点'}）」、post_price_labelは「変動後（${postD || '直近'} 終値）」としてください。pre_priceは${preP || '基準時点の株価'}、post_priceは${postP || '直近終値'}を記載してください。price_changeには変動率（${change || basis}）を記載してください。pre_volume・post_volumeは、期間比較のため空欄でも構いません。vol_labelは空欄にしてください。`;
             } else {
                 rule3 = `3. [STOCK_MOVE]のpre_price_labelは「変動前（${preDateStr} 終値）」、post_price_labelは「変動後（${postDateStr} ${postTimingStr}）」としてください。時間外（PTS）の場合は株探等のソースに記載されている時刻を読み取り「変動後（${postDateStr} PTS HH:MM）」の形式で記載してください。price_changeには変動率（例：+12.3%）のみ記載してください。post_volumeは時間外（PTS）または時間外の場合は空欄にしてください。vol_labelは変動後の出来高が変動前と比べて著しく増加した場合（目安：2倍以上）のみ「急増」「大幅増」等と記載し、それ以外は空欄にしてください。`;
             }
