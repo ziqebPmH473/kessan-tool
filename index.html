@@ -1961,8 +1961,13 @@ point_2=`;
                         document.getElementById('sa-post-price-input').value.trim()) {
                         try { convertSaChange(); } catch (e) {}
                     }
+                } else {
+                    // 前営業日比較：株価の反応（sa-reaction）を符号なし「X%上昇/下落」で補完（空欄のみ）。
+                    // 株価の確定値は _saFetched としてNotebookLMプロンプトへ渡す
+                    const reactEl = document.getElementById('sa-reaction');
+                    const reactPhrase = _reactionPhrase(d.prev && d.prev.close, d.current && d.current.close);
+                    if (reactPhrase && !reactEl.value.trim()) reactEl.value = reactPhrase;
                 }
-                // 前営業日比較：株価欄が無いため確定値（_saFetched）としてNotebookLMプロンプトへ渡す
 
                 // 取得値をデータ入力欄へ書き出し（空欄のみ補完、空ならひな形生成）→ 画像へ反映
                 applySaFetchedToData();
@@ -1984,6 +1989,13 @@ point_2=`;
             if (na == null || nb == null || na === 0) return '';
             const pct = Math.round(Math.abs(nb - na) / na * 1000) / 10;
             return `${nb >= na ? '+' : '-'}${pct}%`;
+        };
+        // 株価の反応テキスト：符号は付けず「X%上昇 / X%下落」（例: 1.4%上昇）
+        const _reactionPhrase = (a, b) => {
+            const na = _saPprice(a), nb = _saPprice(b);
+            if (na == null || nb == null || na === 0) return '';
+            const pct = Math.round(Math.abs(nb - na) / na * 1000) / 10;
+            return `${pct}%${nb >= na ? '上昇' : '下落'}`;
         };
 
         // 既存テキストの「空欄の key=」だけを埋める（section を見て対象を限定）。'---' '-' も空欄扱い
@@ -2127,12 +2139,10 @@ reason_4=`;
                 const postPrice = closeOf(postDate) || (d.current && d.current.close) || '';
                 const pc = _pctFromTo(prePrice, postPrice);
 
-                // 株価の反応（空欄のときのみ補完）
+                // 株価の反応（空欄のときのみ補完）：符号なし「X%上昇/下落」
                 const reactEl = document.getElementById('p-reaction');
-                if (pc && !reactEl.value.trim()) {
-                    const dir = pc.startsWith('-') ? '下落した' : '上昇した';
-                    reactEl.value = `${pc}${dir}`;
-                }
+                const reactPhrase = _reactionPhrase(prePrice, postPrice);
+                if (reactPhrase && !reactEl.value.trim()) reactEl.value = reactPhrase;
 
                 // データ入力欄へ反映（空欄補完 or ひな形）
                 const F = { HEADER: {}, BASIC_INFO: {}, CHART_DATA: {}, MARKET_REACTION: {} };
