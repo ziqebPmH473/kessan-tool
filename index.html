@@ -2016,7 +2016,7 @@ point_2=`;
             const label = btnEl ? btnEl.innerText : '';
             if (btnEl) { btnEl.disabled = true; btnEl.innerText = '取得中…'; }
             try {
-                const res = await fetch(`/api/fetch-stock?code=${encodeURIComponent(code)}&market=jp`);
+                const res = await fetch(`/api/fetch-stock?code=${encodeURIComponent(code)}&market=${getMarket()}`);
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const d = await res.json();
                 if (!d || !d.ok) throw new Error((d && d.reason) || '取得に失敗しました');

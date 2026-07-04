@@ -85,6 +85,41 @@ function parseKabuka(html) {
   return out;
 }
 
+// --- 米国株（us.kabutan.jp）トップページ：会社名・PER・PBR・利回り・時価総額 ---
+function parseTopPageUs(html) {
+  const out = {};
+  const nm = html.match(/og:title['"]?\s*content=['"]([^'"【]+)/);
+  if (nm) out.name = nm[1].trim();
+  const mc = html.match(/時価総額<\/span>\s*<span[^>]*>([^<]+)<\/span>/);
+  if (mc) out.marketCap = cellText(mc[1]);
+  const per = html.match(/>PER<\/div>\s*<div[^>]*>([\d.,]+)\s*<span/);
+  if (per) out.per = per[1] + "倍";
+  const pbr = html.match(/>PBR<\/div>\s*<div[^>]*>([\d.,]+)\s*<span/);
+  if (pbr) out.pbr = pbr[1] + "倍";
+  const yld = html.match(/配当利回り<\/[^>]+>\s*<[^>]*>([\d.]+)\s*[%％]/);
+  if (yld) out.yield = yld[1] + "%";
+  return out;
+}
+
+// --- 米国株 日足ページ：ページ全体の <tr>（8列, 日付=YY/MM/DD）を走査 ---
+// 列: 日付, 始値, 高値, 安値, 終値, 前日比, 前日比%, 売買高(株)
+function parseKabukaUs(html) {
+  const out = { rows: [] };
+  const seen = new Set();
+  const trs = html.match(/<tr[^>]*>[\s\S]*?<\/tr>/g) || [];
+  for (const tr of trs) {
+    const tds = (tr.match(/<td[\s\S]*?<\/td>/g) || []).map(cellText);
+    if (tds.length < 8) continue;
+    const m = (tds[0] || "").match(/(\d{2})\/(\d{2})\/(\d{2})/);
+    if (!m) continue;
+    const date = `20${m[1]}-${m[2]}-${m[3]}`;
+    if (seen.has(date)) continue;
+    seen.add(date);
+    out.rows.push({ date, open: tds[1], high: tds[2], low: tds[3], close: tds[4], volume: tds[7] });
+  }
+  return out;
+}
+
 export async function onRequest(context) {
   const url = new URL(context.request.url);
   const code = (url.searchParams.get("code") || "").trim();
@@ -98,17 +133,21 @@ export async function onRequest(context) {
   const json = (obj, status = 200) => new Response(JSON.stringify(obj), { status, headers: cors });
 
   if (!code) return json({ ok: false, reason: "証券コードが指定されていません" }, 400);
-  if (market === "us") {
-    // 米国株は構造が異なるため現時点は未対応（手入力／NotebookLMにフォールバック）
-    return json({ ok: false, reason: "米国株の自動取得は未対応です。手入力またはNotebookLMをご利用ください。" });
-  }
+  const isUs = market === "us";
 
   // 日足を何ページ取得するか（1ページ≒30営業日）。?pages= で上書き可（最大24 ≒ 約2.5年）。
   const PAGES = Math.min(24, Math.max(1, parseInt(url.searchParams.get("pages") || "6", 10) || 6));
 
   try {
-    const topUrl = `https://kabutan.jp/stock/?code=${encodeURIComponent(code)}`;
-    const kabukaUrl = p => `https://kabutan.jp/stock/kabuka?code=${encodeURIComponent(code)}&ashi=day&page=${p}`;
+    // 国内株 / 米国株でURL・パーサを切り替え
+    const topUrl = isUs
+      ? `https://us.kabutan.jp/stocks/${encodeURIComponent(code)}`
+      : `https://kabutan.jp/stock/?code=${encodeURIComponent(code)}`;
+    const kabukaUrl = isUs
+      ? p => `https://us.kabutan.jp/stocks/${encodeURIComponent(code)}/historical_prices/daily?page=${p}`
+      : p => `https://kabutan.jp/stock/kabuka?code=${encodeURIComponent(code)}&ashi=day&page=${p}`;
+    const parseTop    = isUs ? parseTopPageUs : parseTopPage;
+    const parseDaily  = isUs ? parseKabukaUs  : parseKabuka;
 
     // トップページ（指標）＋日足の複数ページを並列取得
     const pageNums = Array.from({ length: PAGES }, (_, i) => i + 1);
@@ -117,12 +156,12 @@ export async function onRequest(context) {
       ...pageNums.map(p => fetchHtml(kabukaUrl(p)).catch(() => "")),
     ]);
 
-    const top = parseTopPage(topHtml);
+    const top = parseTop(topHtml);
 
     // 全ページの日足行を結合し、日付で重複排除して降順に整列
     const byDate = new Map();
     for (const html of kabHtmls) {
-      for (const r of parseKabuka(html).rows) {
+      for (const r of parseDaily(html).rows) {
         if (r.date && !byDate.has(r.date)) byDate.set(r.date, r);
       }
     }
