@@ -21,20 +21,20 @@
         
         .control-panel { width: 380px; display: flex; flex-direction: column; gap: 12px; flex-shrink: 0; }
         
-        .tool-section { background: #f8fafc; padding: 14px 16px; border-radius: 8px; border: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .section-heading { font-size: 15px; font-weight: bold; color: var(--text-main); margin-bottom: 2px; border-bottom: 2px solid var(--accent); padding-bottom: 4px; display: inline-block; }
+        .tool-section { background: #f8fafc; padding: 9px 13px; border-radius: 8px; border: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .section-heading { font-size: 14px; font-weight: bold; color: var(--text-main); margin-bottom: 0; border-bottom: 2px solid var(--accent); padding-bottom: 4px; display: inline-block; }
         
         .input-row { display: flex; gap: 8px; align-items: center;}
         .input-row input[type="text"], .input-row input[type="date"], .input-row select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; font-family: inherit; box-sizing: border-box; }
         
-        .btn-sub { background: #e2e8f0; color: #475569; font-size: 13px; padding: 8px 6px; flex: 1; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s; white-space: nowrap;}
+        .btn-sub { background: #e2e8f0; color: #475569; font-size: 13px; padding: 5px 6px; flex: 1; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s; white-space: nowrap;}
         .btn-sub:hover { background: #cbd5e1; }
         
-        .btn-prompt { background: #475569; color: white; font-size: 13px; padding: 10px 4px; flex: 1; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s; white-space: nowrap; text-align: center;}
+        .btn-prompt { background: #475569; color: white; font-size: 13px; padding: 6px 4px; flex: 1; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s; white-space: nowrap; text-align: center;}
         .btn-prompt:hover { opacity: 0.9; }
 
-        textarea { width: 100%; height: 120px; font-family: monospace; padding: 10px; border: 1px solid #ccc; border-radius: 4px; resize: vertical; box-sizing: border-box;}
-        button.main-btn { padding: 14px; background: var(--accent); color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 15px;}
+        textarea { width: 100%; height: 88px; font-family: monospace; padding: 8px; border: 1px solid #ccc; border-radius: 4px; resize: vertical; box-sizing: border-box;}
+        button.main-btn { padding: 9px; background: var(--accent); color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 15px;}
         button.main-btn:hover { opacity: 0.9; }
         .download-btn { background: var(--positive); }
 
@@ -346,8 +346,11 @@
 
         <div id="mode-earnings">
         <div class="tool-section">
-            <div class="section-heading">1. 情報収集 ＆ AIプロンプト生成</div>
-            
+            <div class="section-heading" style="display:flex; justify-content:space-between; align-items:center; border-bottom:none; padding-bottom:0;">
+                <span style="border-bottom:2px solid var(--accent); padding-bottom:4px;">1. 情報収集 ＆ AIプロンプト生成</span>
+                <button class="btn-sub" onclick="clearEarnInputs()" style="padding:4px 12px; font-size:11px; flex:none; background:#fee2e2; color:#b91c1c;">🗑 クリア</button>
+            </div>
+
             <div class="input-row" style="margin-bottom: 4px;">
                 <label style="font-size:13px; cursor:pointer;"><input type="radio" name="p-market" value="jp" checked> 国内株</label>
                 <label style="font-size:13px; cursor:pointer; margin-left:12px;"><input type="radio" name="p-market" value="us"> 米国株</label>
@@ -397,7 +400,7 @@
                 <label style="font-size:11px; color:#555; font-weight:bold;">FCレポート貼付欄</label>
                 <button class="btn-sub" onclick="pasteFactCheckReport()" style="padding: 3px 10px; font-size: 11px; flex: none; background: #e2e8f0;">📋 貼付</button>
             </div>
-            <textarea id="fc-report" placeholder="ファクトチェック対象のレポートをここに貼り付けてください（ファクトCKボタンで末尾に自動追加されます）" style="font-size:11px; min-height:80px; margin-top:2px;"></textarea>
+            <textarea id="fc-report" placeholder="ファクトチェック対象のレポートをここに貼り付けてください（ファクトCKボタンで末尾に自動追加されます）" style="font-size:11px; height:52px; min-height:40px; margin-top:2px;"></textarea>
             <div class="input-row" style="margin-top: 4px;">
                 <button class="btn-prompt" onclick="copyFactCheck(this)">✅ ファクトCK</button>
                 <button class="btn-prompt" onclick="copyFactCheckFix(this)">🔧 FC修正指示</button>
@@ -414,10 +417,7 @@
         <div class="tool-section">
             <div class="section-heading" style="display: flex; justify-content: space-between; border-bottom: none; padding-bottom: 0; align-items:center;">
                 <span style="border-bottom: 2px solid var(--accent); padding-bottom: 4px;">2. データ入力 ＆ 画像生成</span>
-                <span style="display:flex; gap:6px;">
-                    <button class="btn-sub" onclick="pasteFromClipboard()" style="padding: 4px 12px; font-size: 11px; flex: none; background: #e2e8f0;">📋 貼付</button>
-                    <button class="btn-sub" onclick="clearEarnInputs()" style="padding: 4px 12px; font-size: 11px; flex: none; background: #fee2e2; color:#b91c1c;">🗑 クリア</button>
-                </span>
+                <button class="btn-sub" onclick="pasteFromClipboard()" style="padding: 4px 12px; font-size: 11px; flex: none; background: #e2e8f0;">📋 貼付</button>
             </div>
             <textarea id="input-data" placeholder="NotebookLMで整形されたテキストをここにペーストしてください"></textarea>
             <button class="btn-sub" onclick="complementEarnData()" style="width:100%; margin-bottom:4px; background:#0891b2; color:#fff;">📋 取得データで補完（空欄を埋める・再取得なし）</button>
@@ -437,7 +437,10 @@
 
         <div id="mode-stock" style="display:none;">
         <div class="tool-section">
-            <div class="section-heading">1. 情報収集 ＆ AIプロンプト生成</div>
+            <div class="section-heading" style="display:flex; justify-content:space-between; align-items:center; border-bottom:none; padding-bottom:0;">
+                <span style="border-bottom:2px solid var(--accent); padding-bottom:4px;">1. 情報収集 ＆ AIプロンプト生成</span>
+                <button class="btn-sub" onclick="clearSaInputs()" style="padding:4px 12px; font-size:11px; flex:none; background:#fee2e2; color:#b91c1c;">🗑 クリア</button>
+            </div>
 
             <div class="input-row" style="margin-bottom: 4px;">
                 <label style="font-size:13px; cursor:pointer;"><input type="radio" name="sa-market" value="jp" checked> 国内株</label>
@@ -509,7 +512,7 @@
                 <label style="font-size:11px; color:#555; font-weight:bold;">FCレポート貼付欄</label>
                 <button class="btn-sub" onclick="pasteSaFactCheckReport()" style="padding: 3px 10px; font-size: 11px; flex: none; background: #e2e8f0;">📋 貼付</button>
             </div>
-            <textarea id="sa-fc-report" placeholder="ファクトチェック対象のレポートをここに貼り付けてください（ファクトCKボタンで末尾に自動追加されます）" style="font-size:11px; min-height:80px; margin-top:2px;"></textarea>
+            <textarea id="sa-fc-report" placeholder="ファクトチェック対象のレポートをここに貼り付けてください（ファクトCKボタンで末尾に自動追加されます）" style="font-size:11px; height:52px; min-height:40px; margin-top:2px;"></textarea>
             <div class="input-row" style="margin-top: 4px;">
                 <button class="btn-prompt" onclick="copySaFactCheck(this)">✅ ファクトCK</button>
                 <button class="btn-prompt" onclick="copySaFactCheckFix(this)">🔧 FC修正指示</button>
@@ -526,10 +529,7 @@
         <div class="tool-section">
             <div class="section-heading" style="display: flex; justify-content: space-between; border-bottom: none; padding-bottom: 0; align-items:center;">
                 <span style="border-bottom: 2px solid var(--accent); padding-bottom: 4px;">2. データ入力 ＆ 画像生成</span>
-                <span style="display:flex; gap:6px;">
-                    <button class="btn-sub" onclick="pasteSaFromClipboard()" style="padding: 4px 12px; font-size: 11px; flex: none; background: #e2e8f0;">📋 貼付</button>
-                    <button class="btn-sub" onclick="clearSaInputs()" style="padding: 4px 12px; font-size: 11px; flex: none; background: #fee2e2; color:#b91c1c;">🗑 クリア</button>
-                </span>
+                <button class="btn-sub" onclick="pasteSaFromClipboard()" style="padding: 4px 12px; font-size: 11px; flex: none; background: #e2e8f0;">📋 貼付</button>
             </div>
             <textarea id="sa-input-data" placeholder="NotebookLMで整形されたテキストをここにペーストしてください"></textarea>
             <button class="btn-sub" onclick="complementSaData()" style="width:100%; margin-bottom:4px; background:#0891b2; color:#fff;">📋 取得データで補完（空欄を埋める・再取得なし）</button>
