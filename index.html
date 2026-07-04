@@ -414,7 +414,10 @@
         <div class="tool-section">
             <div class="section-heading" style="display: flex; justify-content: space-between; border-bottom: none; padding-bottom: 0; align-items:center;">
                 <span style="border-bottom: 2px solid var(--accent); padding-bottom: 4px;">2. データ入力 ＆ 画像生成</span>
-                <button class="btn-sub" onclick="pasteFromClipboard()" style="padding: 4px 12px; font-size: 11px; flex: none; background: #e2e8f0;">📋 貼付</button>
+                <span style="display:flex; gap:6px;">
+                    <button class="btn-sub" onclick="pasteFromClipboard()" style="padding: 4px 12px; font-size: 11px; flex: none; background: #e2e8f0;">📋 貼付</button>
+                    <button class="btn-sub" onclick="clearEarnInputs()" style="padding: 4px 12px; font-size: 11px; flex: none; background: #fee2e2; color:#b91c1c;">🗑 クリア</button>
+                </span>
             </div>
             <textarea id="input-data" placeholder="NotebookLMで整形されたテキストをここにペーストしてください"></textarea>
             <button class="btn-sub" onclick="complementEarnData()" style="width:100%; margin-bottom:4px; background:#0891b2; color:#fff;">📋 取得データで補完（空欄を埋める・再取得なし）</button>
@@ -2376,12 +2379,29 @@ reason_4=`;
         }
 
         function clearSaInputs() {
-            if (!confirm('個別銘柄分析の入力内容をクリアします。よろしいですか？')) return;
+            if (!confirm('個別銘柄分析の入力をすべてクリアして、新しい銘柄の分析を始めます。よろしいですか？')) return;
             ['sa-input-data', 'sa-fc-report', 'sa-code-input', 'sa-name-input',
-             'sa-reaction', 'sa-basis', 'sa-pre-price-input', 'sa-post-price-input', 'sa-change-input']
+             'sa-reaction', 'sa-basis', 'sa-pre-price-input', 'sa-post-price-input', 'sa-change-input',
+             'sa-pre-date-p', 'sa-post-date-p']
                 .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+            const ah = document.getElementById('sa-post-after-hours'); if (ah) ah.checked = false;
             window._saFetched = null;
+            initSaDates();                 // 変動前/変動後の日付を既定（前営業日・直近）に戻す
             saveState();
+            renderImageStock();            // プレビューを空表示に更新
+        }
+
+        function clearEarnInputs() {
+            if (!confirm('決算分析の入力をすべてクリアして、新しい銘柄の分析を始めます。よろしいですか？')) return;
+            ['input-data', 'p-code', 'p-name', 'p-reaction']
+                .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+            const ah = document.getElementById('p-post-after-hours'); if (ah) ah.checked = true;  // 決算は既定ON
+            window._earnFetched = null;
+            // 決算日を今日に戻し、決算前後の日付を再設定（setupDateSync の連動を利用）
+            const p = document.getElementById('p-date');
+            if (p) { const t = new Date(); p.value = t.toISOString().split('T')[0]; p.dispatchEvent(new Event('change')); }
+            saveState();
+            renderImage();                 // プレビューを空表示に更新
         }
 
         function openSaKabutan() {
