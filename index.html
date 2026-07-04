@@ -1971,9 +1971,10 @@ point_2=`;
                     }
                 } else {
                     // 前営業日比較：株価の反応（sa-reaction）を符号なし「X%上昇/下落」で補完（空欄のみ）。
-                    // 株価の確定値は _saFetched としてNotebookLMプロンプトへ渡す
+                    // 時間外(PTS)チェックONなら変動後をPTS価格で反応計算。
                     const reactEl = document.getElementById('sa-reaction');
-                    const reactPhrase = _reactionPhrase(d.prev && d.prev.close, d.current && d.current.close);
+                    const eff = _effPost(d, document.getElementById('sa-post-after-hours').checked);
+                    const reactPhrase = _reactionPhrase(d.prev && d.prev.close, eff.price);
                     if (reactPhrase && !reactEl.value.trim()) reactEl.value = reactPhrase;
                 }
 
@@ -2037,12 +2038,14 @@ point_2=`;
                     if (f.prev.volume) F.STOCK_MOVE.pre_volume = f.prev.volume;
                     if (f.prev.date)   F.STOCK_MOVE.pre_price_label = `変動前（${formatDateShort(f.prev.date)} 終値）`;
                 }
-                if (f.current) {
-                    if (f.current.close)  F.STOCK_MOVE.post_price = f.current.close;
-                    if (f.current.volume) F.STOCK_MOVE.post_volume = f.current.volume;
-                    if (f.current.date)   F.STOCK_MOVE.post_price_label = `変動後（${formatDateShort(f.current.date)} 終値）`;
-                }
-                const pc = _pctFromTo(f.prev && f.prev.close, f.current && f.current.close);
+                // 変動後：時間外(PTS)チェックONならPTS価格（出来高は空欄）
+                const eff = _effPost(f, document.getElementById('sa-post-after-hours').checked);
+                if (eff.price)  F.STOCK_MOVE.post_price = eff.price;
+                if (eff.volume) F.STOCK_MOVE.post_volume = eff.volume;
+                F.STOCK_MOVE.post_price_label = eff.isPts
+                    ? `変動後（${eff.dateLabel} PTS）`
+                    : `変動後（${formatDateShort(f.current && f.current.date)} 終値）`;
+                const pc = _pctFromTo(f.prev && f.prev.close, eff.price);
                 if (pc) F.STOCK_MOVE.price_change = pc;
             }
             return F;
@@ -2123,8 +2126,11 @@ reason_4=`;
             if (d.chartData) F.CHART_DATA.data = d.chartData;
             if (ef.prePrice)  F.MARKET_REACTION.pre_price = ef.prePrice;
             if (ef.postPrice) F.MARKET_REACTION.post_price = ef.postPrice;
+            if (ef.postVol)   F.MARKET_REACTION.post_volume = ef.postVol;   // PTSは空欄
             if (ef.preDate)   F.MARKET_REACTION.pre_price_label  = `決算前（${formatDateShort(ef.preDate)} 終値）`;
-            if (ef.postDate)  F.MARKET_REACTION.post_price_label = `決算後（${formatDateShort(ef.postDate)} ${document.getElementById('p-post-after-hours').checked ? (getMarket()==='jp'?'PTS':'時間外') : '終値'}）`;
+            if (ef.postDate)  F.MARKET_REACTION.post_price_label = ef.usePts
+                ? `決算後（${formatDateShort(ef.postDate)} PTS ${ef.ptsTime || ''}）`
+                : `決算後（${formatDateShort(ef.postDate)} 終値）`;
             if (ef.price_change) F.MARKET_REACTION.price_change = ef.price_change;
             const ta = document.getElementById('input-data');
             if (!ta.value.trim()) { alert('先にNotebookLMの出力を「2.」に貼り付けてください（空欄を補完します）'); return; }
@@ -2140,6 +2146,19 @@ reason_4=`;
             if (!ymd || !f || !f.days) return '';
             const r = f.days.find(x => x.date === ymd);
             return r ? r.volume : '';
+        }
+        // 時間外(PTS)チェックON かつ PTS価格があれば変動後をPTSにする
+        // 返り値: { price, volume, isPts, dateLabel }
+        function _effPost(f, afterHours) {
+            if (afterHours && f && f.pts && f.pts.price) {
+                return { price: f.pts.price, volume: '', isPts: true, dateLabel: f.pts.time || '' };  // 出来高はPTSでは空
+            }
+            return {
+                price: (f && f.current && f.current.close) || '',
+                volume: (f && f.current && f.current.volume) || '',
+                isPts: false,
+                dateLabel: (f && f.current && f.current.date) || ''
+            };
         }
         // move = { preLabel,preDate,prePrice,preVol, postLabel,postDate,postPrice,postVol, change }
         function buildKabutanSourceText(f, code, market, move) {
@@ -2186,11 +2205,12 @@ reason_4=`;
                     change: document.getElementById('sa-change-input').value.trim() || document.getElementById('sa-basis').value.trim()
                 };
             } else {
-                // 前営業日比較：変動前=前営業日、変動後=直近
+                // 前営業日比較：変動前=前営業日、変動後=直近（時間外ONならPTS）
+                const eff = _effPost(f, document.getElementById('sa-post-after-hours').checked);
                 move = {
-                    preLabel: '変動前(前営業日)',  preDate: f.prev && f.prev.date,    prePrice: f.prev && f.prev.close,    preVol: f.prev && f.prev.volume,
-                    postLabel: '変動後(直近)',     postDate: f.current && f.current.date, postPrice: f.current && f.current.close, postVol: f.current && f.current.volume,
-                    change: _pctFromTo(f.prev && f.prev.close, f.current && f.current.close)
+                    preLabel: '変動前(前営業日)', preDate: f.prev && f.prev.date, prePrice: f.prev && f.prev.close, preVol: f.prev && f.prev.volume,
+                    postLabel: eff.isPts ? '変動後(PTS)' : '変動後(直近)', postDate: eff.dateLabel, postPrice: eff.price, postVol: eff.volume,
+                    change: _pctFromTo(f.prev && f.prev.close, eff.price)
                 };
             }
             copyToClipboard(buildKabutanSourceText(f, code, market, move), btn, '✔ コピー完了！');
@@ -2202,8 +2222,9 @@ reason_4=`;
             const f = ef.d;
             const code = document.getElementById('p-code').value.trim();
             const move = {
-                preLabel: '決算前',  preDate: ef.preDate,  prePrice: ef.prePrice,  preVol: _volOf(f, ef.preDate),
-                postLabel: '決算後', postDate: ef.postDate, postPrice: ef.postPrice, postVol: _volOf(f, ef.postDate),
+                preLabel: '決算前',  preDate: ef.preDate,  prePrice: ef.prePrice,  preVol: (ef.preVol != null ? ef.preVol : _volOf(f, ef.preDate)),
+                postLabel: ef.usePts ? '決算後(PTS)' : '決算後', postDate: ef.usePts ? (ef.ptsTime || ef.postDate) : ef.postDate,
+                postPrice: ef.postPrice, postVol: (ef.postVol != null ? ef.postVol : _volOf(f, ef.postDate)),
                 change: ef.price_change
             };
             copyToClipboard(buildKabutanSourceText(f, code, getMarket(), move), btn, '✔ コピー完了！');
@@ -2247,12 +2268,17 @@ reason_4=`;
                 const volOf   = ymd => { const r = days.find(x => x.date === ymd); return r ? r.volume : ''; };
                 const preDate  = document.getElementById('p-pre-date').value;
                 const postDate = document.getElementById('p-post-date').value;
+                const afterHours = document.getElementById('p-post-after-hours').checked;
+                const usePts = afterHours && d.pts && d.pts.price;   // 時間外ONかつPTSあり
                 const prePrice  = closeOf(preDate)  || (d.prev && d.prev.close)    || '';
-                const postPrice = closeOf(postDate) || (d.current && d.current.close) || '';
+                const postPrice = usePts ? d.pts.price : (closeOf(postDate) || (d.current && d.current.close) || '');
+                const preVol  = volOf(preDate);
+                const postVol = usePts ? '' : volOf(postDate);         // PTSは出来高空欄
+                const ptsTime = usePts ? d.pts.time : '';
                 const pc = _pctFromTo(prePrice, postPrice);
 
-                // 決算前後の株価・変動率を保持（📓NotebookLMプロンプトの【確定値】に渡す）
-                window._earnFetched = { d, prePrice, postPrice, price_change: pc, preDate, postDate };
+                // 決算前後の株価・変動率を保持（ソースデータ／補完で使用）
+                window._earnFetched = { d, prePrice, postPrice, preVol, postVol, usePts, ptsTime, price_change: pc, preDate, postDate };
 
                 // 株価の反応（空欄のときのみ補完）：符号なし「X%上昇/下落した」
                 const reactEl = document.getElementById('p-reaction');

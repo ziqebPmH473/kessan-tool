@@ -62,6 +62,9 @@ function parseTopPage(html) {
   // 時価総額（v_zika2）
   const zikaM = scope.match(/v_zika2[^>]*>([\s\S]*?)<\/td>/);
   if (zikaM) out.marketCap = tightUnit(cellText(zikaM[1]));
+  // PTS（時間外）価格＋時刻
+  const ptsM = html.match(/kabuka1">PTS<\/div>\s*<div class="kabuka2">([^<]+)<\/div>\s*<div class="kabuka3">([^<]+)<\/div>/);
+  if (ptsM) out.pts = { price: cellText(ptsM[1]).replace(/円/g, ""), time: cellText(ptsM[2]) };
   return out;
 }
 
@@ -208,6 +211,7 @@ export async function onRequest(context) {
       yield: top.yield || "",
       marketCap: top.marketCap || "",
       business: top.business || "",
+      pts: top.pts || null,
       current,
       prev,
       high,
