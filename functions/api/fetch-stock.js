@@ -70,17 +70,18 @@ function parseTopPage(html) {
 
 // --- 株探 日足ページ（/stock/kabuka?code=）：日次OHLCV表 ---
 // 列: 日付, 始値, 高値, 安値, 終値, 前日比, 前日比％, 売買高(株)
+// ※「本日」行(stock_kabuka0)と履歴表(stock_kabuka_dwm)は別テーブルのため、
+//   ページ全体から <time datetime> を持つ行を走査して両方拾う（当日=本日行も含める）。
 function parseKabuka(html) {
   const out = { rows: [] };
-  const tableM = html.match(/stock_kabuka_dwm[\s\S]*?<tbody>([\s\S]*?)<\/tbody>/);
-  if (!tableM) return out;
-  const trs = tableM[1].match(/<tr>[\s\S]*?<\/tr>/g) || [];
+  const trs = html.match(/<tr[^>]*>[\s\S]*?<\/tr>/g) || [];
   for (const tr of trs) {
     const dateM = tr.match(/datetime="([\d-]+)"/);
+    if (!dateM) continue;
     const tds = (tr.match(/<td[\s\S]*?<\/td>/g) || []).map(cellText);
     if (tds.length < 7) continue;
     out.rows.push({
-      date: dateM ? dateM[1] : "",
+      date: dateM[1],
       open: tds[0], high: tds[1], low: tds[2], close: tds[3],
       volume: tds[6],
     });
