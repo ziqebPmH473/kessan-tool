@@ -1,0 +1,62 @@
+name: Deploy to Cloudflare Pages
+# === このワークフローが自動デプロイするもの / しないもの（最初に確認） ===
+# 自動でデプロイ:
+#   (1) サイト本体 = Cloudflare Pages（package.json があればビルドして dist/build/out、無ければ直下を配信）
+#   (2) worker/ フォルダの Cloudflare Worker（cron/定期実行・API・キュー処理もここで反映）
+#       ※ Worker デプロイにはトークンに「Workers Scripts: Edit」権限が必要
+# 自動ではデプロイされない（必要なら手動）:
+#   - D1 などDBのスキーマ変更(migrations) … 本番データ保護のため自動化しない
+#   - worker/ 以外の場所や複数の Worker
+#   - シークレット/環境変数 … リポジトリには置かず Cloudflare / GitHub 側で設定する
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Build (package.json があればビルド)
+        run: |
+          if [ -f package.json ]; then
+            npm install
+            npm run build --if-present
+          fi
+      - name: Pick output directory
+        id: out
+        run: |
+          DIR="."
+          for d in dist build out; do
+            if [ -d "$d" ]; then DIR="$d"; break; fi
+          done
+          echo "dir=$DIR" >> "$GITHUB_OUTPUT"
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy ${{ steps.out.outputs.dir }} --project-name=${{ secrets.CF_PROJECT_NAME }} --branch=main --commit-dirty=true
+
+      # worker/ に Cloudflare Worker（cron 等）がある場合だけ、依存導入＋デプロイ
+      - name: Install Worker deps (worker/ があれば)
+        if: ${{ hashFiles('worker/wrangler.toml', 'worker/wrangler.jsonc', 'worker/wrangler.json') != '' }}
+        run: |
+          if [ -f worker/package.json ]; then (cd worker && npm install); fi
+      - name: Deploy Cron Worker (worker/ があれば)
+        if: ${{ hashFiles('worker/wrangler.toml', 'worker/wrangler.jsonc', 'worker/wrangler.json') != '' }}
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: worker
+          command: deploy
