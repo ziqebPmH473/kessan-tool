@@ -1125,9 +1125,21 @@ ${stockPriceInfo}
             const isAfterHours = document.getElementById('p-post-after-hours').checked;
             const postTimingStr = isAfterHours ? (market === 'jp' ? 'PTS' : '時間外') : (timingStr === '場中' ? '場中' : '終値');
 
+            // 株探から取得済みの株価（あれば）を確定値としてNotebookLMへ渡す
+            let fixedBlock = '';
+            const ef = window._earnFetched;
+            if (ef) {
+                const lines = [];
+                if (ef.d && ef.d.current && ef.d.current.close) lines.push(`・現在株価（直近終値 ${ef.d.current.date || ''}）：${ef.d.current.close}`);
+                if (ef.prePrice)  lines.push(`・決算前（${formatDateShort(ef.preDate)} 終値）：${ef.prePrice}`);
+                if (ef.postPrice) lines.push(`・決算後（${formatDateShort(ef.postDate)} 終値）：${ef.postPrice}`);
+                if (ef.price_change) lines.push(`・株価変動率：${ef.price_change}`);
+                if (lines.length) fixedBlock = `\n【株探取得済みの確定値（推測せず使用。[BASIC_INFO]の算出にもこの株価を用いてください）】\n${lines.join('\n')}\n`;
+            }
+
             const prompt = `あなたはプロの証券アナリストであり、データ整形のエキスパートです。
 読み込んだソースを総合して分析し、下記の【出力フォーマット】に厳密に従ってテキストを出力してください。
-
+${fixedBlock}
 ## 重要なルール（必ず守ること）
 1. 決算資料から「主力セグメントの状況（どの事業が牽引・足かせになったか）」や「増減益の理由」「ガイダンスの背景」を深く読み取り、各項目の reason に1〜2行で簡潔に記載してください。
 2. 金額は「兆・億・万円」の単位に変換しカンマを入れてください。（例：12,345百万円 → 123億円）
@@ -1969,9 +1981,8 @@ point_2=`;
                     if (reactPhrase && !reactEl.value.trim()) reactEl.value = reactPhrase;
                 }
 
-                // 取得値をデータ入力欄へ書き出し（空欄のみ補完、空ならひな形生成）→ 画像へ反映
-                applySaFetchedToData();
-                renderImageStock();
+                // ※取得値は「2.データ入力」へは書かない（そこはNotebookLMの"出力"を貼る場所）。
+                //   取得値は _saFetched に保持し、📓NotebookLMプロンプトの【確定値】ブロックとして渡す。
 
                 saveState();
                 if (btnEl) btnEl.innerText = '✔ 取得完了';
@@ -1982,138 +1993,23 @@ point_2=`;
             }
         }
 
-        // ===== 株探取得値を [SECTION]key=value テキストへ反映する共通処理 =====
-        const _fmtShort = ymd => { if (!ymd) return ''; const d = new Date(ymd); return isNaN(d) ? '' : `${d.getMonth()+1}月${d.getDate()}日`; };
+        // ===== 株探取得値の補助（変動率・反応テキスト） =====
         const _pctFromTo = (a, b) => {
             const na = _saPprice(a), nb = _saPprice(b);
             if (na == null || nb == null || na === 0) return '';
             const pct = Math.round(Math.abs(nb - na) / na * 1000) / 10;
             return `${nb >= na ? '+' : '-'}${pct}%`;
         };
-        // 株価の反応テキスト：符号は付けず「X%上昇 / X%下落」（例: 1.4%上昇）
+        // 株価の反応テキスト：符号は付けず「X%上昇した / X%下落した」（例: 1.4%上昇した）
+        // ※プロンプト内で「〜上昇した理由」と自然につながるよう「した」を付ける
         const _reactionPhrase = (a, b) => {
             const na = _saPprice(a), nb = _saPprice(b);
             if (na == null || nb == null || na === 0) return '';
             const pct = Math.round(Math.abs(nb - na) / na * 1000) / 10;
-            return `${pct}%${nb >= na ? '上昇' : '下落'}`;
+            return `${pct}%${nb >= na ? '上昇' : '下落'}した`;
         };
 
-        // 既存テキストの「空欄の key=」だけを埋める（section を見て対象を限定）。'---' '-' も空欄扱い
-        function patchDataText(text, fields) {
-            const lines = text.split('\n');
-            let sec = null;
-            for (let i = 0; i < lines.length; i++) {
-                const t = lines[i].trim();
-                const sm = t.match(/^\[(.+)\]$/);
-                if (sm) { sec = sm[1]; continue; }
-                const kv = lines[i].match(/^(\s*)([A-Za-z0-9_]+)=(.*)$/);
-                if (kv && sec && fields[sec] && fields[sec][kv[2]] != null) {
-                    const cur = kv[3].trim();
-                    if (!cur || cur === '---' || cur === '-') lines[i] = `${kv[1]}${kv[2]}=${fields[sec][kv[2]]}`;
-                }
-            }
-            return lines.join('\n');
-        }
-
-        // 個別銘柄分析：取得値→フィールド
-        function buildSaFields() {
-            const f = window._saFetched; if (!f) return {};
-            const code = document.getElementById('sa-code-input').value.trim();
-            const F = { HEADER: {}, BASIC_INFO: {}, CHART_DATA: {}, STOCK_MOVE: {} };
-            if (f.name) F.HEADER.company = f.name;
-            if (code)   F.HEADER.code = code;
-            if (f.marketCap) F.BASIC_INFO.market_cap = f.marketCap;
-            F.BASIC_INFO.per_label = getSaMarket() === 'us' ? '実績PER' : '予想PER';
-            if (f.per)   F.BASIC_INFO.per = f.per;
-            if (f.pbr)   F.BASIC_INFO.pbr = f.pbr;
-            if (f.yield) F.BASIC_INFO.yield = f.yield;
-            if (f.chartData) F.CHART_DATA.data = f.chartData;
-
-            if (getSaCompareMode() === 'period') {
-                const preP  = document.getElementById('sa-pre-price-input').value.trim();
-                const postP = document.getElementById('sa-post-price-input').value.trim();
-                const preD  = _fmtShort(document.getElementById('sa-pre-date-p').value);
-                const postD = _fmtShort(document.getElementById('sa-post-date-p').value);
-                const chg   = document.getElementById('sa-change-input').value.trim();
-                const basis = document.getElementById('sa-basis').value.trim();
-                if (preP)  F.STOCK_MOVE.pre_price = preP;
-                if (postP) F.STOCK_MOVE.post_price = postP;
-                if (preD || basis)  F.STOCK_MOVE.pre_price_label  = `変動前（${preD || basis}）`;
-                if (postD) F.STOCK_MOVE.post_price_label = `変動後（${postD} 終値）`;
-                if (chg)   F.STOCK_MOVE.price_change = chg;
-            } else {
-                if (f.prev) {
-                    if (f.prev.close)  F.STOCK_MOVE.pre_price = f.prev.close;
-                    if (f.prev.volume) F.STOCK_MOVE.pre_volume = f.prev.volume;
-                    if (f.prev.date)   F.STOCK_MOVE.pre_price_label = `変動前（${_fmtShort(f.prev.date)} 終値）`;
-                }
-                if (f.current) {
-                    if (f.current.close)  F.STOCK_MOVE.post_price = f.current.close;
-                    if (f.current.volume) F.STOCK_MOVE.post_volume = f.current.volume;
-                    if (f.current.date)   F.STOCK_MOVE.post_price_label = `変動後（${_fmtShort(f.current.date)} 終値）`;
-                }
-                const pc = _pctFromTo(f.prev && f.prev.close, f.current && f.current.close);
-                if (pc) F.STOCK_MOVE.price_change = pc;
-            }
-            return F;
-        }
-
-        function buildSaScaffold(F) {
-            const g = (s, k) => (F[s] && F[s][k]) || '';
-            return `[HEADER]
-company=${g('HEADER','company')}
-code=${g('HEADER','code')}
-business_description=
-move_label=
-
-[BASIC_INFO]
-market_cap=${g('BASIC_INFO','market_cap')}
-per_label=${g('BASIC_INFO','per_label') || '予想PER'}
-per=${g('BASIC_INFO','per')}
-pbr=${g('BASIC_INFO','pbr')}
-yield=${g('BASIC_INFO','yield')}
-
-[CHART_DATA]
-data=${g('CHART_DATA','data')}
-
-[STOCK_MOVE]
-pre_price_label=${g('STOCK_MOVE','pre_price_label')}
-pre_price=${g('STOCK_MOVE','pre_price')}
-pre_volume=${g('STOCK_MOVE','pre_volume')}
-post_price_label=${g('STOCK_MOVE','post_price_label')}
-post_price=${g('STOCK_MOVE','post_price')}
-post_volume=${g('STOCK_MOVE','post_volume')}
-price_change=${g('STOCK_MOVE','price_change')}
-
-[MATERIAL]
-tag_1=
-summary=
-detail_1=
-detail_2=
-
-[NEXT_ACTIONS]
-focus_1=
-focus_2=
-focus_3=
-risk_1=
-risk_2=
-risk_3=
-
-[IMPACT]
-reason_1=
-reason_2=
-reason_3=
-reason_4=`;
-        }
-
-        function applySaFetchedToData() {
-            if (!window._saFetched) return;
-            const F = buildSaFields();
-            const ta = document.getElementById('sa-input-data');
-            ta.value = ta.value.trim() ? patchDataText(ta.value, F) : buildSaScaffold(F);
-        }
-
-        // ===== 決算分析：株探から株価を自動取得し、株価の反応・データ入力を補完 =====
+        // ===== 決算分析：株探から株価を自動取得し、株価の反応を補完＋確定値を保持 =====
         async function fetchEarningsFromKabutan(btnEl) {
             const code = document.getElementById('p-code').value.trim();
             if (!code) { alert('証券コードを入力してください'); return; }
@@ -2139,30 +2035,15 @@ reason_4=`;
                 const postPrice = closeOf(postDate) || (d.current && d.current.close) || '';
                 const pc = _pctFromTo(prePrice, postPrice);
 
-                // 株価の反応（空欄のときのみ補完）：符号なし「X%上昇/下落」
+                // 決算前後の株価・変動率を保持（📓NotebookLMプロンプトの【確定値】に渡す）
+                window._earnFetched = { d, prePrice, postPrice, price_change: pc, preDate, postDate };
+
+                // 株価の反応（空欄のときのみ補完）：符号なし「X%上昇/下落した」
                 const reactEl = document.getElementById('p-reaction');
                 const reactPhrase = _reactionPhrase(prePrice, postPrice);
                 if (reactPhrase && !reactEl.value.trim()) reactEl.value = reactPhrase;
 
-                // データ入力欄へ反映（空欄補完 or ひな形）
-                const F = { HEADER: {}, BASIC_INFO: {}, CHART_DATA: {}, MARKET_REACTION: {} };
-                if (d.name) F.HEADER.company = d.name;
-                if (code)   F.HEADER.code = code;
-                if (d.marketCap) F.BASIC_INFO.market_cap = d.marketCap;
-                F.BASIC_INFO.per_label = '予想PER';
-                if (d.per)   F.BASIC_INFO.per = d.per;
-                if (d.pbr)   F.BASIC_INFO.pbr = d.pbr;
-                if (d.yield) F.BASIC_INFO.yield = d.yield;
-                if (d.chartData) F.CHART_DATA.data = d.chartData;
-                if (prePrice)  F.MARKET_REACTION.pre_price = prePrice;
-                if (postPrice) F.MARKET_REACTION.post_price = postPrice;
-                if (preDate)   F.MARKET_REACTION.pre_price_label  = `決算前（${_fmtShort(preDate)} 終値）`;
-                if (postDate)  F.MARKET_REACTION.post_price_label = `決算後（${_fmtShort(postDate)} 終値）`;
-                if (pc)        F.MARKET_REACTION.price_change = pc;
-
-                const ta = document.getElementById('input-data');
-                if (ta.value.trim()) ta.value = patchDataText(ta.value, F);
-                renderImage();
+                // ※取得値は「2.データ入力」へは書かない（そこはNotebookLMの"出力"を貼る場所）。
 
                 saveState();
                 if (btnEl) btnEl.innerText = '✔ 取得完了';
