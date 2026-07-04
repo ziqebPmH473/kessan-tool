@@ -361,8 +361,9 @@
             <div class="input-row">
                 <button class="btn-sub" onclick="openKabutan()">🔍 株探</button>
                 <button class="btn-sub" onclick="openIR()">🔍 IR検索</button>
+                <button class="btn-sub" id="p-fetch-btn" onclick="fetchEarningsFromKabutan(this)" style="background:#0891b2; color:#fff;">📥 自動取得</button>
             </div>
-            
+
             <div style="font-size: 12px; font-weight: bold; color: var(--text-sub); margin-top: 6px; border-bottom: 1px solid #ccc; padding-bottom: 2px;">▼ 決算日と株価の反応</div>
             
             <div class="input-row">
@@ -1963,6 +1964,196 @@ point_2=`;
                 }
                 // 前営業日比較：株価欄が無いため確定値（_saFetched）としてNotebookLMプロンプトへ渡す
 
+                // 取得値をデータ入力欄へ書き出し（空欄のみ補完、空ならひな形生成）→ 画像へ反映
+                applySaFetchedToData();
+                renderImageStock();
+
+                saveState();
+                if (btnEl) btnEl.innerText = '✔ 取得完了';
+                setTimeout(() => { if (btnEl) { btnEl.disabled = false; btnEl.innerText = label; } }, 1500);
+            } catch (e) {
+                if (btnEl) { btnEl.disabled = false; btnEl.innerText = label; }
+                alert('株探からの取得に失敗しました。\n手入力またはNotebookLMをご利用ください。\n\n' + (e && e.message ? e.message : e));
+            }
+        }
+
+        // ===== 株探取得値を [SECTION]key=value テキストへ反映する共通処理 =====
+        const _fmtShort = ymd => { if (!ymd) return ''; const d = new Date(ymd); return isNaN(d) ? '' : `${d.getMonth()+1}月${d.getDate()}日`; };
+        const _pctFromTo = (a, b) => {
+            const na = _saPprice(a), nb = _saPprice(b);
+            if (na == null || nb == null || na === 0) return '';
+            const pct = Math.round(Math.abs(nb - na) / na * 1000) / 10;
+            return `${nb >= na ? '+' : '-'}${pct}%`;
+        };
+
+        // 既存テキストの「空欄の key=」だけを埋める（section を見て対象を限定）。'---' '-' も空欄扱い
+        function patchDataText(text, fields) {
+            const lines = text.split('\n');
+            let sec = null;
+            for (let i = 0; i < lines.length; i++) {
+                const t = lines[i].trim();
+                const sm = t.match(/^\[(.+)\]$/);
+                if (sm) { sec = sm[1]; continue; }
+                const kv = lines[i].match(/^(\s*)([A-Za-z0-9_]+)=(.*)$/);
+                if (kv && sec && fields[sec] && fields[sec][kv[2]] != null) {
+                    const cur = kv[3].trim();
+                    if (!cur || cur === '---' || cur === '-') lines[i] = `${kv[1]}${kv[2]}=${fields[sec][kv[2]]}`;
+                }
+            }
+            return lines.join('\n');
+        }
+
+        // 個別銘柄分析：取得値→フィールド
+        function buildSaFields() {
+            const f = window._saFetched; if (!f) return {};
+            const code = document.getElementById('sa-code-input').value.trim();
+            const F = { HEADER: {}, BASIC_INFO: {}, CHART_DATA: {}, STOCK_MOVE: {} };
+            if (f.name) F.HEADER.company = f.name;
+            if (code)   F.HEADER.code = code;
+            if (f.marketCap) F.BASIC_INFO.market_cap = f.marketCap;
+            F.BASIC_INFO.per_label = getSaMarket() === 'us' ? '実績PER' : '予想PER';
+            if (f.per)   F.BASIC_INFO.per = f.per;
+            if (f.pbr)   F.BASIC_INFO.pbr = f.pbr;
+            if (f.yield) F.BASIC_INFO.yield = f.yield;
+            if (f.chartData) F.CHART_DATA.data = f.chartData;
+
+            if (getSaCompareMode() === 'period') {
+                const preP  = document.getElementById('sa-pre-price-input').value.trim();
+                const postP = document.getElementById('sa-post-price-input').value.trim();
+                const preD  = _fmtShort(document.getElementById('sa-pre-date-p').value);
+                const postD = _fmtShort(document.getElementById('sa-post-date-p').value);
+                const chg   = document.getElementById('sa-change-input').value.trim();
+                const basis = document.getElementById('sa-basis').value.trim();
+                if (preP)  F.STOCK_MOVE.pre_price = preP;
+                if (postP) F.STOCK_MOVE.post_price = postP;
+                if (preD || basis)  F.STOCK_MOVE.pre_price_label  = `変動前（${preD || basis}）`;
+                if (postD) F.STOCK_MOVE.post_price_label = `変動後（${postD} 終値）`;
+                if (chg)   F.STOCK_MOVE.price_change = chg;
+            } else {
+                if (f.prev) {
+                    if (f.prev.close)  F.STOCK_MOVE.pre_price = f.prev.close;
+                    if (f.prev.volume) F.STOCK_MOVE.pre_volume = f.prev.volume;
+                    if (f.prev.date)   F.STOCK_MOVE.pre_price_label = `変動前（${_fmtShort(f.prev.date)} 終値）`;
+                }
+                if (f.current) {
+                    if (f.current.close)  F.STOCK_MOVE.post_price = f.current.close;
+                    if (f.current.volume) F.STOCK_MOVE.post_volume = f.current.volume;
+                    if (f.current.date)   F.STOCK_MOVE.post_price_label = `変動後（${_fmtShort(f.current.date)} 終値）`;
+                }
+                const pc = _pctFromTo(f.prev && f.prev.close, f.current && f.current.close);
+                if (pc) F.STOCK_MOVE.price_change = pc;
+            }
+            return F;
+        }
+
+        function buildSaScaffold(F) {
+            const g = (s, k) => (F[s] && F[s][k]) || '';
+            return `[HEADER]
+company=${g('HEADER','company')}
+code=${g('HEADER','code')}
+business_description=
+move_label=
+
+[BASIC_INFO]
+market_cap=${g('BASIC_INFO','market_cap')}
+per_label=${g('BASIC_INFO','per_label') || '予想PER'}
+per=${g('BASIC_INFO','per')}
+pbr=${g('BASIC_INFO','pbr')}
+yield=${g('BASIC_INFO','yield')}
+
+[CHART_DATA]
+data=${g('CHART_DATA','data')}
+
+[STOCK_MOVE]
+pre_price_label=${g('STOCK_MOVE','pre_price_label')}
+pre_price=${g('STOCK_MOVE','pre_price')}
+pre_volume=${g('STOCK_MOVE','pre_volume')}
+post_price_label=${g('STOCK_MOVE','post_price_label')}
+post_price=${g('STOCK_MOVE','post_price')}
+post_volume=${g('STOCK_MOVE','post_volume')}
+price_change=${g('STOCK_MOVE','price_change')}
+
+[MATERIAL]
+tag_1=
+summary=
+detail_1=
+detail_2=
+
+[NEXT_ACTIONS]
+focus_1=
+focus_2=
+focus_3=
+risk_1=
+risk_2=
+risk_3=
+
+[IMPACT]
+reason_1=
+reason_2=
+reason_3=
+reason_4=`;
+        }
+
+        function applySaFetchedToData() {
+            if (!window._saFetched) return;
+            const F = buildSaFields();
+            const ta = document.getElementById('sa-input-data');
+            ta.value = ta.value.trim() ? patchDataText(ta.value, F) : buildSaScaffold(F);
+        }
+
+        // ===== 決算分析：株探から株価を自動取得し、株価の反応・データ入力を補完 =====
+        async function fetchEarningsFromKabutan(btnEl) {
+            const code = document.getElementById('p-code').value.trim();
+            if (!code) { alert('証券コードを入力してください'); return; }
+            const label = btnEl ? btnEl.innerText : '';
+            if (btnEl) { btnEl.disabled = true; btnEl.innerText = '取得中…'; }
+            try {
+                const res = await fetch(`/api/fetch-stock?code=${encodeURIComponent(code)}&market=jp`);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const d = await res.json();
+                if (!d || !d.ok) throw new Error((d && d.reason) || '取得に失敗しました');
+                window._earnFetched = d;
+
+                const nameEl = document.getElementById('p-name');
+                if (d.name && !nameEl.value.trim()) nameEl.value = d.name;
+
+                // 決算前後の日付から、その日の終値を取得（範囲外は空）
+                const days = d.days || [];
+                const closeOf = ymd => { const r = days.find(x => x.date === ymd); return r ? r.close : ''; };
+                const volOf   = ymd => { const r = days.find(x => x.date === ymd); return r ? r.volume : ''; };
+                const preDate  = document.getElementById('p-pre-date').value;
+                const postDate = document.getElementById('p-post-date').value;
+                const prePrice  = closeOf(preDate)  || (d.prev && d.prev.close)    || '';
+                const postPrice = closeOf(postDate) || (d.current && d.current.close) || '';
+                const pc = _pctFromTo(prePrice, postPrice);
+
+                // 株価の反応（空欄のときのみ補完）
+                const reactEl = document.getElementById('p-reaction');
+                if (pc && !reactEl.value.trim()) {
+                    const dir = pc.startsWith('-') ? '下落した' : '上昇した';
+                    reactEl.value = `${pc}${dir}`;
+                }
+
+                // データ入力欄へ反映（空欄補完 or ひな形）
+                const F = { HEADER: {}, BASIC_INFO: {}, CHART_DATA: {}, MARKET_REACTION: {} };
+                if (d.name) F.HEADER.company = d.name;
+                if (code)   F.HEADER.code = code;
+                if (d.marketCap) F.BASIC_INFO.market_cap = d.marketCap;
+                F.BASIC_INFO.per_label = '予想PER';
+                if (d.per)   F.BASIC_INFO.per = d.per;
+                if (d.pbr)   F.BASIC_INFO.pbr = d.pbr;
+                if (d.yield) F.BASIC_INFO.yield = d.yield;
+                if (d.chartData) F.CHART_DATA.data = d.chartData;
+                if (prePrice)  F.MARKET_REACTION.pre_price = prePrice;
+                if (postPrice) F.MARKET_REACTION.post_price = postPrice;
+                if (preDate)   F.MARKET_REACTION.pre_price_label  = `決算前（${_fmtShort(preDate)} 終値）`;
+                if (postDate)  F.MARKET_REACTION.post_price_label = `決算後（${_fmtShort(postDate)} 終値）`;
+                if (pc)        F.MARKET_REACTION.price_change = pc;
+
+                const ta = document.getElementById('input-data');
+                if (ta.value.trim()) ta.value = patchDataText(ta.value, F);
+                renderImage();
+
                 saveState();
                 if (btnEl) btnEl.innerText = '✔ 取得完了';
                 setTimeout(() => { if (btnEl) { btnEl.disabled = false; btnEl.innerText = label; } }, 1500);
@@ -1976,7 +2167,7 @@ point_2=`;
         const SA_STORAGE_KEY = 'kessanTool:v1';
         // 保持対象ID（両モードのテキスト系・日付・チェック）＋ name グループ
         const PERSIST_IDS = [
-            'input-data',
+            'input-data', 'p-code', 'p-name', 'p-reaction',
             'sa-input-data', 'sa-fc-report', 'sa-code-input', 'sa-name-input',
             'sa-pre-date', 'sa-post-date', 'sa-post-after-hours', 'sa-reaction',
             'sa-pre-date-p', 'sa-post-date-p',
@@ -2349,14 +2540,18 @@ risk_3=`;
 
                 const moveLabel = data.HEADER.move_label || '';
                 const badgeEl   = document.getElementById('sa-move-badge');
+                // 空でも高さ（バッジのpadding分）を確保し、消えても下の株価・指標が詰まらないようにする
+                badgeEl.style.display = 'inline-block';
                 if (moveLabel) {
                     badgeEl.innerText = moveLabel;
-                    badgeEl.style.display = 'inline-block';
+                    badgeEl.style.visibility = 'visible';
                     if      (moveLabel.match(/高|急騰|上昇|上方|大幅上/)) { badgeEl.style.background = '#ef4444'; badgeEl.style.color = 'white'; }
                     else if (moveLabel.match(/安|急落|下落|下方|大幅下/)) { badgeEl.style.background = '#10b981'; badgeEl.style.color = 'white'; }
                     else                                                    { badgeEl.style.background = 'var(--accent)'; badgeEl.style.color = 'white'; }
                 } else {
-                    badgeEl.style.display = 'none';
+                    badgeEl.innerText = ' ';           // 高さ確保用（不可視）
+                    badgeEl.style.visibility = 'hidden';
+                    badgeEl.style.background = 'transparent';
                 }
             }
 
@@ -2399,10 +2594,11 @@ risk_3=`;
                 const volBadge = document.getElementById('sa-vol-badge');
 
                 if (isBlankVol(preVol) && isBlankVol(postVol)) {
-                    // 前後とも記載なし → 出来高行を丸ごと隠す
-                    if (volRow) volRow.style.display = 'none';
+                    // 前後とも記載なし → 出来高行は「非表示のみ」（高さは維持してレイアウトを詰めない）
+                    if (volRow) volRow.style.visibility = 'hidden';
+                    if (volBadge) volBadge.style.display = 'none';
                 } else {
-                    if (volRow) volRow.style.display = '';
+                    if (volRow) volRow.style.visibility = '';
                     document.getElementById('sa-out-pre-volume').innerText = isBlankVol(preVol) ? '---' : preVol;
                     if (isBlankVol(postVol)) {
                         // 変動後の出来高のみ無し（時間外など）→ 矢印と後半を隠す

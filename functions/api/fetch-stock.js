@@ -146,6 +146,13 @@ export async function onRequest(context) {
     // 日付→株価ルックアップ用（終値・出来高）
     const days = rows.map(r => ({ date: r.date, close: r.close, volume: r.volume }));
 
+    // CHART_DATA 用の文字列「YYYY-MM-DD,始値,高値,安値,終値,出来高;」（カンマ無しの数値）
+    const nc = s => String(s || "").replace(/,/g, "");
+    const chartData = rows
+      .filter(r => r.date && r.close)
+      .map(r => `${r.date},${nc(r.open)},${nc(r.high)},${nc(r.low)},${nc(r.close)},${nc(r.volume)}`)
+      .join(";");
+
     return json({
       ok: true,
       code,
@@ -158,6 +165,7 @@ export async function onRequest(context) {
       prev,
       high,
       days,
+      chartData,
       range: rows.length ? { newest: rows[0].date, oldest: rows[rows.length - 1].date, pages: PAGES } : null,
       source: { top: topUrl, kabuka: kabukaUrl(1) },
     });
