@@ -406,6 +406,9 @@
                 <button class="btn-sub" onclick="copyUrls(this)">📋 URLコピー</button>
                 <button class="btn-prompt" onclick="copyNotebookLM(this)">📓 NotebookLM</button>
             </div>
+            <div class="input-row" style="margin-top: 4px;">
+                <button class="btn-sub" onclick="copyEarnSourceData(this)" style="width:100%; background:#0d9488; color:#fff;">📄 NotebookLM用ソースデータ出力（取得済み）</button>
+            </div>
         </div>
 
         <div class="tool-section">
@@ -511,6 +514,9 @@
             <div class="input-row" style="margin-top: 4px;">
                 <button class="btn-sub" onclick="copySaUrls(this)">📋 URLコピー</button>
                 <button class="btn-prompt" onclick="copySaNotebookLM(this)">📓 NotebookLM</button>
+            </div>
+            <div class="input-row" style="margin-top: 4px;">
+                <button class="btn-sub" onclick="copySaSourceData(this)" style="width:100%; background:#0d9488; color:#fff;">📄 NotebookLM用ソースデータ出力（取得済み）</button>
             </div>
         </div>
 
@@ -2125,6 +2131,50 @@ reason_4=`;
             ta.value = patchDataText(ta.value, F);
             renderImage();
             saveState();
+        }
+
+        // ===== NotebookLMに「ソース」として読み込ませる取得データを出力（プロンプトとは別） =====
+        // URLをNotebookLMに読み取らせる代わりに、取得済みの全データ（時系列株価含む）をそのまま渡す用。
+        function buildKabutanSourceText(f, code, market, extraLines) {
+            if (!f) return '';
+            const L = [];
+            L.push(`【株探 取得データ${f.name ? '：' + f.name : ''}${code ? '（' + code + '）' : ''}】`);
+            L.push(`市場：${market === 'us' ? '米国株' : '国内株'}`);
+            L.push('');
+            L.push('■ 基本情報');
+            if (f.marketCap) L.push(`時価総額：${f.marketCap}`);
+            if (f.per)   L.push(`${market === 'us' ? '実績' : '予想'}PER：${f.per}`);
+            if (f.psr)   L.push(`PSR：${f.psr}`);
+            if (f.pbr)   L.push(`PBR：${f.pbr}`);
+            if (f.yield) L.push(`利回り：${f.yield}`);
+            if (f.business) L.push(`事業内容：${f.business}`);
+            L.push('');
+            L.push('■ 株価');
+            if (f.current) L.push(`直近終値（${f.current.date}）：${f.current.close}　出来高 ${f.current.volume}`);
+            if (f.prev)    L.push(`前営業日終値（${f.prev.date}）：${f.prev.close}　出来高 ${f.prev.volume}`);
+            if (f.high && f.high.price) L.push(`取得範囲内の高値：${f.high.price}（${f.high.date}）`);
+            if (extraLines && extraLines.length) { L.push(''); extraLines.forEach(x => L.push(x)); }
+            L.push('');
+            L.push('■ 日足（時系列）  列：日付,始値,高値,安値,終値,出来高');
+            if (f.chartData) L.push(f.chartData.split(';').filter(Boolean).join('\n'));
+            return L.join('\n');
+        }
+
+        function copySaSourceData(btn) {
+            if (!window._saFetched) { alert('先に「📥 自動取得」で株探データを取得してください（このボタンは再取得しません）'); return; }
+            const code = document.getElementById('sa-code-input').value.trim();
+            copyToClipboard(buildKabutanSourceText(window._saFetched, code, getSaMarket()), btn, '✔ コピー完了！');
+        }
+
+        function copyEarnSourceData(btn) {
+            const ef = window._earnFetched;
+            if (!ef || !ef.d) { alert('先に「📥 自動取得」で株探データを取得してください（このボタンは再取得しません）'); return; }
+            const code = document.getElementById('p-code').value.trim();
+            const extra = [];
+            if (ef.prePrice)  extra.push(`決算前（${formatDateShort(ef.preDate)} 終値）：${ef.prePrice}`);
+            if (ef.postPrice) extra.push(`決算後（${formatDateShort(ef.postDate)} 終値）：${ef.postPrice}`);
+            if (ef.price_change) extra.push(`株価変動率：${ef.price_change}`);
+            copyToClipboard(buildKabutanSourceText(ef.d, code, getMarket(), extra), btn, '✔ コピー完了！');
         }
 
         // ===== 株探取得値の補助（変動率・反応テキスト） =====
