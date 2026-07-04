@@ -414,6 +414,7 @@
                 <button class="btn-sub" onclick="pasteFromClipboard()" style="padding: 4px 12px; font-size: 11px; flex: none; background: #e2e8f0;">📋 貼付</button>
             </div>
             <textarea id="input-data" placeholder="NotebookLMで整形されたテキストをここにペーストしてください"></textarea>
+            <button class="btn-sub" onclick="complementEarnData()" style="width:100%; margin-bottom:4px; background:#0891b2; color:#fff;">📋 取得データで補完（空欄を埋める・再取得なし）</button>
             <button class="main-btn" onclick="renderImage()" style="margin-bottom: 4px;">画像を生成（プレビュー反映）</button>
             <div style="display:flex; gap:6px;">
                 <button class="main-btn download-btn" style="flex:1; font-size:13px; padding:10px 4px;" onclick="downloadImage()">💾 通常保存</button>
@@ -522,6 +523,7 @@
                 </span>
             </div>
             <textarea id="sa-input-data" placeholder="NotebookLMで整形されたテキストをここにペーストしてください"></textarea>
+            <button class="btn-sub" onclick="complementSaData()" style="width:100%; margin-bottom:4px; background:#0891b2; color:#fff;">📋 取得データで補完（空欄を埋める・再取得なし）</button>
             <button class="main-btn" onclick="renderImageStock()" style="margin-bottom: 4px;">画像を生成（プレビュー反映）</button>
             <div style="display:flex; gap:6px;">
                 <button class="main-btn download-btn" style="flex:1; font-size:13px; padding:10px 4px;" onclick="downloadImageStock()">💾 通常保存</button>
@@ -1125,21 +1127,9 @@ ${stockPriceInfo}
             const isAfterHours = document.getElementById('p-post-after-hours').checked;
             const postTimingStr = isAfterHours ? (market === 'jp' ? 'PTS' : '時間外') : (timingStr === '場中' ? '場中' : '終値');
 
-            // 株探から取得済みの株価（あれば）を確定値としてNotebookLMへ渡す
-            let fixedBlock = '';
-            const ef = window._earnFetched;
-            if (ef) {
-                const lines = [];
-                if (ef.d && ef.d.current && ef.d.current.close) lines.push(`・現在株価（直近終値 ${ef.d.current.date || ''}）：${ef.d.current.close}`);
-                if (ef.prePrice)  lines.push(`・決算前（${formatDateShort(ef.preDate)} 終値）：${ef.prePrice}`);
-                if (ef.postPrice) lines.push(`・決算後（${formatDateShort(ef.postDate)} 終値）：${ef.postPrice}`);
-                if (ef.price_change) lines.push(`・株価変動率：${ef.price_change}`);
-                if (lines.length) fixedBlock = `\n【株探取得済みの確定値（推測せず使用。[BASIC_INFO]の算出にもこの株価を用いてください）】\n${lines.join('\n')}\n`;
-            }
-
             const prompt = `あなたはプロの証券アナリストであり、データ整形のエキスパートです。
 読み込んだソースを総合して分析し、下記の【出力フォーマット】に厳密に従ってテキストを出力してください。
-${fixedBlock}
+
 ## 重要なルール（必ず守ること）
 1. 決算資料から「主力セグメントの状況（どの事業が牽引・足かせになったか）」や「増減益の理由」「ガイダンスの背景」を深く読み取り、各項目の reason に1〜2行で簡潔に記載してください。
 2. 金額は「兆・億・万円」の単位に変換しカンマを入れてください。（例：12,345百万円 → 123億円）
@@ -1981,8 +1971,8 @@ point_2=`;
                     if (reactPhrase && !reactEl.value.trim()) reactEl.value = reactPhrase;
                 }
 
-                // ※取得値は「2.データ入力」へは書かない（そこはNotebookLMの"出力"を貼る場所）。
-                //   取得値は _saFetched に保持し、📓NotebookLMプロンプトの【確定値】ブロックとして渡す。
+                // ※取得値は「2.データ入力」へはこの時点では書かない（再取得のたびに上書きしないため）。
+                //   NotebookLM出力を貼った後に「📋 取得データで補完」ボタンで空欄を埋める。
 
                 saveState();
                 if (btnEl) btnEl.innerText = '✔ 取得完了';
@@ -1991,6 +1981,150 @@ point_2=`;
                 if (btnEl) { btnEl.disabled = false; btnEl.innerText = label; }
                 alert('株探からの取得に失敗しました。\n手入力またはNotebookLMをご利用ください。\n\n' + (e && e.message ? e.message : e));
             }
+        }
+
+        // ===== 取得済みデータで「2.データ入力」の空欄を補完（再取得はしない） =====
+        // 既存テキストの「空欄の key=」だけを埋める（section を見て対象を限定）。'---' '-' も空欄扱い
+        function patchDataText(text, fields) {
+            const lines = text.split('\n');
+            let sec = null;
+            for (let i = 0; i < lines.length; i++) {
+                const t = lines[i].trim();
+                const sm = t.match(/^\[(.+)\]$/);
+                if (sm) { sec = sm[1]; continue; }
+                const kv = lines[i].match(/^(\s*)([A-Za-z0-9_]+)=(.*)$/);
+                if (kv && sec && fields[sec] && fields[sec][kv[2]] != null) {
+                    const cur = kv[3].trim();
+                    if (!cur || cur === '---' || cur === '-') lines[i] = `${kv[1]}${kv[2]}=${fields[sec][kv[2]]}`;
+                }
+            }
+            return lines.join('\n');
+        }
+
+        // 個別銘柄分析：取得済み(_saFetched)＋現在の入力欄から、取得可能な全項目を組み立てる（選別しない）
+        function buildSaFields() {
+            const f = window._saFetched; if (!f) return {};
+            const code = document.getElementById('sa-code-input').value.trim();
+            const F = { HEADER: {}, BASIC_INFO: {}, CHART_DATA: {}, STOCK_MOVE: {} };
+            if (f.name) F.HEADER.company = f.name;
+            if (code)   F.HEADER.code = code;
+            F.BASIC_INFO.per_label = getSaMarket() === 'us' ? '実績PER' : '予想PER';
+            if (f.marketCap) F.BASIC_INFO.market_cap = f.marketCap;
+            if (f.per)   F.BASIC_INFO.per = f.per;
+            if (f.pbr)   F.BASIC_INFO.pbr = f.pbr;
+            if (f.yield) F.BASIC_INFO.yield = f.yield;
+            if (f.chartData) F.CHART_DATA.data = f.chartData;   // 時系列株価も出力
+            if (getSaCompareMode() === 'period') {
+                const preP  = document.getElementById('sa-pre-price-input').value.trim();
+                const postP = document.getElementById('sa-post-price-input').value.trim();
+                const preD  = formatDateShort(document.getElementById('sa-pre-date-p').value);
+                const postD = formatDateShort(document.getElementById('sa-post-date-p').value);
+                const chg   = document.getElementById('sa-change-input').value.trim();
+                if (preP)  F.STOCK_MOVE.pre_price = preP;
+                if (postP) F.STOCK_MOVE.post_price = postP;
+                if (preD)  F.STOCK_MOVE.pre_price_label  = `変動前（${preD}）`;
+                if (postD) F.STOCK_MOVE.post_price_label = `変動後（${postD} 終値）`;
+                if (chg)   F.STOCK_MOVE.price_change = chg;
+            } else {
+                if (f.prev) {
+                    if (f.prev.close)  F.STOCK_MOVE.pre_price = f.prev.close;
+                    if (f.prev.volume) F.STOCK_MOVE.pre_volume = f.prev.volume;
+                    if (f.prev.date)   F.STOCK_MOVE.pre_price_label = `変動前（${formatDateShort(f.prev.date)} 終値）`;
+                }
+                if (f.current) {
+                    if (f.current.close)  F.STOCK_MOVE.post_price = f.current.close;
+                    if (f.current.volume) F.STOCK_MOVE.post_volume = f.current.volume;
+                    if (f.current.date)   F.STOCK_MOVE.post_price_label = `変動後（${formatDateShort(f.current.date)} 終値）`;
+                }
+                const pc = _pctFromTo(f.prev && f.prev.close, f.current && f.current.close);
+                if (pc) F.STOCK_MOVE.price_change = pc;
+            }
+            return F;
+        }
+
+        function buildSaScaffold(F) {
+            const g = (s, k) => (F[s] && F[s][k]) || '';
+            return `[HEADER]
+company=${g('HEADER','company')}
+code=${g('HEADER','code')}
+business_description=
+move_label=
+
+[BASIC_INFO]
+market_cap=${g('BASIC_INFO','market_cap')}
+per_label=${g('BASIC_INFO','per_label') || '予想PER'}
+per=${g('BASIC_INFO','per')}
+pbr=${g('BASIC_INFO','pbr')}
+yield=${g('BASIC_INFO','yield')}
+
+[CHART_DATA]
+data=${g('CHART_DATA','data')}
+
+[STOCK_MOVE]
+pre_price_label=${g('STOCK_MOVE','pre_price_label')}
+pre_price=${g('STOCK_MOVE','pre_price')}
+pre_volume=${g('STOCK_MOVE','pre_volume')}
+post_price_label=${g('STOCK_MOVE','post_price_label')}
+post_price=${g('STOCK_MOVE','post_price')}
+post_volume=${g('STOCK_MOVE','post_volume')}
+price_change=${g('STOCK_MOVE','price_change')}
+
+[MATERIAL]
+tag_1=
+summary=
+detail_1=
+detail_2=
+
+[NEXT_ACTIONS]
+focus_1=
+focus_2=
+focus_3=
+risk_1=
+risk_2=
+risk_3=
+
+[IMPACT]
+reason_1=
+reason_2=
+reason_3=
+reason_4=`;
+        }
+
+        // ボタン：個別銘柄分析 2.補完（再取得しない。取得済み _saFetched を使う）
+        function complementSaData() {
+            if (!window._saFetched) { alert('先に「📥 自動取得」で株探データを取得してください（このボタンは再取得しません）'); return; }
+            const F = buildSaFields();
+            const ta = document.getElementById('sa-input-data');
+            ta.value = ta.value.trim() ? patchDataText(ta.value, F) : buildSaScaffold(F);
+            renderImageStock();
+            saveState();
+        }
+
+        // ボタン：決算分析 2.補完（再取得しない。取得済み _earnFetched を使う）
+        function complementEarnData() {
+            const ef = window._earnFetched;
+            if (!ef) { alert('先に「📥 自動取得」で株探データを取得してください（このボタンは再取得しません）'); return; }
+            const d = ef.d || {};
+            const code = document.getElementById('p-code').value.trim();
+            const F = { HEADER: {}, BASIC_INFO: {}, CHART_DATA: {}, MARKET_REACTION: {} };
+            if (d.name) F.HEADER.company = d.name;
+            if (code)   F.HEADER.code = code;
+            F.BASIC_INFO.per_label = getMarket() === 'us' ? '実績PER' : '予想PER';
+            if (d.marketCap) F.BASIC_INFO.market_cap = d.marketCap;
+            if (d.per)   F.BASIC_INFO.per = d.per;
+            if (d.pbr)   F.BASIC_INFO.pbr = d.pbr;
+            if (d.yield) F.BASIC_INFO.yield = d.yield;
+            if (d.chartData) F.CHART_DATA.data = d.chartData;
+            if (ef.prePrice)  F.MARKET_REACTION.pre_price = ef.prePrice;
+            if (ef.postPrice) F.MARKET_REACTION.post_price = ef.postPrice;
+            if (ef.preDate)   F.MARKET_REACTION.pre_price_label  = `決算前（${formatDateShort(ef.preDate)} 終値）`;
+            if (ef.postDate)  F.MARKET_REACTION.post_price_label = `決算後（${formatDateShort(ef.postDate)} ${document.getElementById('p-post-after-hours').checked ? (getMarket()==='jp'?'PTS':'時間外') : '終値'}）`;
+            if (ef.price_change) F.MARKET_REACTION.price_change = ef.price_change;
+            const ta = document.getElementById('input-data');
+            if (!ta.value.trim()) { alert('先にNotebookLMの出力を「2.」に貼り付けてください（空欄を補完します）'); return; }
+            ta.value = patchDataText(ta.value, F);
+            renderImage();
+            saveState();
         }
 
         // ===== 株探取得値の補助（変動率・反応テキスト） =====
@@ -2071,7 +2205,7 @@ point_2=`;
             if (_saveTimer) clearTimeout(_saveTimer);
             _saveTimer = setTimeout(() => {
                 try {
-                    const state = { fields: {}, radios: {}, fetched: window._saFetched || null };
+                    const state = { fields: {}, radios: {}, fetched: window._saFetched || null, earnFetched: window._earnFetched || null };
                     PERSIST_IDS.forEach(id => {
                         const el = document.getElementById(id);
                         if (!el) return;
@@ -2105,6 +2239,7 @@ point_2=`;
                 });
             }
             window._saFetched = state.fetched || null;
+            window._earnFetched = state.earnFetched || null;
             return true;
         }
 
@@ -2307,26 +2442,8 @@ ${name}（${code}）の${intro}理由と今後の見通しについて、
                 rule3 = `3. [STOCK_MOVE]のpre_price_labelは「変動前（${preDateStr} 終値）」、post_price_labelは「変動後（${postDateStr} ${postTimingStr}）」としてください。時間外（PTS）の場合は株探等のソースに記載されている時刻を読み取り「変動後（${postDateStr} PTS HH:MM）」の形式で記載してください。price_changeには変動率（例：+12.3%）のみ記載してください。post_volumeは時間外（PTS）または時間外の場合は空欄にしてください。vol_labelは変動後の出来高が変動前と比べて著しく増加した場合（目安：2倍以上）のみ「急増」「大幅増」等と記載し、それ以外は空欄にしてください。`;
             }
 
-            // 株探から取得済みの確定値があれば、推測せず優先使用するよう指示
-            let fixedBlock = '';
-            const f = window._saFetched;
-            if (f) {
-                const lines = [];
-                if (f.marketCap) lines.push(`・時価総額：${f.marketCap}`);
-                if (f.per)       lines.push(`・PER：${f.per}`);
-                if (f.pbr)       lines.push(`・PBR：${f.pbr}`);
-                if (f.yield)     lines.push(`・配当利回り：${f.yield}`);
-                if (f.prev && (f.prev.close || f.prev.volume))       lines.push(`・変動前（前営業日 ${f.prev.date || ''}）終値：${f.prev.close || '-'} / 出来高：${f.prev.volume || '-'}`);
-                if (f.current && (f.current.close || f.current.volume)) lines.push(`・変動後（直近 ${f.current.date || ''}）終値：${f.current.close || '-'} / 出来高：${f.current.volume || '-'}`);
-                if (f.high && f.high.price) lines.push(`・取得範囲内の高値：${f.high.price}（${f.high.date || ''}）`);
-                if (lines.length) {
-                    fixedBlock = `\n【株探取得済みの確定値（推測せず、必ずそのまま [BASIC_INFO] / [STOCK_MOVE] に使用してください）】\n${lines.join('\n')}\n`;
-                }
-            }
-
             const prompt = `あなたはプロの証券アナリストであり、データ整形のエキスパートです。
 読み込んだソースを総合して分析し、下記の【出力フォーマット】に厳密に従ってテキストを出力してください。
-${fixedBlock}
 
 ## 重要なルール（必ず守ること）
 1. 金額は「兆・億・万円」の単位に変換しカンマを入れてください。（例：12,345百万円 → 123億円）

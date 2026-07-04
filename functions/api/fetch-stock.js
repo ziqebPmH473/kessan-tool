@@ -94,10 +94,16 @@ function parseTopPageUs(html) {
   if (mc) out.marketCap = cellText(mc[1]);
   const per = html.match(/>PER<\/div>\s*<div[^>]*>([\d.,]+)\s*<span/);
   if (per) out.per = per[1] + "倍";
+  const psr = html.match(/>PSR<\/div>\s*<div[^>]*>([\d.,]+)\s*<span/);
+  if (psr) out.psr = psr[1] + "倍";
   const pbr = html.match(/>PBR<\/div>\s*<div[^>]*>([\d.,]+)\s*<span/);
   if (pbr) out.pbr = pbr[1] + "倍";
-  const yld = html.match(/配当利回り<\/[^>]+>\s*<[^>]*>([\d.]+)\s*[%％]/);
+  // 米国株の利回りラベルは「利回り」（配当利回りではない）
+  const yld = html.match(/>利回り<\/div>\s*<div[^>]*>([\d.]+)\s*<span[^>]*>[%％]/);
   if (yld) out.yield = yld[1] + "%";
+  // 会社概要（事業内容）
+  const biz = html.match(/概要<\/th>\s*<td[^>]*>([\s\S]*?)<\/td>/);
+  if (biz) out.business = cellText(biz[1]);
   return out;
 }
 
@@ -197,9 +203,11 @@ export async function onRequest(context) {
       code,
       name: top.name || "",
       per: top.per || "",
+      psr: top.psr || "",
       pbr: top.pbr || "",
       yield: top.yield || "",
       marketCap: top.marketCap || "",
+      business: top.business || "",
       current,
       prev,
       high,
