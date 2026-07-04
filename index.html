@@ -2043,7 +2043,7 @@ point_2=`;
                 if (eff.price)  F.STOCK_MOVE.post_price = eff.price;
                 if (eff.volume) F.STOCK_MOVE.post_volume = eff.volume;
                 F.STOCK_MOVE.post_price_label = eff.isPts
-                    ? `変動後（${eff.dateLabel} PTS）`
+                    ? `変動後（${eff.dateLabel} ${eff.ptsLabel}）`
                     : `変動後（${formatDateShort(f.current && f.current.date)} 終値）`;
                 const pc = _pctFromTo(f.prev && f.prev.close, eff.price);
                 if (pc) F.STOCK_MOVE.price_change = pc;
@@ -2129,7 +2129,7 @@ reason_4=`;
             if (ef.postVol)   F.MARKET_REACTION.post_volume = ef.postVol;   // PTSは空欄
             if (ef.preDate)   F.MARKET_REACTION.pre_price_label  = `決算前（${formatDateShort(ef.preDate)} 終値）`;
             if (ef.postDate)  F.MARKET_REACTION.post_price_label = ef.usePts
-                ? `決算後（${formatDateShort(ef.postDate)} PTS ${ef.ptsTime || ''}）`
+                ? `決算後（${formatDateShort(ef.postDate)} ${ef.ptsLabel || 'PTS'} ${ef.ptsTime || ''}）`
                 : `決算後（${formatDateShort(ef.postDate)} 終値）`;
             if (ef.price_change) F.MARKET_REACTION.price_change = ef.price_change;
             const ta = document.getElementById('input-data');
@@ -2151,13 +2151,14 @@ reason_4=`;
         // 返り値: { price, volume, isPts, dateLabel }
         function _effPost(f, afterHours) {
             if (afterHours && f && f.pts && f.pts.price) {
-                return { price: f.pts.price, volume: '', isPts: true, dateLabel: f.pts.time || '' };  // 出来高はPTSでは空
+                return { price: f.pts.price, volume: '', isPts: true, dateLabel: f.pts.time || '', ptsLabel: f.pts.label || 'PTS' };  // 出来高はPTSでは空
             }
             return {
                 price: (f && f.current && f.current.close) || '',
                 volume: (f && f.current && f.current.volume) || '',
                 isPts: false,
-                dateLabel: (f && f.current && f.current.date) || ''
+                dateLabel: (f && f.current && f.current.date) || '',
+                ptsLabel: 'PTS'
             };
         }
         // move = { preLabel,preDate,prePrice,preVol, postLabel,postDate,postPrice,postVol, change }
@@ -2209,7 +2210,7 @@ reason_4=`;
                 const eff = _effPost(f, document.getElementById('sa-post-after-hours').checked);
                 move = {
                     preLabel: '変動前(前営業日)', preDate: f.prev && f.prev.date, prePrice: f.prev && f.prev.close, preVol: f.prev && f.prev.volume,
-                    postLabel: eff.isPts ? '変動後(PTS)' : '変動後(直近)', postDate: eff.dateLabel, postPrice: eff.price, postVol: eff.volume,
+                    postLabel: eff.isPts ? `変動後(${eff.ptsLabel})` : '変動後(直近)', postDate: eff.dateLabel, postPrice: eff.price, postVol: eff.volume,
                     change: _pctFromTo(f.prev && f.prev.close, eff.price)
                 };
             }
@@ -2223,7 +2224,7 @@ reason_4=`;
             const code = document.getElementById('p-code').value.trim();
             const move = {
                 preLabel: '決算前',  preDate: ef.preDate,  prePrice: ef.prePrice,  preVol: (ef.preVol != null ? ef.preVol : _volOf(f, ef.preDate)),
-                postLabel: ef.usePts ? '決算後(PTS)' : '決算後', postDate: ef.usePts ? (ef.ptsTime || ef.postDate) : ef.postDate,
+                postLabel: ef.usePts ? `決算後(${ef.ptsLabel || 'PTS'})` : '決算後', postDate: ef.usePts ? (ef.ptsTime || ef.postDate) : ef.postDate,
                 postPrice: ef.postPrice, postVol: (ef.postVol != null ? ef.postVol : _volOf(f, ef.postDate)),
                 change: ef.price_change
             };
@@ -2275,10 +2276,11 @@ reason_4=`;
                 const preVol  = volOf(preDate);
                 const postVol = usePts ? '' : volOf(postDate);         // PTSは出来高空欄
                 const ptsTime = usePts ? d.pts.time : '';
+                const ptsLabel = (d.pts && d.pts.label) || 'PTS';
                 const pc = _pctFromTo(prePrice, postPrice);
 
                 // 決算前後の株価・変動率を保持（ソースデータ／補完で使用）
-                window._earnFetched = { d, prePrice, postPrice, preVol, postVol, usePts, ptsTime, price_change: pc, preDate, postDate };
+                window._earnFetched = { d, prePrice, postPrice, preVol, postVol, usePts, ptsTime, ptsLabel, price_change: pc, preDate, postDate };
 
                 // 株価の反応（空欄のときのみ補完）：符号なし「X%上昇/下落した」
                 const reactEl = document.getElementById('p-reaction');

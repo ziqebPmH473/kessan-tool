@@ -64,7 +64,7 @@ function parseTopPage(html) {
   if (zikaM) out.marketCap = tightUnit(cellText(zikaM[1]));
   // PTS（時間外）価格＋時刻
   const ptsM = html.match(/kabuka1">PTS<\/div>\s*<div class="kabuka2">([^<]+)<\/div>\s*<div class="kabuka3">([^<]+)<\/div>/);
-  if (ptsM) out.pts = { price: cellText(ptsM[1]).replace(/円/g, ""), time: cellText(ptsM[2]) };
+  if (ptsM) out.pts = { price: cellText(ptsM[1]).replace(/円/g, ""), time: cellText(ptsM[2]), label: "PTS" };
   return out;
 }
 
@@ -107,6 +107,9 @@ function parseTopPageUs(html) {
   // 会社概要（事業内容）
   const biz = html.match(/概要<\/th>\s*<td[^>]*>([\s\S]*?)<\/td>/);
   if (biz) out.business = cellText(biz[1]);
+  // 時間外（アフターマーケット）価格：bg-light-lavender 箱内の mr-1 flex-1 text-right
+  const ah = html.match(/bg-light-lavender[\s\S]*?mr-1 flex-1 text-right">\s*\$?([\d.,]+)/);
+  if (ah) out.pts = { price: ah[1], time: "アフターマーケット", label: "時間外" };
   return out;
 }
 
