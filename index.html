@@ -1036,7 +1036,8 @@
                 ? `  ・どんな決算内容だったか（良かった点・悪かった点）\n  ・今後の注目点・投資家が注目すべきポイント\n  ・画像への誘導（例「詳細は図解で👇」など）`
                 : `  ・どんな決算内容だったか\n  ・株価がどう動いたか\n  ・なぜそのように株価が反応したのか（本質的な理由）\n  ・今後の注目点\n  ・画像への誘導（例「詳細は図解で👇」など）`;
 
-            return `あなたはプロの証券アナリストです。
+            return `@iterative-fact-check-and-revise
+あなたはプロの証券アナリストです。
 以下の銘柄について、ウェブ検索機能を用いて調査し、結果をまとめてください。
 
 【対象銘柄】
@@ -2461,7 +2462,8 @@ reason_4=`;
             const name = document.getElementById('sa-name-input').value || '〇〇〇〇';
             const { intro, timingNote } = getSaIntroContext();
 
-            return `あなたはプロの証券アナリストです。
+            return `@iterative-fact-check-and-revise
+あなたはプロの証券アナリストです。
 ${name}（${code}）の${intro}理由と今後の見通しについて、
 ウェブ検索機能を用いて調査し、レポート形式でまとめてください。
 
