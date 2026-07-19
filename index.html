@@ -2142,7 +2142,7 @@ point_2=`;
                     const reactEl = document.getElementById('sa-reaction');
                     const mv = _saPrevdayMove(d);
                     const reactPhrase = _reactionPhrase(mv.prePrice, mv.postPrice);
-                    if (reactPhrase && !reactEl.value.trim()) reactEl.value = reactPhrase;
+                    if (reactPhrase) reactEl.value = reactPhrase;
                 }
 
                 // ※取得値は「2.データ入力」へはこの時点では書かない（再取得のたびに上書きしないため）。
@@ -2472,10 +2472,10 @@ reason_4=`;
                 // 決算前後の株価・変動率を保持（ソースデータ／補完で使用）
                 window._earnFetched = { d, prePrice, postPrice, preVol, postVol, usePts, ptsTime, ptsLabel, price_change: pc, preDate, postDate };
 
-                // 株価の反応（空欄のときのみ補完）：符号なし「X%上昇/下落した」
+                // 株価の反応：符号なし「X%上昇/下落した」。日付修正後の再取得で必ず更新されるよう常に上書き
                 const reactEl = document.getElementById('p-reaction');
                 const reactPhrase = _reactionPhrase(prePrice, postPrice);
-                if (reactPhrase && !reactEl.value.trim()) reactEl.value = reactPhrase;
+                if (reactPhrase) reactEl.value = reactPhrase;
 
                 // ※取得値は「2.データ入力」へは書かない（そこはNotebookLMの"出力"を貼る場所）。
 
