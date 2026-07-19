@@ -1,0 +1,5 @@
+# ローカル開発用の環境変数サンプル。
+# このファイルをコピーして「.dev.vars」という名前で保存し、
+# 下の xxxxx を自分の Gemini APIキー（Google AI Studioで発行）に置き換えてください。
+# .dev.vars は .gitignore 済みなのでGitには入りません（キーは外に出ません）。
+GEMINI_API_KEY=xxxxx

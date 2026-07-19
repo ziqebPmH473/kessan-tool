@@ -2,3 +2,6 @@ old/
 kessan_tool_*.html
 
 .wrangler/
+
+# ローカルのGemini APIキー（.dev.vars.example はコミットするが .dev.vars は除外）
+.dev.vars

@@ -412,6 +412,10 @@
             <div class="input-row" style="margin-top: 4px;">
                 <button class="btn-sub" onclick="copyEarnSourceData(this)" style="width:100%; background:#0d9488; color:#fff;">📄 NotebookLM用ソースデータ出力（取得済み）</button>
             </div>
+            <div class="input-row" style="margin-top: 6px;">
+                <button class="main-btn" onclick="geminiFormatEarn(this)" style="width:100%; background:#4f46e5;">✨ Geminiで整形（NotebookLM不要）</button>
+            </div>
+            <div id="gem-earn-status" style="display:none; font-size:11px; margin-top:3px;"></div>
         </div>
 
         <div class="tool-section">
@@ -524,6 +528,10 @@
             <div class="input-row" style="margin-top: 4px;">
                 <button class="btn-sub" onclick="copySaSourceData(this)" style="width:100%; background:#0d9488; color:#fff;">📄 NotebookLM用ソースデータ出力（取得済み）</button>
             </div>
+            <div class="input-row" style="margin-top: 6px;">
+                <button class="main-btn" onclick="geminiFormatSa(this)" style="width:100%; background:#4f46e5;">✨ Geminiで整形（NotebookLM不要）</button>
+            </div>
+            <div id="gem-sa-status" style="display:none; font-size:11px; margin-top:3px;"></div>
         </div>
 
         <div class="tool-section">
@@ -995,6 +1003,92 @@
             });
         }
 
+        // ============================================================
+        // Gemini API 整形（NotebookLM工程の置き換え）
+        // ・/api/analyze（CF Pages Function）経由でサーバー側からGeminiを呼ぶ
+        // ・モデルは stock-slide-generator と同じ優先チェーン（上限/混雑で自動降格）
+        // ============================================================
+        function autoModelChain(cls) {
+            return cls === 'high'
+                ? ['gemini-3.5-flash', 'gemini-3-flash-preview', 'gemini-3.1-flash-lite', 'gemini-2.5-flash']
+                : ['gemini-3.1-flash-lite', 'gemini-3-flash-preview', 'gemini-2.5-flash-lite', 'gemini-2.5-flash'];
+        }
+
+        // ステータス表示（ボタン下の小さな注記）。elId が無ければ何もしない。
+        function setGemStatus(elId, msg, kind) {
+            const el = document.getElementById(elId);
+            if (!el) return;
+            el.textContent = msg || '';
+            el.style.display = msg ? 'block' : 'none';
+            el.style.color = kind === 'error' ? 'var(--negative)'
+                : kind === 'ok' ? 'var(--positive)' : 'var(--text-sub)';
+        }
+
+        // 汎用：Geminiでテキスト生成。prompt=指示、resources=[{label,text},...]
+        // 戻り値 { ok, text, model, fellBack } / 例外は投げず ok:false で返す。
+        async function callGeminiAnalyze(prompt, resources, opts) {
+            opts = opts || {};
+            try {
+                const res = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prompt,
+                        resources: resources || [],
+                        temperature: typeof opts.temperature === 'number' ? opts.temperature : 0.2,
+                        models: autoModelChain(opts.cls || 'high')
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok || !data.ok) {
+                    return { ok: false, error: (data && data.error) || `HTTP ${res.status}` };
+                }
+                return { ok: true, text: data.text || '', model: data.model, fellBack: data.fellBack };
+            } catch (e) {
+                return { ok: false, error: (e && e.message) ? e.message : String(e) };
+            }
+        }
+
+        // 決算タブ：Geminiで整形 → #input-data に投入して描画
+        async function geminiFormatEarn(btnEl) {
+            const src = getEarnSourceText();
+            if (src == null) { alert('先に「📥 自動取得」で株探データを取得してください'); return; }
+            const report = (document.getElementById('fc-report').value || '').trim();
+            const resources = [{ label: '株探 取得データ', text: src }];
+            if (report) resources.push({ label: '分析レポート（ファクトチェック済み）', text: report });
+
+            const label = btnEl ? btnEl.innerText : '';
+            if (btnEl) { btnEl.disabled = true; btnEl.innerText = '整形中…'; }
+            setGemStatus('gem-earn-status', 'Geminiで整形中…', 'info');
+            const r = await callGeminiAnalyze(buildEarnNBPrompt(), resources, { cls: 'high', temperature: 0.2 });
+            if (btnEl) { btnEl.disabled = false; btnEl.innerText = label; }
+
+            if (!r.ok) { setGemStatus('gem-earn-status', 'エラー: ' + r.error, 'error'); return; }
+            document.getElementById('input-data').value = r.text;
+            renderImage();
+            setGemStatus('gem-earn-status', `整形完了（${r.model || 'gemini'}${r.fellBack ? '・降格' : ''}）`, 'ok');
+        }
+
+        // 個別銘柄タブ：Geminiで整形 → #sa-input-data に投入して描画
+        async function geminiFormatSa(btnEl) {
+            const src = getSaSourceText();
+            if (src == null) { alert('先に「📥 自動取得」で株探データを取得してください'); return; }
+            const report = (document.getElementById('sa-fc-report').value || '').trim();
+            const resources = [{ label: '株探 取得データ', text: src }];
+            if (report) resources.push({ label: '分析レポート（ファクトチェック済み）', text: report });
+
+            const label = btnEl ? btnEl.innerText : '';
+            if (btnEl) { btnEl.disabled = true; btnEl.innerText = '整形中…'; }
+            setGemStatus('gem-sa-status', 'Geminiで整形中…', 'info');
+            const r = await callGeminiAnalyze(buildSaNBPrompt(), resources, { cls: 'high', temperature: 0.2 });
+            if (btnEl) { btnEl.disabled = false; btnEl.innerText = label; }
+
+            if (!r.ok) { setGemStatus('gem-sa-status', 'エラー: ' + r.error, 'error'); return; }
+            document.getElementById('sa-input-data').value = r.text;
+            renderImageStock();
+            setGemStatus('gem-sa-status', `整形完了（${r.model || 'gemini'}${r.fellBack ? '・降格' : ''}）`, 'ok');
+        }
+
         function formatDateJP(dateRaw) {
             if (!dateRaw) return '〇〇年〇月〇日';
             const d = new Date(dateRaw);
@@ -1129,7 +1223,7 @@ ${stockPriceInfo}
             copyToClipboard(prompt, btnElement, '✔ コピー完了！');
         }
 
-        function copyNotebookLM(btnElement) {
+        function buildEarnNBPrompt() {
             const market = getMarket();
             const timingStr = document.getElementById('p-timing').value;
             const preDateStr = formatDateShort(document.getElementById('p-pre-date').value);
@@ -1241,7 +1335,11 @@ reaction_summary=
 point_1=
 point_2=`;
 
-            copyToClipboard(prompt, btnElement, '✔ コピー完了！');
+            return prompt;
+        }
+
+        function copyNotebookLM(btnElement) {
+            copyToClipboard(buildEarnNBPrompt(), btnElement, '✔ コピー完了！');
         }
 
         // ---------------------------------------------
@@ -2205,9 +2303,9 @@ reason_4=`;
             return L.join('\n');
         }
 
-        function copySaSourceData(btn) {
+        function getSaSourceText() {
             const f = window._saFetched;
-            if (!f) { alert('先に「📥 自動取得」で株探データを取得してください（このボタンは再取得しません）'); return; }
+            if (!f) return null;
             const code = document.getElementById('sa-code-input').value.trim();
             const market = getSaMarket();
             let move;
@@ -2229,12 +2327,18 @@ reason_4=`;
                     change: mv.change
                 };
             }
-            copyToClipboard(buildKabutanSourceText(f, code, market, move), btn, '✔ コピー完了！');
+            return buildKabutanSourceText(f, code, market, move);
         }
 
-        function copyEarnSourceData(btn) {
+        function copySaSourceData(btn) {
+            const t = getSaSourceText();
+            if (t == null) { alert('先に「📥 自動取得」で株探データを取得してください（このボタンは再取得しません）'); return; }
+            copyToClipboard(t, btn, '✔ コピー完了！');
+        }
+
+        function getEarnSourceText() {
             const ef = window._earnFetched;
-            if (!ef || !ef.d) { alert('先に「📥 自動取得」で株探データを取得してください（このボタンは再取得しません）'); return; }
+            if (!ef || !ef.d) return null;
             const f = ef.d;
             const code = document.getElementById('p-code').value.trim();
             const move = {
@@ -2243,7 +2347,13 @@ reason_4=`;
                 postPrice: ef.postPrice, postVol: (ef.postVol != null ? ef.postVol : _volOf(f, ef.postDate)),
                 change: ef.price_change
             };
-            copyToClipboard(buildKabutanSourceText(f, code, getMarket(), move), btn, '✔ コピー完了！');
+            return buildKabutanSourceText(f, code, getMarket(), move);
+        }
+
+        function copyEarnSourceData(btn) {
+            const t = getEarnSourceText();
+            if (t == null) { alert('先に「📥 自動取得」で株探データを取得してください（このボタンは再取得しません）'); return; }
+            copyToClipboard(t, btn, '✔ コピー完了！');
         }
 
         // ===== 株探取得値の補助（変動率・反応テキスト） =====
@@ -2564,7 +2674,7 @@ ${name}（${code}）の${intro}理由と今後の見通しについて、
             );
         }
 
-        function copySaNotebookLM(btnElement) {
+        function buildSaNBPrompt() {
             const market        = getSaMarket();
             const preDateStr    = formatDateShort(document.getElementById('sa-pre-date').value);
             const postDateStr   = formatDateShort(document.getElementById('sa-post-date').value);
@@ -2668,7 +2778,11 @@ risk_1=
 risk_2=
 risk_3=`;
 
-            copyToClipboard(prompt, btnElement, '✔ コピー完了！');
+            return prompt;
+        }
+
+        function copySaNotebookLM(btnElement) {
+            copyToClipboard(buildSaNBPrompt(), btnElement, '✔ コピー完了！');
         }
 
         async function pasteSaFromClipboard() {
