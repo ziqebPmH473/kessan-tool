@@ -45,8 +45,18 @@ export async function onRequestPost(context) {
     ? `以下の資料のみを根拠として、指示に厳密に従って回答してください。資料に無い情報を創作しないでください。\n\n===== 資料 =====\n${resourceText}\n\n===== 指示 =====\n${prompt}`
     : prompt;
 
+  // files: PDF等の添付（マルチモーダル）。{ mimeType, data(base64) } の配列。
+  // 決算資料PDFなどをそのまま Gemini に読ませる用途。
+  const files = Array.isArray(payload.files) ? payload.files : [];
+  const parts = [{ text: fullPrompt }];
+  for (const f of files) {
+    if (f && f.data && f.mimeType) {
+      parts.push({ inline_data: { mime_type: f.mimeType, data: f.data } });
+    }
+  }
+
   const body = {
-    contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
+    contents: [{ role: "user", parts }],
     generationConfig: {
       temperature: typeof payload.temperature === "number" ? payload.temperature : 0.4,
     },

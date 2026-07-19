@@ -410,12 +410,17 @@
                 <button class="btn-sub" onclick="copyEarnSourceData(this)" style="flex:1; background:#0d9488; color:#fff;">📄 ソースデータ</button>
             </div>
             <div class="input-row" style="margin-top: 6px; gap:4px; align-items:center;">
+                <label style="font-size:11px; color:var(--text-sub); flex:none;">決算資料</label>
+                <input type="file" id="gem-earn-files" accept="application/pdf,image/*" multiple style="flex:1; min-width:0; font-size:11px;">
+            </div>
+            <div style="font-size:10px; color:var(--text-sub); margin-top:2px;">※ 決算短信・説明資料PDFを添付（出力データ作成で読み込みます。NotebookLMコピーには不要）</div>
+            <div class="input-row" style="margin-top: 6px; gap:4px; align-items:center;">
                 <label style="font-size:11px; color:var(--text-sub); flex:none;">モデル</label>
                 <select id="gem-earn-model" style="flex:1; min-width:0; font-size:11px; padding:4px;">
-                    <option value="">自動（上位から上限で自動降格）</option>
+                    <option value="" selected>自動（上位から上限で自動降格）</option>
                     <option value="gemini-3.5-flash">Gemini 3.5 Flash（20回/日）</option>
                     <option value="gemini-3-flash-preview">Gemini 3 Flash（20回/日）</option>
-                    <option value="gemini-3.1-flash-lite" selected>Gemini 3.1 Flash Lite（500回/日）</option>
+                    <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite（500回/日）</option>
                     <option value="gemini-2.5-flash">Gemini 2.5 Flash（20回/日）</option>
                     <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite（20回/日）</option>
                 </select>
@@ -1056,6 +1061,7 @@
                     body: JSON.stringify({
                         prompt,
                         resources: resources || [],
+                        files: opts.files || [],
                         temperature: typeof opts.temperature === 'number' ? opts.temperature : 0.2,
                         models: autoModelChain(opts.cls || 'high', opts.modelOverride || '')
                     })
@@ -1070,13 +1076,31 @@
             }
         }
 
-        // 決算タブ：Geminiで整形 → #input-data に投入して描画
+        // File(PDF等) を Gemini inline_data 用の {mimeType, data(base64)} に変換
+        async function readFilesAsBase64(fileList) {
+            const out = [];
+            for (const file of fileList) {
+                const data = await new Promise((resolve, reject) => {
+                    const fr = new FileReader();
+                    fr.onload = () => resolve(String(fr.result).split(',')[1] || '');
+                    fr.onerror = () => reject(new Error(file.name + ' の読み込みに失敗'));
+                    fr.readAsDataURL(file);
+                });
+                out.push({ mimeType: file.type || 'application/pdf', data });
+            }
+            return out;
+        }
+
+        // 決算タブ：Geminiで整形 → #input-data に投入して描画（決算資料PDFも読ませる）
         async function geminiFormatEarn(btnEl) {
             const src = getEarnSourceText();
             const report = (document.getElementById('fc-report').value || '').trim();
+            const fileEl = document.getElementById('gem-earn-files');
+            const fileList = fileEl && fileEl.files ? [...fileEl.files] : [];
             const miss = [];
             if (src == null) miss.push('株探の取得データ（📥 自動取得）');
             if (!report) miss.push('分析レポート（FCレポート貼付欄）');
+            if (!fileList.length) miss.push('決算資料PDF（添付欄）');
             if (miss.length) { alert('整形には次が必要です：\n・' + miss.join('\n・')); return; }
             const resources = [
                 { label: '株探 取得データ', text: src },
@@ -1086,8 +1110,16 @@
 
             const label = btnEl ? btnEl.innerText : '';
             if (btnEl) { btnEl.disabled = true; btnEl.innerText = '整形中…'; }
-            setGemStatus('gem-earn-status', 'Geminiで整形中…', 'info');
-            const r = await callGeminiAnalyze(buildEarnNBPrompt(), resources, { cls: 'high', temperature: 0.2, modelOverride: ov });
+            setGemStatus('gem-earn-status', '決算資料を読み込み中…', 'info');
+            let files;
+            try { files = await readFilesAsBase64(fileList); }
+            catch (e) {
+                if (btnEl) { btnEl.disabled = false; btnEl.innerText = label; }
+                setGemStatus('gem-earn-status', 'ファイル読み込みエラー: ' + ((e && e.message) || e), 'error');
+                return;
+            }
+            setGemStatus('gem-earn-status', `Geminiで整形中…（決算資料${files.length}件）`, 'info');
+            const r = await callGeminiAnalyze(buildEarnNBPrompt(), resources, { cls: 'high', temperature: 0.2, modelOverride: ov, files });
             if (btnEl) { btnEl.disabled = false; btnEl.innerText = label; }
 
             if (!r.ok) { setGemStatus('gem-earn-status', 'エラー: ' + r.error, 'error'); return; }
