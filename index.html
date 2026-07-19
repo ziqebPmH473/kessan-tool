@@ -411,9 +411,10 @@
             </div>
             <div class="input-row" style="margin-top: 6px; gap:4px; align-items:center;">
                 <label style="font-size:11px; color:var(--text-sub); flex:none;">決算資料</label>
-                <input type="file" id="gem-earn-files" accept="application/pdf,image/*" multiple style="flex:1; min-width:0; font-size:11px;">
+                <input type="file" id="gem-earn-files" accept="application/pdf,image/*" multiple onchange="onEarnFilesPicked(this)" style="flex:1; min-width:0; font-size:11px;">
             </div>
-            <div style="font-size:10px; color:var(--text-sub); margin-top:2px;">※ 決算短信・説明資料PDFを添付（出力データ作成で読み込みます。NotebookLMコピーには不要）</div>
+            <div id="gem-earn-drop" style="margin-top:4px; padding:10px; border:1px dashed var(--border); border-radius:6px; text-align:center; font-size:11px; color:var(--text-sub);">＋ ここにドラッグ＆ドロップで追加（1ファイルずつ複数回でも可）</div>
+            <div id="gem-earn-filelist" style="margin-top:4px; display:flex; flex-wrap:wrap; gap:4px;"></div>
             <div class="input-row" style="margin-top: 6px; gap:4px; align-items:center;">
                 <label style="font-size:11px; color:var(--text-sub); flex:none;">チャート期間</label>
                 <input type="number" id="gem-earn-months" min="1" value="6" placeholder="全期間" style="width:60px; flex:none; font-size:11px; padding:4px;">
@@ -1101,7 +1102,7 @@
             }
         }
 
-        // File(PDF等) を Gemini inline_data 用の {mimeType, data(base64)} に変換
+        // File(PDF等) を Gemini inline_data 用の {name, mimeType, size, data(base64)} に変換
         async function readFilesAsBase64(fileList) {
             const out = [];
             for (const file of fileList) {
@@ -1111,17 +1112,106 @@
                     fr.onerror = () => reject(new Error(file.name + ' の読み込みに失敗'));
                     fr.readAsDataURL(file);
                 });
-                out.push({ mimeType: file.type || 'application/pdf', data });
+                out.push({ name: file.name || 'file', mimeType: file.type || 'application/pdf', size: file.size || 0, data });
             }
             return out;
+        }
+
+        // ===== 決算資料ファイルの管理（追加/削除/リロード保持） =====
+        // 大きいPDFも扱うため localStorage ではなく IndexedDB に base64 を保持する。
+        window._earnFiles = window._earnFiles || [];
+        const IDB_NAME = 'kessanToolFiles', IDB_STORE = 'files';
+        function idbOpen() {
+            return new Promise((resolve, reject) => {
+                const req = indexedDB.open(IDB_NAME, 1);
+                req.onupgradeneeded = () => req.result.createObjectStore(IDB_STORE);
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            });
+        }
+        async function idbPut(key, val) {
+            const db = await idbOpen();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(IDB_STORE, 'readwrite');
+                tx.objectStore(IDB_STORE).put(val, key);
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        }
+        async function idbGet(key) {
+            const db = await idbOpen();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(IDB_STORE, 'readonly');
+                const req = tx.objectStore(IDB_STORE).get(key);
+                req.onsuccess = () => resolve(req.result || null);
+                req.onerror = () => reject(req.error);
+            });
+        }
+        function persistEarnFiles() { idbPut('earn', window._earnFiles).catch(e => console.warn('ファイル保存に失敗', e)); }
+
+        function escHtml(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+        function fmtSize(bytes) {
+            const b = Number(bytes) || 0;
+            if (b >= 1048576) return (b / 1048576).toFixed(1) + 'MB';
+            if (b >= 1024) return Math.round(b / 1024) + 'KB';
+            return b + 'B';
+        }
+
+        function renderEarnFiles() {
+            const box = document.getElementById('gem-earn-filelist');
+            if (!box) return;
+            const files = window._earnFiles || [];
+            if (!files.length) { box.innerHTML = '<span style="font-size:11px; color:var(--text-sub);">（決算資料は未添付）</span>'; return; }
+            box.innerHTML = files.map((f, i) =>
+                `<span style="display:inline-flex; align-items:center; gap:4px; background:#eef2ff; border:1px solid #c7d2fe; border-radius:5px; padding:2px 6px; font-size:11px;">📄 ${escHtml(f.name)} <span style="color:var(--text-sub);">${fmtSize(f.size)}</span> <button type="button" onclick="removeEarnFile(${i})" title="削除" style="border:none; background:none; color:#dc2626; cursor:pointer; font-size:13px; line-height:1; padding:0;">✕</button></span>`
+            ).join('');
+        }
+
+        async function addEarnFiles(fileList) {
+            const list = [...(fileList || [])].filter(f => f && f.size >= 0);
+            if (!list.length) return;
+            let added;
+            try { added = await readFilesAsBase64(list); }
+            catch (e) { alert('ファイルの読み込みに失敗しました: ' + ((e && e.message) || e)); return; }
+            window._earnFiles = (window._earnFiles || []).concat(added);
+            renderEarnFiles();
+            persistEarnFiles();
+        }
+
+        function removeEarnFile(i) {
+            window._earnFiles.splice(i, 1);
+            renderEarnFiles();
+            persistEarnFiles();
+        }
+
+        function onEarnFilesPicked(inputEl) {
+            addEarnFiles(inputEl.files);
+            inputEl.value = ''; // 同じファイルの再追加や「入れ替えでなく追加」を可能にする
+        }
+
+        function setupEarnFileDrop() {
+            const zone = document.getElementById('gem-earn-drop');
+            if (!zone) return;
+            const on = (ev, fn) => zone.addEventListener(ev, fn);
+            const stop = e => { e.preventDefault(); e.stopPropagation(); };
+            ['dragenter', 'dragover'].forEach(ev => on(ev, e => { stop(e); zone.style.background = '#eef2ff'; }));
+            ['dragleave', 'dragend'].forEach(ev => on(ev, e => { stop(e); zone.style.background = ''; }));
+            on('drop', e => { stop(e); zone.style.background = ''; if (e.dataTransfer && e.dataTransfer.files) addEarnFiles(e.dataTransfer.files); });
+        }
+
+        async function restoreEarnFiles() {
+            try {
+                const saved = await idbGet('earn');
+                if (Array.isArray(saved)) window._earnFiles = saved;
+            } catch (e) { console.warn('ファイル復元に失敗', e); }
+            renderEarnFiles();
         }
 
         // 決算タブ：Geminiで整形 → #input-data に投入して描画（決算資料PDFも読ませる）
         async function geminiFormatEarn(btnEl) {
             const src = getEarnSourceText();
             const report = (document.getElementById('fc-report').value || '').trim();
-            const fileEl = document.getElementById('gem-earn-files');
-            const fileList = fileEl && fileEl.files ? [...fileEl.files] : [];
+            const fileList = window._earnFiles || [];
             const miss = [];
             if (src == null) miss.push('株探の取得データ（📥 自動取得）');
             if (!report) miss.push('分析レポート（FCレポート貼付欄）');
@@ -1132,17 +1222,10 @@
                 { label: '分析レポート（ファクトチェック済み）', text: report }
             ];
             const ov = (document.getElementById('gem-earn-model') || {}).value || '';
+            const files = fileList.map(f => ({ mimeType: f.mimeType, data: f.data }));
 
             const label = btnEl ? btnEl.innerText : '';
             if (btnEl) { btnEl.disabled = true; btnEl.innerText = '整形中…'; }
-            setGemStatus('gem-earn-status', '決算資料を読み込み中…', 'info');
-            let files;
-            try { files = await readFilesAsBase64(fileList); }
-            catch (e) {
-                if (btnEl) { btnEl.disabled = false; btnEl.innerText = label; }
-                setGemStatus('gem-earn-status', 'ファイル読み込みエラー: ' + ((e && e.message) || e), 'error');
-                return;
-            }
             setGemStatus('gem-earn-status', `Geminiで整形中…（決算資料${files.length}件）`, 'info');
             const r = await callGeminiAnalyze(buildEarnNBPrompt() + GROUNDING_RULE, resources, { cls: 'high', temperature: 0.2, modelOverride: ov, files });
             if (btnEl) { btnEl.disabled = false; btnEl.innerText = label; }
@@ -3196,6 +3279,10 @@ risk_3=`;
             const restored = restoreState();
             switchSaCompareMode(getSaCompareMode());
             bindPersistence();
+
+            // 決算資料ファイル：ドロップ設定＋IndexedDBから復元
+            setupEarnFileDrop();
+            restoreEarnFiles();
 
             renderImage();
 
