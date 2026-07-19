@@ -415,6 +415,11 @@
             </div>
             <div style="font-size:10px; color:var(--text-sub); margin-top:2px;">※ 決算短信・説明資料PDFを添付（出力データ作成で読み込みます。NotebookLMコピーには不要）</div>
             <div class="input-row" style="margin-top: 6px; gap:4px; align-items:center;">
+                <label style="font-size:11px; color:var(--text-sub); flex:none;">チャート期間</label>
+                <input type="number" id="gem-earn-months" min="1" value="6" placeholder="全期間" style="width:60px; flex:none; font-size:11px; padding:4px;">
+                <span style="font-size:11px; color:var(--text-sub);">ヶ月（空欄=全期間）</span>
+            </div>
+            <div class="input-row" style="margin-top: 6px; gap:4px; align-items:center;">
                 <label style="font-size:11px; color:var(--text-sub); flex:none;">モデル</label>
                 <select id="gem-earn-model" style="flex:1; min-width:0; font-size:11px; padding:4px;">
                     <option value="" selected>自動（上位から上限で自動降格）</option>
@@ -538,6 +543,11 @@
             <div class="input-row" style="margin-top: 4px;">
                 <button class="btn-sub" onclick="copySaUrls(this)" style="flex:1;">📋 URLコピー</button>
                 <button class="btn-sub" onclick="copySaSourceData(this)" style="flex:1; background:#0d9488; color:#fff;">📄 ソースデータ</button>
+            </div>
+            <div class="input-row" style="margin-top: 6px; gap:4px; align-items:center;">
+                <label style="font-size:11px; color:var(--text-sub); flex:none;">チャート期間</label>
+                <input type="number" id="gem-sa-months" min="1" placeholder="全期間" style="width:60px; flex:none; font-size:11px; padding:4px;">
+                <span style="font-size:11px; color:var(--text-sub);">ヶ月（空欄=全期間）</span>
             </div>
             <div class="input-row" style="margin-top: 6px; gap:4px; align-items:center;">
                 <label style="font-size:11px; color:var(--text-sub); flex:none;">モデル</label>
@@ -1031,6 +1041,11 @@
         // ・/api/analyze（CF Pages Function）経由でサーバー側からGeminiを呼ぶ
         // ・モデルは stock-slide-generator と同じ優先チェーン（上限/混雑で自動降格）
         // ============================================================
+        // 整形パス専用のグラウンディング強化。NotebookLM（RAGでハード制約）に寄せ、
+        // 渡した資料に無い数値・事実を推測で埋めさせない。整形ボタンのみに付与し、
+        // NotebookLMコピー用プロンプトには付けない（あちらは元々グラウンド済み）。
+        const GROUNDING_RULE = '\n\n## グラウンディング（最重要・厳守）\n出力は、渡された資料（株探取得データ・分析レポート・添付ファイル）に明示されている情報だけを根拠にすること。資料に無い数値・事実は、推測や一般知識で補わず空欄にすること。資料外の情報を創作してはならない。';
+
         // ov に具体モデルが指定されていればその1つだけ（テスト用固定）。
         // 空（自動）なら優先チェーン → 上限/混雑時は analyze.js が次モデルへ自動降格。
         function autoModelChain(cls, ov) {
@@ -1119,7 +1134,7 @@
                 return;
             }
             setGemStatus('gem-earn-status', `Geminiで整形中…（決算資料${files.length}件）`, 'info');
-            const r = await callGeminiAnalyze(buildEarnNBPrompt(), resources, { cls: 'high', temperature: 0.2, modelOverride: ov, files });
+            const r = await callGeminiAnalyze(buildEarnNBPrompt() + GROUNDING_RULE, resources, { cls: 'high', temperature: 0.2, modelOverride: ov, files });
             if (btnEl) { btnEl.disabled = false; btnEl.innerText = label; }
 
             if (!r.ok) { setGemStatus('gem-earn-status', 'エラー: ' + r.error, 'error'); return; }
@@ -1145,7 +1160,7 @@
             const label = btnEl ? btnEl.innerText : '';
             if (btnEl) { btnEl.disabled = true; btnEl.innerText = '整形中…'; }
             setGemStatus('gem-sa-status', 'Geminiで整形中…', 'info');
-            const r = await callGeminiAnalyze(buildSaNBPrompt(), resources, { cls: 'high', temperature: 0.2, modelOverride: ov });
+            const r = await callGeminiAnalyze(buildSaNBPrompt() + GROUNDING_RULE, resources, { cls: 'high', temperature: 0.2, modelOverride: ov });
             if (btnEl) { btnEl.disabled = false; btnEl.innerText = label; }
 
             if (!r.ok) { setGemStatus('gem-sa-status', 'エラー: ' + r.error, 'error'); return; }
@@ -2340,7 +2355,26 @@ reason_4=`;
             };
         }
         // move = { preLabel,preDate,prePrice,preVol, postLabel,postDate,postPrice,postVol, change }
-        function buildKabutanSourceText(f, code, market, move) {
+        // 日足チャート文字列（"YYYY-MM-DD,o,h,l,c,v;..."）を直近 months ヶ月に絞る。
+        // months が未指定/0/不正なら全期間をそのまま返す（制御なし）。基準は最新行の日付。
+        function trimChartByMonths(chartData, months) {
+            const m = parseInt(months, 10);
+            if (!chartData || !m || m <= 0) return chartData;
+            const rows = chartData.split(';').filter(Boolean);
+            const dates = rows.map(r => r.split(',')[0]).filter(Boolean).sort();
+            if (!dates.length) return chartData;
+            const latest = new Date(dates[dates.length - 1]);
+            if (isNaN(latest)) return chartData;
+            const cutoff = new Date(latest);
+            cutoff.setMonth(cutoff.getMonth() - m);
+            const kept = rows.filter(r => {
+                const d = new Date(r.split(',')[0]);
+                return !isNaN(d) && d >= cutoff;
+            });
+            return kept.join(';');
+        }
+
+        function buildKabutanSourceText(f, code, market, move, months) {
             if (!f) return '';
             const L = [];
             L.push(`【株探 取得データ${f.name ? '：' + f.name : ''}${code ? '（' + code + '）' : ''}】`);
@@ -2363,8 +2397,10 @@ reason_4=`;
             }
             if (f.high && f.high.price) L.push(`（参考）取得範囲内の高値：${f.high.price}（${f.high.date}）`);
             L.push('');
-            L.push('■ 日足（時系列）  列：日付,始値,高値,安値,終値,出来高');
-            if (f.chartData) L.push(f.chartData.split(';').filter(Boolean).join('\n'));
+            const periodNote = (parseInt(months, 10) > 0) ? `（直近${parseInt(months, 10)}ヶ月）` : '';
+            L.push(`■ 日足（時系列）${periodNote}  列：日付,始値,高値,安値,終値,出来高`);
+            const chart = trimChartByMonths(f.chartData, months);
+            if (chart) L.push(chart.split(';').filter(Boolean).join('\n'));
             return L.join('\n');
         }
 
@@ -2392,7 +2428,8 @@ reason_4=`;
                     change: mv.change
                 };
             }
-            return buildKabutanSourceText(f, code, market, move);
+            const months = (document.getElementById('gem-sa-months') || {}).value || '';
+            return buildKabutanSourceText(f, code, market, move, months);
         }
 
         function copySaSourceData(btn) {
@@ -2412,7 +2449,8 @@ reason_4=`;
                 postPrice: ef.postPrice, postVol: (ef.postVol != null ? ef.postVol : _volOf(f, ef.postDate)),
                 change: ef.price_change
             };
-            return buildKabutanSourceText(f, code, getMarket(), move);
+            const months = (document.getElementById('gem-earn-months') || {}).value || '';
+            return buildKabutanSourceText(f, code, getMarket(), move, months);
         }
 
         function copyEarnSourceData(btn) {
@@ -2497,7 +2535,7 @@ reason_4=`;
             'sa-pre-date', 'sa-post-date', 'sa-post-after-hours', 'sa-reaction',
             'sa-pre-date-p', 'sa-post-date-p',
             'sa-basis', 'sa-pre-price-input', 'sa-post-price-input', 'sa-change-input',
-            'gem-earn-model', 'gem-sa-model'
+            'gem-earn-model', 'gem-sa-model', 'gem-earn-months', 'gem-sa-months'
         ];
         const PERSIST_RADIO_NAMES = ['sa-market', 'sa-compare-mode'];
 
