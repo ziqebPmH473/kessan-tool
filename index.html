@@ -406,11 +406,8 @@
                 <button class="btn-prompt" onclick="copyFactCheckFix(this)">🔧 FC修正指示</button>
             </div>
             <div class="input-row" style="margin-top: 4px;">
-                <button class="btn-sub" onclick="copyUrls(this)">📋 URLコピー</button>
-                <button class="btn-prompt" onclick="copyNotebookLM(this)">📓 NotebookLM</button>
-            </div>
-            <div class="input-row" style="margin-top: 4px;">
-                <button class="btn-sub" onclick="copyEarnSourceData(this)" style="width:100%; background:#0d9488; color:#fff;">📄 ソースデータ</button>
+                <button class="btn-sub" onclick="copyUrls(this)" style="flex:1;">📋 URLコピー</button>
+                <button class="btn-sub" onclick="copyEarnSourceData(this)" style="flex:1; background:#0d9488; color:#fff;">📄 ソースデータ</button>
             </div>
             <div class="input-row" style="margin-top: 6px; gap:4px; align-items:center;">
                 <label style="font-size:11px; color:var(--text-sub); flex:none;">モデル</label>
@@ -424,7 +421,8 @@
                 </select>
             </div>
             <div class="input-row" style="margin-top: 4px;">
-                <button class="main-btn" onclick="geminiFormatEarn(this)" style="width:100%; background:#4f46e5;">✨ Gemini整形</button>
+                <button class="btn-prompt" onclick="copyNotebookLM(this)" style="flex:1;">📓 NotebookLM</button>
+                <button class="main-btn" onclick="geminiFormatEarn(this)" style="flex:1; background:#4f46e5;">📤 出力データ作成</button>
             </div>
             <div id="gem-earn-status" style="display:none; font-size:11px; margin-top:3px;"></div>
         </div>
@@ -533,11 +531,8 @@
                 <button class="btn-prompt" onclick="copySaFactCheckFix(this)">🔧 FC修正指示</button>
             </div>
             <div class="input-row" style="margin-top: 4px;">
-                <button class="btn-sub" onclick="copySaUrls(this)">📋 URLコピー</button>
-                <button class="btn-prompt" onclick="copySaNotebookLM(this)">📓 NotebookLM</button>
-            </div>
-            <div class="input-row" style="margin-top: 4px;">
-                <button class="btn-sub" onclick="copySaSourceData(this)" style="width:100%; background:#0d9488; color:#fff;">📄 ソースデータ</button>
+                <button class="btn-sub" onclick="copySaUrls(this)" style="flex:1;">📋 URLコピー</button>
+                <button class="btn-sub" onclick="copySaSourceData(this)" style="flex:1; background:#0d9488; color:#fff;">📄 ソースデータ</button>
             </div>
             <div class="input-row" style="margin-top: 6px; gap:4px; align-items:center;">
                 <label style="font-size:11px; color:var(--text-sub); flex:none;">モデル</label>
@@ -551,7 +546,8 @@
                 </select>
             </div>
             <div class="input-row" style="margin-top: 4px;">
-                <button class="main-btn" onclick="geminiFormatSa(this)" style="width:100%; background:#4f46e5;">✨ Gemini整形</button>
+                <button class="btn-prompt" onclick="copySaNotebookLM(this)" style="flex:1;">📓 NotebookLM</button>
+                <button class="main-btn" onclick="geminiFormatSa(this)" style="flex:1; background:#4f46e5;">📤 出力データ作成</button>
             </div>
             <div id="gem-sa-status" style="display:none; font-size:11px; margin-top:3px;"></div>
         </div>
