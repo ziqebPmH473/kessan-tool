@@ -410,10 +410,21 @@
                 <button class="btn-prompt" onclick="copyNotebookLM(this)">📓 NotebookLM</button>
             </div>
             <div class="input-row" style="margin-top: 4px;">
-                <button class="btn-sub" onclick="copyEarnSourceData(this)" style="width:100%; background:#0d9488; color:#fff;">📄 NotebookLM用ソースデータ出力（取得済み）</button>
+                <button class="btn-sub" onclick="copyEarnSourceData(this)" style="width:100%; background:#0d9488; color:#fff;">📄 ソースデータ</button>
             </div>
-            <div class="input-row" style="margin-top: 6px;">
-                <button class="main-btn" onclick="geminiFormatEarn(this)" style="width:100%; background:#4f46e5;">✨ Geminiで整形（NotebookLM不要）</button>
+            <div class="input-row" style="margin-top: 6px; gap:4px; align-items:center;">
+                <label style="font-size:11px; color:var(--text-sub); flex:none;">モデル</label>
+                <select id="gem-earn-model" style="flex:1; min-width:0; font-size:11px; padding:4px;">
+                    <option value="" selected>自動（上位から上限で自動降格）</option>
+                    <option value="gemini-3.5-flash">Gemini 3.5 Flash（20回/日）</option>
+                    <option value="gemini-3-flash-preview">Gemini 3 Flash（20回/日）</option>
+                    <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite（500回/日）</option>
+                    <option value="gemini-2.5-flash">Gemini 2.5 Flash（20回/日）</option>
+                    <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite（20回/日）</option>
+                </select>
+            </div>
+            <div class="input-row" style="margin-top: 4px;">
+                <button class="main-btn" onclick="geminiFormatEarn(this)" style="width:100%; background:#4f46e5;">✨ Gemini整形</button>
             </div>
             <div id="gem-earn-status" style="display:none; font-size:11px; margin-top:3px;"></div>
         </div>
@@ -424,8 +435,8 @@
                 <button class="btn-sub" onclick="pasteFromClipboard()" style="padding: 4px 12px; font-size: 11px; flex: none; background: #e2e8f0;">📋 貼付</button>
             </div>
             <textarea id="input-data" placeholder="NotebookLMで整形されたテキストをここにペーストしてください"></textarea>
-            <button class="btn-sub" onclick="complementEarnData()" style="width:100%; margin-bottom:4px; background:#0891b2; color:#fff;">📋 取得データで補完（空欄を埋める・再取得なし）</button>
-            <button class="main-btn" onclick="renderImage()" style="margin-bottom: 4px;">画像を生成（プレビュー反映）</button>
+            <button class="btn-sub" onclick="complementEarnData()" style="width:100%; margin-bottom:4px; background:#0891b2; color:#fff;">📋 データ補完</button>
+            <button class="main-btn" onclick="renderImage()" style="margin-bottom: 4px;">画像生成</button>
             <div style="display:flex; gap:6px;">
                 <button class="main-btn download-btn" style="flex:1; font-size:13px; padding:10px 4px;" onclick="downloadImage()">💾 通常保存</button>
                 <button class="main-btn" style="flex:1; background:#7c3aed; font-size:13px; padding:10px 4px;" onclick="downloadSquareImage()">▶ 正方形</button>
@@ -526,10 +537,21 @@
                 <button class="btn-prompt" onclick="copySaNotebookLM(this)">📓 NotebookLM</button>
             </div>
             <div class="input-row" style="margin-top: 4px;">
-                <button class="btn-sub" onclick="copySaSourceData(this)" style="width:100%; background:#0d9488; color:#fff;">📄 NotebookLM用ソースデータ出力（取得済み）</button>
+                <button class="btn-sub" onclick="copySaSourceData(this)" style="width:100%; background:#0d9488; color:#fff;">📄 ソースデータ</button>
             </div>
-            <div class="input-row" style="margin-top: 6px;">
-                <button class="main-btn" onclick="geminiFormatSa(this)" style="width:100%; background:#4f46e5;">✨ Geminiで整形（NotebookLM不要）</button>
+            <div class="input-row" style="margin-top: 6px; gap:4px; align-items:center;">
+                <label style="font-size:11px; color:var(--text-sub); flex:none;">モデル</label>
+                <select id="gem-sa-model" style="flex:1; min-width:0; font-size:11px; padding:4px;">
+                    <option value="" selected>自動（上位から上限で自動降格）</option>
+                    <option value="gemini-3.5-flash">Gemini 3.5 Flash（20回/日）</option>
+                    <option value="gemini-3-flash-preview">Gemini 3 Flash（20回/日）</option>
+                    <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite（500回/日）</option>
+                    <option value="gemini-2.5-flash">Gemini 2.5 Flash（20回/日）</option>
+                    <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite（20回/日）</option>
+                </select>
+            </div>
+            <div class="input-row" style="margin-top: 4px;">
+                <button class="main-btn" onclick="geminiFormatSa(this)" style="width:100%; background:#4f46e5;">✨ Gemini整形</button>
             </div>
             <div id="gem-sa-status" style="display:none; font-size:11px; margin-top:3px;"></div>
         </div>
@@ -540,8 +562,8 @@
                 <button class="btn-sub" onclick="pasteSaFromClipboard()" style="padding: 4px 12px; font-size: 11px; flex: none; background: #e2e8f0;">📋 貼付</button>
             </div>
             <textarea id="sa-input-data" placeholder="NotebookLMで整形されたテキストをここにペーストしてください"></textarea>
-            <button class="btn-sub" onclick="complementSaData()" style="width:100%; margin-bottom:4px; background:#0891b2; color:#fff;">📋 取得データで補完（空欄を埋める・再取得なし）</button>
-            <button class="main-btn" onclick="renderImageStock()" style="margin-bottom: 4px;">画像を生成（プレビュー反映）</button>
+            <button class="btn-sub" onclick="complementSaData()" style="width:100%; margin-bottom:4px; background:#0891b2; color:#fff;">📋 データ補完</button>
+            <button class="main-btn" onclick="renderImageStock()" style="margin-bottom: 4px;">画像生成</button>
             <div style="display:flex; gap:6px;">
                 <button class="main-btn download-btn" style="flex:1; font-size:13px; padding:10px 4px;" onclick="downloadImageStock()">💾 通常保存</button>
                 <button class="main-btn" style="flex:1; background:#7c3aed; font-size:13px; padding:10px 4px;" onclick="downloadSquareImageStock()">▶ 正方形</button>
@@ -1008,7 +1030,10 @@
         // ・/api/analyze（CF Pages Function）経由でサーバー側からGeminiを呼ぶ
         // ・モデルは stock-slide-generator と同じ優先チェーン（上限/混雑で自動降格）
         // ============================================================
-        function autoModelChain(cls) {
+        // ov に具体モデルが指定されていればその1つだけ（テスト用固定）。
+        // 空（自動）なら優先チェーン → 上限/混雑時は analyze.js が次モデルへ自動降格。
+        function autoModelChain(cls, ov) {
+            if (ov) return [ov];
             return cls === 'high'
                 ? ['gemini-3.5-flash', 'gemini-3-flash-preview', 'gemini-3.1-flash-lite', 'gemini-2.5-flash']
                 : ['gemini-3.1-flash-lite', 'gemini-3-flash-preview', 'gemini-2.5-flash-lite', 'gemini-2.5-flash'];
@@ -1036,7 +1061,7 @@
                         prompt,
                         resources: resources || [],
                         temperature: typeof opts.temperature === 'number' ? opts.temperature : 0.2,
-                        models: autoModelChain(opts.cls || 'high')
+                        models: autoModelChain(opts.cls || 'high', opts.modelOverride || '')
                     })
                 });
                 const data = await res.json();
@@ -1052,15 +1077,21 @@
         // 決算タブ：Geminiで整形 → #input-data に投入して描画
         async function geminiFormatEarn(btnEl) {
             const src = getEarnSourceText();
-            if (src == null) { alert('先に「📥 自動取得」で株探データを取得してください'); return; }
             const report = (document.getElementById('fc-report').value || '').trim();
-            const resources = [{ label: '株探 取得データ', text: src }];
-            if (report) resources.push({ label: '分析レポート（ファクトチェック済み）', text: report });
+            const miss = [];
+            if (src == null) miss.push('株探の取得データ（📥 自動取得）');
+            if (!report) miss.push('分析レポート（FCレポート貼付欄）');
+            if (miss.length) { alert('整形には次が必要です：\n・' + miss.join('\n・')); return; }
+            const resources = [
+                { label: '株探 取得データ', text: src },
+                { label: '分析レポート（ファクトチェック済み）', text: report }
+            ];
+            const ov = (document.getElementById('gem-earn-model') || {}).value || '';
 
             const label = btnEl ? btnEl.innerText : '';
             if (btnEl) { btnEl.disabled = true; btnEl.innerText = '整形中…'; }
             setGemStatus('gem-earn-status', 'Geminiで整形中…', 'info');
-            const r = await callGeminiAnalyze(buildEarnNBPrompt(), resources, { cls: 'high', temperature: 0.2 });
+            const r = await callGeminiAnalyze(buildEarnNBPrompt(), resources, { cls: 'high', temperature: 0.2, modelOverride: ov });
             if (btnEl) { btnEl.disabled = false; btnEl.innerText = label; }
 
             if (!r.ok) { setGemStatus('gem-earn-status', 'エラー: ' + r.error, 'error'); return; }
@@ -1072,15 +1103,21 @@
         // 個別銘柄タブ：Geminiで整形 → #sa-input-data に投入して描画
         async function geminiFormatSa(btnEl) {
             const src = getSaSourceText();
-            if (src == null) { alert('先に「📥 自動取得」で株探データを取得してください'); return; }
             const report = (document.getElementById('sa-fc-report').value || '').trim();
-            const resources = [{ label: '株探 取得データ', text: src }];
-            if (report) resources.push({ label: '分析レポート（ファクトチェック済み）', text: report });
+            const miss = [];
+            if (src == null) miss.push('株探の取得データ（📥 自動取得）');
+            if (!report) miss.push('分析レポート（FCレポート貼付欄）');
+            if (miss.length) { alert('整形には次が必要です：\n・' + miss.join('\n・')); return; }
+            const resources = [
+                { label: '株探 取得データ', text: src },
+                { label: '分析レポート（ファクトチェック済み）', text: report }
+            ];
+            const ov = (document.getElementById('gem-sa-model') || {}).value || '';
 
             const label = btnEl ? btnEl.innerText : '';
             if (btnEl) { btnEl.disabled = true; btnEl.innerText = '整形中…'; }
             setGemStatus('gem-sa-status', 'Geminiで整形中…', 'info');
-            const r = await callGeminiAnalyze(buildSaNBPrompt(), resources, { cls: 'high', temperature: 0.2 });
+            const r = await callGeminiAnalyze(buildSaNBPrompt(), resources, { cls: 'high', temperature: 0.2, modelOverride: ov });
             if (btnEl) { btnEl.disabled = false; btnEl.innerText = label; }
 
             if (!r.ok) { setGemStatus('gem-sa-status', 'エラー: ' + r.error, 'error'); return; }
