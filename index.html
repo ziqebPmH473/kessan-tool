@@ -1846,12 +1846,20 @@ point_2=`;
             };
             for (let p = gridMin; p <= gridMax; p += gridStep) drawYLine(p);
 
-            // 日付ラベル（最初と最後）
+            // 月ラベル: 月が変わる最初の足にだけ「N月」を表示（同じ月の重複を避ける）
             ctx.textAlign    = 'center';
             ctx.textBaseline = 'top';
             const yDate = paddingTop + candleAreaH + 3;
-            ctx.fillText(chartData[0].date,                  paddingLeft + 15,          yDate);
-            ctx.fillText(chartData[chartData.length-1].date, paddingLeft + chartW - 15, yDate);
+            const stepXlbl = chartW / chartData.length;
+            let prevMoKey = null;
+            chartData.forEach((d, i) => {
+                const parts = String(d.rawDate).split('-');
+                if (parts.length < 3) return;
+                const key = parts[0] + '-' + parts[1];
+                if (key === prevMoKey) return;
+                prevMoKey = key;
+                ctx.fillText(`${parseInt(parts[1])}月`, paddingLeft + i * stepXlbl + stepXlbl / 2, yDate);
+            });
 
             const scaleY = candleAreaH / (maxPrice - minPrice);
             const stepX  = chartW / chartData.length;
