@@ -1065,6 +1065,16 @@
                 : kind === 'ok' ? 'var(--positive)' : 'var(--text-sub)';
         }
 
+        // 使用トークンの注記（TPM管理用）。usageMetadata から合計・入力トークンを表示。
+        function tokenNote(usage) {
+            if (!usage) return '';
+            const total = usage.totalTokenCount;
+            const input = usage.promptTokenCount;
+            if (!total) return '';
+            const inPart = input ? `入力${Number(input).toLocaleString()}／` : '';
+            return ` / ${inPart}計${Number(total).toLocaleString()}トークン`;
+        }
+
         // 汎用：Geminiでテキスト生成。prompt=指示、resources=[{label,text},...]
         // 戻り値 { ok, text, model, fellBack } / 例外は投げず ok:false で返す。
         async function callGeminiAnalyze(prompt, resources, opts) {
@@ -1085,7 +1095,7 @@
                 if (!res.ok || !data.ok) {
                     return { ok: false, error: (data && data.error) || `HTTP ${res.status}` };
                 }
-                return { ok: true, text: data.text || '', model: data.model, fellBack: data.fellBack };
+                return { ok: true, text: data.text || '', model: data.model, fellBack: data.fellBack, usage: data.usage || null };
             } catch (e) {
                 return { ok: false, error: (e && e.message) ? e.message : String(e) };
             }
@@ -1140,7 +1150,7 @@
             if (!r.ok) { setGemStatus('gem-earn-status', 'エラー: ' + r.error, 'error'); return; }
             document.getElementById('input-data').value = r.text;
             renderImage();
-            setGemStatus('gem-earn-status', `整形完了（${r.model || 'gemini'}${r.fellBack ? '・降格' : ''}）`, 'ok');
+            setGemStatus('gem-earn-status', `整形完了（${r.model || 'gemini'}${r.fellBack ? '・降格' : ''}${tokenNote(r.usage)}）`, 'ok');
         }
 
         // 個別銘柄タブ：Geminiで整形 → #sa-input-data に投入して描画
@@ -1166,7 +1176,7 @@
             if (!r.ok) { setGemStatus('gem-sa-status', 'エラー: ' + r.error, 'error'); return; }
             document.getElementById('sa-input-data').value = r.text;
             renderImageStock();
-            setGemStatus('gem-sa-status', `整形完了（${r.model || 'gemini'}${r.fellBack ? '・降格' : ''}）`, 'ok');
+            setGemStatus('gem-sa-status', `整形完了（${r.model || 'gemini'}${r.fellBack ? '・降格' : ''}${tokenNote(r.usage)}）`, 'ok');
         }
 
         function formatDateJP(dateRaw) {
