@@ -124,16 +124,17 @@
         .info-value { font-size: 16px; font-weight: bold; margin-top: 4px; }
         
         .chart-wrapper { width: 100%; height: 150px; display: flex; align-items: center; justify-content: center; background: #ffffff; border: 1px solid var(--border); border-radius: 6px;}
-        canvas { display: block; width: 100%; height: 100%; }
+        #capture-area canvas, #capture-area-stock canvas { display: block; width: 100%; height: 100%; }
 
-        table { width: 100%; border-collapse: collapse; margin-bottom: 0; }
-        th, td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
-        th { font-size: 12px; color: var(--text-sub); background: #f8fafc; font-weight: normal; }
-        td { font-size: 15px; font-weight: bold; }
+        /* ↓ kessan(決算/個別銘柄)のプレビュー用テーブル。株価分析スライド(.sa)へ漏れないよう領域限定 */
+        #capture-area table, #capture-area-stock table { width: 100%; border-collapse: collapse; margin-bottom: 0; }
+        #capture-area th, #capture-area td, #capture-area-stock th, #capture-area-stock td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
+        #capture-area th, #capture-area-stock th { font-size: 12px; color: var(--text-sub); background: #f8fafc; font-weight: normal; }
+        #capture-area td, #capture-area-stock td { font-size: 15px; font-weight: bold; }
         
-        th:not(:first-child), td:not(:first-child) { text-align: right; white-space: nowrap; }
-        th:first-child, td:first-child { text-align: left; }
-        td:first-child { line-height: 1.3; font-size: 14px; }
+        #capture-area th:not(:first-child), #capture-area td:not(:first-child), #capture-area-stock th:not(:first-child), #capture-area-stock td:not(:first-child) { text-align: right; white-space: nowrap; }
+        #capture-area th:first-child, #capture-area td:first-child, #capture-area-stock th:first-child, #capture-area-stock td:first-child { text-align: left; }
+        #capture-area td:first-child, #capture-area-stock td:first-child { line-height: 1.3; font-size: 14px; }
 
         .highlight { color: var(--positive); }
         .lowlight { color: var(--negative); }
@@ -445,7 +446,7 @@
 .s2-scen-row.bear .s2-sr-name{color:#dc2626;}
 .s2-scen-row.base .s2-sr-name{color:#64748b;}
 .s2-scen-row.bull .s2-sr-name{color:#2563eb;}
-.s2-sr-range{font-size:28px;font-weight:900;color:#0f172a;line-height:1.1;}
+.s2-sr-range{font-size:22px;font-weight:900;color:#0f172a;line-height:1.15;white-space:nowrap;}
 .s2-sr-pct{font-size:18px;font-weight:700;color:#475569;}
 .s2-sr-cond{font-size:16px;color:#475569;line-height:1.65;}
 
@@ -554,7 +555,7 @@ body{height:100vh;box-sizing:border-box;overflow:hidden;}
 .sa .btn-sm:hover{background:#cbd5e1;}
 .sa .btn-danger{background:#fee2e2;color:#b91c1c;border:none;font-size:13px;padding:5px 6px;font-weight:bold;}
 .sa input[type=text],.sa input[type=date],.sa select{padding:8px;border:1px solid #ccc;border-radius:4px;font-size:13px;background:#fff;color:var(--text-main);}
-.sa textarea{padding:8px;border:1px solid #ccc;border-radius:4px;font-size:12px;background:#fff;color:var(--text-main);}
+.sa textarea{padding:8px;border:1px solid #ccc;border-radius:4px;font-size:12px;background:#fff;color:var(--text-main);height:auto;}
 /* 株価分析サイドバーのサブタブ（上部タブと同じ見た目で小型） */
 .sa-subtabs{display:flex;gap:6px;}
 .sa-subtab{flex:1;padding:7px 4px;border:2px solid var(--border);border-radius:6px;background:#f1f5f9;color:var(--text-sub);font-size:12px;font-weight:bold;cursor:pointer;text-align:center;transition:.15s;}
