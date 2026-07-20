@@ -538,6 +538,24 @@
 .s5-rlist{list-style:none;display:flex;flex-direction:column;gap:10px;}
 .s5-rlist li{font-size:18px;color:#475569;padding-left:18px;position:relative;line-height:1.65;}
 .s5-rlist li::before{content:'・';position:absolute;left:0;color:#94a3b8;}
+/* ===== 株価分析タブ：他タブと見た目・挙動を揃える ===== */
+/* ページ全体はスクロールさせず、サイドバーとプレビューの中だけスクロールする
+   （元ツールと同じ挙動。3タブ共通で適用） */
+body{height:100vh;box-sizing:border-box;overflow:hidden;}
+.control-panel{overflow-y:auto;}
+/* 株価分析のカード/見出し/ボタンを kessan のコンポーネントに合わせる */
+.sa .ctrl{gap:12px;}
+.sa .sa-card{background:#f8fafc;padding:9px 13px;border-radius:8px;border:1px solid var(--border);gap:6px;box-shadow:0 2px 4px rgba(0,0,0,0.05);}
+.sa .sa-card h2{font-size:14px;font-weight:bold;color:var(--text-main);text-transform:none;letter-spacing:normal;border-bottom:2px solid var(--accent);padding-bottom:4px;display:inline-block;align-self:flex-start;}
+.sa .sa-sub{font-size:12px;font-weight:bold;color:var(--text-sub);margin-top:6px;border-bottom:1px solid #ccc;padding-bottom:2px;}
+.sa .row{gap:8px;}
+.sa .btn{background:var(--accent);color:#fff;font-size:13px;padding:8px 6px;border-radius:4px;font-weight:bold;}
+.sa .btn-sm{background:#e2e8f0;color:#475569;font-size:13px;padding:5px 6px;border:none;border-radius:4px;font-weight:bold;}
+.sa .btn-sm:hover{background:#cbd5e1;}
+.sa .btn-danger{background:#fee2e2;color:#b91c1c;border:none;font-size:13px;padding:5px 6px;font-weight:bold;}
+.sa input[type=text],.sa input[type=date],.sa select{padding:8px;border:1px solid #ccc;border-radius:4px;font-size:13px;background:#fff;color:var(--text-main);}
+.sa textarea{padding:8px;border:1px solid #ccc;border-radius:4px;font-size:12px;background:#fff;color:var(--text-main);}
+
 
     </style>
 </head>
@@ -798,19 +816,18 @@
 
         <div id="mode-price" class="sa" style="display:none;">
 <div class="ctrl">
-  <h1>📊 株価分析 スライド生成</h1>
-  <p class="sub">プロンプト生成 → ChatGPT → ファクトチェック → 出力データ作成 → スライド生成</p>
 
   <div class="sa-card">
-    <h2>1. 基本情報</h2>
+    <h2>1. 情報収集 ＆ AIプロンプト生成</h2>
+    <div class="sa-sub">▼ 基本情報</div>
     <div class="row" style="flex-wrap:nowrap;justify-content:space-between;">
       <div class="radio-group">
-        <label style="font-size:11px;color:var(--muted);">市場:</label>
+        <label style="font-size:11px;color:var(--text-sub);">市場:</label>
         <label><input type="radio" name="mkt" value="jp" checked> JP</label>
         <label><input type="radio" name="mkt" value="us"> US</label>
       </div>
       <div class="radio-group">
-        <label style="font-size:11px;color:var(--muted);">方向:</label>
+        <label style="font-size:11px;color:var(--text-sub);">方向:</label>
         <label><input type="radio" name="dir" value="down" checked> 下落</label>
         <label><input type="radio" name="dir" value="up"> 上昇</label>
       </div>
@@ -824,7 +841,7 @@
       <button class="btn-sm" onclick="saOpenKabutan()">🔍 株探</button>
       <button class="btn-sm" onclick="saOpenIR()">🔍 IR</button>
     </div>
-    <div id="fetch-info" style="font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:none;"></div>
+    <div id="fetch-info" style="font-size:10px;color:var(--text-sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:none;"></div>
     <div class="row" style="gap:4px;flex-wrap:nowrap;">
       <input type="date" id="inp-base-date" title="基準日" style="flex:1;min-width:0;">
       <input type="text" id="inp-base-price" placeholder="基準株価" style="flex:0 0 90px;min-width:0;">
@@ -835,10 +852,7 @@
       <button class="btn-sm" onclick="convertPeriod()">→ 変換</button>
     </div>
     <input type="text" id="inp-period" placeholder="期間 (例: 2022年3月の最高値から71% / 5ヶ月で63%)">
-  </div>
-
-  <div class="sa-card">
-    <h2>2. ChatGPT 分析プロンプト生成</h2>
+    <div class="sa-sub">▼ ChatGPT 分析プロンプト</div>
     <div class="row" style="flex-wrap:nowrap;">
       <button class="btn" onclick="copyAnalysis(this)" style="flex:1.3;min-width:0;padding:5px 6px;">💬 ①分析</button>
       <button class="btn-sm" onclick="saCopyFactCheck(this)" style="flex:1;min-width:0;">✅ ②ファクト</button>
@@ -849,17 +863,14 @@
       <button class="btn-sm" onclick="pasteReport()" style="flex:1;">📋 貼り付け</button>
       <button class="btn-danger" onclick="clearReport()" style="flex:1;">✕ クリア</button>
     </div>
-  </div>
-
-  <div class="sa-card">
-    <h2>3. NotebookLM プロンプト生成</h2>
-    <div style="font-size:10px;color:var(--muted);">①ソースにURL/取得データと確認済みレポートを追加 → ②実行:</div>
+    <div class="sa-sub">▼ 出力データ作成</div>
+    <div style="font-size:10px;color:var(--text-sub);">①ソースにURL/取得データと確認済みレポートを追加 → ②実行:</div>
     <div class="row" style="flex-wrap:nowrap;">
       <button class="btn-sm" onclick="copyKabutanUrl(this)" style="flex:1;min-width:0;">📋 株探URL</button>
       <button class="btn-sm" onclick="copySourceData(this)" style="flex:1;min-width:0;">📄 取得データ</button>
     </div>
     <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:6px;">
-      <label style="font-size:11px;color:var(--muted);flex:none;">モデル</label>
+      <label style="font-size:11px;color:var(--text-sub);flex:none;">モデル</label>
       <select id="gem-model" style="flex:1;min-width:0;font-size:11px;padding:4px;">
         <option value="" >自動（上位から上限で自動降格）</option>
         <option value="gemini-3.5-flash">Gemini 3.5 Flash（20回/日）</option>
@@ -870,9 +881,9 @@
       </select>
     </div>
     <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:4px;">
-      <label style="font-size:11px;color:var(--muted);flex:none;">チャート期間</label>
+      <label style="font-size:11px;color:var(--text-sub);flex:none;">チャート期間</label>
       <input type="number" id="gem-months" min="1" placeholder="全期間" style="width:60px;flex:none;font-size:11px;padding:4px;">
-      <span style="font-size:11px;color:var(--muted);">ヶ月（空欄=全期間）</span>
+      <span style="font-size:11px;color:var(--text-sub);">ヶ月（空欄=全期間）</span>
     </div>
     <div class="row" style="flex-wrap:nowrap;margin-top:6px;">
       <button class="btn btn-full" onclick="copyNBPrompt(this)" style="flex:1;min-width:0;line-height:1.6;">📓 NotebookLM</button>
@@ -937,18 +948,19 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
 
   <div class="sa-card">
     <div class="row" style="flex-wrap:nowrap;align-items:center;">
-      <h2 style="flex:1;border-bottom:none;padding-bottom:0;">4. スライドデータ入力</h2>
+      <h2 style="flex:1;border-bottom:none;padding-bottom:0;">2. データ入力 ＆ 画像生成</h2>
       <button class="btn-sm" onclick="pasteClip()">📋 貼り付け</button>
       <button class="btn-danger" onclick="clearData()">✕ クリア</button>
     </div>
-    <textarea id="ta-data" placeholder="NotebookLMの出力をここに貼り付け" style="min-height:40px;" oninput="debouncedPrev()"></textarea>
+    <textarea id="ta-data" placeholder="出力データ作成の結果がここに入ります（手貼りも可）" style="min-height:40px;" oninput="debouncedPrev()"></textarea>
+    <button class="btn btn-full" id="dl-btn" onclick="downloadAll()">⬇ 全スライドをZIPでダウンロード</button>
   </div>
 
   <div class="sa-card">
-    <h2>5. 記事・SNS生成（Gemini）</h2>
-    <div style="font-size:10px;color:var(--muted);">「2.」のChatGPTレポートから note記事本文・タイトル・タグ・X投稿文を生成します</div>
+    <h2>3. 記事・SNS生成</h2>
+    <div style="font-size:10px;color:var(--text-sub);">「2.」のChatGPTレポートから note記事本文・タイトル・タグ・X投稿文を生成します</div>
     <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:6px;">
-      <label style="font-size:11px;color:var(--muted);flex:none;">モデル</label>
+      <label style="font-size:11px;color:var(--text-sub);flex:none;">モデル</label>
       <select id="gem-article-model" style="flex:1;min-width:0;font-size:11px;padding:4px;">
         <option value="" selected>自動（上位から上限で自動降格）</option>
         <option value="gemini-3.5-flash">Gemini 3.5 Flash（20回/日）</option>
@@ -960,20 +972,17 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
     <button class="btn btn-full" onclick="geminiArticle(this)" style="background:#0d9488;color:#fff;margin-top:6px;">📝 記事・SNSを生成</button>
     <div id="gem-article-status" style="display:none;font-size:11px;margin-top:3px;"></div>
 
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--muted);">タイトル</label><button class="btn-sm" onclick="copyText(document.getElementById('art-title').value,this)">📋 コピー</button></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">タイトル</label><button class="btn-sm" onclick="copyText(document.getElementById('art-title').value,this)">📋 コピー</button></div>
     <textarea id="art-title" placeholder="生成後にタイトルが入ります" style="min-height:34px;"></textarea>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--muted);">本文（note）</label><button class="btn-sm" onclick="copyText(document.getElementById('art-body').value,this)">📋 コピー</button></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">本文（note）</label><button class="btn-sm" onclick="copyText(document.getElementById('art-body').value,this)">📋 コピー</button></div>
     <textarea id="art-body" placeholder="生成後にnote記事本文が入ります" style="min-height:130px;"></textarea>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--muted);">サムネ構成</label><button class="btn-sm" onclick="copyText(document.getElementById('art-thumb').value,this)">📋 コピー</button></div>
-    <textarea id="art-thumb" placeholder="生成後にサムネ構成案が入ります" style="min-height:50px;"></textarea>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--muted);">ハッシュタグ</label><button class="btn-sm" onclick="copyText(document.getElementById('art-tags').value,this)">📋 コピー</button></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">ハッシュタグ</label><button class="btn-sm" onclick="copyText(document.getElementById('art-tags').value,this)">📋 コピー</button></div>
     <textarea id="art-tags" placeholder="生成後にハッシュタグが入ります" style="min-height:34px;"></textarea>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--muted);">X投稿文</label><button class="btn-sm" onclick="copyText(document.getElementById('art-x').value,this)">📋 コピー</button></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">X投稿文</label><button class="btn-sm" onclick="copyText(document.getElementById('art-x').value,this)">📋 コピー</button></div>
     <textarea id="art-x" placeholder="生成後にX投稿文が入ります" style="min-height:50px;"></textarea>
-    <details style="margin-top:6px;"><summary style="font-size:10px;color:var(--muted);cursor:pointer;">生成全文（うまく分割できない時のフォールバック）</summary><textarea id="art-raw" style="min-height:80px;"></textarea></details>
+    <details style="margin-top:6px;"><summary style="font-size:10px;color:var(--text-sub);cursor:pointer;">生成全文（うまく分割できない時のフォールバック）</summary><textarea id="art-raw" style="min-height:80px;"></textarea></details>
   </div>
 
-  <button class="btn btn-full" id="dl-btn" onclick="downloadAll()">⬇ 全スライドをZIPでダウンロード</button>
   <div id="status"></div>
   <div id="mob-prev">
     <p style="font-size:10px;color:#ef4444;font-weight:bold;margin-bottom:5px;">保存ダイアログが出ない場合は画像を長押しして保存</p>
@@ -993,15 +1002,20 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
 
   <!-- スライドビュー -->
   <div id="slides-view" style="display:flex;flex-direction:column;gap:6px;flex:1;overflow-y:auto;">
-    <div style="font-size:11px;color:var(--muted);">プレビュー（クリックで個別ダウンロード）</div>
+    <div style="font-size:11px;color:var(--text-sub);">プレビュー（クリックで個別ダウンロード）</div>
     <div class="prev-wrap" id="prev-area"></div>
   </div>
 
   <!-- サムネイルビュー -->
   <div id="thumb-view" style="display:none;flex-direction:column;gap:8px;flex:1;overflow-y:auto;">
     <div class="sa-card">
+      <h2>サムネ構成案（記事・SNS生成の結果）</h2>
+      <div style="display:flex;justify-content:flex-end;"><button class="btn-sm" onclick="copyText(document.getElementById('art-thumb').value,this)">📋 コピー</button></div>
+      <textarea id="art-thumb" placeholder="「3. 記事・SNS生成」を実行するとここに入ります" style="min-height:50px;"></textarea>
+    </div>
+    <div class="sa-card">
       <h2>テキスト入力</h2>
-      <p style="font-size:10px;color:var(--muted);margin-bottom:6px;">「：」で上段・中段・下段を区切る。色指定: <span style="color:#ff914d">*オレンジ*</span>　<span style="color:#5ce1e6">#水色#</span>　<span style="color:#ffde59">%黄色%</span></p>
+      <p style="font-size:10px;color:var(--text-sub);margin-bottom:6px;">「：」で上段・中段・下段を区切る。色指定: <span style="color:#ff914d">*オレンジ*</span>　<span style="color:#5ce1e6">#水色#</span>　<span style="color:#ffde59">%黄色%</span></p>
       <div style="display:flex;gap:14px;margin-bottom:6px;">
         <label style="font-size:11px;cursor:pointer;display:flex;align-items:center;gap:3px;"><input type="radio" name="th-preset" value="note" checked onchange="applyThumbPreset('note')"> note</label>
         <label style="font-size:11px;cursor:pointer;display:flex;align-items:center;gap:3px;"><input type="radio" name="th-preset" value="youtube" onchange="applyThumbPreset('youtube')"> YouTube</label>
@@ -1012,19 +1026,19 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
       <h2>背景画像（黒帯に透過表示）</h2>
       <div id="th-bg-drop" class="drop-zone">
         <img id="th-bg-thumb" style="max-height:32px;max-width:80px;border-radius:3px;margin:0 auto 3px;display:none;">
-        <p id="th-bg-msg" style="font-size:11px;color:var(--muted);margin-bottom:4px;">ドロップ、または</p>
+        <p id="th-bg-msg" style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">ドロップ、または</p>
         <label for="th-bg-input" class="btn-sm">ファイルを選択</label>
         <input type="file" id="th-bg-input" accept="image/*" style="display:none" onchange="onThBgFile(this)">
-        <div id="th-bg-meta" style="font-size:11px;color:var(--muted);margin-top:3px;"></div>
+        <div id="th-bg-meta" style="font-size:11px;color:var(--text-sub);margin-top:3px;"></div>
         <button id="th-bg-clear" class="btn-danger" style="display:none;margin-top:5px" onclick="clearThBg()">✕ 削除</button>
       </div>
       <div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap;">
-        <label style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px;">透過率: <span id="th-op-val">3</span>% <input type="range" id="th-op" min="0" max="50" value="4" oninput="updateThOp(this.value)" style="width:90px;cursor:pointer;"></label>
-        <label style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px;">拡大率: <span id="th-sc-val">110</span>% <input type="range" id="th-sc" min="100" max="200" value="110" oninput="updateThSc(this.value)" style="width:90px;cursor:pointer;"></label>
+        <label style="font-size:11px;color:var(--text-sub);display:flex;align-items:center;gap:6px;">透過率: <span id="th-op-val">3</span>% <input type="range" id="th-op" min="0" max="50" value="4" oninput="updateThOp(this.value)" style="width:90px;cursor:pointer;"></label>
+        <label style="font-size:11px;color:var(--text-sub);display:flex;align-items:center;gap:6px;">拡大率: <span id="th-sc-val">110</span>% <input type="range" id="th-sc" min="100" max="200" value="110" oninput="updateThSc(this.value)" style="width:90px;cursor:pointer;"></label>
       </div>
     </div>
     <button class="btn btn-full" id="th-dl-btn" onclick="downloadThumb()">⬇ ダウンロード</button>
-    <div id="th-status" style="font-size:11px;color:var(--muted);min-height:16px;"></div>
+    <div id="th-status" style="font-size:11px;color:var(--text-sub);min-height:16px;"></div>
     <div class="sa-card" id="th-preview-card" style="display:none;">
       <h2>プレビュー（テキスト変更で自動更新）</h2>
       <div id="th-preview-wrap" style="position:relative;overflow:hidden;border:1px solid var(--border);border-radius:4px;width:62%;">
@@ -4051,7 +4065,7 @@ const SA_GROUNDING_RULE='\n\n## グラウンディング（最重要・厳守）
 function saSetGemStatus(msg,kind){
   const el=document.getElementById('gem-status');if(!el)return;
   el.textContent=msg||'';el.style.display=msg?'block':'none';
-  el.style.color=kind==='error'?'#ef4444':kind==='ok'?'#16a34a':'var(--muted)';
+  el.style.color=kind==='error'?'#ef4444':kind==='ok'?'#16a34a':'var(--text-sub)';
 }
 function saTokenNote(usage){
   if(!usage||!usage.totalTokenCount)return'';
@@ -4107,7 +4121,7 @@ async function geminiFormatStock(btnEl){
 function setArtStatus(msg,kind){
   const el=document.getElementById('gem-article-status');if(!el)return;
   el.textContent=msg||'';el.style.display=msg?'block':'none';
-  el.style.color=kind==='error'?'#ef4444':kind==='ok'?'#16a34a':'var(--muted)';
+  el.style.color=kind==='error'?'#ef4444':kind==='ok'?'#16a34a':'var(--text-sub)';
 }
 
 // Gemini出力を「既知の見出し名」＋コードブロックで各ブロックに分解する。
