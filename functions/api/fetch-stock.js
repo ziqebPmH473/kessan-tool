@@ -195,6 +195,14 @@ export async function onRequest(context) {
     }
     if (high) delete high._n;
 
+    // 取得範囲内の安値（＋その日付）＝上昇銘柄の基準候補（株価分析ツールが使用）
+    let low = null;
+    for (const r of rows) {
+      const n = toNum(r.low);
+      if (n != null && (!low || n < low._n)) low = { date: r.date, price: r.low, _n: n };
+    }
+    if (low) delete low._n;
+
     // 日付→株価ルックアップ用（終値・出来高）
     const days = rows.map(r => ({ date: r.date, close: r.close, volume: r.volume }));
 
@@ -219,6 +227,7 @@ export async function onRequest(context) {
       current,
       prev,
       high,
+      low,
       days,
       chartData,
       range: rows.length ? { newest: rows[0].date, oldest: rows[rows.length - 1].date, pages: PAGES } : null,

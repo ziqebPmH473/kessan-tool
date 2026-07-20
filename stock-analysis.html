@@ -1,0 +1,1964 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>株価分析 スライド生成ツール</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+/* ===== APP UI ===== */
+:root{--bg:#0f172a;--panel:#1e293b;--border:#334155;--text:#e2e8f0;--muted:#94a3b8;--accent:#3b82f6;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Helvetica Neue',Arial,'Hiragino Sans',sans-serif;height:100vh;overflow:hidden;display:flex;gap:14px;padding:10px 14px;}
+h1{font-size:15px;font-weight:700;}
+.sub{color:var(--muted);font-size:10px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ctrl{width:300px;flex-shrink:0;display:flex;flex-direction:column;gap:5px;overflow-y:auto;height:100%;}
+.prev-area{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;overflow-y:auto;height:100%;}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:7px 8px;display:flex;flex-direction:column;gap:5px;}
+.card h2{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);padding-bottom:3px;}
+.row{display:flex;gap:5px;align-items:center;flex-wrap:wrap;}
+input[type=text],input[type=date],textarea{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:3px 8px;border-radius:4px;font-size:12px;font-family:inherit;box-sizing:border-box;}
+input[type=text]{flex:1;}
+input[type=date]{color-scheme:dark;height:23px;line-height:normal;}
+input[type=date]::-webkit-calendar-picker-indicator{filter:invert(0.7);cursor:pointer;}
+textarea{width:100%;resize:vertical;line-height:1.5;font-size:11px;}
+.btn{background:var(--accent);color:#fff;border:none;border-radius:5px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;}
+.btn:hover{opacity:.85;}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn-sm{background:#1e3a5f;border:1px solid var(--border);color:var(--text);border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer;white-space:nowrap;}
+.btn-sm:hover{background:#2a4a7a;}
+.btn-danger{background:#3b1f1f;border:1px solid #7f1d1d;color:#fca5a5;border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer;}
+.btn-full{width:100%;padding:5px;font-size:12px;}
+.radio-group{display:flex;gap:8px;}
+.radio-group label{font-size:12px;cursor:pointer;display:flex;align-items:center;gap:3px;}
+.prev-area{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;}
+.prev-wrap{display:flex;flex-wrap:wrap;gap:6px;}
+.prev-slide{position:relative;overflow:hidden;border:1px solid var(--border);border-radius:4px;cursor:pointer;}
+.prev-slide::after{content:'⬇ DL';position:absolute;bottom:0;left:0;right:0;background:rgba(59,130,246,.85);color:#fff;font-size:10px;text-align:center;padding:2px 0;opacity:0;transition:opacity .15s;}
+.prev-slide:hover{border-color:var(--accent);}
+.prev-slide:hover::after{opacity:1;}
+#status{font-size:11px;color:var(--muted);}
+.fmt{background:#0a1628;border:1px solid var(--border);border-radius:4px;padding:8px;font-size:10px;color:var(--muted);font-family:monospace;white-space:pre;overflow-x:auto;max-height:180px;overflow-y:auto;}
+details summary{cursor:pointer;color:var(--accent);font-size:11px;}
+#mob-prev{margin-top:6px;display:none;background:var(--panel);padding:8px;border-radius:7px;border:1px solid var(--border);}
+#mob-img{max-width:100%;border-radius:3px;}
+
+/* ===== SLIDE BASE (1280×720, light theme) ===== */
+.slide{
+  width:1280px;height:720px;overflow:hidden;position:relative;
+  background:#f8fafc;
+  font-family:'Noto Sans JP','Hiragino Sans','Yu Gothic','Meiryo',Arial,sans-serif;
+  color:#0f172a;
+}
+.sl-bar{position:absolute;top:0;left:0;right:0;height:6px;background:linear-gradient(90deg,#1d4ed8,#0284c7);}
+.sl-sig{position:absolute;bottom:10px;right:28px;font-size:13px;color:#cbd5e1;font-weight:700;letter-spacing:.04em;}
+.sl-card{background:#fff;border:1px solid #e2e8f0;border-radius:8px;}
+
+/* ===== SLIDE 1: 現状の整理 ===== */
+.s1-wrap{padding:24px 64px 22px;display:flex;flex-direction:column;gap:8px;height:720px;box-sizing:border-box;justify-content:center;}
+/* head: name + code + desc all inline */
+.s1-head{padding-bottom:8px;border-bottom:1px solid #e2e8f0;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.s1-name{font-size:40px;font-weight:900;color:#0f172a;line-height:1.2;}
+.s1-code{font-size:13px;color:#94a3b8;font-weight:400;margin-left:6px;}
+.s1-desc{font-size:12px;color:#64748b;margin-left:8px;}
+/* upper row: price-card | metrics-card | chart */
+.s1-upper{display:flex;gap:12px;flex-shrink:0;height:148px;}
+.s1-price-card{width:195px;flex-shrink:0;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;display:flex;flex-direction:column;justify-content:center;}
+.s1-price{font-size:35px;font-weight:900;color:#0f172a;line-height:1;white-space:nowrap;}
+.s1-change{font-size:20px;font-weight:700;margin-top:6px;}
+.s1-metrics-card{width:285px;flex-shrink:0;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:4px 12px;display:flex;flex-direction:column;justify-content:space-evenly;overflow:hidden;}
+.s1-metric-row{display:flex;justify-content:space-between;align-items:baseline;padding:1px 0;border-bottom:1px solid #f8fafc;}
+.s1-metric-row:last-child{border-bottom:none;}
+.s1-ml{font-size:12px;color:#94a3b8;white-space:nowrap;}
+.s1-mv{font-size:16px;font-weight:700;color:#0f172a;white-space:nowrap;}
+.s1-chart-card{flex:1;background:#fff;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;position:relative;}
+.s1-chart-lbl{position:absolute;top:6px;left:10px;font-size:11px;color:#94a3b8;z-index:1;}
+.s1-chart-canvas{display:block;width:100%;height:100%;}
+/* lower: 3 rows stacked vertically — 均等 */
+.s1-lower{display:flex;flex-direction:column;gap:7px;}
+.s1-factors-card{background:#eff6ff;border:1px solid #bfdbfe;border-left:4px solid #2563eb;border-radius:8px;padding:10px 16px 8px;min-height:100px;overflow:hidden;display:flex;flex-direction:column;}
+.s1-ftitle{font-size:17px;font-weight:700;color:#1d4ed8;margin-bottom:6px;}
+.s1-factor{font-size:17px;color:#1e3a5f;line-height:1.4;display:flex;gap:8px;margin-bottom:4px;}
+.s1-factor:last-child{margin-bottom:0;}
+.s1-fbullet{color:#2563eb;font-size:10px;flex-shrink:0;margin-top:4px;}
+.s1-s-card{background:#f0fdf4;border:1px solid #bbf7d0;border-left:4px solid #059669;border-radius:8px;padding:10px 16px 8px;min-height:80px;overflow:hidden;display:flex;flex-direction:column;}
+.s1-w-card{background:#fef2f2;border:1px solid #fecaca;border-left:4px solid #dc2626;border-radius:8px;padding:10px 16px 8px;min-height:80px;overflow:hidden;display:flex;flex-direction:column;}
+.s1-sw-title{font-size:17px;font-weight:700;margin-bottom:6px;}
+.s1-s-card .s1-sw-title{color:#047857;}
+.s1-w-card .s1-sw-title{color:#b91c1c;}
+.s1-sw-item{font-size:17px;color:#334155;line-height:1.35;display:flex;gap:6px;margin-bottom:3px;}
+.s1-sw-item:last-child{margin-bottom:0;}
+.s1-sw-bullet{flex-shrink:0;margin-top:2px;font-size:10px;}
+.s1-s-card .s1-sw-bullet{color:#059669;}
+.s1-w-card .s1-sw-bullet{color:#dc2626;}
+
+/* ===== SLIDE 2: 底値/天井シナリオ ===== */
+.s2-wrap{padding:44px 72px 40px;display:flex;flex-direction:column;height:720px;box-sizing:border-box;}
+.s2-title{font-size:36px;font-weight:900;color:#0f172a;margin-bottom:18px;flex-shrink:0;}
+/* 上段: 3つの参照指標を横並び */
+.s2-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;margin-bottom:22px;padding-bottom:22px;border-bottom:2px solid #e2e8f0;flex-shrink:0;}
+.s2-mb-num{font-size:40px;font-weight:900;color:#0f172a;line-height:1;margin-bottom:6px;}
+.s2-mb-lbl{font-size:19px;font-weight:700;color:#0f172a;margin-bottom:4px;}
+.s2-mb-sub{font-size:15px;color:#64748b;line-height:1.5;}
+/* 下段: 3シナリオを縦に並べる */
+.s2-scen-rows{display:flex;flex-direction:column;gap:9px;flex:1;}
+.s2-scen-row{display:grid;grid-template-columns:180px 230px 140px 1fr;gap:20px;align-items:center;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px 20px;border-left:5px solid #94a3b8;flex:1;}
+.s2-scen-row.bear{border-left-color:#dc2626;background:#fef2f2;border-color:#fecaca;}
+.s2-scen-row.base{border-left-color:#64748b;background:#f8fafc;border-color:#e2e8f0;}
+.s2-scen-row.bull{border-left-color:#2563eb;background:#eff6ff;border-color:#bfdbfe;}
+.s2-sr-name{font-size:20px;font-weight:700;}
+.s2-scen-row.bear .s2-sr-name{color:#dc2626;}
+.s2-scen-row.base .s2-sr-name{color:#64748b;}
+.s2-scen-row.bull .s2-sr-name{color:#2563eb;}
+.s2-sr-range{font-size:28px;font-weight:900;color:#0f172a;line-height:1.1;}
+.s2-sr-pct{font-size:18px;font-weight:700;color:#475569;}
+.s2-sr-cond{font-size:16px;color:#475569;line-height:1.65;}
+
+/* ===== SLIDE 3: 12か月後シナリオ ===== */
+.s3-wrap{padding:44px 72px 40px;display:flex;flex-direction:column;height:720px;box-sizing:border-box;justify-content:center;}
+.s3-title-row{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:14px;flex-shrink:0;}
+.s3-title{font-size:36px;font-weight:900;color:#0f172a;flex-shrink:0;}
+/* コンセンサス：タイトル右横に小さく配置 */
+.s3-cons{padding:8px 14px;background:#fffbeb;border:1px solid #fde68a;border-left:3px solid #d97706;border-radius:6px;display:flex;flex-direction:column;gap:4px;align-self:center;min-width:220px;}
+.s3-cons-label{font-size:12px;color:#92400e;font-weight:600;white-space:nowrap;}
+.s3-cons-val{font-size:14px;font-weight:700;color:#78350f;}
+.s3-bar-section{margin-bottom:16px;flex-shrink:0;}
+.s3-bar-labels-top{display:flex;justify-content:space-between;margin-bottom:5px;font-size:14px;}
+.s3-bar-outer{position:relative;height:60px;}
+.s3-bar-track{position:absolute;top:20px;bottom:20px;left:0;right:0;background:#f1f5f9;border-radius:4px;overflow:visible;}
+.s3-zone{position:absolute;top:0;bottom:0;border-radius:4px;}
+.s3-zone.bear{background:rgba(220,38,38,.2);}
+.s3-zone.base{background:rgba(100,116,139,.2);}
+.s3-zone.bull{background:rgba(37,99,235,.2);}
+/* 現在値マーカー（下にラベル） */
+.s3-marker{position:absolute;top:-16px;bottom:-16px;display:flex;flex-direction:column;align-items:center;transform:translateX(-50%);}
+.s3-marker-line{width:2px;flex:1;background:#0f172a;}
+.s3-marker-dot{width:10px;height:10px;border-radius:50%;background:#0f172a;border:2px solid #fff;flex-shrink:0;}
+.s3-marker-lbl{position:absolute;top:-26px;left:50%;font-size:13px;font-weight:700;color:#0f172a;white-space:nowrap;transform:translateX(-50%);}
+/* コンセンサスマーカー（上にラベル） */
+.s3-cmarker{position:absolute;top:-16px;bottom:-16px;display:flex;flex-direction:column;align-items:center;transform:translateX(-50%);}
+.s3-cmarker-lbl{position:absolute;top:-26px;left:50%;font-size:13px;font-weight:700;color:#d97706;white-space:nowrap;transform:translateX(-50%);}
+.s3-cmarker-dot{width:10px;height:10px;border-radius:50%;background:#d97706;border:2px solid #fff;flex-shrink:0;}
+.s3-cmarker-line{width:2px;flex:1;background:#d97706;}
+.s3-bar-prices{display:flex;justify-content:space-between;margin-top:36px;font-size:13px;color:#94a3b8;}
+.s3-table{width:100%;border-collapse:collapse;}
+.s3-table th{font-size:14px;color:#94a3b8;font-weight:600;padding:9px 16px;text-align:left;border-bottom:2px solid #f1f5f9;background:#f8fafc;}
+.s3-table td{padding:13px 16px;border-bottom:1px solid #f1f5f9;font-size:17px;color:#334155;vertical-align:top;}
+.s3-table tr:last-child td{border-bottom:none;}
+.s3-table tr.bear-row td{background:#fef7f7;}
+.s3-table tr.base-row td{background:#f8fafc;}
+.s3-table tr.bull-row td{background:#f0f7ff;}
+.s3-sc{font-weight:700;font-size:30px;}
+.s3-table tr.bear-row .s3-sc{color:#dc2626;}
+.s3-table tr.base-row .s3-sc{color:#64748b;}
+.s3-table tr.bull-row .s3-sc{color:#2563eb;}
+.s3-pc{font-size:40px;font-weight:900;color:#0f172a;}
+.s3-pct{color:#475569;font-weight:600;font-size:30px;}
+.s3-cd{color:#64748b;font-size:16px;line-height:1.6;}
+
+/* ===== SLIDE 4: 転換点のモノサシ ===== */
+.s4-wrap{padding:44px 72px;display:flex;flex-direction:column;height:720px;box-sizing:border-box;justify-content:center;gap:10px;}
+.s4-title{font-size:36px;font-weight:900;color:#0f172a;flex-shrink:0;}
+.s4-items{display:flex;flex-direction:column;gap:10px;}
+.s4-item{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 18px;border-left:3px solid #2563eb;}
+.s4-item-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;}
+.s4-iname{font-size:20px;font-weight:700;color:#1e293b;}
+.s4-ivals{font-size:17px;color:#475569;}
+.s4-icur{color:#0f172a;font-weight:700;}
+.s4-itgt{color:#2563eb;font-weight:700;}
+.s4-gauge-bg{height:9px;background:#f1f5f9;border-radius:4px;overflow:hidden;}
+.s4-gauge-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,#2563eb,#0284c7);}
+.s4-milestone{display:flex;align-items:center;}
+.s4-ms-now{font-size:16px;font-weight:700;color:#dc2626;background:#fef2f2;border:1px solid #fecaca;border-radius:4px;padding:4px 12px;white-space:nowrap;}
+.s4-ms-line{flex:1;height:2px;background:#e2e8f0;margin:0 12px;}
+.s4-ms-tgt{font-size:16px;font-weight:700;color:#2563eb;background:#eff6ff;border:1px solid #bfdbfe;border-radius:4px;padding:4px 12px;white-space:nowrap;}
+.s4-ms-label{font-size:14px;color:#475569;margin-left:10px;}
+.s4-inote{font-size:15px;color:#475569;margin-top:6px;line-height:1.55;}
+.s4-dual{display:flex;gap:8px;margin-top:2px;}
+.s4-dual-pos{flex:1;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:5px 12px;font-size:15px;color:#059669;font-weight:600;}
+.s4-dual-neg{flex:1;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:5px 12px;font-size:15px;color:#dc2626;font-weight:600;}
+
+/* ===== MODE TABS ===== */
+.prev-tabs{display:flex;gap:4px;margin-bottom:4px;flex-shrink:0;}
+.prev-tab{background:var(--panel);border:1px solid var(--border);color:var(--muted);border-radius:5px;padding:5px 14px;font-size:11px;font-weight:600;cursor:pointer;}
+.prev-tab.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+/* ===== THUMBNAIL TOOL ===== */
+.drop-zone{border:2px dashed var(--border);border-radius:6px;padding:8px 10px;text-align:center;transition:border-color .2s,background .2s;}
+.drop-zone.drag-over{border-color:var(--accent);background:rgba(59,130,246,.07);}
+.th-slide{width:1280px;height:720px;overflow:hidden;position:relative;display:flex;flex-direction:column;}
+
+/* ===== SLIDE 5: リスク ===== */
+.s5-wrap{padding:44px 72px;display:flex;flex-direction:column;height:720px;box-sizing:border-box;justify-content:center;gap:40px;}
+.s5-title{font-size:36px;font-weight:900;color:#0f172a;flex-shrink:0;}
+.s5-sub{font-size:16px;color:#64748b;margin-bottom:24px;flex-shrink:0;}
+.s5-risks{display:flex;flex-direction:column;gap:22px;}
+/* 小見出しを囲いの外に出す構造 — 高さは件数に応じて自動 */
+.s5-rsection{display:flex;flex-direction:column;gap:8px;}
+.s5-rtitle{font-size:24px;font-weight:700;}
+.s5-rtitle.r1-t{color:#dc2626;}
+.s5-rtitle.r2-t{color:#d97706;}
+.s5-rbody{border-radius:10px;padding:18px 26px;}
+.s5-rbody.r1{background:#fff5f5;border:1px solid #fecaca;border-left:5px solid #dc2626;}
+.s5-rbody.r2{background:#fffbeb;border:1px solid #fde68a;border-left:5px solid #d97706;}
+.s5-rlist{list-style:none;display:flex;flex-direction:column;gap:10px;}
+.s5-rlist li{font-size:18px;color:#475569;padding-left:18px;position:relative;line-height:1.65;}
+.s5-rlist li::before{content:'・';position:absolute;left:0;color:#94a3b8;}
+</style>
+</head>
+<body>
+<script type="text/plain" id="gem-article-prompt">あなたは「論理的で客観的な視点を持ちつつ、初心者にも寄り添って分かりやすく解説する親切な投資のナビゲーター」です。
+ユーザーから提供される【株価分析レポート（上昇または下落）】を根拠資料とし、情報を一切削らず、かつ「冗長にならない簡潔な表現」で、以下の5つのブロックに出力してください。
+
+【出力形式（重要：必ず5つのブロックに分ける）】
+1. 【タイトル】：記事の魅力を凝縮し、クリックしたくなる短いタイトル案（32文字以内）をテキスト用コードブロックで囲む。
+   - 構造：冒頭に必ず「【銘柄名（証券コード）】〇ヶ月で〇％下落！」と、銘柄名と状況がわかるように記述すること。汎用的な定型文（例：「〜の状況下で、〜を知る」など）への当てはめは禁止。
+   - 銘柄の固有性（絶対条件）：他の銘柄にも使い回せるような表現（「大暴落」「本当の底値」のみで構成するなど）は避け、必ず「その企業特有の事業内容、主力製品、具体的な悪材料/好材料、またはMoat」を示す具体的なキーワードを1つ以上タイトルに組み込むこと。
+   - 厳守事項：「増益で株価上昇」といった視聴者が納得して好奇心が停止する順当な結論は厳禁。固有の文脈に基づくギャップや、「〇〇事業の不振はどこまで織り込まれたか？」といった具体的な疑問を生み出すこと。
+
+2. 【本　文】：後述の【株価分析特化：構成フォーマット】に従い、Markdown用コードブロックで囲む。
+
+3. 【Gamma用スライド構成指示】：本文中のスライド画像挿入の指定に対応する、Gamma用のプロンプトをテキスト用コードブロックで出力する。
+   - 以下の定型文を冒頭に配置し、その下に各スライドの構成を続けること。
+
+   【出力フォーマット】
+   note記事に使用するスライド資料を、以下の構成で作成してください。
+
+   ▼スライド1
+   ・タイトル：（スライド用に最適化した短いタイトル）
+   ・記載内容：（盛り込むべき要素の概要を箇条書きで2〜3点）
+   ・ビジュアル指示：（例：〇〇の比較表、左右の2軸配置、フロー図など、具体的な図解・レイアウトの指示）
+   （※以降、指定したスライドの枚数分繰り返す）
+
+4. 【サムネ構成案】：有料購入を促す魅力的な見出し画像（サムネイル）の構成案をテキスト用コードブロックで提案する。
+   - テキスト構成（必ず以下の文字数と役割を守ること）：
+     ・上段（感情・問題提起）：全角8〜10文字
+     ・中段（銘柄名やメインテーマ）：全角6〜9文字
+     ・下段（抽象的な焦点・問いかけ）：全角8〜10文字
+   - 背景イメージ：上記テキストに合う視覚的イメージや背景・アイコンの提案を簡潔に1文で添える。
+
+5. 【ハッシュタグ】：note用タグ5〜7個をテキスト用コードブロックで囲む。
+   - タグ選定：汎用的すぎて検索価値の低いタグ（例：「#投資初心者」「#投資」単体など、どの記事にも付く定型タグ）は原則使わないこと。代わりに、①銘柄名 ②証券コード ③業種・セクター（例：電子部品、半導体） ④この記事固有のテーマ・材料（例：MLCC、AIサーバー、業績下方修正、PBR）を中心に、実際に検索・回遊されやすい具体的なタグを選ぶこと。銘柄名と証券コードは必ず含める。
+
+6. 【X（旧Twitter）告知文】：140文字以内で作成し、テキスト用コードブロックで囲む。
+   - 内容：記事の核心的な「問いかけ」や「注目ポイント（ギャップ）」を基に、Xからのトラフィックを最大化する文章にする。結論（目標株価など）の記載は厳禁。冒頭は「【 #銘柄名（証券コード）｜〇ヶ月で〇％下落】」の形式で始めること
+   - フォーマット：絵文字を交えつつ「空行なし（詰め）」で構成する。段落分けのための連続改行（空白行の作成）は禁止。ハッシュタグも本文直後の行に空行を挟まず配置すること。
+
+【ペルソナと執筆ルール】
+1. フックの原則：タイトル・サムネ・X告知文では、難解な財務・専門用語をそのまま使わず、平易で感情に訴えかける言葉に変換してフックとすること。
+2. 情報の網羅（絶対条件）：元のレポートに記載されている「上昇/下落の要因」「競争優位性（Moat）」「中間安値/高値レンジ（下値/上値余地）とその変化率」「12か月後シナリオ」「転換点のモノサシ」「リスク」は絶対に削除せず全て網羅してください。
+3. 予測の分離：「中間安値/高値レンジ（3〜9ヶ月）」と「12か月後シナリオ」は絶対に混同せず、記事内でも明確に分けて解説すること。
+4. 語尾とテンポ：「〜です・ます」の3回連続を禁じます。「〜ですよね」「〜というわけです」等を混ぜ、テンポよく読ませてください。
+5. 専門用語の扱い：「Moat」や「コンセンサス」などの投資用語に対する「〜とは」といった基本的な意味の解説は一切不要です。用語はそのまま使用し、読者がすでに知っている前提で分析結果の解説に集中してください。
+6. プロ感の排除：「プロの目線で」といった権威付けや不自然なアピール表現は禁止。フラットで親切な「案内人」として振る舞ってください。
+7. スライド挿入の目印：各大見出し（##）の最後に、必ず各章につき1つずつ [ここに「〇〇」のスライド画像を挿入] と出力してください（〇〇にはその章の内容を要約した短い文言を入れること）。
+8. 情報の配置（有料化への配慮）：前半は「事実の整理（現状なぜ動いているのか）」に留め、「具体的な上値/下値予測」「転換点のモノサシ」「リスクシナリオ」といった投資判断に直結する高価値な情報は、絶対に後半に温存・集中させてください。
+9. YouTube動画の条件付き連携：ユーザーからの提供情報に「YouTube動画のURL」や「動画あり」の指定が含まれている場合のみ、本文の冒頭と末尾に動画への誘導文を配置してください。
+10. 表形式（テーブル）の禁止：noteでは表が描画できないため、比較やデータの提示にMarkdownの表（|---|）は絶対に使用しないでください。数値や条件の整理が必要な場合は、箇条書き（リスト形式）を活用し、テキスト表現で完結させてください。
+11. 強調表現の戦略的活用と不具合防止：読者がスマホで斜め読みしても要点が伝わるよう、本文中の「重要な数値」「投資判断の結論」「警戒すべきリスク」は、必ずMarkdownの太字（**〇〇**）を用いて強調すること（1章につき2〜3箇所目安）。※noteへの転記時に不具合が起きないよう、太字にする際は ** と文字の間にスペースを絶対に入れないこと（例：**強調** はOK、** 強調 ** はNG）。※さらに、「」『』（）等の記号は太字マーカー ** の「外側」に置くこと。太字の内側の先頭・末尾に記号があると強調が効かなくなる（例：「**AI期待**」や（**注**）はOK、**「AI期待」**や**（注）**はNG）。強調するのは記号ではなく中身の語句とする。
+12. 評価基準の統一：銘柄の評価や分析を記述する際は、他社との相対的な比較（相対評価）ではなく、その企業単体の基準に基づく絶対評価として記載してください。
+
+【株価分析特化：構成フォーマット（本文のコードブロック内）】
+※提供された分析レポート（上昇・下落）の情報を漏らさず、読者が最も論理的に理解できる以下の構成で執筆してください。見出しの文言は銘柄や状況に合わせて微調整可能です。
+
+（導入：対象銘柄の現在の状況（大上昇中、または大暴落中など）と、この記事を読むことで「買い時・売り時の目安」が分かるというベネフィットを提示）
+（※AIへの指示：動画指定がある場合のみ [ここに冒頭のYouTube動画リンクを配置]）
+
+## 1. 【現状の整理】なぜ今、株価は動いているのか？
+（レポートの「1. 企業の基本情報」と「2. 現状分析」を基に、現在の株価の立ち位置と、足元の変動要因、そして企業の本質的価値（Moatや経営力）について簡潔に整理する）
+[ここに「〇〇」のスライド画像を挿入]
+
+## 2. 【短期〜中期の株価予測】どこまで動く可能性があるか？
+（レポートの「3. 将来予測」のうち、「市場コンセンサス」と「上値余地/下値余地（3〜9ヶ月の一時的なレンジ）」を解説する。3つのシナリオと変化率を分かりやすく提示し、特に重要な数値や方向性は太字で強調すること）
+[ここに「〇〇」のスライド画像を挿入]
+
+## 3. 【1年後の未来図】12か月後シナリオはどうなる？
+（第2章の短期予測とは「明確に切り離して」、レポートの「12か月後シナリオ」について解説する。長期目線での投資判断基準を提供する）
+[ここに「〇〇」のスライド画像を挿入]
+
+## 4. 【トレンド転換のサイン】見極めるべき「株価以外のモノサシ」
+（レポートの「転換点のモノサシ」を解説。天井や底打ちを判断するための具体的な数値や定量的な目安を、必ず太字にして初心者にも分かりやすく解説する）
+[ここに「〇〇」のスライド画像を挿入]
+
+## 5. 【想定リスク】投資家が注意すべきシナリオの崩れ
+（レポートの「4. シナリオとリスク」を解説。「買った後にさらに下落するリスク」「上昇トレンドが崩れるリスク」「12ヶ月後シナリオの下方修正リスク」など、損をしないための視点を強調する）
+[ここに「〇〇」のスライド画像を挿入]
+
+## まとめ：明日からの監視ポイントと具体アクション
+（ここまでの分析を踏まえ、「買いポイント/利確・損切りポイントの特定」に向けた具体的な行動指針を3〜4点の箇条書きで提示し、アクションの核となる部分は太字にする。記事の結論とする）
+（※AIへの指示：動画指定がある場合のみ末尾の動画誘導テキストを出力）
+
+---
+【システム用の出力指示（最優先・厳守）】各ブロックは必ず見出し「【タイトル】」「【本　文】」「【Gamma用スライド構成指示】」「【サムネ構成案】」「【ハッシュタグ】」「【X（旧Twitter）告知文】」を行頭に付けて出力し、その直後に内容を ``` で囲んだコードブロックで記載すること。</script>
+
+<div class="ctrl">
+  <h1>📊 株価分析 スライド生成</h1>
+  <p class="sub">プロンプト生成 → ChatGPT → ファクトチェック → NotebookLM → スライド生成</p>
+
+  <div class="card">
+    <h2>1. 基本情報</h2>
+    <div class="row" style="flex-wrap:nowrap;justify-content:space-between;">
+      <div class="radio-group">
+        <label style="font-size:11px;color:var(--muted);">市場:</label>
+        <label><input type="radio" name="mkt" value="jp" checked> JP</label>
+        <label><input type="radio" name="mkt" value="us"> US</label>
+      </div>
+      <div class="radio-group">
+        <label style="font-size:11px;color:var(--muted);">方向:</label>
+        <label><input type="radio" name="dir" value="down" checked> 下落</label>
+        <label><input type="radio" name="dir" value="up"> 上昇</label>
+      </div>
+    </div>
+    <div class="row" style="flex-wrap:nowrap;">
+      <input type="text" id="inp-ticker" placeholder="コード (例: 6966)" style="flex:0 0 90px;min-width:0;">
+      <input type="text" id="inp-name" placeholder="銘柄名 (例: 三井ハイテック)" style="min-width:0;">
+    </div>
+    <div class="row" style="flex-wrap:nowrap;">
+      <button class="btn" id="fetch-btn" onclick="fetchStock(this)" style="flex:1;min-width:0;">📥 株探から自動取得</button>
+      <button class="btn-sm" onclick="openKabutan()">🔍 株探</button>
+      <button class="btn-sm" onclick="openIR()">🔍 IR</button>
+    </div>
+    <div id="fetch-info" style="font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:none;"></div>
+    <div class="row" style="gap:4px;flex-wrap:nowrap;">
+      <input type="date" id="inp-base-date" title="基準日" style="flex:1;min-width:0;">
+      <input type="text" id="inp-base-price" placeholder="基準株価" style="flex:0 0 90px;min-width:0;">
+    </div>
+    <div class="row" style="gap:4px;flex-wrap:nowrap;">
+      <input type="date" id="inp-cur-date" title="現在日" style="flex:1;min-width:0;">
+      <input type="text" id="inp-cur-price" placeholder="現在株価" style="flex:0 0 90px;min-width:0;">
+      <button class="btn-sm" onclick="convertPeriod()">→ 変換</button>
+    </div>
+    <input type="text" id="inp-period" placeholder="期間 (例: 2022年3月の最高値から71% / 5ヶ月で63%)">
+  </div>
+
+  <div class="card">
+    <h2>2. ChatGPT 分析プロンプト生成</h2>
+    <div class="row" style="flex-wrap:nowrap;">
+      <button class="btn" onclick="copyAnalysis(this)" style="flex:1.3;min-width:0;padding:5px 6px;">💬 ①分析</button>
+      <button class="btn-sm" onclick="copyFactCheck(this)" style="flex:1;min-width:0;">✅ ②ファクト</button>
+      <button class="btn-sm" onclick="copyCorrection(this)" style="flex:1;min-width:0;">🔧 ③修正</button>
+    </div>
+    <textarea id="ta-report" placeholder="ChatGPTのレポートをここに貼り付け（②③を誤りがなくなるまで繰り返す）" style="min-height:36px;"></textarea>
+    <div class="row" style="flex-wrap:nowrap;">
+      <button class="btn-sm" onclick="pasteReport()" style="flex:1;">📋 貼り付け</button>
+      <button class="btn-danger" onclick="clearReport()" style="flex:1;">✕ クリア</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>3. NotebookLM プロンプト生成</h2>
+    <div style="font-size:10px;color:var(--muted);">①ソースにURL/取得データと確認済みレポートを追加 → ②実行:</div>
+    <div class="row" style="flex-wrap:nowrap;">
+      <button class="btn-sm" onclick="copyKabutanUrl(this)" style="flex:1;min-width:0;">📋 株探URL</button>
+      <button class="btn-sm" onclick="copySourceData(this)" style="flex:1;min-width:0;">📄 取得データ</button>
+    </div>
+    <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:6px;">
+      <label style="font-size:11px;color:var(--muted);flex:none;">モデル</label>
+      <select id="gem-model" style="flex:1;min-width:0;font-size:11px;padding:4px;">
+        <option value="" >自動（上位から上限で自動降格）</option>
+        <option value="gemini-3.5-flash">Gemini 3.5 Flash（20回/日）</option>
+        <option value="gemini-3-flash-preview">Gemini 3 Flash（20回/日）</option>
+        <option value="gemini-3.1-flash-lite" selected>Gemini 3.1 Flash Lite（500回/日）</option>
+        <option value="gemini-2.5-flash">Gemini 2.5 Flash（20回/日）</option>
+        <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite（20回/日）</option>
+      </select>
+    </div>
+    <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:4px;">
+      <label style="font-size:11px;color:var(--muted);flex:none;">チャート期間</label>
+      <input type="number" id="gem-months" min="1" placeholder="全期間" style="width:60px;flex:none;font-size:11px;padding:4px;">
+      <span style="font-size:11px;color:var(--muted);">ヶ月（空欄=全期間）</span>
+    </div>
+    <div class="row" style="flex-wrap:nowrap;margin-top:6px;">
+      <button class="btn btn-full" onclick="copyNBPrompt(this)" style="flex:1;min-width:0;line-height:1.6;">📓 NotebookLM</button>
+      <button class="btn btn-full" onclick="geminiFormatStock(this)" style="flex:1;min-width:0;line-height:1.6;background:#4f46e5;color:#fff;">📤 出力データ作成</button>
+    </div>
+    <div id="gem-status" style="display:none;font-size:11px;margin-top:3px;"></div>
+    <details>
+      <summary>入力フォーマットを確認する</summary>
+      <pre class="fmt">[銘柄情報]
+三井ハイテック|6966|597|2022年3月 最高値比|▼-71%
+精密金型・モーターコア・リードフレームの一貫生産メーカー
+PER:15.6倍|PBR:0.96倍|配当:3.18%|時価総額:1,178億円|52週:513〜958円
+
+[変動要因]
+欧州BEV鈍化で減損39億円＋欧州事業損失26億円計上
+中計を大幅下方修正（営業利益235億→150億）
+27/1期も営業減益予想、海外利益率1.8%に低迷
+
+[強み]
+HEV向け83%のモーターコア、純BEV依存ではない
+超精密加工技術と金型〜製品の一貫生産
+17拠点グローバル体制、モーターコアトップシェア
+
+[弱み]
+海外モーターコア利益率1.8%（国内9.4%と大差）
+ROE2.8%・ROIC4.4%と資本効率が低水準
+中計を1年後に大幅下方修正し予測精度に傷
+
+[チャート]
+2025-04-04,1850,1920,1830,1880,520000
+...（週足×約52本）
+
+[コンセンサス]
+アナリスト目標株価|820円
+
+[短期予測]
+方向:下落
+P0:597
+52週安値:513
+指標:0.96倍|実績PBR|BPS 619円、PBR1倍割れ継続中
+弱気|430〜500|▼-28%〜▼-16%|PBR0.7〜0.8倍|追加下方修正+海外採算停滞
+ベース|500〜560|▼-16%〜▼-6%|PBR0.8〜0.9倍|大幅失望なし
+強気|560〜597|▼-6%〜±0%|PBR0.9〜1.0倍|27/1期が利益の底と浸透
+
+[12か月後]
+弱気|480〜620|▼-20%〜+4%|ROICが5%未満継続
+ベース|700〜850|▲+17%〜+42%|海外採算改善の方向感
+強気|900〜1,050|▲+51%〜+76%|海外採算改善が明確化
+
+[転換点]
+海外モーターコア利益率|1.8%|3〜4%|2Q以上継続で底打ちシグナル
+ROIC|4.4%|5%超|安定確保でPBR1倍突破の土台
+FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
+販売数量伸長率|+1%|+5%以上|稼働率改善の証拠
+リードフレーム利益率|6.9%|7.5〜8.0%|安定キャッシュ源として機能
+
+[リスク]
+下振れ|PBR1倍近辺でも海外採算未改善ならPBR0.8倍まで割引。52週安値¥513再テスト、¥430〜500帯は「待ち時間の長さ」で到達しうる
+修正|28/1期を底とする前提崩れる条件：中東情勢・原油高、関税リスク、日銀追加引き締め、レガシー半導体回復遅延 → ベース・強気シナリオ見直し必要</pre>
+    </details>
+  </div>
+
+  <div class="card">
+    <div class="row" style="flex-wrap:nowrap;align-items:center;">
+      <h2 style="flex:1;border-bottom:none;padding-bottom:0;">4. スライドデータ入力</h2>
+      <button class="btn-sm" onclick="pasteClip()">📋 貼り付け</button>
+      <button class="btn-danger" onclick="clearData()">✕ クリア</button>
+    </div>
+    <textarea id="ta-data" placeholder="NotebookLMの出力をここに貼り付け" style="min-height:40px;" oninput="debouncedPrev()"></textarea>
+  </div>
+
+  <div class="card">
+    <h2>5. 記事・SNS生成（Gemini）</h2>
+    <div style="font-size:10px;color:var(--muted);">「2.」のChatGPTレポートから note記事本文・タイトル・タグ・X投稿文を生成します</div>
+    <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:6px;">
+      <label style="font-size:11px;color:var(--muted);flex:none;">モデル</label>
+      <select id="gem-article-model" style="flex:1;min-width:0;font-size:11px;padding:4px;">
+        <option value="" selected>自動（上位から上限で自動降格）</option>
+        <option value="gemini-3.5-flash">Gemini 3.5 Flash（20回/日）</option>
+        <option value="gemini-3-flash-preview">Gemini 3 Flash（20回/日）</option>
+        <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite（500回/日）</option>
+        <option value="gemini-2.5-flash">Gemini 2.5 Flash（20回/日）</option>
+      </select>
+    </div>
+    <button class="btn btn-full" onclick="geminiArticle(this)" style="background:#0d9488;color:#fff;margin-top:6px;">📝 記事・SNSを生成</button>
+    <div id="gem-article-status" style="display:none;font-size:11px;margin-top:3px;"></div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--muted);">タイトル</label><button class="btn-sm" onclick="copyText(document.getElementById('art-title').value,this)">📋 コピー</button></div>
+    <textarea id="art-title" placeholder="生成後にタイトルが入ります" style="min-height:34px;"></textarea>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--muted);">本文（note）</label><button class="btn-sm" onclick="copyText(document.getElementById('art-body').value,this)">📋 コピー</button></div>
+    <textarea id="art-body" placeholder="生成後にnote記事本文が入ります" style="min-height:130px;"></textarea>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--muted);">サムネ構成</label><button class="btn-sm" onclick="copyText(document.getElementById('art-thumb').value,this)">📋 コピー</button></div>
+    <textarea id="art-thumb" placeholder="生成後にサムネ構成案が入ります" style="min-height:50px;"></textarea>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--muted);">ハッシュタグ</label><button class="btn-sm" onclick="copyText(document.getElementById('art-tags').value,this)">📋 コピー</button></div>
+    <textarea id="art-tags" placeholder="生成後にハッシュタグが入ります" style="min-height:34px;"></textarea>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--muted);">X投稿文</label><button class="btn-sm" onclick="copyText(document.getElementById('art-x').value,this)">📋 コピー</button></div>
+    <textarea id="art-x" placeholder="生成後にX投稿文が入ります" style="min-height:50px;"></textarea>
+    <details style="margin-top:6px;"><summary style="font-size:10px;color:var(--muted);cursor:pointer;">生成全文（うまく分割できない時のフォールバック）</summary><textarea id="art-raw" style="min-height:80px;"></textarea></details>
+  </div>
+
+  <button class="btn btn-full" id="dl-btn" onclick="downloadAll()">⬇ 全スライドをZIPでダウンロード</button>
+  <div id="status"></div>
+  <div id="mob-prev">
+    <p style="font-size:10px;color:#ef4444;font-weight:bold;margin-bottom:5px;">保存ダイアログが出ない場合は画像を長押しして保存</p>
+    <img id="mob-img" src="" alt="">
+  </div>
+</div>
+
+<div class="prev-area">
+  <div class="prev-tabs">
+    <button class="prev-tab active" id="tab-slides" onclick="setMode('slides')">📊 スライド</button>
+    <button class="prev-tab" id="tab-thumb" onclick="setMode('thumb')">🖼 サムネイル</button>
+  </div>
+
+  <!-- スライドビュー -->
+  <div id="slides-view" style="display:flex;flex-direction:column;gap:6px;flex:1;overflow-y:auto;">
+    <div style="font-size:11px;color:var(--muted);">プレビュー（クリックで個別ダウンロード）</div>
+    <div class="prev-wrap" id="prev-area"></div>
+  </div>
+
+  <!-- サムネイルビュー -->
+  <div id="thumb-view" style="display:none;flex-direction:column;gap:8px;flex:1;overflow-y:auto;">
+    <div class="card">
+      <h2>テキスト入力</h2>
+      <p style="font-size:10px;color:var(--muted);margin-bottom:6px;">「：」で上段・中段・下段を区切る。色指定: <span style="color:#ff914d">*オレンジ*</span>　<span style="color:#5ce1e6">#水色#</span>　<span style="color:#ffde59">%黄色%</span></p>
+      <div style="display:flex;gap:14px;margin-bottom:6px;">
+        <label style="font-size:11px;cursor:pointer;display:flex;align-items:center;gap:3px;"><input type="radio" name="th-preset" value="note" checked onchange="applyThumbPreset('note')"> note</label>
+        <label style="font-size:11px;cursor:pointer;display:flex;align-items:center;gap:3px;"><input type="radio" name="th-preset" value="youtube" onchange="applyThumbPreset('youtube')"> YouTube</label>
+      </div>
+      <textarea id="th-input" oninput="debouncedThumb()" style="min-height:54px;">最高値から*40％下落*：ユニチカ：#底値#と%５つの反転サイン%</textarea>
+    </div>
+    <div class="card">
+      <h2>背景画像（黒帯に透過表示）</h2>
+      <div id="th-bg-drop" class="drop-zone">
+        <img id="th-bg-thumb" style="max-height:32px;max-width:80px;border-radius:3px;margin:0 auto 3px;display:none;">
+        <p id="th-bg-msg" style="font-size:11px;color:var(--muted);margin-bottom:4px;">ドロップ、または</p>
+        <label for="th-bg-input" class="btn-sm">ファイルを選択</label>
+        <input type="file" id="th-bg-input" accept="image/*" style="display:none" onchange="onThBgFile(this)">
+        <div id="th-bg-meta" style="font-size:11px;color:var(--muted);margin-top:3px;"></div>
+        <button id="th-bg-clear" class="btn-danger" style="display:none;margin-top:5px" onclick="clearThBg()">✕ 削除</button>
+      </div>
+      <div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap;">
+        <label style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px;">透過率: <span id="th-op-val">3</span>% <input type="range" id="th-op" min="0" max="50" value="4" oninput="updateThOp(this.value)" style="width:90px;cursor:pointer;"></label>
+        <label style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px;">拡大率: <span id="th-sc-val">110</span>% <input type="range" id="th-sc" min="100" max="200" value="110" oninput="updateThSc(this.value)" style="width:90px;cursor:pointer;"></label>
+      </div>
+    </div>
+    <button class="btn btn-full" id="th-dl-btn" onclick="downloadThumb()">⬇ ダウンロード</button>
+    <div id="th-status" style="font-size:11px;color:var(--muted);min-height:16px;"></div>
+    <div class="card" id="th-preview-card" style="display:none;">
+      <h2>プレビュー（テキスト変更で自動更新）</h2>
+      <div id="th-preview-wrap" style="position:relative;overflow:hidden;border:1px solid var(--border);border-radius:4px;width:62%;">
+        <div id="th-preview-inner"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="render-target" style="position:fixed;left:-9999px;top:0;pointer-events:none;"></div>
+<div id="th-render-target" style="position:fixed;left:-9999px;top:0;pointer-events:none;"></div>
+
+<script>
+// ============================================================
+// CONSTANTS & HELPERS
+// ============================================================
+const SLIDE_W=1280,SLIDE_H=720;
+const getMkt=()=>document.querySelector('input[name=mkt]:checked')?.value||'jp';
+const getDir=()=>document.querySelector('input[name=dir]:checked')?.value||'down';
+const getTicker=()=>document.getElementById('inp-ticker').value.trim();
+const getName=()=>document.getElementById('inp-name').value.trim();
+const getPeriod=()=>document.getElementById('inp-period').value.trim();
+// 基準日・基準株価・現在日・現在株価から「Xヶ月でY%」を生成し、方向を選択
+function convertPeriod(){
+  const pdate=s=>{const d=new Date(String(s).trim().replace(/[年月]/g,'/').replace(/日/g,''));return isNaN(d)?null:d;};
+  const pprice=s=>{const n=parseFloat(String(s).replace(/[,，円\s　]/g,''));return isNaN(n)?null:n;};
+  const bd=pdate(document.getElementById('inp-base-date').value);
+  const bp=pprice(document.getElementById('inp-base-price').value);
+  const cd=pdate(document.getElementById('inp-cur-date').value);
+  const cp=pprice(document.getElementById('inp-cur-price').value);
+  if(!bd||bp==null||!cd||cp==null){alert('基準日・基準株価・現在日・現在株価をすべて入力してください（日付例: 2026/1/16）');return;}
+  const months=Math.max(1,Math.round((cd-bd)/86400000/30.44));
+  const pct=Math.round(Math.abs(cp-bp)/bp*100);
+  const up=cp>=bp;
+  document.getElementById('inp-period').value=`${months}ヶ月で${pct}%`;
+  document.querySelector(`input[name=dir][value=${up?'up':'down'}]`).checked=true;
+}
+const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+// 4桁以上の整数部にカンマを挿入
+function addComma(s){return String(s||'').replace(/\d+/g,m=>m.length<4?m:parseInt(m).toLocaleString('ja-JP'));}
+// ▼-28% → -28%、▲+17% → +17%（重複記号除去）
+function cleanPct(s){return String(s||'').replace(/[▼▲]/g,'');}
+// 末尾の「。」を除去
+function trimDot(s){return String(s||'').replace(/[。\s]+$/,'').trim();}
+// 通貨記号を除去（円・$・¥）
+function stripCur(s){return String(s||'').replace(/[円$¥]/g,'').trim();}
+// 証券コードから通貨単位を判定（全て英字 → US / 数字を含む → JP）
+// 日本の新形式コード（例: 285A, 130A）は数字+英字なのでJP扱いにする
+function isUSCode(code){const c=String(code||'').trim();return /[a-zA-Z]/.test(c)&&!/[0-9]/.test(c);}
+// 価格値を整形（既存通貨記号除去 + カンマ + 適切な単位追加）
+function fmtPrice(val,code){const n=addComma(stripCur(val));return isUSCode(code)?'$'+n:n+'円';}
+
+function setStatus(msg,dur=0){
+  document.getElementById('status').textContent=msg;
+  if(dur) setTimeout(()=>document.getElementById('status').textContent='',dur);
+}
+
+// ============================================================
+// PROMPT TEMPLATES
+// ============================================================
+const ANALYSIS_CORE=`# 命令書
+
+## あなたの役割
+あなたは、分析対象の企業ごとに最も合理的で重要な分析項目や指標を自ら選定できる、トップクラスの株式アナリストです。短期的な株価の動きを追うだけでなく、その背景にある企業の永続的な競争力や経営の質といった本質的な価値を見抜くことが仕事です。
+
+## 私の目的
+株価が [PERIOD][TREND] している [NAME] について、12ヶ月（1年）程度の時間軸を基本とし、投資家が「[GOAL]」を自己判断するための、客観的で深い洞察に満ちた分析レポートを作成すること。目的は、買い・売り・利確・損切りのポイントを必ず見つけることではなく、現在株価が投資対象として妥当か、待つべきか、見送るべきか、どの条件が揃えば候補になるかを判断することとする。分析の結果、12か月後の期待リターンがマイナスになる場合は、ベースシナリオでも買い見送り・投資見送りと結論づけてよい。
+
+## 分析における重要な視点
+* マクロ経済環境: 現在の金利、景気動向、金融政策などがこの企業にどう影響するか。
+* 業界トレンド: 当該銘柄が属する業界全体の成長性、技術革新、規制変更などの追い風・向かい風。
+* 競合他社の動向: 競合他社と比較した業績・株価パフォーマンスの位置づけ。
+* **分析方向の明確化**: このレポートは「[DIRECTION_LABEL]」として作成してください。[DIRECTION_TASKS]
+* **値動きタイプの分類**: シナリオ作成の前に、まず当該銘柄の値動きタイプを分類してください。[MOVE_TYPE_INSTRUCTION] 分類したタイプに応じて、株価レンジの算出方法・重視指標・リスクの見方を変えてください。
+
+## 「3つの必須回答項目」
+1. なぜ[TREND]しているのか？
+   * 株価変動を牽引している要因を特定し、その背景にある「企業の永続的な強さ・弱さ（Moat）」と「経営陣の能力・信頼性」も評価に含めてください。
+
+2. どこまで[TREND]する可能性があるのか？
+   * 「[MID_LABEL]」とは[MID_DEF]を指します。弱気/ベース/強気の3シナリオで提示してください。
+   * 各シナリオは「目標株価レンジ」と「P0からの変化率（%）」を必ず併記してください。[MID_CONSTRAINT]
+   * **「ベースシナリオ」の定義**：「現時点で最も実現確率が高い水準」として設定してください。楽観ケースや「普通に回復するケース」ではありません。現在株価（P0）を起点に「自然に回復するはずだ」という根拠のない楽観バイアスは排除し、ファンダメンタルズ・マクロ・業界環境・需給を中立的に評価した結果として導いてください。ベースシナリオが上昇・横ばい・下落のいずれになるかは、材料の重みによって決まります。銘柄によっては、ベースシナリオの株価レンジが現在株価をすべて下回ることを許容してください。ベースシナリオが現在株価をまたぐ必要はありません。
+   * **弱気・ベース・強気の意味づけ**：弱気・ベース・強気の3シナリオは、現在株価P0に対する「マイナス・横ばい・プラス」を意味しません。弱気＝3つの中で相対的に最も悪い事業・業績・需給・バリュエーション前提が実現したケース、ベース＝最も実現確率が高い前提、強気＝相対的に最も良い前提を意味します。とくにベースシナリオは「横ばい」「中立」「現在株価付近」「無難な回復」「0%前後のリターン」を意味しません。業績悪化・バリュエーション調整・需給悪化・マクロ逆風が強い場合はベースシナリオ自体をマイナス中心に、業績回復の確度が高い場合はベースシナリオ自体をプラス中心に設定してよく、その結果として弱気シナリオまでプラス、強気シナリオまでマイナスになることも排除しません。
+   * 株価シナリオのレンジは、一般的なテンプレートではなく、必ず銘柄固有のデータから算出してください。変化率を先に決めてはなりません。まず、業績・資産価値・バリュエーション・需給・過去ボラティリティ・同業比較から株価レンジを算出し、その結果としてP0からの変化率を計算してください。弱気=-30%、ベース=-15%、強気=-5%のような下落テンプレートや、強気=+30%、ベース=+15%、弱気=+5%のような上昇テンプレートは禁止します。他銘柄にもそのまま流用できるような株価レンジは禁止し、各シナリオの変化率は、銘柄固有の業績・バリュエーション・需給・財務・チャートから導いてください。
+   * [MID_LABEL]（3〜9か月程度）は、次の順序で導いてください。(1) 3〜9か月で起こりうる事象を列挙する（決算反応、上方/下方修正、信用需給・出来高の変化、外部環境＝市況・地合い・金利・為替・セクター循環、短期カタリスト）。(2) その起こりやすさから弱気・ベース・強気の確率を決める（確率の決め方・数値ルールは後述）。(3) 各シナリオに妥当な株価水準・倍率を当てる。(4) 株価レンジを算出する。(5) P0からの変化率を出す。
+   * [MID_LABEL]は短期目線のため、テクニカルを主役級に扱ってください。各シナリオの株価レンジは、バリュエーション根拠（会社予想/コンセンサスEPS×妥当PER、BPS×妥当PBR、EBITDA×EV/EBITDA、売上高×PSR、過去3〜5年のバリュエーションレンジ、同業比較、コンセンサス目標株価の上限・平均・下限）、テクニカル根拠（出来高を伴う支持線/抵抗線、移動平均、直近高値/安値、過去ドローダウン、価格の節目、トレンド）、需給根拠（信用倍率・信用買残・空売り残・出来高）を併用してください。算出には最低3つの根拠を用い、そのうち少なくとも1つはテクニカル根拠、1つはバリュエーション根拠を必ず含めること。
+   * [MID_LABEL]のシナリオ表は、必ず次の列構成にしてください：| シナリオ | 値動きのメカニズム | [MID_BASIS_LABEL] | 適用倍率・前提 | [MID_RANGE_NAME] | P0からの変化率 |。各行で「算出根拠」「適用した倍率・前提」「算出された株価レンジ」を明示してください。
+   * この[MID_LABEL]とは別に「12か月後シナリオ」を別見出し・別シナリオで必ず提示してください。両者を同じ表や段落に混在させてはいけません。
+   * 「12か月後シナリオ」においても同様に、ベースシナリオ＝最も実現確率が高いシナリオとして設定してください。「株価は1年後には回復する」「P0付近に収れんする」という前提を置かず、ファンダメンタルズ・マクロ・業界環境・需給を総合的に評価した結果として導いてください。
+   * 12か月後シナリオは、現在株価P0を中心に上下幅を設定してはなりません。12か月後時点の予想業績、バリュエーション、事業環境、需給、カタリストをもとに、12か月後の妥当株価レンジを再計算してください。ベースシナリオを「0%付近」「横ばい付近」「-5%〜+10%程度」の無難なレンジに寄せてはなりません。全シナリオがP0を上回る、または全シナリオがP0を下回ることを禁止しません。上昇銘柄の弱気シナリオがP0より上、下落銘柄の強気シナリオがP0より下になることも禁止しません。
+   * 12か月後株価レンジは、必ず以下の順序を経由してください。(1) 弱気・ベース・強気ごとに12か月後の事業前提を設定する（会社予想/コンセンサスEPS、翌期増益率/減益率、営業利益率、主力事業の売上成長率、受注残・稼働率・単価・ARPUなど銘柄固有KPI、中期経営計画の達成確度、主要カタリストの実現可能性、財務リスク・増資/希薄化リスク、テーマ性・需給の持続、そして外部環境＝市況・地合い・金利・為替・マクロ・業界循環・規制を確認する）。(2) 各シナリオの起こりやすさから弱気・ベース・強気の確率を決める（確率の決め方・数値ルールは後述）。(3) 弱気・ベース・強気ごとに妥当PER/PBR/PSR/EV/EBITDAなどの適用倍率を設定する。(4) EPS×PERなどの主軸計算で株価レンジを算出する。(5) PBR、EV/EBITDA、過去バリュエーション、同業比較、支持線/抵抗線、信用需給との整合性を確認する。(6) 最後に現在株価からの変化率を計算する。資産株・赤字企業・シクリカル銘柄などEPS×PERが中心指標として不適切な場合は、PBR、EV/EBITDA、営業利益倍率、純資産、財務リスクなどを主軸にし、その理由を明示してください。
+   * 12か月後シナリオ表は、必ず次の列構成にしてください：| シナリオ | 12か月後の事業前提 | 12か月後の業績前提 | 適用バリュエーション | 12か月後株価レンジ | P0からの変化率 |。
+   * ベースシナリオの方向（プラス/横ばい/マイナス）は、上記(1)の事象とバリュエーションから決めてください。EPS成長・利益率改善・倍率維持/拡大・需給改善・財務改善などの根拠が優勢ならプラス圏に、今期/来期EPSの下方修正リスク・割高バリュエーション・一過性益や特需・成長鈍化・需給悪化・財務/希薄化/赤字転落リスク・期待先行で形成された過去高値などが優勢ならマイナス圏に置いてよい。どちらとも言えない場合のみ横ばい圏とすること。
+   * 過去高値やアナリスト目標株価を上値の根拠として使う場合は、それが現在の業績・バリュエーション・市場環境を反映しているかを検証してください。過去高値が期待先行の異常値である場合は、上値根拠ではなくリスク要因として扱ってください。
+   * **シナリオ確率の決め方**（[MID_LABEL]・12か月後の両方に適用）：確率は株価レンジの後づけにしてはなりません。上記(1)で挙げた事象の起こりやすさから先に決めてください。決める前に、次の評価テーブルを内部の思考として必ず作成し（このテーブル自体は最終レポートには出力しない）、各項目を「弱気寄り/中立/強気寄り」で判定してください：| 評価項目 | 判定 | 理由 |（行：業績モメンタム／バリュエーション／財務リスク／信用需給・出来高／マクロ・業界・外部環境／決算・カタリスト）。弱気寄りの材料が優勢なら弱気を、強気寄りの材料が優勢なら強気を厚くします。
+   * **確率の数値ルール**：確率は5%刻み・合計100%とし、次をすべて満たすこと。①ベースを最も高い確率にする。②ベースは弱気・強気のそれぞれより15ポイント以上高くする。③弱気と強気は必ず10ポイント以上の差をつけ、どちらの方向の可能性が高いと見ているかを明示する（弱気=強気や、差5ポイント以下は禁止）。この結果、ベース確率はおおむね50〜75%、弱気と強気の差は10〜35ポイントの範囲に収まります。
+
+3. トレンド転換点（[TURNING_POINT]）を判断する「株価以外のモノサシ」は何か？
+   * この銘柄に特有の定量的な指標を複数特定し、その中から個人投資家が継続的にウォッチしやすい「特に重要なもの」を最大4つまでに厳選してください。9個・10個のように網羅的に列挙してはいけません。
+   * 各モノサシについて、現在の値（直近の実績値）と、「どのくらいの数値」になったら転換の可能性が高まるかの具体的な目安を併記してください。
+   * [TURNING_METRICS]
+
+## レポートの構成
+### [NAME]株価分析レポート：[ANALYSIS_TITLE]
+
+#### 1. 企業の基本情報
+（現在株価、時価総額、PER、PBR、配当利回り、52週レンジ等を表や箇条書きで提示）
+
+#### 2. 現状分析：[TREND]の要因と企業の本質的価値
+（変動要因・Moat・弱さ・経営陣評価・マクロ・業界・競合を詳細に記述）
+
+#### 3. 将来予測：市場コンセンサス、[MID_LABEL]、12か月後シナリオ、転換点のモノサシ
+（以下を必ず別見出し・別段落で記述）
+1. 市場コンセンサス（アナリスト目標株価など）
+2. [MID_LABEL]（[MID_DEF]）弱気/ベース/強気の3シナリオ
+3. 12か月後シナリオ 弱気/ベース/強気（2と3は絶対に混在させない）
+4. 転換点を判断する「株価以外のモノサシ」
+
+#### 4. シナリオとリスク
+（「[RISK_SCENARIO]」と「12か月後シナリオ自体が下方修正されるリスク」を分けて記述）
+・レポートに出典番号は記載しないでください。
+
+## 最終アウトプットの体裁（最重要）
+「思考過程」と「最終レポート」を明確に分けてください。値動きタイプの分類、シナリオ確率の評価テーブル、確率の算出根拠、最低3根拠の洗い出し作業、出力前の自己検証などの作業過程は、内部で十分に行ったうえで、最終レポートには一切載せないでください。最終レポートは次を厳守してください。
+* 上記「## レポートの構成」の4章構成に厳密に従い、章・節をこれ以上増やさない。各章は必要十分な情報に絞る。
+* シナリオ表は指定した列構成のみとし、列・注釈・補足表を追加しない。確率は本文に短く触れる程度にとどめ、確率の根拠テーブルは出力しない。
+* 簡潔さを最優先する。同じ論点・前提を複数箇所で繰り返さない。冗長な前置き・総括・免責文・一般論を入れない。
+* 「情報の多さ」より「正確さ」を優先する。確信の持てない数値・固有名詞・日付・出来事は載せない（不確かな情報を盛り込むことが誤りの主因になる）。投資判断に直接効く事実だけを残し、周辺情報は削ぎ落とす。
+* 各シナリオの前提条件・根拠は1〜2文に収める。Moat・弱み・転換点なども要点を簡潔に。
+* 分量・密度の目安：網羅性のために情報を詰め込まず、以前のすっきりしたレポート（要点が一読で掴める密度）と同等に抑える。
+
+## 出力前の自己検証
+出力前に以下を自己検証してください。
+1. [MID_SELF_CHECK]
+2. 変化率を先に決めて株価レンジを逆算していないか。
+3. 各シナリオに銘柄固有の算出根拠が最低3つ以上あるか。
+4. 弱気・ベース・強気の変化率が汎用テンプレートになっていないか。
+5. [MID_LABEL]と12か月後シナリオを混在させていないか。
+6. 銘柄特有のKPIや業界指標が転換点のモノサシに入っており、特に重要な最大4つまでに絞られ、かつ各モノサシに現在の値と転換の目安が併記されているか。
+7. 12か月後ベースシナリオが、安易に0%前後の無難なレンジになっていないか。
+8. 12か月後の業績前提・事業前提・適用倍率から株価レンジを再計算しているか。
+9. 12か月後シナリオで、全シナリオがP0超またはP0未満になる可能性を排除していないか。
+10. 短期の[MID_LABEL]と12か月後シナリオの評価軸が混ざっていないか。
+11. シナリオ確率を、株価レンジの後づけにせず、起こりうる事象と評価テーブルの判定から先に決めているか。
+12. 確率は5%刻みで、ベースが最大かつ弱気・強気それぞれより15ポイント以上高く、弱気と強気は10ポイント以上の差がついているか。
+13. 弱気・ベース・強気をP0に対するマイナス・横ばい・プラスとして機械的に割り当てていないか（弱気までプラス、強気までマイナスの可能性を排除していないか）。
+14. [MID_LABEL]の各シナリオに、テクニカル根拠が最低1つ含まれているか。
+15. 最終レポートが上記4章構成に収まり、思考過程の作業（値動きタイプ分類・確率の評価テーブル・根拠の洗い出し・自己検証）を出力に含めていないか。
+16. 情報を詰め込みすぎず、確信の持てない数値・固有名詞・日付を載せていないか。各シナリオの前提が1〜2文に収まり、以前のすっきりしたレポートと同等の密度になっているか。`;
+
+const MODES={
+  down:{
+    '[ANALYSIS_TITLE]':'下落の要因と底値のサイン',
+    '[TREND]':'下落',
+    '[GOAL]':'現在株価が投資対象として妥当か、買いを見送るべきか、どの条件が揃えば買い候補になるかの判断',
+    '[DIRECTION_LABEL]':'下落銘柄分析',
+    '[DIRECTION_TASKS]':'なぜ下落しているのか、どこまで下落する可能性があるのか、底値圏を判断する株価以外のモノサシを分析してください。',
+    '[MOVE_TYPE_INSTRUCTION]':'下落タイプを、A. 高PER成長株のバリュエーション調整、B. 業績悪化・減益織り込み、C. 財務不安・増資・希薄化懸念、D. 一過性材料による需給悪化、E. 構造的な競争力低下、F. 不祥事・規制・訴訟・上場維持リスク、G. テーマ株・短期資金流入後の反動、H. その他、から分類してください。',
+    '[MID_DEF]':'今後3〜9か月程度の間に一時的に付けうる中間安値レンジ',
+    '[MID_LABEL]':'下値余地',
+    '[MID_CONSTRAINT]':'目標株価レンジは必ずP0以下（P0より高い数値は禁止）',
+    '[MID_BASIS_LABEL]':'下値算出の主な根拠',
+    '[MID_RANGE_NAME]':'中間安値レンジ',
+    '[TURNING_POINT]':'底値圏（下落トレンドの終焉と反転）',
+    '[TURNING_METRICS]':'底打ちを判断するモノサシとして、主力事業の売上成長率、営業利益率の下げ止まり、受注残、在庫水準、信用買残の整理、為替・金利・市況価格、会社計画の据え置き/上方修正、アナリスト下方修正の停止などから、銘柄固有性の高いものを選んでください。',
+    '[MID_SELF_CHECK]':'下値余地の中間安値レンジはすべてP0以下になっているか。',
+    '[RISK_SCENARIO]':'底打ちと判断して買ったが、さらに下落が続くリスク',
+  },
+  up:{
+    '[ANALYSIS_TITLE]':'上昇の持続性と天井のサイン',
+    '[TREND]':'上昇',
+    '[GOAL]':'利確・損切りポイントの特定',
+    '[DIRECTION_LABEL]':'上昇銘柄分析',
+    '[DIRECTION_TASKS]':'なぜ上昇しているのか、どこまで上昇する可能性があるのか、天井圏を判断する株価以外のモノサシを分析してください。',
+    '[MOVE_TYPE_INSTRUCTION]':'上昇タイプを、A. 業績上方修正・利益成長の再評価、B. テーマ性によるバリュエーション再評価、C. 需給主導の踏み上げ・低浮動株上昇、D. TOB・M&A・親子上場解消期待、E. 株主還元強化・資本効率改善期待、F. 黒字化・赤字縮小・ターンアラウンド期待、G. 一過性材料による短期急騰、H. その他、から分類してください。',
+    '[MID_DEF]':'今後3〜9か月程度の間に一時的に付けうる中間高値レンジ',
+    '[MID_LABEL]':'上値余地',
+    '[MID_CONSTRAINT]':'目標株価レンジは原則としてP0以上（P0より低い数値を天井レンジとして提示してはならない）',
+    '[MID_BASIS_LABEL]':'上値算出の主な根拠',
+    '[MID_RANGE_NAME]':'中間高値レンジ',
+    '[TURNING_POINT]':'天井圏（上昇トレンドの終焉）',
+    '[TURNING_METRICS]':'天井圏を判断するモノサシとして、PER・PBR・PSRが過去上限や同業上限を超えているか、出来高急増後の失速、信用買残の急増、空売り買い戻し一巡、業績上方修正余地の縮小、受注・単価・利益率のピークアウト、会社計画に対する織り込み過剰、アナリスト目標株価との乖離拡大などから、銘柄固有性の高いものを選んでください。',
+    '[MID_SELF_CHECK]':'天井圏の中間高値レンジは原則としてP0以上になっているか。',
+    '[RISK_SCENARIO]':'上昇トレンドが崩れ、下落に転じるリスク',
+  }
+};
+
+const NB_PROMPT=`あなたはプロの証券アナリストであり、データ整形のエキスパートです。
+読み込んだソース（株価分析レポート）を分析し、下記の【出力フォーマット】に厳密に従ってテキストを出力してください。
+
+## 重要なルール
+1. 金額は「兆・億・万円」に変換してください。
+2. 変化率は「▲+XX.X%」または「▼-XX.X%」の形式で記載（±0%に近い場合は「±0%」）。
+3. [チャート]は週足データで出力。直近約1年分（52本程度）の「YYYY-MM-DD,始値,高値,安値,終値,売買高（株数）」を1行1本。区切り文字としての半角カンマは使いますが、始値・高値・安値・終値・売買高の数値内には3桁区切りのカンマを絶対に入れないでください（例：1,234ではなく1234、1,234,500ではなく1234500）。このツールでチャートを描画するため、[チャート]内の数値はすべてカンマなしの生の数値にしてください。
+4. コードブロック（\`\`\`）は不要。テキストのみ出力。
+5. [転換点]の指標数は、個人投資家が継続的にウォッチしやすいように、特に重要なものを最大4個までに厳選してください。9個・10個のように網羅的に列挙してはいけません。1つの指標に対して複数の閾値がある場合（例：「1.05億以上→良い」と「1億割れ→要注意」のように、同じ指標を異なる水準で判断する）は5フィールド形式（指標名|現在値|閾値①の説明|閾値②の説明|補足説明）を使う。数値で一方向に進捗を測れる指標は4フィールド形式（指標名|現在値|目安値|補足説明）を使う。
+6. [短期予測]の「方向」は、下落分析なら「下落」、上昇分析なら「上昇」。
+7. 下落分析では「52週安値」、上昇分析では「52週高値」を記載。
+8. [リスク]の1行目は下落分析なら「下振れ」、上昇分析なら「崩壊」で始める。2行目は必ず「修正」で始める。本文は「・」区切りの箇条書き形式で記載すること（例：「高金利継続で設備投資減退・海外競合の低価格攻勢で受注単価下落・関税コスト増加によるマージン圧縮」）。
+9. [強み][弱み]はレポート2章の「企業の永続的な強さ・弱さ」から抽出し、各2〜4行で記載。
+10. [コンセンサス]にはアナリスト目標株価のみ1行で記載（例：「アナリスト目標株価|820円」）。目標株価データがない場合はセクション自体を省略。業績コンセンサス（売上・営業利益等）は不要。
+11. [短期予測]・[12か月後]の各シナリオの前提条件（最終フィールド）は、1〜2文の詳細な説明を記載してください。投資家がそのシナリオが成立する理由・根拠を理解できる内容にしてください（例：「海外モーターコア事業の採算が一向に改善せず、27/1期に追加下方修正が発生するケース。PBR0.7〜0.8倍への割引が継続する。」）。
+12. 数値は1,000以上の場合は3桁カンマ区切りで記載（例：1,178億円、10,386,000）。ただし株価・価格レンジは通貨記号なしの数値のみ（例：597、430〜500）。また、[チャート]セクションの始値・高値・安値・終値・売買高は例外として3桁カンマ区切りを使わず、必ずカンマなしの数値にしてください。証券コードが「すべて英字」の場合のみ米国株なので、スライドツールが自動でドル表記に変換します（例：285Aや130Aのように数字を含むコードは日本株なので円表記）。
+13. 各セクションのヘッダー（[銘柄情報]、[変動要因]等）は必ずすべて出力すること。
+14. [短期予測]・[12か月後]のベースシナリオは「最も実現確率が高いシナリオ（概ね40〜60%）」として設定すること。現在株価（P0）を起点に「自然に回復するはずだ」という根拠のない楽観バイアスを排除し、ファンダメンタルズ・マクロ・需給を中立的に評価した結果として導くこと。ベースシナリオが上昇・横ばい・下落のいずれになるかは材料の重みによって決まるため、方向性を事前に決めないこと。
+15. 【最重要・厳守】各セクションには、下記【出力フォーマット】で定義された行だけを出力すること。フォーマットに定義のない行を絶対に追加してはならない。特に[短期予測]・[12か月後]では、シナリオ確率（例：「ベースシナリオ確率:50%」「弱気30%・強気20%」等）や評価テーブル、見出し、注釈、補足コメントを一切出力しないこと。確率はスライドに表示しないため出力不要。[短期予測]は「方向:」「P0:」「52週安値/高値:」「指標:」（指標は省略可）と「弱気/ベース/強気」の3シナリオ行のみ、[12か月後]は「弱気/ベース/強気」の3シナリオ行のみとすること。シナリオ行の先頭は必ず「弱気」「ベース」「強気」のいずれかで始めること。
+
+---
+## 【出力フォーマット】
+※ [銘柄情報]の1行目には「銘柄名」「証券コード」などのカラム名を書かず、必ず具体的な値のみ3行を出力すること。
+
+[銘柄情報]
+三井ハイテック|6966|597|2022年3月 最高値比|▼-71%
+超精密金型・モーターコア・リードフレームの一貫生産メーカー
+PER:15.6倍|PBR:0.96倍|配当:3.18%|時価総額:1,178億円|52週:513〜958円
+
+※ 株価は数値のみ（円・$などの通貨記号は不要）。スライドツールが証券コードから自動変換します。
+
+[変動要因]
+要因1（1行で簡潔に）
+要因2
+要因3
+
+[強み]
+強みの説明1
+強みの説明2
+強みの説明3
+
+[弱み]
+弱みの説明1
+弱みの説明2
+弱みの説明3
+
+[チャート]
+YYYY-MM-DD,始値,高値,安値,終値,売買高
+（約52行）
+※ [チャート]の数値内にカンマを入れないこと（例：2025-04-04,1234,1250,1200,1245,1234500）。
+
+[コンセンサス]
+アナリスト目標株価|820円
+
+[短期予測]
+方向:下落
+P0:現在株価の数値
+52週安値:数値
+指標:値|ラベル|補足説明（省略可）
+弱気|価格レンジ|変化率|バリュエーション根拠|前提条件
+ベース|価格レンジ|変化率|バリュエーション根拠|前提条件
+強気|価格レンジ|変化率|バリュエーション根拠|前提条件
+
+[12か月後]
+弱気|価格レンジ|変化率|前提条件
+ベース|価格レンジ|変化率|前提条件
+強気|価格レンジ|変化率|前提条件
+
+[転換点]
+指標名|現在値|目安値|補足説明
+指標名|現在値|閾値①の説明|閾値②の説明|補足説明
+（4つを超える場合は、記載の中から最大4個、重要なものをピックアップしてください）
+
+[リスク]
+下振れ|リスク説明テキスト
+修正|シナリオ下方修正リスクの説明テキスト`;
+
+// ============================================================
+// COPY HELPERS
+// ============================================================
+function copyText(text,btn){
+  navigator.clipboard.writeText(text).catch(()=>{
+    const t=document.createElement('textarea');
+    t.value=text;t.style.cssText='position:fixed;left:-9999px;opacity:0;';
+    document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);
+  });
+  const o=btn.textContent;btn.textContent='✔ コピーしました！';
+  setTimeout(()=>btn.textContent=o,2000);
+}
+
+function buildAnalysisText(){
+  const dir=getDir(),mode=MODES[dir];
+  const name=getName()||'【銘柄名を入力】';
+  const ticker=getTicker();
+  const nameWithCode=ticker?`${name}（${ticker}）`:name;
+  const period=getPeriod()||'【期間を入力】';
+  let p=ANALYSIS_CORE.replaceAll('[NAME]',nameWithCode).replaceAll('[PERIOD]',period);
+  for(const[k,v]of Object.entries(mode)) p=p.replaceAll(k,v);
+  return p;
+}
+
+function copyAnalysis(btn){copyText('@iterative-fact-check-and-revise\n\n'+buildAnalysisText(),btn);}
+function copyFactCheck(btn){
+  const report=document.getElementById('ta-report').value.trim();
+  if(!report){alert('レポートを貼り付けてください');return;}
+  copyText(`以下のレポートは、以下の指示でAIが生成したものです。\nレポートのファクトチェックを行い、誤っている箇所と指示に沿っていない箇所のみを指摘してください。\n指摘がある場合には、指摘箇所・指摘内容・修正後内容を記載してください。\n\n--指示--\n${buildAnalysisText()}\n\n--レポート--\n${report}`,btn);
+}
+function copyCorrection(btn){copyText('指摘箇所を指示の内容に沿って修正し、全文出力してください。\nただし、指摘していない箇所は一切変更しないでください。',btn);}
+function copyNBPrompt(btn){copyText(NB_PROMPT,btn);}
+
+// ============================================================
+// Gemini API 整形（NotebookLM工程の置き換え。NotebookLMボタンは併存）
+// ・/api/analyze（CF Pages Function）経由でサーバー側からGeminiを呼ぶ
+// ・モデルは kessan-tool / stock-slide-generator と同じ優先チェーン
+// ============================================================
+function autoModelChain(cls,ov){
+  if(ov)return[ov];
+  return cls==='high'
+    ?['gemini-3.5-flash','gemini-3-flash-preview','gemini-3.1-flash-lite','gemini-2.5-flash']
+    :['gemini-3.1-flash-lite','gemini-3-flash-preview','gemini-2.5-flash-lite','gemini-2.5-flash'];
+}
+// 整形パス専用のグラウンディング強化（NotebookLMのRAG的な"ソース限定"に寄せる）
+const GROUNDING_RULE='\n\n## グラウンディング（最重要・厳守）\n出力は、渡された資料（株探取得データ・分析レポート）に明示されている情報だけを根拠にすること。資料に無い数値・事実は、推測や一般知識で補わず空欄にすること。資料外の情報を創作してはならない。';
+
+function setGemStatus(msg,kind){
+  const el=document.getElementById('gem-status');if(!el)return;
+  el.textContent=msg||'';el.style.display=msg?'block':'none';
+  el.style.color=kind==='error'?'#ef4444':kind==='ok'?'#16a34a':'var(--muted)';
+}
+function tokenNote(usage){
+  if(!usage||!usage.totalTokenCount)return'';
+  const inPart=usage.promptTokenCount?`入力${Number(usage.promptTokenCount).toLocaleString()}／`:'';
+  return ` / ${inPart}計${Number(usage.totalTokenCount).toLocaleString()}トークン`;
+}
+async function callGeminiAnalyze(prompt,resources,opts){
+  opts=opts||{};
+  try{
+    const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({prompt,resources:resources||[],temperature:typeof opts.temperature==='number'?opts.temperature:0.2,models:autoModelChain(opts.cls||'low',opts.modelOverride||'')})});
+    const data=await res.json();
+    if(!res.ok||!data.ok)return{ok:false,error:(data&&data.error)||`HTTP ${res.status}`};
+    return{ok:true,text:data.text||'',model:data.model,fellBack:data.fellBack,usage:data.usage||null};
+  }catch(e){return{ok:false,error:(e&&e.message)?e.message:String(e)};}
+}
+// 株価分析：Geminiで整形 → #ta-data に投入して描画（NotebookLM出力の代わり）
+async function geminiFormatStock(btnEl){
+  const src=getSourceText();
+  const report=(document.getElementById('ta-report').value||'').trim();
+  const miss=[];
+  if(src==null)miss.push('株探の取得データ（📥 自動取得）');
+  if(!report)miss.push('分析レポート（ChatGPTレポート欄）');
+  if(miss.length){alert('整形には次が必要です：\n・'+miss.join('\n・'));return;}
+  const resources=[
+    {label:'株探 取得データ',text:src},
+    {label:'分析レポート（ファクトチェック済み）',text:report}
+  ];
+  const ov=(document.getElementById('gem-model')||{}).value||'';
+  // チャート期間を指定している場合、ルール3の「約1年分52本」を上書きし、
+  // 渡した期間ぶんの週足を欠かさず出力させる（データと画像の期間を一致させる）
+  const months=parseInt((document.getElementById('gem-months')||{}).value,10);
+  let chartOverride='';
+  if(months>0){
+    // 期間はツール側で既に絞って渡しているので、Geminiには本数・月数を指示せず
+    // 「渡された全期間を日足のまま省略せず出力せよ」とだけ指示する（変換や間引きを防ぐ）
+    chartOverride=`\n\n## チャート出力の指示（ルール3より優先・厳守）\n[チャート]は、渡された株探データの日足を「そのまま（日足のまま）」出力すること。週足への変換はしない。最も古い日付から最も新しい日付まで、途中を間引いたり古い期間を省略したりせず、渡されたデータの全期間をすべて含めること。「週足で出力」「約1年分・52本」等の指示・本数上限は、この期間指定時には適用しないこと。`;
+  }
+  const o=btnEl?btnEl.textContent:'';
+  if(btnEl){btnEl.disabled=true;btnEl.textContent='整形中…';}
+  setGemStatus('Geminiで整形中…','info');
+  const r=await callGeminiAnalyze(NB_PROMPT+chartOverride+GROUNDING_RULE,resources,{cls:'low',temperature:0.2,modelOverride:ov});
+  if(btnEl){btnEl.disabled=false;btnEl.textContent=o;}
+  if(!r.ok){setGemStatus('エラー: '+r.error,'error');return;}
+  document.getElementById('ta-data').value=r.text;
+  renderPrev();
+  setGemStatus(`整形完了（${r.model||'gemini'}${r.fellBack?'・降格':''}${tokenNote(r.usage)}）`,'ok');
+}
+
+// ============================================================
+// 記事・SNS生成（Gemルールをそのまま使用。入力はChatGPTレポートのみ）
+// ============================================================
+function setArtStatus(msg,kind){
+  const el=document.getElementById('gem-article-status');if(!el)return;
+  el.textContent=msg||'';el.style.display=msg?'block':'none';
+  el.style.color=kind==='error'?'#ef4444':kind==='ok'?'#16a34a':'var(--muted)';
+}
+
+// Gemini出力を「既知の見出し名」＋コードブロックで各ブロックに分解する。
+// ※タイトルやX告知文の本文中にも【銘柄名】等の【】が含まれるため、
+//   任意の【】ではなく、下記の既定ヘッダーだけを区切りとして扱う。
+function parseArticleOutput(text){
+  const defs=[
+    {key:'title',     re:/【\s*タイトル\s*】/},
+    {key:'body',      re:/【\s*本[\s　]*文\s*】/},
+    {key:'gamma',     re:/【\s*Gamma[^】]*】/},
+    {key:'thumbnail', re:/【\s*サムネ[^】]*】/},
+    {key:'hashtags',  re:/【\s*ハッシュタグ\s*】/},
+    {key:'xpost',     re:/【\s*X[^】]*告知文\s*】/}
+  ];
+  const found=defs.map(d=>{const m=text.match(d.re);return m?{key:d.key,idx:m.index,end:m.index+m[0].length}:null;}).filter(Boolean);
+  found.sort((a,b)=>a.idx-b.idx);
+  const out={};
+  for(let i=0;i<found.length;i++){
+    const chunk=text.slice(found[i].end,(i+1<found.length)?found[i+1].idx:text.length).trim();
+    const fence=chunk.match(/```[^\n]*\n([\s\S]*?)```/);
+    out[found[i].key]=(fence?fence[1]:chunk.replace(/```/g,'')).trim();
+  }
+  return{title:out.title||'',body:out.body||'',thumbnail:out.thumbnail||'',hashtags:out.hashtags||'',xpost:out.xpost||''};
+}
+
+async function geminiArticle(btnEl){
+  const report=(document.getElementById('ta-report').value||'').trim();
+  if(!report){alert('「2. ChatGPT分析」のレポートを貼り付けてください');return;}
+  const prompt=(document.getElementById('gem-article-prompt').textContent||'').trim();
+  const resources=[{label:'株価分析レポート',text:report}];
+  const ov=(document.getElementById('gem-article-model')||{}).value||'';
+  const o=btnEl?btnEl.textContent:'';
+  if(btnEl){btnEl.disabled=true;btnEl.textContent='生成中…';}
+  setArtStatus('Geminiで記事生成中…（30秒〜1分）','info');
+  const r=await callGeminiAnalyze(prompt,resources,{cls:'high',temperature:0.7,modelOverride:ov});
+  if(btnEl){btnEl.disabled=false;btnEl.textContent=o;}
+  if(!r.ok){setArtStatus('エラー: '+r.error,'error');return;}
+  const p=parseArticleOutput(r.text);
+  document.getElementById('art-title').value=p.title;
+  document.getElementById('art-body').value=p.body;
+  document.getElementById('art-thumb').value=p.thumbnail;
+  document.getElementById('art-tags').value=p.hashtags;
+  document.getElementById('art-x').value=p.xpost;
+  document.getElementById('art-raw').value=r.text;
+  const missing=[!p.title&&'タイトル',!p.body&&'本文',!p.xpost&&'X投稿文'].filter(Boolean);
+  setArtStatus(`生成完了（${r.model||'gemini'}${r.fellBack?'・降格':''}${tokenNote(r.usage)}）${missing.length?' ※'+missing.join('・')+'は全文から確認':''}`,missing.length?'info':'ok');
+}
+
+// ============================================================
+// 株探 自動取得（CF Pages Function: /api/fetch-stock）
+// ============================================================
+window._fetched=null;
+async function fetchStock(btn){
+  const code=getTicker(),m=getMkt();
+  if(!code){alert('コードを入力してください');return;}
+  const label=btn.textContent;btn.disabled=true;btn.textContent='取得中…';
+  const nc=s=>String(s||'').replace(/,/g,'');
+  try{
+    // pages=24 ≒ 約2.5年分の日足（基準日＝過去の最高値/最安値を拾うため長めに取得）
+    const res=await fetch(`/api/fetch-stock?code=${encodeURIComponent(code)}&market=${m}&pages=24`);
+    if(!res.ok)throw new Error(`HTTP ${res.status}`);
+    const d=await res.json();
+    if(!d||!d.ok)throw new Error((d&&d.reason)||'取得に失敗しました');
+    window._fetched=d;
+    // 銘柄名（空欄のみ補完）
+    const nameEl=document.getElementById('inp-name');
+    if(d.name&&!nameEl.value.trim())nameEl.value=d.name;
+    // 現在日・現在株価＝直近営業日の終値（常に上書き）
+    if(d.current&&d.current.date){
+      document.getElementById('inp-cur-date').value=d.current.date;
+      document.getElementById('inp-cur-price').value=nc(d.current.close);
+    }
+    // 基準日・基準株価：方向の選択に従う（下落＝取得範囲内の高値／上昇＝安値）
+    applyBaseFromDir();
+    // 高値/安値が取れなかった場合でも銘柄名などをサムネイル文言へ反映
+    updateThumbText();
+    // 指標サマリを表示
+    const w52=calc52w(d);
+    const infoEl=document.getElementById('fetch-info');
+    infoEl.textContent=`PER:${d.per||'-'} PBR:${d.pbr||'-'} 配当:${d.yield||'-'} ${d.marketCap||'-'} 52週:${w52||'-'}`;
+    infoEl.title=`PER:${d.per||'-'}　PBR:${d.pbr||'-'}　利回り:${d.yield||'-'}\n時価総額:${d.marketCap||'-'}　52週:${w52||'-'}`;
+    infoEl.style.display='block';
+    btn.textContent='✔ 取得完了';
+    setTimeout(()=>{btn.disabled=false;btn.textContent=label;},1500);
+  }catch(e){
+    btn.disabled=false;btn.textContent=label;
+    alert('株探からの取得に失敗しました。手入力をご利用ください。\n\n'+(e&&e.message?e.message:e));
+  }
+}
+// 方向（上昇/下落）の選択に従い、基準日・基準株価を取得範囲内の高値/安値にセットして期間を再計算。
+// 取得後に方向ラジオを切り替えた場合も同じ処理で基準を差し替える。
+function applyBaseFromDir(){
+  const f=window._fetched;if(!f)return;
+  const nc=s=>String(s||'').replace(/,/g,'');
+  const dir=getDir();
+  const base=dir==='down'?f.high:f.low;
+  if(!base||!base.date)return;
+  document.getElementById('inp-base-date').value=base.date;
+  document.getElementById('inp-base-price').value=nc(base.price);
+  if(document.getElementById('inp-cur-price').value.trim()){
+    try{convertPeriod();}catch(e){}
+    // convertPeriodは価格差から方向を再設定するため、選択した方向を維持する
+    const dirEl=document.querySelector(`input[name=dir][value=${dir}]`);
+    if(dirEl)dirEl.checked=true;
+  }
+  updateThumbText();
+}
+document.querySelectorAll('input[name=dir]').forEach(r=>r.addEventListener('change',applyBaseFromDir));
+// 数字を全角に変換
+function toZenkaku(s){return String(s).replace(/[0-9]/g,c=>String.fromCharCode(c.charCodeAt(0)+0xFEE0));}
+// 基準日〜現在日の経過期間を表記（10日までは日、1ヶ月未満は週間、1年未満はヶ月、1年以上は半年単位）
+function fmtDuration(days){
+  if(days<=10)return `${toZenkaku(Math.max(1,days))}日`;
+  if(days<30)return `${toZenkaku(Math.max(1,Math.round(days/7)))}週間`;
+  if(days<365)return `${toZenkaku(Math.max(1,Math.round(days/30.44)))}ヶ月`;
+  const half=Math.max(2,Math.round(days/182.62));
+  return `${toZenkaku(Math.floor(half/2))}年${half%2?'半':''}`;
+}
+// サムネイル文言の初期設定: 1段目=「〇ヶ月で*〇％下落*」、2段目=銘柄名、3段目=そのまま
+function updateThumbText(){
+  const pdate=s=>{const d=new Date(String(s).trim());return isNaN(d)?null:d;};
+  const pprice=s=>{const n=parseFloat(String(s).replace(/[,，円\s　]/g,''));return isNaN(n)?null:n;};
+  const bd=pdate(document.getElementById('inp-base-date').value);
+  const bp=pprice(document.getElementById('inp-base-price').value);
+  const cd=pdate(document.getElementById('inp-cur-date').value);
+  const cp=pprice(document.getElementById('inp-cur-price').value);
+  const ta=document.getElementById('th-input');
+  if(!ta)return;
+  const parts=ta.value.split('：');
+  if(bd&&bp!=null&&cd&&cp!=null&&bp!==0){
+    const days=Math.max(1,Math.round((cd-bd)/86400000));
+    const pct=Math.round(Math.abs(cp-bp)/bp*100);
+    const word=cp>=bp?'上昇':'下落';
+    parts[0]=`${fmtDuration(days)}で*${toZenkaku(pct)}％${word}*`;
+  }
+  const name=getName();
+  if(name)parts[1]=name;
+  const rest=parts.slice(2).join('：').trim();
+  ta.value=[parts[0]||'',parts[1]||'',rest||'#底値#と%５つの反転サイン%'].join('：');
+  debouncedThumb();
+}
+// 取得済みチャートデータ（日足・降順）から直近365日の高値〜安値レンジを算出
+function calc52w(d){
+  if(!d||!d.chartData)return'';
+  const rows=d.chartData.split(';').filter(Boolean).map(r=>r.split(','));
+  if(!rows.length)return'';
+  const lim=new Date(rows[0][0]);lim.setDate(lim.getDate()-365);
+  let hi=null,lo=null;
+  for(const r of rows){
+    if(new Date(r[0])<lim)continue;
+    const h=parseFloat(r[2]),l=parseFloat(r[3]);
+    if(!isNaN(h)&&(hi==null||h>hi))hi=h;
+    if(!isNaN(l)&&(lo==null||l<lo))lo=l;
+  }
+  if(hi==null||lo==null)return'';
+  const fmt=n=>n.toLocaleString('ja-JP');
+  return isUSCode(d.code)?`$${fmt(lo)}〜$${fmt(hi)}`:`${fmt(lo)}〜${fmt(hi)}円`;
+}
+// NotebookLMのソースに読み込ませる取得データ一式（基本情報＋株価＋日足時系列）
+// 日足チャート文字列を直近 months ヶ月に絞る（未指定/0/不正なら全期間）。基準は最新行の日付。
+function trimChartByMonths(chartData,months){
+  const mm=parseInt(months,10);
+  if(!chartData||!mm||mm<=0)return chartData;
+  const rows=chartData.split(';').filter(Boolean);
+  const dates=rows.map(r=>r.split(',')[0]).filter(Boolean).sort();
+  if(!dates.length)return chartData;
+  const latest=new Date(dates[dates.length-1]);
+  if(isNaN(latest))return chartData;
+  const cutoff=new Date(latest);cutoff.setMonth(cutoff.getMonth()-mm);
+  return rows.filter(r=>{const d=new Date(r.split(',')[0]);return !isNaN(d)&&d>=cutoff;}).join(';');
+}
+
+// チャート行の日付間隔から「日足/週足」を判定する。
+// 連続する日付の間隔の中央値が5日以上なら週足、未満なら日足。
+function chartGranularityLabel(chartLines){
+  const dates=(chartLines||[]).map(l=>new Date(String(l).split(',')[0])).filter(d=>!isNaN(d)).sort((a,b)=>a-b);
+  if(dates.length<2)return '日足';
+  const gaps=[];for(let i=1;i<dates.length;i++)gaps.push((dates[i]-dates[i-1])/86400000);
+  gaps.sort((a,b)=>a-b);
+  const median=gaps[Math.floor(gaps.length/2)];
+  return median>=5?'週足':'日足';
+}
+
+// チャート行（"YYYY-MM-DD,..."）の最古〜最新から期間ラベルを作る。
+// 1年未満は「直近〇ヶ月」、1年以上は「直近〇年」。行が足りなければ「直近1年」。
+function chartPeriodLabel(chartLines){
+  const dates=(chartLines||[]).map(l=>new Date(String(l).split(',')[0])).filter(d=>!isNaN(d));
+  if(dates.length<2)return '直近1年';
+  const min=new Date(Math.min.apply(null,dates)),max=new Date(Math.max.apply(null,dates));
+  let months=(max.getFullYear()-min.getFullYear())*12+(max.getMonth()-min.getMonth());
+  if(max.getDate()-min.getDate()>=15)months+=1;   // 端数の日数を四捨五入
+  if(months<1)months=1;
+  if(months<12)return `直近${months}ヶ月`;
+  return `直近${Math.round(months/12)}年`;
+}
+
+function getSourceText(){
+  const f=window._fetched;
+  if(!f)return null;
+  const code=getTicker(),m=getMkt();
+  const L=[];
+  L.push(`【株探 取得データ${f.name?'：'+f.name:''}${code?'（'+code+'）':''}】`);
+  L.push(`市場：${m==='us'?'米国株':'国内株'}`);
+  L.push('');
+  L.push('■ 基本情報');
+  if(f.marketCap)L.push(`時価総額：${f.marketCap}`);
+  if(f.per)L.push(`${m==='us'?'実績':'予想'}PER：${f.per}`);
+  if(f.psr)L.push(`PSR：${f.psr}`);
+  if(f.pbr)L.push(`PBR：${f.pbr}`);
+  if(f.yield)L.push(`利回り：${f.yield}`);
+  if(f.business)L.push(`事業内容：${f.business}`);
+  const w52=calc52w(f);if(w52)L.push(`52週レンジ：${w52}`);
+  L.push('');
+  L.push('■ 株価（基準 → 現在）');
+  const bd=document.getElementById('inp-base-date').value,bp=document.getElementById('inp-base-price').value.trim();
+  const cd=document.getElementById('inp-cur-date').value,cp=document.getElementById('inp-cur-price').value.trim();
+  if(bp)L.push(`基準${bd?'（'+bd+'）':''}：${bp}`);
+  if(cp)L.push(`現在${cd?'（'+cd+'）':''}：${cp}`);
+  const period=getPeriod();
+  if(period)L.push(`期間・変動：${period}（方向：${getDir()==='down'?'下落':'上昇'}）`);
+  if(f.high&&f.high.price)L.push(`（参考）取得範囲内の高値：${f.high.price}（${f.high.date}）`);
+  if(f.low&&f.low.price)L.push(`（参考）取得範囲内の安値：${f.low.price}（${f.low.date}）`);
+  L.push('');
+  const months=(document.getElementById('gem-months')||{}).value||'';
+  const periodNote=(parseInt(months,10)>0)?`（直近${parseInt(months,10)}ヶ月）`:'';
+  L.push(`■ 日足（時系列）${periodNote}  列：日付,始値,高値,安値,終値,出来高`);
+  const chart=trimChartByMonths(f.chartData,months);
+  if(chart)L.push(chart.split(';').filter(Boolean).join('\n'));
+  return L.join('\n');
+}
+
+function copySourceData(btn){
+  const t=getSourceText();
+  if(t==null){alert('先に「📥 株探から自動取得」でデータを取得してください');return;}
+  copyText(t,btn);
+}
+
+function copyKabutanUrl(btn){
+  const c=getTicker(),m=getMkt();
+  if(!c){alert('コードを入力してください');return;}
+  let urls;
+  if(m==='jp'){
+    urls=[
+      `https://kabutan.jp/stock/kabuka?code=${c}&ashi=wek&page=1`,
+      `https://kabutan.jp/stock/kabuka?code=${c}&ashi=wek&page=2`,
+    ];
+  } else {
+    urls=[
+      `https://us.kabutan.jp/stocks/${c.toUpperCase()}/historical_prices/weekly`,
+      `https://us.kabutan.jp/stocks/${c.toUpperCase()}/historical_prices/weekly?page=2`,
+    ];
+  }
+  copyText(urls.join('\n'),btn);
+}
+function copyIRUrl(btn){
+  const n=getName()||getTicker();
+  if(!n){alert('銘柄名またはコードを入力してください');return;}
+  const url=`https://www.google.com/search?q=${encodeURIComponent(n+' IR情報 決算短信')}`;
+  copyText(url,btn);
+}
+
+async function pasteClip(){
+  try{const t=await navigator.clipboard.readText();document.getElementById('ta-data').value=t;debouncedPrev();}
+  catch(e){alert('クリップボードへのアクセスが拒否されました。手動で貼り付けてください。');}
+}
+async function pasteReport(){
+  try{const t=await navigator.clipboard.readText();document.getElementById('ta-report').value=t;}
+  catch(e){alert('クリップボードへのアクセスが拒否されました。手動で貼り付けてください。');}
+}
+function copyReport(btn){
+  const report=document.getElementById('ta-report').value.trim();
+  if(!report){alert('レポートが入力されていません');return;}
+  copyText(report,btn);
+}
+function clearReport(){document.getElementById('ta-report').value='';}
+function clearData(){document.getElementById('ta-data').value='';document.getElementById('prev-area').innerHTML='';}
+function openKabutan(){const c=getTicker(),m=getMkt();if(!c){alert('コードを入力してください');return;}window.open(m==='jp'?`https://kabutan.jp/stock/kabuka?code=${c}`:`https://us.kabutan.jp/stocks/${c}/`,'_blank');}
+function openIR(){const n=getName()||getTicker();if(!n){alert('銘柄名またはコードを入力してください');return;}window.open(`https://www.google.com/search?q=${encodeURIComponent(n+' IR情報')}`,'_blank');}
+
+// ============================================================
+// PARSER
+// ============================================================
+function parseData(text){
+  const d={sections:{}};let cur=null;
+  for(const raw of text.split('\n')){
+    const t=raw.trim();if(!t)continue;
+    const m=t.match(/^\[(.+)\]$/);
+    if(m){cur=m[1];d.sections[cur]=[];continue;}
+    if(cur)d.sections[cur].push(t);
+  }
+  return d;
+}
+const getSec=(d,n)=>d.sections[n]||[];
+
+function parseBankyo(d){
+  let lines=getSec(d,'銘柄情報');
+  // Fallback: if no [銘柄情報] header found, try to detect from start of text
+  if(!lines.length){
+    const all=d.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('['));
+    const start=d.split('\n').findIndex(l=>l.trim()&&!l.trim().startsWith('['));
+    if(start>=0)lines=d.split('\n').slice(start,start+3).map(l=>l.trim()).filter(Boolean);
+  }
+  const info={};
+  if(lines[0]){const p=lines[0].split('|');info.name=p[0]||'';info.code=p[1]||'';info.price=p[2]||'';info.basis=p[3]||'';info.change=p[4]||'';}
+  info.desc=lines[1]||'';
+  if(lines[2]){lines[2].split('|').forEach(kv=>{const i=kv.indexOf(':');if(i>=0)info[kv.slice(0,i).trim()]=kv.slice(i+1).trim();});}
+  return info;
+}
+
+function parseShortTerm(d){
+  const res={direction:'下落',p0:'',ref52:'',refLabel:'52週安値',indicator:null,scenarios:[]};
+  for(const l of getSec(d,'短期予測')){
+    if(l.startsWith('方向:'))res.direction=l.slice(3).trim();
+    else if(l.startsWith('P0:'))res.p0=l.slice(3).trim();
+    else if(l.startsWith('52週安値:'))res.ref52=l.slice(6).trim();
+    else if(l.startsWith('52週高値:')){res.ref52=l.slice(6).trim();res.refLabel='52週高値';}
+    else if(l.startsWith('指標:')){const rest=l.slice(3).trim();const pp=rest.split('|');res.indicator={val:pp[0].trim(),label:pp[1]?.trim()||'参照指標',sub:pp[2]?.trim()||'バリュエーションの参照基準'};}
+    else{const p=l.split('|');const lbl=(p[0]||'').trim();if(p.length>=3&&/^(弱気|ベース|強気|bear|base|bull)$/i.test(lbl))res.scenarios.push({label:lbl,range:p[1],pct:p[2],val:p[3]||'',cond:p[4]||''});}
+  }
+  return res;
+}
+
+function parse12m(d){return getSec(d,'12か月後').map(l=>{const p=l.split('|');return{label:(p[0]||'').trim(),range:p[1]||'',pct:p[2]||'',cond:p[3]||''};}).filter(r=>/^(弱気|ベース|強気|bear|base|bull)$/i.test(r.label));}
+
+function parseTurning(d){return getSec(d,'転換点').map(l=>{const p=l.split('|');if(p.length>=5)return{name:p[0]||'',current:p[1]||'',posSignal:p[2]||'',negSignal:p[3]||'',note:p[4]||'',isDual:true};return{name:p[0]||'',current:p[1]||'',target:p[2]||'',note:p[3]||''};}).filter(r=>r.name);}
+
+function parseRisks(d){
+  const lines=getSec(d,'リスク');
+  const risks=[];let cur=null;
+  for(const l of lines){
+    const bar=l.indexOf('|');
+    if(bar>=0){
+      if(cur)risks.push(cur);
+      const bodyText=l.slice(bar+1);
+      const bullets=bodyText.split('・').map(s=>trimDot(s.trim())).filter(s=>s.length>3);
+      cur={type:l.slice(0,bar),bullets};
+    } else if(cur&&l.trim()){
+      const cleaned=trimDot(l.replace(/^[・\s]+/,'').trim());
+      if(cleaned.length>3)cur.bullets.push(cleaned);
+    }
+  }
+  if(cur)risks.push(cur);
+  return risks;
+}
+
+function parseConsensus(d){
+  return getSec(d,'コンセンサス')
+    .map(l=>{const bar=l.indexOf('|');return bar>=0?{label:l.slice(0,bar),val:l.slice(bar+1)}:{label:l,val:''};})
+    .filter(r=>r.label&&!/データなし|なし$|^なし/i.test(r.val));
+}
+
+// ============================================================
+// SLIDE BUILDERS
+// ============================================================
+function lc(l){const ll=String(l).toLowerCase();return ll==='弱気'||ll==='bear'?'bear':ll==='強気'||ll==='bull'?'bull':'base';}
+
+// SLIDE 1
+function buildS1(d){
+  const info=parseBankyo(d);
+  const st=parseShortTerm(d);
+  const factors=getSec(d,'変動要因').slice(0,3);
+  const strengths=getSec(d,'強み').slice(0,4);
+  const weaknesses=getSec(d,'弱み').slice(0,4);
+  const chartLines=getSec(d,'チャート');
+  const isDown=st.direction==='下落';
+  const changeColor=isDown?'#dc2626':'#16a34a';
+  const chartId='cv1_'+Math.random().toString(36).slice(2);
+  const chartPeriod=chartPeriodLabel(chartLines);
+  const chartGran=chartGranularityLabel(chartLines);
+
+  const factorsHtml=factors.map(f=>`<div class="s1-factor"><span class="s1-fbullet">◆</span>${esc(trimDot(f))}</div>`).join('');
+  const swIcon=(tag,items)=>items.map(s=>`<div class="s1-sw-item"><span class="s1-sw-bullet">${tag}</span>${esc(trimDot(s))}</div>`).join('');
+
+  const metricsData=[
+    {l:'予想PER',v:info['PER']||'—'},
+    {l:'実績PBR',v:info['PBR']||'—'},
+    {l:'配当利回り',v:info['配当']||'—'},
+    {l:'時価総額',v:info['時価総額']||'—'},
+    {l:'52週レンジ',v:info['52週']||'—'},
+  ];
+  const metricsHtml=metricsData.map(m=>
+    `<div class="s1-metric-row"><span class="s1-ml">${esc(m.l)}</span><span class="s1-mv" style="font-size:${m.v.length>12?'13px':m.v.length>8?'15px':'17px'};">${esc(addComma(m.v))}</span></div>`
+  ).join('');
+
+  return `<div class="slide">
+<div class="sl-bar"></div>
+<div class="sl-sig">すみっこマネー大学/@sumikko_money</div>
+<div class="s1-wrap">
+  <div class="s1-head">
+    <span class="s1-name">${esc(info.name)}</span><span class="s1-code">（${esc(info.code)}）</span><span class="s1-desc">${esc(info.desc)}</span>
+  </div>
+  <div class="s1-upper">
+    <div class="s1-price-card">
+      <div style="font-size:11px;font-weight:600;color:#94a3b8;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;">株価</div>
+      <div class="s1-price" style="font-size:${(()=>{const s=fmtPrice(info.price,info.code);return s.length>9?'28px':s.length>7?'32px':'35px';})()}">${esc(fmtPrice(info.price,info.code))}</div>
+      <div class="s1-change" style="color:${changeColor};">${esc(cleanPct(info.change))}${info.basis?`<span style="font-size:13px;font-weight:500;color:#94a3b8;margin-left:5px;">（${esc(info.basis)}）</span>`:''}</div>
+    </div>
+    <div class="s1-metrics-card">${metricsHtml}</div>
+    <div class="s1-chart-card">
+      <div class="s1-chart-lbl">${chartGran}チャート（${chartPeriod}）</div>
+      <canvas id="${chartId}" class="s1-chart-canvas" data-chart="${esc(chartLines.join(';'))}"></canvas>
+    </div>
+  </div>
+  <div class="s1-lower">
+    <div class="s1-factors-card">
+      <div class="s1-ftitle">${isDown?'▼ なぜ下落しているのか？':'▲ なぜ上昇しているのか？'}</div>
+      ${factorsHtml}
+    </div>
+    <div class="s1-s-card">
+      <div class="s1-sw-title">✓ 企業の強み（Moat）</div>
+      ${swIcon('✓',strengths)}
+    </div>
+    <div class="s1-w-card">
+      <div class="s1-sw-title">✗ 企業の弱み</div>
+      ${swIcon('✗',weaknesses)}
+    </div>
+  </div>
+</div>
+</div>`;
+}
+
+// SLIDE 2
+function buildS2(d){
+  const st=parseShortTerm(d);
+  const info=parseBankyo(d);
+  const isDown=st.direction==='下落';
+  const title=isDown?'底値の株価レンジ予測（短期〜中期）':'天井の株価レンジ予測（短期〜中期）';
+  const refWord=isDown?'52週安値':'52週高値';
+
+  // 参照指標（P0 / ref52 / カスタム指標 or PBR）
+  const thirdM=st.indicator
+    ?{num:esc(st.indicator.val),lbl:esc(st.indicator.label),sub:esc(st.indicator.sub)}
+    :{num:esc(info['PBR']||'—'),lbl:'実績PBR',sub:'バリュエーションの参照基準'};
+  const topMetrics=[
+    {num:esc(fmtPrice(st.p0,info.code)),lbl:'現在の基準株価',sub:`${esc(cleanPct(info.change))}（${esc(info.basis)}）`},
+    {num:st.ref52?esc(fmtPrice(st.ref52,info.code)):'—',lbl:refWord,sub:'過去52週の参照水準'},
+    thirdM,
+  ];
+  const dots={弱気:'🔴',ベース:'🟡',強気:'🟢'};
+  const scenarios=st.scenarios.slice(0,3);
+
+  const metricsHtml=topMetrics.map(m=>`<div class="s2-mb">
+    <div class="s2-mb-lbl">${m.lbl}</div>
+    <div class="s2-mb-num">${m.num}</div>
+    <div class="s2-mb-sub">${m.sub}</div>
+  </div>`).join('');
+
+  const scenRowsHtml=scenarios.map(s=>{
+    const cls=lc(s.label);
+    return `<div class="s2-scen-row ${cls}">
+      <div class="s2-sr-name">${dots[s.label]||'●'} ${esc(s.label)}シナリオ</div>
+      <div class="s2-sr-range">${esc(fmtPrice(s.range,info.code))}</div>
+      <div class="s2-sr-pct">${esc(cleanPct(s.pct))}</div>
+      <div class="s2-sr-cond">${esc(trimDot(s.cond))}</div>
+    </div>`;
+  }).join('');
+
+  return `<div class="slide">
+<div class="sl-bar"></div>
+<div class="sl-sig">すみっこマネー大学/@sumikko_money</div>
+<div class="s2-wrap">
+  <div class="s2-title">${title}</div>
+  <div class="s2-metrics">${metricsHtml}</div>
+  <div class="s2-scen-rows">${scenRowsHtml}</div>
+</div>
+</div>`;
+}
+
+// SLIDE 3
+function buildS3(d){
+  const rows=parse12m(d);
+  const info=parseBankyo(d);
+  const st=parseShortTerm(d);
+  const cons=parseConsensus(d);
+  const p0=parseFloat(String(st.p0).replace(/,/g,''))||0;
+
+  // コンセンサス目標株価を抽出（億/万 なしの数値）
+  function parseConsPrice(cons){
+    for(const c of cons){
+      if(/億|万/.test(c.val))continue;
+      const m=c.val.replace(/,/g,'').match(/(\d{3,})/);
+      if(m){const n=parseInt(m[1]);if(n>=100&&n<=200000)return n;}
+    }
+    return 0;
+  }
+  const consPrice=parseConsPrice(cons);
+
+  // Collect scenario prices
+  const scenPrices=[];
+  if(p0)scenPrices.push(p0);
+  if(consPrice)scenPrices.push(consPrice);
+  rows.forEach(r=>{
+    r.range.replace(/[\d,]+/g,m=>{const n=parseFloat(m.replace(/,/g,''));if(!isNaN(n))scenPrices.push(n);});
+  });
+  const scenMin=scenPrices.length?Math.min(...scenPrices):0;
+  const scenMax=scenPrices.length?Math.max(...scenPrices):1;
+
+  // Parse 52週 range from [銘柄情報] line 3 (e.g. "8,326〜14,795円" or "513〜958円")
+  function parse52w(s){
+    if(!s)return null;
+    const nums=String(s).replace(/,/g,'').match(/[\d.]+/g);
+    if(!nums||nums.length<2)return null;
+    return{lo:parseFloat(nums[0]),hi:parseFloat(nums[nums.length-1])};
+  }
+  const w52=parse52w(info['52週']);
+
+  // Bar range: anchor to 52週 range, extending to cover all scenarios
+  let barMin,barMax;
+  if(w52){
+    barMin=Math.min(w52.lo,scenMin);
+    barMax=Math.max(w52.hi,scenMax);
+  } else {
+    barMin=scenMin;barMax=scenMax;
+  }
+  barMin=Math.max(0,barMin);
+  barMax=barMax;
+  const minP=barMin,maxP=barMax;
+  const span=maxP-minP||1;
+  const pct=v=>Math.max(0,Math.min(100,(v-minP)/span*100)).toFixed(2);
+
+  // Zone positions for each scenario
+  function zoneStyle(r){
+    const nums=[];r.range.replace(/[\d,]+/g,m=>{const n=parseFloat(m.replace(/,/g,''));if(!isNaN(n))nums.push(n);});
+    if(nums.length<1)return'';
+    const lo=Math.min(...nums),hi=Math.max(...nums);
+    return `left:${pct(lo)}%;width:${Math.max(0.5,pct(hi)-pct(lo))}%;`;
+  }
+
+  const zonesHtml=rows.map(r=>`<div class="s3-zone ${lc(r.label)}" style="${zoneStyle(r)}"></div>`).join('');
+
+  const p0Pct=p0?pct(p0):'50';
+  const bearRow=rows.find(r=>r.label==='弱気');
+  const bullRow=rows.find(r=>r.label==='強気');
+  const bearMin=bearRow?bearRow.range.split(/[〜～]/)[0].trim():'';
+  const bullMaxNums=(bullRow?.range||'').match(/[\d,]+/g);
+  const bullMax=bullMaxNums?bullMaxNums[bullMaxNums.length-1]:'';
+
+  const currSuf=isUSCode(info.code)?'$':'円';
+  const fmtBarPrice=v=>isUSCode(info.code)?'$'+Math.round(v).toLocaleString():Math.round(v).toLocaleString()+'円';
+  const tableRows=rows.map(r=>`<tr class="${lc(r.label)}-row">
+    <td class="s3-sc">${esc(r.label)}</td>
+    <td class="s3-pc">${esc(fmtPrice(r.range,info.code))}</td>
+    <td class="s3-pct">${esc(cleanPct(r.pct))}</td>
+    <td class="s3-cd">${esc(trimDot(r.cond))}</td>
+  </tr>`).join('');
+
+  const consPct=consPrice?pct(consPrice):'';
+
+  return `<div class="slide">
+<div class="sl-bar"></div>
+<div class="sl-sig">すみっこマネー大学/@sumikko_money</div>
+<div class="s3-wrap">
+  <div class="s3-title-row">
+    <div class="s3-title">12ヶ月後の目標株価 — 3つのシナリオ</div>
+    ${cons.length?`<div class="s3-cons">${cons.map(c=>`<span class="s3-cons-label">${esc(c.label)}</span><span class="s3-cons-val">${esc(c.val)}</span>`).join('<span style="color:#fde68a;margin:0 8px;">｜</span>')}</div>`:''}</div>
+  <div class="s3-bar-section">
+    <div class="s3-bar-outer">
+      <div class="s3-bar-track">
+        ${zonesHtml}
+        ${p0?`<div class="s3-marker" style="left:${p0Pct}%;">
+          <div class="s3-marker-dot"></div>
+          <div class="s3-marker-line"></div>
+          <div class="s3-marker-lbl">現在値 ${esc(fmtPrice(st.p0,info.code))}</div>
+        </div>`:''}
+        ${consPrice&&consPct?`<div class="s3-cmarker" style="left:${consPct}%;">
+          <div class="s3-cmarker-lbl">目標 ${isUSCode(info.code)?'$'+addComma(String(consPrice)):addComma(String(consPrice))+'円'}</div>
+          <div class="s3-cmarker-dot"></div>
+          <div class="s3-cmarker-line"></div>
+        </div>`:''}
+      </div>
+      <div class="s3-bar-prices">
+        <span>${fmtBarPrice(minP)}</span>
+        <span>${fmtBarPrice((minP+maxP)/2)}</span>
+        <span>${fmtBarPrice(maxP)}</span>
+      </div>
+    </div>
+  </div>
+  <table class="s3-table">
+    <thead><tr>
+      <th style="width:10%">シナリオ</th>
+      <th style="width:24%">目標レンジ</th>
+      <th style="width:20%">現在値比</th>
+      <th>前提条件</th>
+    </tr></thead>
+    <tbody>${tableRows}</tbody>
+  </table>
+</div>
+</div>`;
+}
+
+// SLIDE 4
+function buildS4(d){
+  const items=parseTurning(d);
+  const info=parseBankyo(d);
+  const n=items.length;
+
+  function isNumericVal(s){
+    const cleaned=String(s).replace(/[^\d.\-+]/g,'');
+    return cleaned.length>0&&!isNaN(parseFloat(cleaned))&&!['マイナス','赤字','負','未達','なし','—'].some(w=>String(s).includes(w));
+  }
+
+  function gaugeW(cur,tgt){
+    const c=parseFloat(String(cur).replace(/[^\d.]/g,''));
+    const tStr=String(tgt).replace(/[〜～].*/,'');
+    const t=parseFloat(tStr.replace(/[^\d.]/g,''));
+    if(isNaN(c)||isNaN(t)||t===0)return 0;
+    return Math.min(100,Math.round(c/t*100));
+  }
+
+  // Dynamic item height based on count
+  const mbPx=n>=6?6:8;
+
+  const itemsHtml=items.map(item=>{
+    if(item.isDual){
+      return `<div class="s4-item" style="margin-bottom:${mbPx}px;">
+        <div class="s4-item-head">
+          <div class="s4-iname">${esc(item.name)}</div>
+          <div class="s4-ivals">現在 <span class="s4-icur">${esc(item.current)}</span></div>
+        </div>
+        <div class="s4-dual">
+          <div class="s4-dual-pos">↑ ${esc(item.posSignal)}</div>
+          <div class="s4-dual-neg">↓ ${esc(item.negSignal)}</div>
+        </div>
+        ${item.note?`<div class="s4-inote">${esc(item.note)}</div>`:''}
+      </div>`;
+    }
+    const num=isNumericVal(item.current);
+    const gw=num?gaugeW(item.current,item.target):0;
+    const visual=num
+      ?`<div class="s4-gauge-bg"><div class="s4-gauge-fill" style="width:${gw}%;"></div></div>`
+      :`<div class="s4-milestone">
+          <div class="s4-ms-now">現在：${esc(item.current)}</div>
+          <div class="s4-ms-line"></div>
+          <div class="s4-ms-tgt">目安：${esc(item.target)}</div>
+          <div class="s4-ms-label">未達</div>
+        </div>`;
+    return `<div class="s4-item" style="margin-bottom:${mbPx}px;">
+      <div class="s4-item-head">
+        <div class="s4-iname">${esc(item.name)}</div>
+        ${num?`<div class="s4-ivals">現在 <span class="s4-icur">${esc(item.current)}</span> → 目安 <span class="s4-itgt">${esc(item.target)}</span></div>`:''}
+      </div>
+      ${visual}
+      ${item.note?`<div class="s4-inote">${esc(item.note)}</div>`:''}
+    </div>`;
+  }).join('');
+
+  return `<div class="slide">
+<div class="sl-bar"></div>
+<div class="sl-sig">すみっこマネー大学/@sumikko_money</div>
+<div class="s4-wrap">
+  <div class="s4-title">転換点を見極める「株価以外のモノサシ」</div>
+  <div class="s4-items">${itemsHtml}</div>
+</div>
+</div>`;
+}
+
+// SLIDE 5
+function buildS5(d){
+  const risks=parseRisks(d);
+  const info=parseBankyo(d);
+  const st=parseShortTerm(d);
+  const isDown=st.direction==='下落';
+  const rtitles={'下振れ':'▼ さらなる下落リスク（短期レンジの下振れ）','崩壊':'▼ 上昇トレンド崩壊リスク','修正':'▼ シナリオ下方修正リスク（12か月予測の前提崩壊）'};
+
+  const risksHtml=risks.map((r,i)=>{
+    const bodyCls=i===0?'r1':'r2';
+    const titCls=i===0?'r1-t':'r2-t';
+    const title=rtitles[r.type]||`▼ ${r.type}`;
+    const bullets=(r.bullets||[]).map(s=>`<li>${esc(s)}</li>`).join('');
+    return `<div class="s5-rsection">
+      <div class="s5-rtitle ${titCls}">${title}</div>
+      <div class="s5-rbody ${bodyCls}"><ul class="s5-rlist">${bullets}</ul></div>
+    </div>`;
+  }).join('');
+
+  return `<div class="slide">
+<div class="sl-bar"></div>
+<div class="sl-sig">すみっこマネー大学/@sumikko_money</div>
+<div class="s5-wrap">
+  <div class="s5-title">投資家が注意すべきリスク</div>
+  <div class="s5-risks">${risksHtml}</div>
+</div>
+</div>`;
+}
+
+function buildAll(d){
+  const info=parseBankyo(d);
+  const n=info.name||'';const c=info.code||'';
+  return[
+    {html:buildS1(d),name:`${c}_${n}_01_現状整理`},
+    {html:buildS2(d),name:`${c}_${n}_02_短期予測`},
+    {html:buildS3(d),name:`${c}_${n}_03_12か月シナリオ`},
+    {html:buildS4(d),name:`${c}_${n}_04_転換点`},
+    {html:buildS5(d),name:`${c}_${n}_05_リスク`},
+  ];
+}
+
+// ============================================================
+// CHART (light theme)
+// ============================================================
+function drawChart(canvas,lines){
+  const cW=canvas.offsetWidth>0?canvas.offsetWidth:(canvas.getBoundingClientRect().width||390);
+  const cH=canvas.offsetHeight>0?canvas.offsetHeight:(canvas.getBoundingClientRect().height||320);
+  canvas.width=cW*2;canvas.height=cH*2;
+  canvas.style.width=cW+'px';canvas.style.height=cH+'px';
+  const ctx=canvas.getContext('2d');
+  ctx.scale(2,2);ctx.clearRect(0,0,cW,cH);
+  ctx.fillStyle='#f8fafc';ctx.fillRect(0,0,cW,cH);
+
+  const data=[];
+  lines.forEach(row=>{
+    const cols=row.split(',');if(cols.length<5)return;
+    const dt=cols[0].trim().split('-');
+    const o=parseFloat(cols[1]),h=parseFloat(cols[2]),l=parseFloat(cols[3]),c=parseFloat(cols[4]),v=cols[5]?parseFloat(cols[5]):0;
+    if(!isNaN(o)&&!isNaN(h)&&!isNaN(l)&&!isNaN(c)){
+      const yr=dt[0]?parseInt(dt[0]):0,mo=dt[1]?parseInt(dt[1]):0,dy=dt[2]?parseInt(dt[2]):0;
+      data.push({yr,mo,dy,sortKey:yr*10000+mo*100+dy,open:o,high:h,low:l,close:c,vol:v});
+    }
+  });
+  // 古い順（昇順）にソート — NotebookLMは新しい順で出力するため
+  data.sort((a,b)=>a.sortKey-b.sortKey);
+
+  if(data.length<2){
+    ctx.fillStyle='#94a3b8';ctx.font='bold 13px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('チャートデータなし',cW/2,cH/2);return;
+  }
+
+  const pL=6,pR=52,pT=14;
+  const volH=Math.round(cH*0.18);
+  const pB=volH+18;
+  const cw=cW-pL-pR,ch=cH-pT-pB;
+
+  // Y軸: 実データ範囲に12%余白を加え、きりの良い目盛り値を計算
+  let rawMin=Infinity,rawMax=-Infinity;
+  data.forEach(d=>{if(d.low<rawMin)rawMin=d.low;if(d.high>rawMax)rawMax=d.high;});
+  const pad=(rawMax-rawMin)*0.12;
+  const minP=rawMin-pad;
+  const maxP=rawMax+pad;
+  const scY=ch/(maxP-minP);
+  const maxV=Math.max(...data.map(d=>d.vol));
+
+  // きりの良いY軸目盛り（100/200/500/1000/2000/5000単位）
+  function niceStep(range){
+    const exp=Math.pow(10,Math.floor(Math.log10(range)));
+    const f=range/exp;
+    if(f<1.5)return exp*0.2;
+    if(f<3)return exp*0.5;
+    if(f<7)return exp;
+    return exp*2;
+  }
+  const step=niceStep(maxP-minP);
+  const tickStart=Math.ceil(minP/step)*step;
+  const ticks=[];
+  for(let t=tickStart;t<=maxP;t+=step)ticks.push(Math.round(t));
+
+  // Grid & Y軸ラベル
+  ctx.strokeStyle='rgba(226,232,240,0.8)';ctx.lineWidth=0.5;
+  ticks.forEach(p=>{
+    const y=pT+ch-(p-minP)*scY;
+    if(y<pT||y>pT+ch)return;
+    ctx.beginPath();ctx.moveTo(pL,y);ctx.lineTo(pL+cw,y);ctx.stroke();
+    ctx.fillStyle='#94a3b8';ctx.font='10px Arial';ctx.textAlign='left';ctx.textBaseline='middle';
+    ctx.fillText(p.toLocaleString(),pL+cw+3,y);
+  });
+
+  // X軸ラベル: 月が変わる最初の週にだけ「N月」を表示（同じ月の重複表示を避ける）
+  const sX=cw/data.length;
+  ctx.fillStyle='#94a3b8';ctx.font='10px Arial';ctx.textAlign='center';ctx.textBaseline='top';
+  let prevMoKey=null;
+  data.forEach((d,i)=>{
+    const key=d.yr*100+d.mo;
+    if(key===prevMoKey)return;   // 同じ月はスキップ
+    prevMoKey=key;
+    ctx.fillText(`${d.mo}月`,pL+i*sX+sX/2,pT+ch+4);
+  });
+
+  data.forEach((d,i)=>{
+    const cx=pL+i*sX+sX/2;
+    const yH=pT+ch-(d.high-minP)*scY,yL=pT+ch-(d.low-minP)*scY;
+    const yO=pT+ch-(d.open-minP)*scY,yC=pT+ch-(d.close-minP)*scY;
+    const isUp=d.close>=d.open;
+    const col=isUp?'#dc2626':'#2563eb';
+    const bW=Math.max(1,sX*0.6);
+    ctx.beginPath();ctx.moveTo(cx,yH);ctx.lineTo(cx,yL);
+    ctx.strokeStyle=col;ctx.lineWidth=Math.max(0.7,sX*0.1);ctx.stroke();
+    ctx.fillStyle=col;
+    ctx.fillRect(cx-bW/2,Math.min(yO,yC),bW,Math.max(1,Math.abs(yC-yO)));
+    if(maxV>0){
+      const vH=(d.vol/maxV)*volH*0.85;
+      ctx.fillStyle=isUp?'rgba(220,38,38,0.35)':'rgba(37,99,235,0.35)';
+      ctx.fillRect(cx-bW/2,cH-pB+pB-vH,bW,vH);
+    }
+  });
+}
+
+// ============================================================
+// PREVIEW
+// ============================================================
+let prevTimer=null;
+function debouncedPrev(){clearTimeout(prevTimer);prevTimer=setTimeout(renderPrev,600);}
+
+function renderPrev(){
+  const text=document.getElementById('ta-data').value.trim();
+  const area=document.getElementById('prev-area');
+  area.innerHTML='';if(!text)return;
+  let d,slides;
+  try{
+    d=parseData(text);
+    slides=buildAll(d);
+  }catch(e){
+    area.innerHTML=`<div style="color:#f87171;font-size:12px;padding:8px;font-family:monospace;white-space:pre-wrap;">レンダリングエラー:\n${e.message}\n${e.stack||''}</div>`;
+    console.error(e);
+    return;
+  }
+  const ctrlW=document.querySelector('.ctrl')?.offsetWidth||Math.min(440,Math.max(300,window.innerWidth*0.3));
+  const PREV_PAD=28; // prev-area padding 14px×2
+  const W=(area.clientWidth||(window.innerWidth-ctrlW-42))-PREV_PAD;
+  const gap=10;
+  const cols=2;
+  const iW=Math.floor((W-gap)/cols*0.82);
+  const scale=iW/SLIDE_W;
+  const iH=Math.round(SLIDE_H*scale);
+  slides.forEach(s=>{
+    const wrap=document.createElement('div');
+    wrap.className='prev-slide';
+    wrap.style.cssText=`width:${iW}px;height:${iH}px;`;
+    wrap.title=s.name;
+    wrap.addEventListener('click',()=>dlSingle(s));
+    const inner=document.createElement('div');
+    inner.style.cssText=`position:absolute;top:0;left:0;width:${SLIDE_W}px;height:${SLIDE_H}px;transform:scale(${scale});transform-origin:top left;pointer-events:none;`;
+    inner.innerHTML=s.html;
+    wrap.appendChild(inner);
+    area.appendChild(wrap);
+    setTimeout(()=>{
+      const cv=inner.querySelector('canvas[data-chart]');
+      if(cv)drawChart(cv,cv.dataset.chart.split(';').filter(Boolean));
+    },60);
+  });
+}
+window.addEventListener('resize',()=>{if(document.getElementById('ta-data').value.trim())debouncedPrev();});
+
+// ============================================================
+// DOWNLOAD
+// ============================================================
+async function renderToBlob(slide){
+  const ct=document.getElementById('render-target');
+  ct.innerHTML=slide.html;
+  await new Promise(r=>setTimeout(r,150));
+  const cv=ct.querySelector('canvas[data-chart]');
+  if(cv){drawChart(cv,cv.dataset.chart.split(';').filter(Boolean));await new Promise(r=>setTimeout(r,120));}
+  const el=ct.querySelector('.slide');
+  const c=await html2canvas(el,{width:SLIDE_W,height:SLIDE_H,scale:2,useCORS:true,allowTaint:true,backgroundColor:'#f8fafc',logging:false});
+  ct.innerHTML='';
+  return new Promise(res=>c.toBlob(res,'image/png'));
+}
+
+async function dlSingle(slide){
+  setStatus(`${slide.name} をレンダリング中...`);
+  try{
+    const blob=await renderToBlob(slide);
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download=slide.name+'.png';a.click();
+    URL.revokeObjectURL(url);
+    document.getElementById('mob-img').src=url;
+    document.getElementById('mob-prev').style.display='block';
+    setStatus(`✓ ${slide.name}.png をダウンロードしました`,3000);
+  }catch(e){setStatus('エラー: '+e.message);}
+}
+
+async function downloadAll(){
+  const text=document.getElementById('ta-data').value.trim();
+  if(!text){alert('スライドデータを入力してください');return;}
+  const btn=document.getElementById('dl-btn');btn.disabled=true;
+  try{
+    const d=parseData(text);
+    const slides=buildAll(d);
+    const zip=new JSZip();
+    for(let i=0;i<slides.length;i++){
+      setStatus(`レンダリング中 ${i+1}/${slides.length}...`);
+      zip.file(slides[i].name+'.png',await renderToBlob(slides[i]));
+    }
+    setStatus('ZIPを作成中...');
+    const zb=await zip.generateAsync({type:'blob'});
+    const info=parseBankyo(d);
+    const url=URL.createObjectURL(zb);
+    const a=document.createElement('a');
+    a.href=url;a.download=`${info.code||'stock'}_${info.name||'analysis'}_slides.zip`;a.click();
+    URL.revokeObjectURL(url);
+    setStatus('✓ ダウンロード完了！',3000);
+  }catch(e){setStatus('エラー: '+e.message);}
+  btn.disabled=false;
+}
+
+// mobile responsive
+function checkMob(){const ctrl=document.querySelector('.ctrl');if(window.innerWidth<820){document.body.style.flexDirection='column';ctrl.style.width='100%';ctrl.style.maxHeight='none';}else{document.body.style.flexDirection='';ctrl.style.width='';ctrl.style.maxHeight='';}}
+checkMob();window.addEventListener('resize',checkMob);
+
+// ============================================================
+// MODE SWITCH (スライド / サムネイル)
+// ============================================================
+function setMode(mode){
+  const isThumb=mode==='thumb';
+  document.getElementById('slides-view').style.display=isThumb?'none':'flex';
+  document.getElementById('thumb-view').style.display=isThumb?'flex':'none';
+  document.getElementById('tab-slides').classList.toggle('active',!isThumb);
+  document.getElementById('tab-thumb').classList.toggle('active',isThumb);
+  if(isThumb)renderThumbPreview();
+}
+
+// ============================================================
+// THUMBNAIL TOOL
+// ============================================================
+const THUMB={
+  fontMid:180,fontTopBot:140,
+  fontWeightTop:700,fontWeightMid:900,fontWeightBot:700,
+  shadowColor:'#004aad',shadowX:6,shadowY:9,shadowAlpha:0.4,
+  hTop:235,hMid:250,hBot:235,
+  paddingX:40,paddingXMid:35,
+  offsetTop:5,offsetMid:-10,offsetBot:-25,
+  bgOpacity:0.04,bgScale:110,
+};
+const THUMB_PRESETS={
+  note:{offsetTop:5,offsetMid:-10,offsetBot:-25},
+  youtube:{offsetTop:-10,offsetMid:-10,offsetBot:-10},
+};
+let thBgUrl=null;
+
+function applyThumbPreset(name){
+  const p=THUMB_PRESETS[name];
+  THUMB.offsetTop=p.offsetTop;THUMB.offsetMid=p.offsetMid;THUMB.offsetBot=p.offsetBot;
+  renderThumbPreview();
+}
+
+function onThBgFile(el){if(el.files[0])setThBg(el.files[0]);}
+function setThBg(file){
+  if(!file||!file.type.startsWith('image/'))return;
+  const r=new FileReader();
+  r.onload=e=>{
+    thBgUrl=e.target.result;
+    const t=document.getElementById('th-bg-thumb');
+    t.src=e.target.result;t.style.display='block';
+    document.getElementById('th-bg-msg').textContent='別の画像に変更：';
+    document.getElementById('th-bg-meta').textContent=file.name;
+    document.getElementById('th-bg-clear').style.display='';
+    renderThumbPreview();
+  };
+  r.readAsDataURL(file);
+}
+function updateThOp(v){THUMB.bgOpacity=v/100;document.getElementById('th-op-val').textContent=v;renderThumbPreview();}
+function updateThSc(v){THUMB.bgScale=Number(v);document.getElementById('th-sc-val').textContent=v;renderThumbPreview();}
+function clearThBg(){
+  thBgUrl=null;
+  document.getElementById('th-bg-input').value='';
+  const t=document.getElementById('th-bg-thumb');t.style.display='none';t.src='';
+  document.getElementById('th-bg-msg').textContent='ドロップ、または';
+  document.getElementById('th-bg-meta').textContent='';
+  document.getElementById('th-bg-clear').style.display='none';
+  renderThumbPreview();
+}
+(function(){
+  const z=document.getElementById('th-bg-drop');
+  z.addEventListener('dragover',e=>{e.preventDefault();z.classList.add('drag-over');});
+  z.addEventListener('dragleave',()=>z.classList.remove('drag-over'));
+  z.addEventListener('drop',e=>{e.preventDefault();z.classList.remove('drag-over');setThBg(e.dataTransfer.files[0]);});
+})();
+
+function parseThumbnailMarkup(text){
+  const segs=[];const re=/(\*[^*]+\*|#[^#]+#|%[^%]+%)/g;
+  let last=0,m;
+  while((m=re.exec(text))!==null){
+    if(m.index>last)segs.push({text:text.slice(last,m.index),color:null});
+    const inner=m[0].slice(1,-1);
+    const mk=m[0][0];
+    segs.push({text:inner,color:mk==='*'?'#ff914d':mk==='#'?'#5ce1e6':'#ffde59'});
+    last=m.index+m[0].length;
+  }
+  if(last<text.length)segs.push({text:text.slice(last),color:null});
+  return segs;
+}
+function thumbCharW(segs){return segs.reduce((a,s)=>a+[...s.text].reduce((b,c)=>b+(c.charCodeAt(0)>255?2:1),0),0);}
+function thumbFs(cw,base,px){if(!cw)return base;const u=SLIDE_W-(px??THUMB.paddingX)*2;return Math.max(40,Math.min(base,Math.floor(2*u/cw)));}
+function hexRgba(hex,a){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return `rgba(${r},${g},${b},${a})`;}
+function segsHtml(segs,def){
+  const sh=`${THUMB.shadowX}px ${THUMB.shadowY}px 0px ${hexRgba(THUMB.shadowColor,THUMB.shadowAlpha)}`;
+  return segs.map(s=>`<span style="color:${s.color||def};text-shadow:${sh}">${esc(s.text)}</span>`).join('');
+}
+
+function buildThumbSlide(text){
+  const parts=text.split(/[：:]/);
+  const tS=parseThumbnailMarkup(parts[0]||'');
+  const mS=parseThumbnailMarkup(parts[1]||'');
+  const bS=parseThumbnailMarkup(parts[2]||'');
+  const tF=thumbFs(thumbCharW(tS),THUMB.fontTopBot,THUMB.paddingX);
+  const mF=thumbFs(thumbCharW(mS),THUMB.fontMid,THUMB.paddingXMid);
+  const bF=thumbFs(thumbCharW(bS),THUMB.fontTopBot,THUMB.paddingX);
+  const ff=`'Noto Sans JP',sans-serif`;
+  const bgL=thBgUrl
+    ?`<div style="position:absolute;inset:0;z-index:1;background-image:url('${thBgUrl}');background-size:cover;background-position:center;opacity:${THUMB.bgOpacity};transform:scale(${THUMB.bgScale/100});transform-origin:center;"></div>`
+    :'';
+  return `<div class="th-slide">
+  <div style="position:absolute;inset:0;background:#000;z-index:0;"></div>
+  ${bgL}
+  <div style="position:relative;z-index:2;display:flex;flex-direction:column;height:720px;">
+    <div style="height:${THUMB.hTop}px;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+      <div style="font-size:${tF}px;font-weight:${THUMB.fontWeightTop};line-height:1;white-space:nowrap;font-family:${ff};transform:translateY(${THUMB.offsetTop}px);">${segsHtml(tS,'#ffffff')}</div>
+    </div>
+    <div style="background:#fff;height:${THUMB.hMid}px;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+      <div style="font-size:${mF}px;font-weight:${THUMB.fontWeightMid};line-height:1;white-space:nowrap;font-family:${ff};transform:translateY(${THUMB.offsetMid}px);">${segsHtml(mS,'#004aad')}</div>
+    </div>
+    <div style="height:${THUMB.hBot}px;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+      <div style="font-size:${bF}px;font-weight:${THUMB.fontWeightBot};line-height:1;white-space:nowrap;font-family:${ff};transform:translateY(${THUMB.offsetBot}px);">${segsHtml(bS,'#ffffff')}</div>
+    </div>
+  </div>
+</div>`;
+}
+
+let thumbTimer=null;
+function debouncedThumb(){clearTimeout(thumbTimer);thumbTimer=setTimeout(renderThumbPreview,600);}
+
+function renderThumbPreview(){
+  const text=document.getElementById('th-input').value.trim();
+  const card=document.getElementById('th-preview-card');
+  if(!text){card.style.display='none';return;}
+  const html=buildThumbSlide(text);
+  const wrap=document.getElementById('th-preview-wrap');
+  const cW=wrap.clientWidth||800;
+  const sc=cW/SLIDE_W;
+  wrap.style.height=Math.round(SLIDE_H*sc)+'px';
+  const inner=document.getElementById('th-preview-inner');
+  inner.style.cssText=`position:absolute;top:0;left:0;width:${SLIDE_W}px;height:${SLIDE_H}px;transform:scale(${sc});transform-origin:top left;pointer-events:none;`;
+  inner.innerHTML=html;
+  card.style.display='block';
+}
+window.addEventListener('resize',()=>{if(document.getElementById('thumb-view').style.display!=='none')renderThumbPreview();});
+
+async function downloadThumb(){
+  const text=document.getElementById('th-input').value.trim();
+  if(!text){document.getElementById('th-status').textContent='テキストを入力してください';return;}
+  const btn=document.getElementById('th-dl-btn');
+  const st=document.getElementById('th-status');
+  btn.disabled=true;st.textContent='レンダリング中...';
+  try{
+    const cont=document.getElementById('th-render-target');
+    cont.innerHTML=buildThumbSlide(text);
+    await new Promise(r=>setTimeout(r,400));
+    const el=cont.querySelector('.th-slide');
+    const canvas=await html2canvas(el,{width:SLIDE_W,height:SLIDE_H,scale:2,useCORS:true,allowTaint:true,backgroundColor:'#000000',logging:false});
+    const blob=await new Promise(res=>canvas.toBlob(res,'image/png'));
+    const d=new Date();
+    const ds=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download=`00_サムネイル_${ds}.png`;a.click();
+    URL.revokeObjectURL(url);
+    cont.innerHTML='';
+    st.textContent='✓ ダウンロードしました';
+    setTimeout(()=>st.textContent='',3000);
+  }catch(e){document.getElementById('th-status').textContent='エラー: '+e.message;}
+  btn.disabled=false;
+}
+
+// Geminiのモデル・チャート期間の選択をlocalStorageで保持（リロードで引き継ぐ）
+(function(){
+  const KEYS=['gem-model','gem-months','gem-article-model'];
+  const save=()=>{try{const o={};KEYS.forEach(id=>{const el=document.getElementById(id);if(el)o[id]=el.value;});localStorage.setItem('sasGemPrefs',JSON.stringify(o));}catch(e){}};
+  try{const o=JSON.parse(localStorage.getItem('sasGemPrefs')||'null');if(o)KEYS.forEach(id=>{const el=document.getElementById(id);if(el&&(id in o))el.value=o[id];});}catch(e){}
+  KEYS.forEach(id=>{const el=document.getElementById(id);if(el){el.addEventListener('change',save);el.addEventListener('input',save);}});
+})();
+
+// 初期プレビュー（フォントロード後）
+document.fonts.ready.then(()=>{if(document.getElementById('th-input').value.trim())renderThumbPreview();});
+</script>
+</body>
+</html>

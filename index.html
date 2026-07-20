@@ -342,6 +342,7 @@
         <div class="mode-tabs">
             <button class="mode-tab active" data-mode="earnings" onclick="switchMode('earnings')">📊 決算分析</button>
             <button class="mode-tab" data-mode="stock" onclick="switchMode('stock')">📈 個別銘柄分析</button>
+            <button class="mode-tab" data-mode="price" onclick="switchMode('price')">📉 株価分析</button>
         </div>
 
         <div id="mode-earnings">
@@ -592,6 +593,14 @@
     </div>
 
     <div class="capture-wrapper">
+        <!-- 株価分析タブ：別HTML(stock-analysis.html)をiframeで表示。
+             既存2タブとCSS/JSが衝突しないよう、あえて統合せず分離して読み込む。
+             src は初回表示時にセット（起動時のロードを避ける）。 -->
+        <div id="mode-price" style="display:none;">
+            <iframe id="price-frame" data-src="stock-analysis" title="株価分析 スライド生成ツール"
+                    allow="clipboard-write"
+                    style="width:100%; height:calc(100vh - 44px); min-height:820px; border:0; display:block;"></iframe>
+        </div>
         <div id="capture-area">
             
             <div id="watermark">sumikko_money</div>
@@ -2138,6 +2147,16 @@ point_2=`;
             document.getElementById('mode-stock').style.display   = mode === 'stock'    ? '' : 'none';
             document.getElementById('capture-area').style.display       = mode === 'earnings' ? '' : 'none';
             document.getElementById('capture-area-stock').style.display = mode === 'stock'    ? 'flex' : 'none';
+
+            // 株価分析タブ（iframe）。初回表示時にだけ src をセットして読み込む
+            const priceBox = document.getElementById('mode-price');
+            if (priceBox) {
+                priceBox.style.display = mode === 'price' ? '' : 'none';
+                if (mode === 'price') {
+                    const fr = document.getElementById('price-frame');
+                    if (fr && !fr.src) fr.src = fr.dataset.src;
+                }
+            }
         }
 
         function getSaMarket() {
