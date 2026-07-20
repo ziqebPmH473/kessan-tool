@@ -502,8 +502,9 @@
 .s4-ivals{font-size:17px;color:#475569;}
 .s4-icur{color:#0f172a;font-weight:700;}
 .s4-itgt{color:#2563eb;font-weight:700;}
-.s4-gauge-bg{height:9px;background:#f1f5f9;border-radius:4px;overflow:hidden;}
+.s4-gauge-bg{height:9px;background:#f1f5f9;border-radius:4px;position:relative;}
 .s4-gauge-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,#2563eb,#0284c7);}
+.s4-gauge-tgt{position:absolute;top:-3px;bottom:-3px;width:3px;background:#d97706;border-radius:1px;transform:translateX(-50%);}
 .s4-milestone{display:flex;align-items:center;}
 .s4-ms-now{font-size:16px;font-weight:700;color:#dc2626;background:#fef2f2;border:1px solid #fecaca;border-radius:4px;padding:4px 12px;white-space:nowrap;}
 .s4-ms-line{flex:1;height:2px;background:#e2e8f0;margin:0 12px;}
@@ -4188,6 +4189,18 @@ function setArtStatus(msg,kind){
 // Gemini出力を「既知の見出し名」＋コードブロックで各ブロックに分解する。
 // ※タイトルやX告知文の本文中にも【銘柄名】等の【】が含まれるため、
 //   任意の【】ではなく、下記の既定ヘッダーだけを区切りとして扱う。
+// note の太字崩れ対策：**「X」** のように記号を太字の内側に置くと強調が効かないため、
+// 表示前に記号を太字マーカーの外へ出す（**「X」**→「**X**」、**（X）**→（**X**））。
+// プロンプトでも指示しているが、モデルが守らなくても確実に直すためのコード側後処理。
+function fixBoldBrackets(s){
+  if(!s)return s;
+  return String(s)
+    .replace(/\*\*(「)([\s\S]*?)(」)\*\*/g,'$1**$2**$3')
+    .replace(/\*\*(『)([\s\S]*?)(』)\*\*/g,'$1**$2**$3')
+    .replace(/\*\*(（)([\s\S]*?)(）)\*\*/g,'$1**$2**$3')
+    .replace(/\*\*(\()([\s\S]*?)(\))\*\*/g,'$1**$2**$3');
+}
+
 function parseArticleOutput(text){
   const defs=[
     {key:'title',     re:/【\s*タイトル\s*】/},
@@ -4221,11 +4234,11 @@ async function geminiArticle(btnEl){
   if(btnEl){btnEl.disabled=false;btnEl.textContent=o;}
   if(!r.ok){setArtStatus('エラー: '+r.error,'error');return;}
   const p=parseArticleOutput(r.text);
-  document.getElementById('art-title').value=p.title;
-  document.getElementById('art-body').value=p.body;
+  document.getElementById('art-title').value=fixBoldBrackets(p.title);
+  document.getElementById('art-body').value=fixBoldBrackets(p.body);
   document.getElementById('art-thumb').value=p.thumbnail;
   document.getElementById('art-tags').value=p.hashtags;
-  document.getElementById('art-x').value=p.xpost;
+  document.getElementById('art-x').value=fixBoldBrackets(p.xpost);
   document.getElementById('art-raw').value=r.text;
   const missing=[!p.title&&'タイトル',!p.body&&'本文',!p.xpost&&'X投稿文'].filter(Boolean);
   setArtStatus(`生成完了（${r.model||'gemini'}${r.fellBack?'・降格':''}${saTokenNote(r.usage)}）${missing.length?' ※'+missing.join('・')+'は全文から確認':''}`,missing.length?'info':'ok');
@@ -4780,27 +4793,19 @@ function buildS4(d){
   const n=items.length;
 
   // 単一の数値（単位付き可）だけを true とする厳格判定。文章・複数値・注釈は false。
-  // → プロンプトが守られなくても、値欄に文章が来たらバーを描かず崩れを防ぐガード。
-  function isNumericVal(s){
-    s=String(s).trim();
-    if(!s||s.length>12)return false;                       // 長文は数値扱いしない
-    if(/[、。（）()：:＝=]/.test(s))return false;            // 文章・注釈・出典を含む
-    if(['マイナス','赤字','負','未達','なし','—'].some(w=>s.includes(w)))return false;
-    const nums=s.match(/[-+]?\d[\d,]*\.?\d*/g)||[];
-    if(nums.length!==1)return false;                        // 数値トークンは1つだけ
-    const rest=s.replace(/[-+\d,.\s]/g,'').replace(/(倍|％|%|円|億|兆|万|株|pt|ポイント|ドル|\$|指数|件|人|社)/g,'');
-    return rest.length===0;                                 // 許容単位以外の文字が残らない
+  // 値を数値に正規化（バー位置の計算用）。カンマ除去・兆/億/万を実数換算し、
+  // 「以上」「▼」「円」「%」等の装飾や単位は無視して数値を取り出す。数値が無ければ NaN。
+  // → 生成側が単位を揃えなくてもツール側で吸収する。表示は元の文字列のまま。
+  function toNumber(s){
+    s=String(s);
+    let mult=1;
+    if(/兆/.test(s))mult=1e12; else if(/億/.test(s))mult=1e8; else if(/万/.test(s))mult=1e4;
+    const m=s.replace(/,/g,'').match(/-?\d+(?:\.\d+)?/);
+    if(!m)return NaN;
+    return parseFloat(m[0])*mult;
   }
   // 値の表示崩れ防止：想定外に長い値は切り詰めて表示（元データはnote等で追える）
   const clampVal=s=>{s=String(s);return s.length>18?s.slice(0,17)+'…':s;};
-
-  function gaugeW(cur,tgt){
-    const c=parseFloat(String(cur).replace(/[^\d.]/g,''));
-    const tStr=String(tgt).replace(/[〜～].*/,'');
-    const t=parseFloat(tStr.replace(/[^\d.]/g,''));
-    if(isNaN(c)||isNaN(t)||t===0)return 0;
-    return Math.min(100,Math.round(c/t*100));
-  }
 
   // Dynamic item height based on count
   const mbPx=n>=6?6:8;
@@ -4819,16 +4824,23 @@ function buildS4(d){
         ${item.note?`<div class="s4-inote">${esc(item.note)}</div>`:''}
       </div>`;
     }
-    const num=isNumericVal(item.current)&&isNumericVal(item.target);
-    const gw=num?gaugeW(item.current,item.target):0;
-    const visual=num
-      ?`<div class="s4-gauge-bg"><div class="s4-gauge-fill" style="width:${gw}%;"></div></div>`
-      :`<div class="s4-milestone">
+    const cv=toNumber(item.current), tv=toNumber(item.target);
+    const num=isFinite(cv)&&isFinite(tv)&&(cv>0||tv>0);
+    let visual;
+    if(num){
+      // スケール＝0〜max(現在,目安)×1.15（右に余白）。塗り＝現在値、オレンジ線＝目標。
+      const scaleMax=(Math.max(cv,tv)*1.15)||1;
+      const fillPct=Math.max(0,Math.min(100,cv/scaleMax*100));
+      const tgtPct=Math.max(0,Math.min(100,tv/scaleMax*100));
+      visual=`<div class="s4-gauge-bg"><div class="s4-gauge-fill" style="width:${fillPct.toFixed(1)}%;"></div><div class="s4-gauge-tgt" style="left:${tgtPct.toFixed(1)}%;"></div></div>`;
+    }else{
+      // 数値化できない値（「黒字化」等の文字）はバーを出さずテキスト表示
+      visual=`<div class="s4-milestone">
           <div class="s4-ms-now">現在：${esc(clampVal(item.current))}</div>
           <div class="s4-ms-line"></div>
           <div class="s4-ms-tgt">目安：${esc(clampVal(item.target))}</div>
-          <div class="s4-ms-label">未達</div>
         </div>`;
+    }
     return `<div class="s4-item" style="margin-bottom:${mbPx}px;">
       <div class="s4-item-head">
         <div class="s4-iname">${esc(item.name)}</div>
