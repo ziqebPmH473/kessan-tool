@@ -599,7 +599,7 @@
         <div id="mode-price" style="display:none;">
             <iframe id="price-frame" data-src="stock-analysis" title="株価分析 スライド生成ツール"
                     allow="clipboard-write"
-                    style="width:100%; height:calc(100vh - 44px); min-height:820px; border:0; display:block;"></iframe>
+                    style="width:100%; height:calc(100vh - 108px); min-height:760px; border:0; display:block;"></iframe>
         </div>
         <div id="capture-area">
             
@@ -2157,10 +2157,19 @@ point_2=`;
                     if (fr && !fr.src) fr.src = fr.dataset.src;
                 }
             }
-            // 株価分析タブでは左の操作パネルが空になるため、タブ幅まで畳んで
-            // iframe に横幅を明け渡す（他タブでは既定の380pxに戻す）
+            // 株価分析タブは、他タブと同じ「上部にタブ → その下に本体」の構造で見せる。
+            // body を縦並びに切り替え、タブ行を全幅・その下に iframe を全幅で置く。
+            // （既定は body:flex横並び＝操作パネル380px＋プレビュー）
             const panel = document.querySelector('.control-panel');
-            if (panel) panel.style.width = (mode === 'price') ? 'auto' : '';
+            if (mode === 'price') {
+                document.body.style.flexDirection = 'column';
+                document.body.style.gap = '8px';
+                if (panel) panel.style.width = '100%';
+            } else {
+                document.body.style.flexDirection = '';
+                document.body.style.gap = '';
+                if (panel) panel.style.width = '';
+            }
         }
 
         function getSaMarket() {

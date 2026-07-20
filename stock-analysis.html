@@ -18,6 +18,10 @@
 body{background:var(--bg);color:var(--text);font-family:'Helvetica Neue',Arial,'Hiragino Sans',sans-serif;height:100vh;overflow:hidden;display:flex;gap:14px;padding:10px 14px;}
 h1{font-size:15px;font-weight:700;}
 .sub{color:var(--muted);font-size:10px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+/* kessan-tool のタブ内に iframe で埋め込まれている時は、親側のタブが見出しの役割を
+   果たすため、このツール自身のタイトル行を隠して1つのツールらしく見せる */
+html.embedded body{padding-top:8px;}
+html.embedded .ctrl>h1,html.embedded .ctrl>.sub{display:none;}
 .ctrl{width:300px;flex-shrink:0;display:flex;flex-direction:column;gap:5px;overflow-y:auto;height:100%;}
 .prev-area{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;overflow-y:auto;height:100%;}
 .card{background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:7px 8px;display:flex;flex-direction:column;gap:5px;}
@@ -210,6 +214,11 @@ details summary{cursor:pointer;color:var(--accent);font-size:11px;}
 .s5-rlist li{font-size:18px;color:#475569;padding-left:18px;position:relative;line-height:1.65;}
 .s5-rlist li::before{content:'・';position:absolute;left:0;color:#94a3b8;}
 </style>
+<script>
+/* kessan-tool のタブ内に iframe で埋め込まれているかを判定し、html に .embedded を付ける。
+   描画前に付けたいので head 内で実行する（単体で開いた時は付かない）。 */
+try{ if(window.self!==window.top) document.documentElement.classList.add('embedded'); }catch(e){ document.documentElement.classList.add('embedded'); }
+</script>
 </head>
 <body>
 <!-- ============================================================================
@@ -311,7 +320,7 @@ details summary{cursor:pointer;color:var(--accent);font-size:11px;}
 
 <div class="ctrl">
   <h1>📊 株価分析 スライド生成</h1>
-  <p class="sub">プロンプト生成 → ChatGPT → ファクトチェック → NotebookLM → スライド生成</p>
+  <p class="sub">プロンプト生成 → ChatGPT → ファクトチェック → 出力データ作成 → スライド生成</p>
 
   <div class="card">
     <h2>1. 基本情報</h2>
