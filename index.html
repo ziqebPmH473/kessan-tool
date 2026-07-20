@@ -2157,6 +2157,10 @@ point_2=`;
                     if (fr && !fr.src) fr.src = fr.dataset.src;
                 }
             }
+            // 株価分析タブでは左の操作パネルが空になるため、タブ幅まで畳んで
+            // iframe に横幅を明け渡す（他タブでは既定の380pxに戻す）
+            const panel = document.querySelector('.control-panel');
+            if (panel) panel.style.width = (mode === 'price') ? 'auto' : '';
         }
 
         function getSaMarket() {

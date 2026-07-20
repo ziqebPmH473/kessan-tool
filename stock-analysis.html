@@ -10,7 +10,10 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
 /* ===== APP UI ===== */
-:root{--bg:#0f172a;--panel:#1e293b;--border:#334155;--text:#e2e8f0;--muted:#94a3b8;--accent:#3b82f6;}
+/* 配色は kessan-tool（親ツール）のライトテーマに合わせている。
+   注意: スライド/サムネイル生成用のCSS（slide や s1- 系、th- 系のクラス）は
+   これらの変数を使わず色を直書きしているため、ここを変えても生成画像の色は変わらない。 */
+:root{--bg:#f8fafc;--panel:#ffffff;--border:#cbd5e1;--text:#0f172a;--muted:#475569;--accent:#2563eb;}
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--text);font-family:'Helvetica Neue',Arial,'Hiragino Sans',sans-serif;height:100vh;overflow:hidden;display:flex;gap:14px;padding:10px 14px;}
 h1{font-size:15px;font-weight:700;}
@@ -22,26 +25,26 @@ h1{font-size:15px;font-weight:700;}
 .row{display:flex;gap:5px;align-items:center;flex-wrap:wrap;}
 input[type=text],input[type=date],textarea{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:3px 8px;border-radius:4px;font-size:12px;font-family:inherit;box-sizing:border-box;}
 input[type=text]{flex:1;}
-input[type=date]{color-scheme:dark;height:23px;line-height:normal;}
-input[type=date]::-webkit-calendar-picker-indicator{filter:invert(0.7);cursor:pointer;}
+input[type=date]{color-scheme:light;height:23px;line-height:normal;}
+input[type=date]::-webkit-calendar-picker-indicator{cursor:pointer;}
 textarea{width:100%;resize:vertical;line-height:1.5;font-size:11px;}
 .btn{background:var(--accent);color:#fff;border:none;border-radius:5px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;}
 .btn:hover{opacity:.85;}
 .btn:disabled{opacity:.4;cursor:not-allowed;}
-.btn-sm{background:#1e3a5f;border:1px solid var(--border);color:var(--text);border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer;white-space:nowrap;}
-.btn-sm:hover{background:#2a4a7a;}
-.btn-danger{background:#3b1f1f;border:1px solid #7f1d1d;color:#fca5a5;border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer;}
+.btn-sm{background:#e2e8f0;border:1px solid var(--border);color:var(--text);border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer;white-space:nowrap;}
+.btn-sm:hover{background:#cbd5e1;}
+.btn-danger{background:#fee2e2;border:1px solid #fecaca;color:#b91c1c;border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer;}
 .btn-full{width:100%;padding:5px;font-size:12px;}
 .radio-group{display:flex;gap:8px;}
 .radio-group label{font-size:12px;cursor:pointer;display:flex;align-items:center;gap:3px;}
 .prev-area{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;}
 .prev-wrap{display:flex;flex-wrap:wrap;gap:6px;}
 .prev-slide{position:relative;overflow:hidden;border:1px solid var(--border);border-radius:4px;cursor:pointer;}
-.prev-slide::after{content:'⬇ DL';position:absolute;bottom:0;left:0;right:0;background:rgba(59,130,246,.85);color:#fff;font-size:10px;text-align:center;padding:2px 0;opacity:0;transition:opacity .15s;}
+.prev-slide::after{content:'⬇ DL';position:absolute;bottom:0;left:0;right:0;background:rgba(37,99,235,.85);color:#fff;font-size:10px;text-align:center;padding:2px 0;opacity:0;transition:opacity .15s;}
 .prev-slide:hover{border-color:var(--accent);}
 .prev-slide:hover::after{opacity:1;}
 #status{font-size:11px;color:var(--muted);}
-.fmt{background:#0a1628;border:1px solid var(--border);border-radius:4px;padding:8px;font-size:10px;color:var(--muted);font-family:monospace;white-space:pre;overflow-x:auto;max-height:180px;overflow-y:auto;}
+.fmt{background:#f1f5f9;border:1px solid var(--border);border-radius:4px;padding:8px;font-size:10px;color:var(--muted);font-family:monospace;white-space:pre;overflow-x:auto;max-height:180px;overflow-y:auto;}
 details summary{cursor:pointer;color:var(--accent);font-size:11px;}
 #mob-prev{margin-top:6px;display:none;background:var(--panel);padding:8px;border-radius:7px;border:1px solid var(--border);}
 #mob-img{max-width:100%;border-radius:3px;}
@@ -209,6 +212,19 @@ details summary{cursor:pointer;color:var(--accent);font-size:11px;}
 </style>
 </head>
 <body>
+<!-- ============================================================================
+     株価分析 スライド生成ツール ― このファイルが「正」です。
+     2026-07-20 に単体リポジトリ stock-analysis-slide から統合しました。
+     旧 stock-analysis-slide は廃止済みで更新されません。修正は必ずここで行うこと。
+
+     表示経路: kessan-tool/index.html の3つ目のタブ「📉 株価分析」から
+               iframe（id=price-frame, src="stock-analysis"）で読み込まれます。
+               ※Cloudflare Pages は /stock-analysis.html を拡張子なしURLへ308
+                 リダイレクトするため、src は "stock-analysis" を指定しています。
+     単体でも /stock-analysis で直接開けます。
+     API は同一オリジンの /api/analyze・/api/fetch-stock を使用します。
+     配色は親ツール(kessan-tool)のライトテーマに合わせてあります。
+     ============================================================================ -->
 <script type="text/plain" id="gem-article-prompt">あなたは「論理的で客観的な視点を持ちつつ、初心者にも寄り添って分かりやすく解説する親切な投資のナビゲーター」です。
 ユーザーから提供される【株価分析レポート（上昇または下落）】を根拠資料とし、情報を一切削らず、かつ「冗長にならない簡潔な表現」で、以下の5つのブロックに出力してください。
 
