@@ -657,8 +657,10 @@ body{height:100vh;box-sizing:border-box;overflow:hidden;}
                 <label style="font-size:11px; color:var(--text-sub); flex:none;">モデル</label>
                 <select id="gem-earn-model" style="flex:1; min-width:0; font-size:11px; padding:4px;">
                     <option value="" selected>自動（上位から上限で自動降格）</option>
+                    <option value="gemini-3.6-flash">Gemini 3.6 Flash（20回/日）</option>
                     <option value="gemini-3.5-flash">Gemini 3.5 Flash（20回/日）</option>
                     <option value="gemini-3-flash-preview">Gemini 3 Flash（20回/日）</option>
+                    <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite（500回/日）</option>
                     <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite（500回/日）</option>
                     <option value="gemini-2.5-flash">Gemini 2.5 Flash（20回/日）</option>
                     <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite（20回/日）</option>
@@ -787,9 +789,11 @@ body{height:100vh;box-sizing:border-box;overflow:hidden;}
                 <label style="font-size:11px; color:var(--text-sub); flex:none;">モデル</label>
                 <select id="gem-sa-model" style="flex:1; min-width:0; font-size:11px; padding:4px;">
                     <option value="">自動（上位から上限で自動降格）</option>
+                    <option value="gemini-3.6-flash">Gemini 3.6 Flash（20回/日）</option>
                     <option value="gemini-3.5-flash">Gemini 3.5 Flash（20回/日）</option>
                     <option value="gemini-3-flash-preview">Gemini 3 Flash（20回/日）</option>
-                    <option value="gemini-3.1-flash-lite" selected>Gemini 3.1 Flash Lite（500回/日）</option>
+                    <option value="gemini-3.5-flash-lite" selected>Gemini 3.5 Flash Lite（500回/日）</option>
+                    <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite（500回/日）</option>
                     <option value="gemini-2.5-flash">Gemini 2.5 Flash（20回/日）</option>
                     <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite（20回/日）</option>
                 </select>
@@ -889,9 +893,11 @@ body{height:100vh;box-sizing:border-box;overflow:hidden;}
       <label style="font-size:11px;color:var(--text-sub);flex:none;">モデル</label>
       <select id="gem-model" style="flex:1;min-width:0;font-size:11px;padding:4px;">
         <option value="" >自動（上位から上限で自動降格）</option>
+        <option value="gemini-3.6-flash">Gemini 3.6 Flash（20回/日）</option>
         <option value="gemini-3.5-flash">Gemini 3.5 Flash（20回/日）</option>
         <option value="gemini-3-flash-preview">Gemini 3 Flash（20回/日）</option>
-        <option value="gemini-3.1-flash-lite" selected>Gemini 3.1 Flash Lite（500回/日）</option>
+        <option value="gemini-3.5-flash-lite" selected>Gemini 3.5 Flash Lite（500回/日）</option>
+        <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite（500回/日）</option>
         <option value="gemini-2.5-flash">Gemini 2.5 Flash（20回/日）</option>
         <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite（20回/日）</option>
       </select>
@@ -983,8 +989,10 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
       <label style="font-size:11px;color:var(--text-sub);flex:none;">モデル</label>
       <select id="gem-article-model" style="flex:1;min-width:0;font-size:11px;padding:4px;">
         <option value="" selected>自動（上位から上限で自動降格）</option>
+        <option value="gemini-3.6-flash">Gemini 3.6 Flash（20回/日）</option>
         <option value="gemini-3.5-flash">Gemini 3.5 Flash（20回/日）</option>
         <option value="gemini-3-flash-preview">Gemini 3 Flash（20回/日）</option>
+        <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite（500回/日）</option>
         <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite（500回/日）</option>
         <option value="gemini-2.5-flash">Gemini 2.5 Flash（20回/日）</option>
       </select>
@@ -1532,8 +1540,8 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
         function autoModelChain(cls, ov) {
             if (ov) return [ov];
             return cls === 'high'
-                ? ['gemini-3.5-flash', 'gemini-3-flash-preview', 'gemini-3.1-flash-lite', 'gemini-2.5-flash']
-                : ['gemini-3.1-flash-lite', 'gemini-3-flash-preview', 'gemini-2.5-flash-lite', 'gemini-2.5-flash'];
+                ? ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3-flash-preview', 'gemini-3.1-flash-lite', 'gemini-2.5-flash']
+                : ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-3-flash-preview', 'gemini-2.5-flash-lite', 'gemini-2.5-flash'];
         }
 
         // ステータス表示（ボタン下の小さな注記）。elId が無ければ何もしない。
@@ -4118,8 +4126,8 @@ function copyNBPrompt(btn){copyText(NB_PROMPT,btn);}
 function saAutoModelChain(cls,ov){
   if(ov)return[ov];
   return cls==='high'
-    ?['gemini-3.5-flash','gemini-3-flash-preview','gemini-3.1-flash-lite','gemini-2.5-flash']
-    :['gemini-3.1-flash-lite','gemini-3-flash-preview','gemini-2.5-flash-lite','gemini-2.5-flash'];
+    ?['gemini-3.6-flash','gemini-3.5-flash','gemini-3-flash-preview','gemini-3.1-flash-lite','gemini-2.5-flash']
+    :['gemini-3.5-flash-lite','gemini-3.1-flash-lite','gemini-3-flash-preview','gemini-2.5-flash-lite','gemini-2.5-flash'];
 }
 // 整形パス専用のグラウンディング強化（NotebookLMのRAG的な"ソース限定"に寄せる）
 const SA_GROUNDING_RULE='\n\n## グラウンディング（最重要・厳守）\n出力は、渡された資料（株探取得データ・分析レポート）に明示されている情報だけを根拠にすること。資料に無い数値・事実は、推測や一般知識で補わず空欄にすること。資料外の情報を創作してはならない。';
