@@ -525,7 +525,7 @@
 .th-slide{width:1280px;height:720px;overflow:hidden;position:relative;display:flex;flex-direction:column;}
 
 /* ===== SLIDE 6: まとめ（株価シナリオ＋モノサシ） ===== */
-.s6-wrap{padding:44px 64px;display:flex;flex-direction:column;height:720px;box-sizing:border-box;gap:20px;}
+.s6-wrap{padding:44px 64px;display:flex;flex-direction:column;height:720px;box-sizing:border-box;justify-content:center;gap:20px;}
 .s6-title{font-size:36px;font-weight:900;color:#0f172a;flex-shrink:0;}
 .s6-body{display:grid;grid-template-columns:1.45fr 1fr;gap:26px;flex:1;min-height:0;}
 .s6-col{display:flex;flex-direction:column;gap:10px;min-height:0;}
@@ -547,10 +547,10 @@
 
 /* ===== SLIDE 5: リスク ===== */
 /* 件数に応じて余白・文字を詰められるよう、寸法は変数化して JS から上書きする */
-.s5-wrap{padding:44px 72px;display:flex;flex-direction:column;height:720px;box-sizing:border-box;justify-content:flex-start;gap:var(--s5-gap,24px);}
+.s5-wrap{padding:44px 72px;display:flex;flex-direction:column;height:720px;box-sizing:border-box;justify-content:center;gap:var(--s5-gap,24px);}
 .s5-title{font-size:36px;font-weight:900;color:#0f172a;flex-shrink:0;}
 .s5-sub{font-size:16px;color:#64748b;margin-bottom:24px;flex-shrink:0;}
-.s5-risks{display:flex;flex-direction:column;gap:var(--s5-gap,24px);flex:1;min-height:0;justify-content:center;}
+.s5-risks{display:flex;flex-direction:column;gap:var(--s5-gap,24px);}
 /* 小見出しを囲いの外に出す構造 — 高さは件数に応じて自動 */
 .s5-rsection{display:flex;flex-direction:column;gap:8px;}
 .s5-rtitle{font-size:var(--s5-tsize,24px);font-weight:700;}
@@ -4932,10 +4932,16 @@ function buildS5(d){
 
   // 箇条書きの総数に応じて余白・文字サイズを自動で詰める（多くても1枚に収める）
   const nb=risks.reduce((s,r)=>s+((r.bullets||[]).length),0);
-  const v=nb<=6 ?{gap:24,t:24,pad:16,lg:10,f:18}
-        :nb<=9 ?{gap:18,t:22,pad:14,lg:8, f:17}
-        :nb<=12?{gap:14,t:20,pad:12,lg:7, f:16}
-        :        {gap:10,t:19,pad:10,lg:6, f:15};
+  const v=nb<=6 ?{gap:24,t:28,pad:22,lg:14,f:23}
+        :nb<=8 ?{gap:20,t:26,pad:18,lg:12,f:21}
+        :nb<=10?{gap:16,t:24,pad:15,lg:10,f:19}
+        :nb<=12?{gap:12,t:22,pad:12,lg:8, f:17}
+        :nb<=14?{gap:10,t:21,pad:10,lg:6, f:16}
+        :nb<=17?{gap:8, t:20,pad:8, lg:5, f:14}
+        :nb<=20?{gap:6, t:19,pad:7, lg:4, f:13}
+        :nb<=23?{gap:5, t:18,pad:6, lg:3, f:12}
+        :nb<=27?{gap:4, t:17,pad:5, lg:2, f:11}
+        :        {gap:3, t:16,pad:4, lg:2, f:10};
   const vars=`--s5-gap:${v.gap}px;--s5-tsize:${v.t}px;--s5-pad:${v.pad}px;--s5-lgap:${v.lg}px;--s5-fsize:${v.f}px;`;
 
   return `<div class="slide">
