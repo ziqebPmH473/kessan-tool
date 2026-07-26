@@ -546,20 +546,21 @@
 .s6-now{font-size:15px;font-weight:700;fill:#0f172a;}
 
 /* ===== SLIDE 5: リスク ===== */
-.s5-wrap{padding:44px 72px;display:flex;flex-direction:column;height:720px;box-sizing:border-box;justify-content:center;gap:40px;}
+/* 件数に応じて余白・文字を詰められるよう、寸法は変数化して JS から上書きする */
+.s5-wrap{padding:44px 72px;display:flex;flex-direction:column;height:720px;box-sizing:border-box;justify-content:flex-start;gap:var(--s5-gap,24px);}
 .s5-title{font-size:36px;font-weight:900;color:#0f172a;flex-shrink:0;}
 .s5-sub{font-size:16px;color:#64748b;margin-bottom:24px;flex-shrink:0;}
-.s5-risks{display:flex;flex-direction:column;gap:22px;}
+.s5-risks{display:flex;flex-direction:column;gap:var(--s5-gap,24px);flex:1;min-height:0;justify-content:center;}
 /* 小見出しを囲いの外に出す構造 — 高さは件数に応じて自動 */
 .s5-rsection{display:flex;flex-direction:column;gap:8px;}
-.s5-rtitle{font-size:24px;font-weight:700;}
+.s5-rtitle{font-size:var(--s5-tsize,24px);font-weight:700;}
 .s5-rtitle.r1-t{color:#dc2626;}
 .s5-rtitle.r2-t{color:#d97706;}
-.s5-rbody{border-radius:10px;padding:18px 26px;}
+.s5-rbody{border-radius:10px;padding:var(--s5-pad,16px) 26px;}
 .s5-rbody.r1{background:#fff5f5;border:1px solid #fecaca;border-left:5px solid #dc2626;}
 .s5-rbody.r2{background:#fffbeb;border:1px solid #fde68a;border-left:5px solid #d97706;}
-.s5-rlist{list-style:none;display:flex;flex-direction:column;gap:10px;}
-.s5-rlist li{font-size:18px;color:#475569;padding-left:18px;position:relative;line-height:1.65;}
+.s5-rlist{list-style:none;display:flex;flex-direction:column;gap:var(--s5-lgap,10px);}
+.s5-rlist li{font-size:var(--s5-fsize,18px);color:#475569;padding-left:18px;position:relative;line-height:1.55;}
 .s5-rlist li::before{content:'・';position:absolute;left:0;color:#94a3b8;}
 /* ===== 株価分析タブ：他タブと見た目・挙動を揃える ===== */
 /* ページ全体はスクロールさせず、サイドバーとプレビューの中だけスクロールする
@@ -4929,10 +4930,18 @@ function buildS5(d){
     </div>`;
   }).join('');
 
+  // 箇条書きの総数に応じて余白・文字サイズを自動で詰める（多くても1枚に収める）
+  const nb=risks.reduce((s,r)=>s+((r.bullets||[]).length),0);
+  const v=nb<=6 ?{gap:24,t:24,pad:16,lg:10,f:18}
+        :nb<=9 ?{gap:18,t:22,pad:14,lg:8, f:17}
+        :nb<=12?{gap:14,t:20,pad:12,lg:7, f:16}
+        :        {gap:10,t:19,pad:10,lg:6, f:15};
+  const vars=`--s5-gap:${v.gap}px;--s5-tsize:${v.t}px;--s5-pad:${v.pad}px;--s5-lgap:${v.lg}px;--s5-fsize:${v.f}px;`;
+
   return `<div class="slide">
 <div class="sl-bar"></div>
 <div class="sl-sig">すみっこマネー大学/@sumikko_money</div>
-<div class="s5-wrap">
+<div class="s5-wrap" style="${vars}">
   <div class="s5-title">投資家が注意すべきリスク</div>
   <div class="s5-risks">${risksHtml}</div>
 </div>
