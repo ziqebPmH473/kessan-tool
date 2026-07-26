@@ -524,6 +524,28 @@
 .drop-zone.drag-over{border-color:var(--accent);background:rgba(59,130,246,.07);}
 .th-slide{width:1280px;height:720px;overflow:hidden;position:relative;display:flex;flex-direction:column;}
 
+/* ===== SLIDE 6: まとめ（株価シナリオ＋モノサシ） ===== */
+.s6-wrap{padding:44px 64px;display:flex;flex-direction:column;height:720px;box-sizing:border-box;gap:20px;}
+.s6-title{font-size:36px;font-weight:900;color:#0f172a;flex-shrink:0;}
+.s6-body{display:grid;grid-template-columns:1.45fr 1fr;gap:26px;flex:1;min-height:0;}
+.s6-col{display:flex;flex-direction:column;gap:10px;min-height:0;}
+.s6-clabel{font-size:20px;font-weight:700;color:#0f172a;flex-shrink:0;}
+.s6-chart{flex:1;min-height:0;}
+.s6-metrics{flex:1;display:flex;flex-direction:column;gap:10px;min-height:0;}
+.s6-mcard{flex:1;display:flex;flex-direction:column;justify-content:center;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 16px;border-left:3px solid #2563eb;}
+.s6-mhead{display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
+.s6-mname{font-size:18px;font-weight:700;color:#1e293b;}
+.s6-mval{font-size:15px;color:#475569;font-weight:700;white-space:nowrap;}
+.s6-mbar{position:relative;height:8px;background:#f1f5f9;border-radius:4px;margin:7px 0;}
+.s6-mfill{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:linear-gradient(90deg,#2563eb,#0284c7);}
+.s6-mtgt{position:absolute;top:-3px;bottom:-3px;width:3px;background:#d97706;border-radius:1px;transform:translateX(-50%);}
+.s6-mnote{font-size:14px;color:#475569;line-height:1.5;}
+.s6-col-lbl{font-size:17px;font-weight:700;fill:#0f172a;}
+.s6-tick{font-size:14px;fill:#94a3b8;}
+.s6-val{font-size:14px;font-weight:700;}
+.s6-leg{font-size:16px;font-weight:700;}
+.s6-now{font-size:15px;font-weight:700;fill:#0f172a;}
+
 /* ===== SLIDE 5: リスク ===== */
 .s5-wrap{padding:44px 72px;display:flex;flex-direction:column;height:720px;box-sizing:border-box;justify-content:center;gap:40px;}
 .s5-title{font-size:36px;font-weight:900;color:#0f172a;flex-shrink:0;}
@@ -4800,23 +4822,24 @@ function buildS3(d){
 }
 
 // SLIDE 4
+// 値を数値に正規化（バー位置の計算用）。カンマ除去・兆/億/万を実数換算し、
+// 「以上」「▼」「円」「%」等の装飾や単位は無視して数値を取り出す。数値が無ければ NaN。
+// → 生成側が単位を揃えなくてもツール側で吸収する。表示は元の文字列のまま。
+// スライド4（転換点）と スライド6（まとめ）で共用。
+function toNumber(s){
+  s=String(s);
+  let mult=1;
+  if(/兆/.test(s))mult=1e12; else if(/億/.test(s))mult=1e8; else if(/万/.test(s))mult=1e4;
+  const m=s.replace(/,/g,'').match(/-?\d+(?:\.\d+)?/);
+  if(!m)return NaN;
+  return parseFloat(m[0])*mult;
+}
+
 function buildS4(d){
   const items=parseTurning(d);
   const info=parseBankyo(d);
   const n=items.length;
 
-  // 単一の数値（単位付き可）だけを true とする厳格判定。文章・複数値・注釈は false。
-  // 値を数値に正規化（バー位置の計算用）。カンマ除去・兆/億/万を実数換算し、
-  // 「以上」「▼」「円」「%」等の装飾や単位は無視して数値を取り出す。数値が無ければ NaN。
-  // → 生成側が単位を揃えなくてもツール側で吸収する。表示は元の文字列のまま。
-  function toNumber(s){
-    s=String(s);
-    let mult=1;
-    if(/兆/.test(s))mult=1e12; else if(/億/.test(s))mult=1e8; else if(/万/.test(s))mult=1e4;
-    const m=s.replace(/,/g,'').match(/-?\d+(?:\.\d+)?/);
-    if(!m)return NaN;
-    return parseFloat(m[0])*mult;
-  }
   // 値の表示崩れ防止：想定外に長い値は切り詰めて表示（元データはnote等で追える）
   const clampVal=s=>{s=String(s);return s.length>18?s.slice(0,17)+'…':s;};
 
@@ -4912,7 +4935,113 @@ function buildAll(d){
     {html:buildS3(d),name:`${c}_${n}_03_12か月シナリオ`},
     {html:buildS4(d),name:`${c}_${n}_04_転換点`},
     {html:buildS5(d),name:`${c}_${n}_05_リスク`},
+    {html:buildS6(d),name:`${c}_${n}_06_まとめ`},
   ];
+}
+
+// ============================================================
+// SLIDE 6: まとめ（左＝株価シナリオ／右＝株価以外のモノサシ）
+// 既存の [短期予測]・[12か月後]・[転換点] のみで構成（データ追加不要）。
+// 短期は「その時点の株価」ではなく到達しうる下値/上値なので列を分けて描き、
+// 短期と12か月後は線で結ばない（短期弱気→12か月弱気とは限らないため）。
+// ============================================================
+function buildS6(d){
+  const st=parseShortTerm(d);
+  const rows12=parse12m(d);
+  const items=parseTurning(d).slice(0,4);
+  const info=parseBankyo(d);
+  const isUp=String(st.direction).includes('上昇');
+  const p0=parseFloat(String(st.p0).replace(/,/g,''))||0;
+
+  const nums=s=>{const a=[];String(s).replace(/[\d,]+(?:\.\d+)?/g,m=>{const n=parseFloat(m.replace(/,/g,''));if(!isNaN(n))a.push(n);return m;});return a;};
+  const rangeOf=r=>{const a=nums(r.range);return a.length?{lo:Math.min(...a),hi:Math.max(...a)}:null;};
+  const shortRows=(st.scenarios||[]).map(r=>({label:r.label,rg:rangeOf(r)})).filter(r=>r.rg);
+  const longRows=rows12.map(r=>({label:r.label,rg:rangeOf(r)})).filter(r=>r.rg);
+
+  // 価格スケール（3列で共通。同じ高さ＝同じ株価）
+  const all=[];if(p0)all.push(p0);
+  shortRows.concat(longRows).forEach(r=>{all.push(r.rg.lo,r.rg.hi);});
+  const dataMin=all.length?Math.min(...all):0, dataMax=all.length?Math.max(...all):1;
+  const pad=(dataMax-dataMin)*0.12||1;
+  const vMin=Math.max(0,dataMin-pad), vMax=dataMax+pad, span=(vMax-vMin)||1;
+
+  const TOP=34, BOT=470;                       // 描画領域（SVG座標）
+  const y=v=>TOP+(vMax-v)/span*(BOT-TOP);
+  const cur=v=>fmtPrice(String(Math.round(v)),info.code);
+
+  // きりの良い目盛り（4本）
+  function niceTicks(lo,hi){
+    const raw=(hi-lo)/3, ex=Math.pow(10,Math.floor(Math.log10(raw)));
+    const f=raw/ex, step=(f<1.5?1:f<3?2:f<7?5:10)*ex;
+    const out=[];for(let t=Math.ceil(lo/step)*step;t<=hi;t+=step)out.push(t);
+    return out;
+  }
+
+  const AX=132, COL_NOW=170, COL_S=250, COL_L=430, BW=120;
+  const ticks=niceTicks(vMin,vMax).map(t=>
+    `<line x1="${AX}" y1="${y(t).toFixed(1)}" x2="600" y2="${y(t).toFixed(1)}" stroke="#eef2f6" stroke-width="1"/>
+     <text x="${AX-8}" y="${(y(t)+5).toFixed(1)}" class="s6-tick" text-anchor="end">${cur(t)}</text>`).join('');
+
+  const FILL={bear:'#fecaca',base:'#cbd5e1',bull:'#bfdbfe'};
+  const TEXT={bear:'#7f1d1d',base:'#334155',bull:'#0c447c'};
+  const band=(r,x)=>{
+    const k=lc(r.label), yh=y(r.rg.hi), yl=y(r.rg.lo), h=Math.max(6,yl-yh);
+    return `<rect x="${x}" y="${yh.toFixed(1)}" width="${BW}" height="${h.toFixed(1)}" rx="4" fill="${FILL[k]}"/>
+      <text x="${x+BW+8}" y="${(yh+11).toFixed(1)}" class="s6-val" fill="${TEXT[k]}">${cur(r.rg.hi)}</text>
+      <text x="${x+BW+8}" y="${(yl-2).toFixed(1)}" class="s6-val" fill="${TEXT[k]}">${cur(r.rg.lo)}</text>`;
+  };
+
+  const legend=['強気','ベース','弱気'].map((lb,i)=>{
+    const k=lc(lb), ly=TOP+150+i*34;
+    return `<rect x="10" y="${ly}" width="16" height="16" rx="3" fill="${FILL[k]}"/>
+            <text x="34" y="${ly+13}" class="s6-leg" fill="${TEXT[k]}">${lb}</text>`;
+  }).join('');
+
+  const shortLabel=isUp?'短期的な上値':'短期的な下値';
+  const chart=`<svg viewBox="0 0 620 500" preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%;">
+    <text x="${COL_NOW+20}" y="20" class="s6-col-lbl" text-anchor="middle">現在値</text>
+    <text x="${COL_S+BW/2}" y="20" class="s6-col-lbl" text-anchor="middle">${shortLabel}</text>
+    <text x="${COL_L+BW/2}" y="20" class="s6-col-lbl" text-anchor="middle">12か月後</text>
+    ${ticks}
+    <line x1="${AX}" y1="${TOP-6}" x2="${AX}" y2="${BOT+6}" stroke="#cbd5e1" stroke-width="1"/>
+    ${p0?`<line x1="${AX}" y1="${y(p0).toFixed(1)}" x2="600" y2="${y(p0).toFixed(1)}" stroke="#0f172a" stroke-width="1.5" stroke-dasharray="6 4"/>
+      <circle cx="${COL_NOW+20}" cy="${y(p0).toFixed(1)}" r="7" fill="#0f172a"/>
+      <text x="${COL_NOW+36}" y="${(y(p0)+5).toFixed(1)}" class="s6-now">${cur(p0)}</text>`:''}
+    ${legend}
+    ${shortRows.map(r=>band(r,COL_S)).join('')}
+    ${longRows.map(r=>band(r,COL_L)).join('')}
+  </svg>`;
+
+  const metrics=items.map(it=>{
+    const cv=toNumber(it.current), tv=it.isDual?NaN:toNumber(it.target);
+    const ok=isFinite(cv)&&isFinite(tv)&&(cv>0||tv>0);
+    const sc=(Math.max(cv,tv)*1.15)||1;
+    const bar=ok?`<div class="s6-mbar"><div class="s6-mfill" style="width:${Math.max(0,Math.min(100,cv/sc*100)).toFixed(1)}%;"></div><div class="s6-mtgt" style="left:${Math.max(0,Math.min(100,tv/sc*100)).toFixed(1)}%;"></div></div>`:'';
+    const val=it.isDual?esc(it.current):`${esc(it.current)} → ${esc(it.target)}`;
+    return `<div class="s6-mcard">
+      <div class="s6-mhead"><span class="s6-mname">${esc(it.name)}</span><span class="s6-mval">${val}</span></div>
+      ${bar}
+      ${it.note?`<div class="s6-mnote">${esc(trimDot(it.note))}</div>`:''}
+    </div>`;
+  }).join('');
+
+  return `<div class="slide">
+<div class="sl-bar"></div>
+<div class="sl-sig">すみっこマネー大学/@sumikko_money</div>
+<div class="s6-wrap">
+  <div class="s6-title">まとめ ― シナリオと監視ポイント</div>
+  <div class="s6-body">
+    <div class="s6-col">
+      <div class="s6-clabel">株価シナリオ</div>
+      <div class="s6-chart">${chart}</div>
+    </div>
+    <div class="s6-col">
+      <div class="s6-clabel">株価以外のモノサシ</div>
+      <div class="s6-metrics">${metrics}</div>
+    </div>
+  </div>
+</div>
+</div>`;
 }
 
 // ============================================================
