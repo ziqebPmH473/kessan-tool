@@ -542,7 +542,7 @@
 .s6-mnote{font-size:14px;color:#475569;line-height:1.5;}
 .s6-col-lbl{font-size:17px;font-weight:700;fill:#0f172a;}
 .s6-tick{font-size:14px;fill:#94a3b8;}
-.s6-val{font-size:14px;font-weight:700;}
+.s6-val{font-size:12px;font-weight:700;}
 .s6-leg{font-size:16px;font-weight:700;}
 .s6-now{font-size:15px;font-weight:700;fill:#0f172a;}
 
@@ -906,11 +906,14 @@ body{height:100vh;box-sizing:border-box;overflow:hidden;}
       <button class="btn-danger" onclick="clearReport()" style="flex:1;">✕ クリア</button>
     </div>
     <div class="sa-sub">▼ 出力データ作成</div>
-    <div style="font-size:10px;color:var(--text-sub);">①ソースにURL/取得データと確認済みレポートを追加 → ②実行:</div>
-    <div class="row" style="flex-wrap:nowrap;">
-      <button class="btn-sm" onclick="copyKabutanUrl(this)" style="flex:1;min-width:0;">📋 株探URL</button>
-      <button class="btn-sm" onclick="copySourceData(this)" style="flex:1;min-width:0;background:#0d9488;color:#fff;">📄 取得データ</button>
-    </div>
+    <details>
+      <summary style="font-size:11px;color:var(--text-sub);cursor:pointer;">NotebookLM用のソース（普段は不要）</summary>
+      <div style="font-size:10px;color:var(--text-sub);margin-top:4px;">①ソースにURL/取得データと確認済みレポートを追加 → ②実行:</div>
+      <div class="row" style="flex-wrap:nowrap;margin-top:4px;">
+        <button class="btn-sm" onclick="copyKabutanUrl(this)" style="flex:1;min-width:0;">📋 株探URL</button>
+        <button class="btn-sm" onclick="copySourceData(this)" style="flex:1;min-width:0;background:#0d9488;color:#fff;">📄 取得データ</button>
+      </div>
+    </details>
     <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:6px;">
       <label style="font-size:11px;color:var(--text-sub);flex:none;">モデル</label>
       <select id="gem-model" style="flex:1;min-width:0;font-size:11px;padding:4px;">
@@ -997,6 +1000,16 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
       <button class="btn-danger" onclick="clearData()">✕ クリア</button>
     </div>
     <textarea id="ta-data" placeholder="出力データ作成の結果がここに入ります（手貼りも可）" style="min-height:40px;" oninput="debouncedPrev()"></textarea>
+    <details>
+      <summary style="font-size:11px;color:var(--text-sub);cursor:pointer;">まとめスライドの目盛り（空欄=自動）</summary>
+      <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:4px;">
+        <input type="number" id="s6-axis-min" placeholder="下限" style="flex:1;min-width:0;font-size:11px;padding:4px;" oninput="debouncedPrev()">
+        <span style="font-size:11px;color:var(--text-sub);">〜</span>
+        <input type="number" id="s6-axis-max" placeholder="上限" style="flex:1;min-width:0;font-size:11px;padding:4px;" oninput="debouncedPrev()">
+        <span style="font-size:11px;color:var(--text-sub);">刻み</span>
+        <input type="number" id="s6-axis-step" placeholder="間隔" style="flex:1;min-width:0;font-size:11px;padding:4px;" oninput="debouncedPrev()">
+      </div>
+    </details>
     <button class="btn btn-full" id="dl-btn" onclick="downloadAll()">⬇ 全スライドをZIPでダウンロード</button>
   </div>
 
@@ -3155,6 +3168,7 @@ reason_4=`;
             'inp-cur-date', 'inp-cur-price', 'inp-period',
             'ta-report', 'ta-data', 'th-input',
             'gem-model', 'gem-months', 'gem-article-model',
+            's6-axis-min', 's6-axis-max', 's6-axis-step',
             'art-title', 'art-body', 'art-thumb', 'art-tags', 'art-x', 'art-raw'
         ];
         const PERSIST_RADIO_NAMES = ['sa-market', 'sa-compare-mode', 'mkt', 'dir'];
@@ -4958,26 +4972,38 @@ function buildS6(d){
   const shortRows=(st.scenarios||[]).map(r=>({label:r.label,rg:rangeOf(r)})).filter(r=>r.rg);
   const longRows=rows12.map(r=>({label:r.label,rg:rangeOf(r)})).filter(r=>r.rg);
 
+  // 目盛りの手動設定（空欄なら自動）。UIが無い場合も自動にフォールバック。
+  const axInp=id=>{const el=document.getElementById(id);const v=el?parseFloat(el.value):NaN;return isFinite(v)?v:NaN;};
+  const manMin=axInp('s6-axis-min'), manMax=axInp('s6-axis-max'), manStep=axInp('s6-axis-step');
+
   // 価格スケール（3列で共通。同じ高さ＝同じ株価）
   const all=[];if(p0)all.push(p0);
   shortRows.concat(longRows).forEach(r=>{all.push(r.rg.lo,r.rg.hi);});
   const dataMin=all.length?Math.min(...all):0, dataMax=all.length?Math.max(...all):1;
   const pad=(dataMax-dataMin)*0.12||1;
-  const vMin=Math.max(0,dataMin-pad), vMax=dataMax+pad, span=(vMax-vMin)||1;
+  let vMin=isFinite(manMin)?manMin:Math.max(0,dataMin-pad);
+  let vMax=isFinite(manMax)?manMax:dataMax+pad;
+  if(vMax<=vMin)vMax=vMin+1;
+  const span=(vMax-vMin)||1;
 
   const TOP=34, BOT=470;                       // 描画領域（SVG座標）
   const y=v=>TOP+(vMax-v)/span*(BOT-TOP);
-  const cur=v=>fmtPrice(String(Math.round(v)),info.code);
+  // 株価は通貨記号なしの数値のみ（3桁カンマ区切り）
+  const cur=v=>addComma(String(Math.round(v)));
 
-  // きりの良い目盛り（4本）
+  // きりの良い目盛り（4本）。間隔を手動指定した場合はそれに従う。
   function niceTicks(lo,hi){
-    const raw=(hi-lo)/3, ex=Math.pow(10,Math.floor(Math.log10(raw)));
-    const f=raw/ex, step=(f<1.5?1:f<3?2:f<7?5:10)*ex;
-    const out=[];for(let t=Math.ceil(lo/step)*step;t<=hi;t+=step)out.push(t);
+    let step=manStep;
+    if(!isFinite(step)||step<=0){
+      const raw=(hi-lo)/3, ex=Math.pow(10,Math.floor(Math.log10(raw)));
+      const f=raw/ex; step=(f<1.5?1:f<3?2:f<7?5:10)*ex;
+    }
+    const out=[];
+    for(let t=Math.ceil(lo/step)*step;t<=hi+1e-9;t+=step){out.push(t);if(out.length>20)break;}
     return out;
   }
 
-  const AX=132, COL_NOW=170, COL_S=250, COL_L=430, BW=120;
+  const AX=132, COL_NOW=170, COL_S=250, COL_L=430, BW=86;
   const ticks=niceTicks(vMin,vMax).map(t=>
     `<line x1="${AX}" y1="${y(t).toFixed(1)}" x2="600" y2="${y(t).toFixed(1)}" stroke="#eef2f6" stroke-width="1"/>
      <text x="${AX-8}" y="${(y(t)+5).toFixed(1)}" class="s6-tick" text-anchor="end">${cur(t)}</text>`).join('');
@@ -4986,9 +5012,13 @@ function buildS6(d){
   const TEXT={bear:'#7f1d1d',base:'#334155',bull:'#0c447c'};
   const band=(r,x)=>{
     const k=lc(r.label), yh=y(r.rg.hi), yl=y(r.rg.lo), h=Math.max(6,yl-yh);
-    return `<rect x="${x}" y="${yh.toFixed(1)}" width="${BW}" height="${h.toFixed(1)}" rx="4" fill="${FILL[k]}"/>
-      <text x="${x+BW+8}" y="${(yh+11).toFixed(1)}" class="s6-val" fill="${TEXT[k]}">${cur(r.rg.hi)}</text>
-      <text x="${x+BW+8}" y="${(yl-2).toFixed(1)}" class="s6-val" fill="${TEXT[k]}">${cur(r.rg.lo)}</text>`;
+    const rect=`<rect x="${x}" y="${yh.toFixed(1)}" width="${BW}" height="${h.toFixed(1)}" rx="4" fill="${FILL[k]}"/>`;
+    const tx=x+BW+7;
+    // 帯が薄いと上下2つの数値が重なるため、その場合は1行にまとめて中央へ置く
+    if(h<26) return rect+`<text x="${tx}" y="${(yh+h/2+4).toFixed(1)}" class="s6-val" fill="${TEXT[k]}">${cur(r.rg.lo)}〜${cur(r.rg.hi)}</text>`;
+    return rect+
+      `<text x="${tx}" y="${(yh+10).toFixed(1)}" class="s6-val" fill="${TEXT[k]}">${cur(r.rg.hi)}</text>
+       <text x="${tx}" y="${(yl-2).toFixed(1)}" class="s6-val" fill="${TEXT[k]}">${cur(r.rg.lo)}</text>`;
   };
 
   const legend=['強気','ベース','弱気'].map((lb,i)=>{
