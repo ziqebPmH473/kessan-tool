@@ -539,7 +539,6 @@
 .s6-mbar{position:relative;height:8px;background:#f1f5f9;border-radius:4px;margin:7px 0;}
 .s6-mfill{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:linear-gradient(90deg,#2563eb,#0284c7);}
 .s6-mtgt{position:absolute;top:-3px;bottom:-3px;width:3px;background:#d97706;border-radius:1px;transform:translateX(-50%);}
-.s6-mnote{font-size:14px;color:#475569;line-height:1.5;}
 .s6-col-lbl{font-size:17px;font-weight:700;fill:#0f172a;}
 .s6-tick{font-size:14px;fill:#94a3b8;}
 .s6-val{font-size:12px;font-weight:700;}
@@ -4962,7 +4961,7 @@ function buildAll(d){
 function buildS6(d){
   const st=parseShortTerm(d);
   const rows12=parse12m(d);
-  const items=parseTurning(d).slice(0,4);
+  const items=parseTurning(d);
   const info=parseBankyo(d);
   const isUp=String(st.direction).includes('上昇');
   const p0=parseFloat(String(st.p0).replace(/,/g,''))||0;
@@ -5051,7 +5050,6 @@ function buildS6(d){
     return `<div class="s6-mcard">
       <div class="s6-mhead"><span class="s6-mname">${esc(it.name)}</span><span class="s6-mval">${val}</span></div>
       ${bar}
-      ${it.note?`<div class="s6-mnote">${esc(trimDot(it.note))}</div>`:''}
     </div>`;
   }).join('');
 
