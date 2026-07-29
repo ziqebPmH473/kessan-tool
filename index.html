@@ -3247,6 +3247,11 @@ reason_4=`;
                 .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
             const ah = document.getElementById('p-post-after-hours'); if (ah) ah.checked = true;  // 決算は既定ON
             window._earnFetched = null;
+            // 添付した決算資料PDFも解除（IndexedDBの保存分も更新）
+            window._earnFiles = [];
+            renderEarnFiles();
+            persistEarnFiles();
+            const fi = document.getElementById('gem-earn-files'); if (fi) fi.value = '';
             // 決算日を今日に戻し、決算前後の日付を再設定（setupDateSync の連動を利用）
             const p = document.getElementById('p-date');
             if (p) { const t = new Date(); p.value = t.toISOString().split('T')[0]; p.dispatchEvent(new Event('change')); }
