@@ -19,6 +19,14 @@ function cellText(c) {
     .trim();
 }
 
+// 全角英数字・記号を半角へ（例: "ＳＣＲＥＥＮホールディングス" → "SCREENホールディングス"）
+function toHalfWidth(s) {
+  return String(s || "")
+    .replace(/[！-～]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+    .replace(/　/g, " ")
+    .trim();
+}
+
 // 数値と単位の間の空白を詰める（例: "132 倍" → "132倍"）
 function tightUnit(s) {
   return String(s || "").replace(/(\d)\s+(倍|%|％|円|株|億円|兆円|万円|ドル)/g, "$1$2");
@@ -43,11 +51,24 @@ async function fetchHtml(url) {
 // --- 株探トップページ（/stock/?code=）：会社名・PER・PBR・利回り・時価総額 ---
 function parseTopPage(html) {
   const out = {};
-  // 会社名（stockinfo_i1 の h2、コード span を除去）
-  const nameM = html.match(/id="stockinfo_i1"[\s\S]*?<h2>([\s\S]*?)<\/h2>/);
-  if (nameM) {
-    // 先頭のコード数字（例: 3778）を除去して会社名だけ残す
-    out.name = cellText(nameM[1]).replace(/^\d{3,4}[A-Za-z]?\s*/, "").trim();
+  // 会社名は <title> から取る。h2（stockinfo_i1）は株探独自の短縮名
+  // （例: 7735 → "スクリン"）なので正式名にならない。
+  // title 例: "ＳＣＲＥＥＮホールディングス（スクリン）【7735】株の基本情報｜株探（かぶたん）"
+  //           "ＮＴＴ【9432】…"（よみ無しの銘柄もある）
+  const titleM = html.match(/<title>([\s\S]*?)<\/title>/);
+  if (titleM) {
+    const full = cellText(titleM[1]).split("【")[0]       // 【コード】より前が社名＋よみ
+      .replace(/（[^（）]*）\s*$/, "")                    // 末尾のよみ（カタカナ）を除去
+      .trim();
+    if (full) out.name = toHalfWidth(full);
+  }
+  // フォールバック：title が取れない場合は h2（短縮名）
+  if (!out.name) {
+    const nameM = html.match(/id="stockinfo_i1"[\s\S]*?<h2>([\s\S]*?)<\/h2>/);
+    if (nameM) {
+      // 先頭のコード数字（例: 3778）を除去して会社名だけ残す
+      out.name = cellText(nameM[1]).replace(/^\d{3,4}[A-Za-z]?\s*/, "").trim();
+    }
   }
   // stockinfo_i3：thead=PER/PBR/利回り/信用倍率、tbody 先頭行に各値
   const i3 = html.match(/id="stockinfo_i3"([\s\S]*?)<\/div>/);
