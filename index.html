@@ -1489,9 +1489,9 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
                 return;
             }
             if(market === 'jp') {
-                window.open(`https://kabutan.jp/stock/kabuka?code=${code}`, '_blank');
+                window.open(`https://kabutan.jp/stock/chart?code=${code}`, '_blank');
             } else {
-                window.open(`https://us.kabutan.jp/stocks/${code}/historical_prices/daily/`, '_blank');
+                window.open(`https://us.kabutan.jp/stocks/${code}/chart`, '_blank');
             }
         }
 
@@ -3264,9 +3264,9 @@ reason_4=`;
             const market = getSaMarket();
             if (!code) { alert('証券コードを入力してください'); return; }
             if (market === 'jp') {
-                window.open(`https://kabutan.jp/stock/kabuka?code=${code}`, '_blank');
+                window.open(`https://kabutan.jp/stock/chart?code=${code}`, '_blank');
             } else {
-                window.open(`https://us.kabutan.jp/stocks/${code}/historical_prices/daily/`, '_blank');
+                window.open(`https://us.kabutan.jp/stocks/${code}/chart`, '_blank');
             }
         }
 
@@ -4526,7 +4526,7 @@ function copyReport(btn){
 }
 function clearReport(){document.getElementById('ta-report').value='';}
 function clearData(){document.getElementById('ta-data').value='';document.getElementById('prev-area').innerHTML='';}
-function saOpenKabutan(){const c=getTicker(),m=getMkt();if(!c){alert('コードを入力してください');return;}window.open(m==='jp'?`https://kabutan.jp/stock/kabuka?code=${c}`:`https://us.kabutan.jp/stocks/${c}/`,'_blank');}
+function saOpenKabutan(){const c=getTicker(),m=getMkt();if(!c){alert('コードを入力してください');return;}window.open(m==='jp'?`https://kabutan.jp/stock/chart?code=${c}`:`https://us.kabutan.jp/stocks/${c}/chart`,'_blank');}
 function saOpenIR(){const n=getName()||getTicker();if(!n){alert('銘柄名またはコードを入力してください');return;}window.open(`https://www.google.com/search?q=${encodeURIComponent(n+' IR情報')}`,'_blank');}
 
 // ============================================================
