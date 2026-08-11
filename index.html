@@ -497,9 +497,9 @@
 .s4-title{font-size:36px;font-weight:900;color:#0f172a;flex-shrink:0;}
 .s4-items{display:flex;flex-direction:column;gap:10px;}
 .s4-item{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 18px;border-left:3px solid #2563eb;}
-.s4-item-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;}
-.s4-iname{font-size:20px;font-weight:700;color:#1e293b;}
-.s4-ivals{font-size:17px;color:#475569;}
+.s4-item-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;gap:16px;}
+.s4-iname{font-size:20px;font-weight:700;color:#1e293b;flex:0 1 auto;min-width:0;}
+.s4-ivals{font-size:17px;color:#475569;white-space:nowrap;flex:0 0 auto;}
 .s4-icur{color:#0f172a;font-weight:700;}
 .s4-itgt{color:#2563eb;font-weight:700;}
 .s4-gauge-bg{height:9px;background:#f1f5f9;border-radius:4px;position:relative;}
@@ -533,9 +533,14 @@
 .s6-chart{flex:1;min-height:0;}
 .s6-metrics{flex:1;display:flex;flex-direction:column;gap:10px;min-height:0;}
 .s6-mcard{flex:1;display:flex;flex-direction:column;justify-content:center;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 16px;border-left:3px solid #2563eb;}
-.s6-mhead{display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
-.s6-mname{font-size:18px;font-weight:700;color:#1e293b;}
-.s6-mval{font-size:15px;color:#475569;font-weight:700;white-space:nowrap;}
+.s6-mhead{display:flex;justify-content:space-between;align-items:baseline;gap:8px;min-width:0;}
+.s6-mname{font-size:18px;font-weight:700;color:#1e293b;flex:1 1 auto;min-width:0;}
+.s6-mval{font-size:15px;color:#475569;font-weight:700;white-space:nowrap;flex:0 0 auto;}
+/* 指標名や目安が長い場合は1行に押し込まず、名前→目安の2段に切り替える
+   （nowrapの値に幅を取られて名前が縦組みに潰れるのを防ぐ） */
+.s6-mhead.stack{flex-direction:column;align-items:flex-start;gap:2px;}
+.s6-mhead.stack .s6-mname{font-size:17px;line-height:1.3;}
+.s6-mhead.stack .s6-mval{white-space:normal;font-size:14px;line-height:1.35;}
 .s6-mbar{position:relative;height:8px;background:#f1f5f9;border-radius:4px;margin:7px 0;}
 .s6-mfill{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:linear-gradient(90deg,#2563eb,#0284c7);}
 .s6-mtgt{position:absolute;top:-3px;bottom:-3px;width:3px;background:#d97706;border-radius:1px;transform:translateX(-50%);}
@@ -4862,6 +4867,22 @@ function buildS4(d){
   // 値の表示崩れ防止：想定外に長い値は切り詰めて表示（元データはnote等で追える）
   const clampVal=s=>{s=String(s);return s.length>18?s.slice(0,17)+'…':s;};
 
+  // 見出し行（指標名＋現在/目安）は、指標名の右に空きがある限り切り詰めない。
+  // 全角=1・半角=0.55 として文字幅を概算し、はみ出す分だけ長い方から削る。
+  const HEAD_W=1280-72*2-18*2-16;   // スライド幅 - s4-wrap左右余白 - s4-item左右余白 - 名前と値の間隔
+  const tw=(s,fs)=>[...String(s)].reduce((a,c)=>a+(/[ -~｡-ﾟ]/.test(c)?0.55:1),0)*fs;
+  function fitVals(name,cur,tgt){
+    const avail=HEAD_W-tw(name,20);
+    const fixed=tw(tgt==null?'現在 ':'現在  → 目安 ',17);
+    let c=String(cur==null?'':cur), t=String(tgt==null?'':tgt), cCut=false, tCut=false;
+    const over=()=>tw(c,17)+tw(t,17)+fixed>avail;
+    for(let i=0;i<400&&over();i++){
+      if(tw(c,17)>tw(t,17)){ if([...c].length<=6)break; c=c.slice(0,-1); cCut=true; }
+      else { if([...t].length<=6)break; t=t.slice(0,-1); tCut=true; }
+    }
+    return {cur:cCut?c+'…':c, tgt:tCut?t+'…':t};
+  }
+
   // Dynamic item height based on count
   const mbPx=n>=6?6:8;
 
@@ -4870,7 +4891,7 @@ function buildS4(d){
       return `<div class="s4-item" style="margin-bottom:${mbPx}px;">
         <div class="s4-item-head">
           <div class="s4-iname">${esc(item.name)}</div>
-          <div class="s4-ivals">現在 <span class="s4-icur">${esc(clampVal(item.current))}</span></div>
+          <div class="s4-ivals">現在 <span class="s4-icur">${esc(fitVals(item.name,item.current,null).cur)}</span></div>
         </div>
         <div class="s4-dual">
           <div class="s4-dual-pos">↑ ${esc(item.posSignal)}</div>
@@ -4899,7 +4920,7 @@ function buildS4(d){
     return `<div class="s4-item" style="margin-bottom:${mbPx}px;">
       <div class="s4-item-head">
         <div class="s4-iname">${esc(item.name)}</div>
-        ${num?`<div class="s4-ivals">現在 <span class="s4-icur">${esc(clampVal(item.current))}</span> → 目安 <span class="s4-itgt">${esc(clampVal(item.target))}</span></div>`:''}
+        ${num?(()=>{const f=fitVals(item.name,item.current,item.target);return `<div class="s4-ivals">現在 <span class="s4-icur">${esc(f.cur)}</span> → 目安 <span class="s4-itgt">${esc(f.tgt)}</span></div>`;})():''}
       </div>
       ${visual}
       ${item.note?`<div class="s4-inote">${esc(item.note)}</div>`:''}
@@ -5002,6 +5023,8 @@ function buildS6(d){
   const pad=(dataMax-dataMin)*0.12||1;
   let vMin=isFinite(manMin)?manMin:Math.max(0,dataMin-pad);
   let vMax=isFinite(manMax)?manMax:dataMax+pad;
+  // 手動指定でも、短期の下値/上値と12か月後の目標株価は必ず両方が収まるようにする
+  if(all.length){ vMin=Math.min(vMin,dataMin); vMax=Math.max(vMax,dataMax); }
   if(vMax<=vMin)vMax=vMin+1;
   const span=(vMax-vMin)||1;
 
@@ -5010,15 +5033,19 @@ function buildS6(d){
   // 株価は通貨記号なしの数値のみ（3桁カンマ区切り）
   const cur=v=>addComma(String(Math.round(v)));
 
-  // きりの良い目盛り（4本）。間隔を手動指定した場合はそれに従う。
+  // きりの良い目盛り（5本前後）。間隔を手動指定した場合はそれに従う。
+  // ただし刻みが細かすぎると軸の下半分（下値レンジ）だけで目盛りが打ち止めになるため、
+  // 目盛り数が多くなりすぎる手動指定は無視して自動計算に戻す。
+  const MAX_TICKS=10;
   function niceTicks(lo,hi){
-    let step=manStep;
-    if(!isFinite(step)||step<=0){
-      const raw=(hi-lo)/3, ex=Math.pow(10,Math.floor(Math.log10(raw)));
+    let step=isFinite(manStep)&&manStep>0?manStep:0;
+    if(step&&(hi-lo)/step>MAX_TICKS)step=0;
+    if(!step){
+      const raw=(hi-lo)/4, ex=Math.pow(10,Math.floor(Math.log10(raw)));
       const f=raw/ex; step=(f<1.5?1:f<3?2:f<7?5:10)*ex;
     }
     const out=[];
-    for(let t=Math.ceil(lo/step)*step;t<=hi+1e-9;t+=step){out.push(t);if(out.length>20)break;}
+    for(let t=Math.ceil(lo/step)*step;t<=hi+1e-9;t+=step)out.push(t);
     return out;
   }
 
@@ -5066,9 +5093,13 @@ function buildS6(d){
     const ok=isFinite(cv)&&isFinite(tv)&&(cv>0||tv>0);
     const sc=(Math.max(cv,tv)*1.15)||1;
     const bar=ok?`<div class="s6-mbar"><div class="s6-mfill" style="width:${Math.max(0,Math.min(100,cv/sc*100)).toFixed(1)}%;"></div><div class="s6-mtgt" style="left:${Math.max(0,Math.min(100,tv/sc*100)).toFixed(1)}%;"></div></div>`:'';
+    const rawVal=it.isDual?String(it.current||''):`${it.current||''} → ${it.target||''}`;
     const val=it.isDual?esc(it.current):`${esc(it.current)} → ${esc(it.target)}`;
+    // 全角=1・半角=0.55 として概算幅を出し、1行に収まらないものは2段組みにする
+    const w=s=>[...String(s)].reduce((a,c)=>a+(/[ -~｡-ﾟ]/.test(c)?0.55:1),0);
+    const stack=(w(rawVal)>=17||w(it.name)*18+w(rawVal)*13+24>620)?' stack':'';
     return `<div class="s6-mcard">
-      <div class="s6-mhead"><span class="s6-mname">${esc(it.name)}</span><span class="s6-mval">${val}</span></div>
+      <div class="s6-mhead${stack}"><span class="s6-mname">${esc(it.name)}</span><span class="s6-mval">${val}</span></div>
       ${bar}
     </div>`;
   }).join('');
