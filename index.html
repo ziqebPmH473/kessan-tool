@@ -3176,24 +3176,30 @@ reason_4=`;
         const PERSIST_RADIO_NAMES = ['sa-market', 'sa-compare-mode', 'mkt', 'dir'];
 
         let _saveTimer = null;
+        function saveStateNow() {
+            try {
+                const state = { fields: {}, radios: {}, fetched: window._saFetched || null, earnFetched: window._earnFetched || null, priceFetched: window._fetched || null };
+                PERSIST_IDS.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (!el) return;
+                    state.fields[id] = (el.type === 'checkbox') ? el.checked : el.value;
+                });
+                PERSIST_RADIO_NAMES.forEach(name => {
+                    const els = document.getElementsByName(name);
+                    for (let r of els) { if (r.checked) { state.radios[name] = r.value; break; } }
+                });
+                localStorage.setItem(SA_STORAGE_KEY, JSON.stringify(state));
+            } catch (e) { /* localStorage不可でも動作継続 */ }
+        }
         function saveState() {
             if (_saveTimer) clearTimeout(_saveTimer);
-            _saveTimer = setTimeout(() => {
-                try {
-                    const state = { fields: {}, radios: {}, fetched: window._saFetched || null, earnFetched: window._earnFetched || null, priceFetched: window._fetched || null };
-                    PERSIST_IDS.forEach(id => {
-                        const el = document.getElementById(id);
-                        if (!el) return;
-                        state.fields[id] = (el.type === 'checkbox') ? el.checked : el.value;
-                    });
-                    PERSIST_RADIO_NAMES.forEach(name => {
-                        const els = document.getElementsByName(name);
-                        for (let r of els) { if (r.checked) { state.radios[name] = r.value; break; } }
-                    });
-                    localStorage.setItem(SA_STORAGE_KEY, JSON.stringify(state));
-                } catch (e) { /* localStorage不可でも動作継続 */ }
-            }, 300);
+            _saveTimer = setTimeout(saveStateNow, 300);
         }
+        // 生成結果や貼り付けなど、JSから値を入れた箇所は input イベントが飛ばないため
+        // 保存されないまま離脱すると内容が消える。離脱直前に必ず現在値を書き出す。
+        window.addEventListener('beforeunload', saveStateNow);
+        window.addEventListener('pagehide', saveStateNow);
+        document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveStateNow(); });
 
         function restoreState() {
             let state;
@@ -4296,6 +4302,8 @@ async function geminiArticle(btnEl){
   document.getElementById('art-tags').value=p.hashtags;
   document.getElementById('art-x').value=fixBoldBrackets(p.xpost);
   document.getElementById('art-raw').value=r.text;
+  // 値をJSで入れた場合は input イベントが飛ばず保存されないため、明示的に保存する
+  if(typeof saveState==='function')saveState();
   const missing=[!p.title&&'タイトル',!p.body&&'本文',!p.xpost&&'X投稿文'].filter(Boolean);
   setArtStatus(`生成完了（${r.model||'gemini'}${r.fellBack?'・降格':''}${saTokenNote(r.usage)}）${missing.length?' ※'+missing.join('・')+'は全文から確認':''}`,missing.length?'info':'ok');
 }
@@ -5120,8 +5128,11 @@ function buildS6(d){
 // CHART (light theme)
 // ============================================================
 function saDrawChart(canvas,lines){
-  const cW=canvas.offsetWidth>0?canvas.offsetWidth:(canvas.getBoundingClientRect().width||390);
-  const cH=canvas.offsetHeight>0?canvas.offsetHeight:(canvas.getBoundingClientRect().height||320);
+  // 非表示中などで実寸が取れない場合は親要素の実寸を使う（390×320で描いて
+  // CSSで引き伸ばされ、チャートが横に伸びて崩れるのを防ぐ）
+  const par=canvas.parentElement;
+  const cW=canvas.offsetWidth||(par&&par.clientWidth)||390;
+  const cH=canvas.offsetHeight||(par&&par.clientHeight)||320;
   canvas.width=cW*2;canvas.height=cH*2;
   canvas.style.width=cW+'px';canvas.style.height=cH+'px';
   const ctx=canvas.getContext('2d');
@@ -5146,9 +5157,11 @@ function saDrawChart(canvas,lines){
     ctx.fillText('チャートデータなし',cW/2,cH/2);return;
   }
 
-  const pL=6,pR=52,pT=14;
-  const volH=Math.round(cH*0.18);
-  const pB=volH+18;
+  // 左右上下の余白（左は月ラベルが見切れないぶんを確保、下は出来高バーがカード下辺に
+  // べったり付かないぶんを確保）
+  const pL=14,pR=54,pT=14,pBM=5;
+  const volH=Math.round(cH*0.16);
+  const pB=volH+16+pBM;
   const cw=cW-pL-pR,ch=cH-pT-pB;
 
   // Y軸: 実データ範囲に12%余白を加え、きりの良い目盛り値を計算
@@ -5185,6 +5198,7 @@ function saDrawChart(canvas,lines){
   });
 
   // X軸ラベル: 月が変わる最初の週にだけ「N月」を表示（同じ月の重複表示を避ける）
+  // 端のラベルは中央揃えのままだと左右にはみ出して見切れるため、描画位置を内側に寄せる
   const sX=cw/data.length;
   ctx.fillStyle='#94a3b8';ctx.font='10px Arial';ctx.textAlign='center';ctx.textBaseline='top';
   let prevMoKey=null;
@@ -5192,24 +5206,29 @@ function saDrawChart(canvas,lines){
     const key=d.yr*100+d.mo;
     if(key===prevMoKey)return;   // 同じ月はスキップ
     prevMoKey=key;
-    ctx.fillText(`${d.mo}月`,pL+i*sX+sX/2,pT+ch+4);
+    const label=`${d.mo}月`;
+    const half=ctx.measureText(label).width/2+1;
+    const lx=Math.min(Math.max(pL+i*sX+sX/2,half),cW-half);
+    ctx.fillText(label,lx,pT+ch+4);
   });
 
+  // ローソク／出来高はデバイスピクセル境界に合わせて描き、線幅のばらつきをなくす
+  const snap=v=>Math.round(v*2)/2;
   data.forEach((d,i)=>{
-    const cx=pL+i*sX+sX/2;
+    const cx=snap(pL+i*sX+sX/2);
     const yH=pT+ch-(d.high-minP)*scY,yL=pT+ch-(d.low-minP)*scY;
     const yO=pT+ch-(d.open-minP)*scY,yC=pT+ch-(d.close-minP)*scY;
     const isUp=d.close>=d.open;
     const col=isUp?'#dc2626':'#2563eb';
-    const bW=Math.max(1,sX*0.6);
+    const bW=Math.max(0.5,snap(sX*0.6));
     ctx.beginPath();ctx.moveTo(cx,yH);ctx.lineTo(cx,yL);
-    ctx.strokeStyle=col;ctx.lineWidth=Math.max(0.7,sX*0.1);ctx.stroke();
+    ctx.strokeStyle=col;ctx.lineWidth=Math.max(0.5,snap(sX*0.14));ctx.stroke();
     ctx.fillStyle=col;
     ctx.fillRect(cx-bW/2,Math.min(yO,yC),bW,Math.max(1,Math.abs(yC-yO)));
     if(maxV>0){
       const vH=(d.vol/maxV)*volH*0.85;
       ctx.fillStyle=isUp?'rgba(220,38,38,0.35)':'rgba(37,99,235,0.35)';
-      ctx.fillRect(cx-bW/2,cH-pB+pB-vH,bW,vH);
+      ctx.fillRect(cx-bW/2,cH-pBM-vH,bW,vH);
     }
   });
 }
@@ -5254,7 +5273,13 @@ function renderPrev(){
     area.appendChild(wrap);
     setTimeout(()=>{
       const cv=inner.querySelector('canvas[data-chart]');
-      if(cv)saDrawChart(cv,cv.dataset.chart.split(';').filter(Boolean));
+      if(!cv)return;
+      // レイアウト確定前（幅0）に描くと縮尺が狂うため、実寸が取れるまで数回待つ
+      let tries=0;
+      (function draw(){
+        if(!cv.offsetWidth&&tries++<10)return setTimeout(draw,150);
+        saDrawChart(cv,cv.dataset.chart.split(';').filter(Boolean));
+      })();
     },60);
   });
 }
