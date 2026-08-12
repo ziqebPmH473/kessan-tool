@@ -5423,8 +5423,22 @@ function parseThumbnailMarkup(text){
   if(last<text.length)segs.push({text:text.slice(last),color:null});
   return segs;
 }
-function thumbCharW(segs){return segs.reduce((a,s)=>a+[...s.text].reduce((b,c)=>b+(c.charCodeAt(0)>255?2:1),0),0);}
-function thumbFs(cw,base,px){if(!cw)return base;const u=SLIDE_W-(px??THUMB.paddingX)*2;return Math.max(40,Math.min(base,Math.floor(2*u/cw)));}
+// 実測ベースの文字幅計算（全角=1em/半角=0.5emの概算だと半角がはみ出すため）
+const THUMB_FF=`'Noto Sans JP',sans-serif`;
+let _thMeasureCtx=null;
+// 指定ウェイトでの文字列幅を em 単位（font-size=1px 相当）で返す
+function thumbTextEm(text,weight){
+  if(!text)return 0;
+  if(!_thMeasureCtx)_thMeasureCtx=document.createElement('canvas').getContext('2d');
+  _thMeasureCtx.font=`${weight} 100px ${THUMB_FF}`;
+  return _thMeasureCtx.measureText(text).width/100;
+}
+function thumbFs(segs,base,px,weight){
+  const em=thumbTextEm(segs.map(s=>s.text).join(''),weight);
+  if(!em)return base;
+  const u=SLIDE_W-(px??THUMB.paddingX)*2;
+  return Math.max(40,Math.min(base,Math.floor(u/em)));
+}
 function hexRgba(hex,a){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return `rgba(${r},${g},${b},${a})`;}
 function segsHtml(segs,def){
   const sh=`${THUMB.shadowX}px ${THUMB.shadowY}px 0px ${hexRgba(THUMB.shadowColor,THUMB.shadowAlpha)}`;
@@ -5436,10 +5450,10 @@ function buildThumbSlide(text){
   const tS=parseThumbnailMarkup(parts[0]||'');
   const mS=parseThumbnailMarkup(parts[1]||'');
   const bS=parseThumbnailMarkup(parts[2]||'');
-  const tF=thumbFs(thumbCharW(tS),THUMB.fontTopBot,THUMB.paddingX);
-  const mF=thumbFs(thumbCharW(mS),THUMB.fontMid,THUMB.paddingXMid);
-  const bF=thumbFs(thumbCharW(bS),THUMB.fontTopBot,THUMB.paddingX);
-  const ff=`'Noto Sans JP',sans-serif`;
+  const tF=thumbFs(tS,THUMB.fontTopBot,THUMB.paddingX,THUMB.fontWeightTop);
+  const mF=thumbFs(mS,THUMB.fontMid,THUMB.paddingXMid,THUMB.fontWeightMid);
+  const bF=thumbFs(bS,THUMB.fontTopBot,THUMB.paddingX,THUMB.fontWeightBot);
+  const ff=THUMB_FF;
   const bgL=thBgUrl
     ?`<div style="position:absolute;inset:0;z-index:1;background-image:url('${thBgUrl}');background-size:cover;background-position:center;opacity:${THUMB.bgOpacity};transform:scale(${THUMB.bgScale/100});transform-origin:center;"></div>`
     :'';
