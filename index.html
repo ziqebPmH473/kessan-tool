@@ -21,6 +21,8 @@
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #e5e7eb; margin: 0; padding: 20px; display: flex; gap: 20px; }
         
         .control-panel { width: 380px; display: flex; flex-direction: column; gap: 12px; flex-shrink: 0; }
+        /* バージョン表示：body の上余白(20px)内に絶対配置。レイアウトには影響しない */
+        #app-version { position: absolute; top: 5px; left: 20px; font-size: 10px; line-height: 1; color: #94a3b8; letter-spacing: 0.02em; user-select: text; }
         
         .tool-section { background: #f8fafc; padding: 9px 13px; border-radius: 8px; border: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .section-heading { font-size: 14px; font-weight: bold; color: var(--text-main); margin-bottom: 0; border-bottom: 2px solid var(--accent); padding-bottom: 4px; display: inline-block; }
@@ -592,6 +594,9 @@ body{height:100vh;box-sizing:border-box;overflow:hidden;}
     </style>
 </head>
 <body>
+
+    <!-- デプロイ時に GitHub Actions が push 日時(JST)へ自動で書き換える -->
+    <div id="app-version" title="最終デプロイ日時（JST）">v20260812-1735</div>
 
     <div class="control-panel">
 

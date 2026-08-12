@@ -22,6 +22,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+      # 画面左上のバージョン表示を push 日時(JST)に書き換える
+      - name: Stamp version
+        run: |
+          V="v$(TZ=Asia/Tokyo date +%Y%m%d-%H%M)"
+          sed -i -E "s|(<div id=\"app-version\"[^>]*>)[^<]*|\1${V}|" index.html
+          echo "stamped: ${V}"
+          grep -o '<div id="app-version"[^<]*' index.html
+
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
