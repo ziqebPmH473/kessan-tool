@@ -924,7 +924,8 @@ body{height:100vh;box-sizing:border-box;overflow:hidden;}
     <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:6px;">
       <label style="font-size:11px;color:var(--text-sub);flex:none;">モデル</label>
       <select id="gem-model" style="flex:1;min-width:0;font-size:11px;padding:4px;">
-        <option value="" >自動（上位から上限で自動降格）</option>
+        <option value="" >自動・Lite優先（500回/日枠から降格）</option>
+        <option value="auto-high">自動・高モデル優先（3.6 Flashから降格）</option>
         <option value="gemini-3.6-flash">Gemini 3.6 Flash（20回/日）</option>
         <option value="gemini-3.5-flash">Gemini 3.5 Flash（20回/日）</option>
         <option value="gemini-3-flash-preview">Gemini 3 Flash（20回/日）</option>
@@ -4218,7 +4219,10 @@ async function geminiFormatStock(btnEl){
     {label:'株探 取得データ',text:src},
     {label:'分析レポート（ファクトチェック済み）',text:report}
   ];
-  const ov=(document.getElementById('gem-model')||{}).value||'';
+  // 「自動・高モデル優先」は override なしの high クラス（3.6 Flash 起点のチェーン）として扱う
+  const sel=(document.getElementById('gem-model')||{}).value||'';
+  const autoHigh=sel==='auto-high';
+  const ov=autoHigh?'':sel;
   // チャート期間を指定している場合、ルール3の「約1年分52本」を上書きし、
   // 渡した期間ぶんの週足を欠かさず出力させる（データと画像の期間を一致させる）
   const months=parseInt((document.getElementById('gem-months')||{}).value,10);
@@ -4231,7 +4235,7 @@ async function geminiFormatStock(btnEl){
   const o=btnEl?btnEl.textContent:'';
   if(btnEl){btnEl.disabled=true;btnEl.textContent='整形中…';}
   saSetGemStatus('Geminiで整形中…','info');
-  const r=await saCallGeminiAnalyze(NB_PROMPT+chartOverride+SA_GROUNDING_RULE,resources,{cls:'low',temperature:0.2,modelOverride:ov});
+  const r=await saCallGeminiAnalyze(NB_PROMPT+chartOverride+SA_GROUNDING_RULE,resources,{cls:autoHigh?'high':'low',temperature:0.2,modelOverride:ov});
   if(btnEl){btnEl.disabled=false;btnEl.textContent=o;}
   if(!r.ok){saSetGemStatus('エラー: '+r.error,'error');return;}
   document.getElementById('ta-data').value=r.text;
