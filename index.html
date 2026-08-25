@@ -1051,6 +1051,8 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
     <textarea id="art-tags" placeholder="生成後にハッシュタグが入ります" rows="2" style="height:46px;min-height:46px;"></textarea>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">X投稿文</label><button class="btn-sm" onclick="copyText(document.getElementById('art-x').value,this)">📋 コピー</button></div>
     <textarea id="art-x" placeholder="生成後にX投稿文が入ります" style="min-height:50px;"></textarea>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">証券管理ツール貼付け用</label><button class="btn-sm" onclick="copyText(document.getElementById('art-sec').value,this)">📋 コピー</button></div>
+    <textarea id="art-sec" placeholder="生成後に証券管理ツール貼付け用データ（Markdown表）が入ります" style="min-height:56px;font-family:monospace;font-size:10px;white-space:pre;"></textarea>
     <details style="margin-top:6px;"><summary style="font-size:10px;color:var(--text-sub);cursor:pointer;">生成全文（うまく分割できない時のフォールバック）</summary><textarea id="art-raw" style="min-height:80px;"></textarea></details>
   </div>
   </div><!-- /sa-tab-article -->
@@ -3177,7 +3179,7 @@ reason_4=`;
             'ta-report', 'ta-data', 'th-input',
             'gem-model', 'gem-months', 'gem-article-model',
             's6-axis-min', 's6-axis-max', 's6-axis-step',
-            'art-title', 'art-body', 'art-thumb', 'art-tags', 'art-x', 'art-raw'
+            'art-title', 'art-body', 'art-thumb', 'art-tags', 'art-x', 'art-sec', 'art-raw'
         ];
         const PERSIST_RADIO_NAMES = ['sa-market', 'sa-compare-mode', 'mkt', 'dir'];
 
@@ -4279,7 +4281,8 @@ function parseArticleOutput(text){
     {key:'gamma',     re:/【\s*Gamma[^】]*】/},
     {key:'thumbnail', re:/【\s*サムネ[^】]*】/},
     {key:'hashtags',  re:/【\s*ハッシュタグ\s*】/},
-    {key:'xpost',     re:/【\s*X[^】]*告知文\s*】/}
+    {key:'xpost',     re:/【\s*X[^】]*告知文\s*】/},
+    {key:'sectool',   re:/【\s*証券管理ツール[^】]*】/}
   ];
   const found=defs.map(d=>{const m=text.match(d.re);return m?{key:d.key,idx:m.index,end:m.index+m[0].length}:null;}).filter(Boolean);
   found.sort((a,b)=>a.idx-b.idx);
@@ -4289,7 +4292,30 @@ function parseArticleOutput(text){
     const fence=chunk.match(/```[^\n]*\n([\s\S]*?)```/);
     out[found[i].key]=(fence?fence[1]:chunk.replace(/```/g,'')).trim();
   }
-  return{title:out.title||'',body:out.body||'',thumbnail:out.thumbnail||'',hashtags:out.hashtags||'',xpost:out.xpost||''};
+  return{title:out.title||'',body:out.body||'',thumbnail:out.thumbnail||'',hashtags:out.hashtags||'',xpost:out.xpost||'',sectool:out.sectool||''};
+}
+
+// 証券管理ツール貼付け用のMarkdown表を組み立てる。
+// 見出し・レイアウト・出力形式は固定（変更不可の仕様）。Geminiには「キー:値」の
+// 7行だけを出させ、表の形はコード側で保証する。分析日は出力時のローカル日付。
+function buildSecToolTable(raw){
+  const vals={};
+  String(raw||'').split('\n').forEach(l=>{
+    const m=l.match(/^\s*(P0|短期弱気|短期ベース|短期強気|中期弱気|中期ベース|中期強気)\s*[:：]\s*(.+)$/);
+    if(m)vals[m[1]]=m[2].trim();
+  });
+  // 正規化：カンマ・空白・単位を除去し、レンジ区切りは「～」に統一
+  const range=k=>{
+    const v=(vals[k]||'').replace(/[,，\s円$]/g,'').replace(/[~〜]/g,'～');
+    const m=v.match(/([\d.]+)～([\d.]+)/);
+    return m?m[1]+'～'+m[2]:'';
+  };
+  const p0=((vals['P0']||'').replace(/[,，\s円$]/g,'').match(/[\d.]+/)||[''])[0];
+  const d=new Date();
+  const ymd=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  return '| 分析日 | 分析時株価 | 短期弱気 | 短期ベース | 短期強気 | 中期弱気 | 中期ベース | 中期強気 |\n'
+    +'| --- | --- | --- | --- | --- | --- | --- | --- |\n'
+    +'| '+ymd+' | '+p0+' | '+range('短期弱気')+' | '+range('短期ベース')+' | '+range('短期強気')+' | '+range('中期弱気')+' | '+range('中期ベース')+' | '+range('中期強気')+' |';
 }
 
 async function geminiArticle(btnEl){
@@ -4310,10 +4336,11 @@ async function geminiArticle(btnEl){
   document.getElementById('art-thumb').value=p.thumbnail;
   document.getElementById('art-tags').value=p.hashtags;
   document.getElementById('art-x').value=fixBoldBrackets(p.xpost);
+  document.getElementById('art-sec').value=buildSecToolTable(p.sectool);
   document.getElementById('art-raw').value=r.text;
   // 値をJSで入れた場合は input イベントが飛ばず保存されないため、明示的に保存する
   if(typeof saveState==='function')saveState();
-  const missing=[!p.title&&'タイトル',!p.body&&'本文',!p.xpost&&'X投稿文'].filter(Boolean);
+  const missing=[!p.title&&'タイトル',!p.body&&'本文',!p.xpost&&'X投稿文',!p.sectool&&'証券管理データ'].filter(Boolean);
   setArtStatus(`生成完了（${r.model||'gemini'}${r.fellBack?'・降格':''}${saTokenNote(r.usage)}）${missing.length?' ※'+missing.join('・')+'は全文から確認':''}`,missing.length?'info':'ok');
 }
 
@@ -5572,6 +5599,18 @@ document.fonts.ready.then(()=>{if(document.getElementById('th-input').value.trim
    - 内容：記事の核心的な「問いかけ」や「注目ポイント（ギャップ）」を基に、Xからのトラフィックを最大化する文章にする。結論（目標株価など）の記載は厳禁。冒頭は「【 #銘柄名（証券コード）｜〇ヶ月で〇％下落】」の形式で始めること
    - フォーマット：絵文字を交えつつ「空行なし（詰め）」で構成する。段落分けのための連続改行（空白行の作成）は禁止。ハッシュタグも本文直後の行に空行を挟まず配置すること。
 
+7. 【証券管理ツール用データ】：レポートから株価データを機械的に抽出し、テキスト用コードブロックで以下の7行のみを出力する（解説・注記・追加行は一切禁止）。
+   - 出力形式（各行「キー:値」。キー名は変更禁止）：
+     P0:（現在株価P0の数値のみ。カンマ・円記号・単位は付けない）
+     短期弱気:（下限～上限）
+     短期ベース:（下限～上限）
+     短期強気:（下限～上限）
+     中期弱気:（下限～上限）
+     中期ベース:（下限～上限）
+     中期強気:（下限～上限）
+   - 「短期」＝レポートの「上値余地/下値余地（3〜9か月の中間高値/安値レンジ）」の弱気・ベース・強気の株価レンジ。「中期」＝レポートの「12か月後シナリオ」の弱気・ベース・強気の株価レンジ。両者を混同しないこと。
+   - レンジは「1000～1500」の形式（半角数字、区切りは「～」、カンマ・単位・%・変化率は付けない）。レポートに片側しかない場合も「数値～数値」に整えること。
+
 【ペルソナと執筆ルール】
 1. フックの原則：タイトル・サムネ・X告知文では、難解な財務・専門用語をそのまま使わず、平易で感情に訴えかける言葉に変換してフックとすること。
 2. 情報の網羅（絶対条件）：元のレポートに記載されている「上昇/下落の要因」「競争優位性（Moat）」「中間安値/高値レンジ（下値/上値余地）とその変化率」「12か月後シナリオ」「転換点のモノサシ」「リスク」は絶対に削除せず全て網羅してください。
@@ -5617,7 +5656,7 @@ document.fonts.ready.then(()=>{if(document.getElementById('th-input').value.trim
 （※AIへの指示：動画指定がある場合のみ末尾の動画誘導テキストを出力）
 
 ---
-【システム用の出力指示（最優先・厳守）】各ブロックは必ず見出し「【タイトル】」「【本　文】」「【Gamma用スライド構成指示】」「【サムネ構成案】」「【ハッシュタグ】」「【X（旧Twitter）告知文】」を行頭に付けて出力し、その直後に内容を ``` で囲んだコードブロックで記載すること。</script>
+【システム用の出力指示（最優先・厳守）】各ブロックは必ず見出し「【タイトル】」「【本　文】」「【Gamma用スライド構成指示】」「【サムネ構成案】」「【ハッシュタグ】」「【X（旧Twitter）告知文】」「【証券管理ツール用データ】」を行頭に付けて出力し、その直後に内容を ``` で囲んだコードブロックで記載すること。</script>
 
 </body>
 </html>
