@@ -4292,7 +4292,22 @@ function parseArticleOutput(text){
     const fence=chunk.match(/```[^\n]*\n([\s\S]*?)```/);
     out[found[i].key]=(fence?fence[1]:chunk.replace(/```/g,'')).trim();
   }
-  return{title:out.title||'',body:out.body||'',thumbnail:out.thumbnail||'',hashtags:out.hashtags||'',xpost:out.xpost||'',sectool:out.sectool||''};
+  // フォールバック1：flash-lite系は「【見出し】＋コードブロック」の指示を守らず、
+  // 見出しを省略してコードブロックだけを順に出すことがある。ブロック数が定義と
+  // 一致する場合は出現順で割り当てる（見出しから取れた分は上書きしない）。
+  const order=['title','body','gamma','thumbnail','hashtags','xpost','sectool'];
+  if(order.some(k=>!out[k])){
+    const fences=[...text.matchAll(/```[^\n]*\n([\s\S]*?)```/g)].map(m=>m[1].trim());
+    if(fences.length===order.length)order.forEach((k,i)=>{if(!out[k])out[k]=fences[i];});
+  }
+  // 見出しがコードブロックの「中」に書かれることもあるため、先頭の【…】行は除去
+  order.forEach(k=>{out[k]=(out[k]||'').replace(/^【[^】\n]{1,20}】\s*\n/,'').trim();});
+  // フォールバック2：証券管理データは出力のどこにあっても「P0:〜」の7行を直接拾う
+  if(!/P0\s*[:：]/.test(out.sectool)){
+    const m=text.match(/^[ \t]*P0\s*[:：][^\n]*\n(?:[ \t]*(?:短期|中期)(?:弱気|ベース|強気)\s*[:：][^\n]*\n?){6}/m);
+    if(m)out.sectool=m[0].trim();
+  }
+  return{title:out.title,body:out.body,thumbnail:out.thumbnail,hashtags:out.hashtags,xpost:out.xpost,sectool:out.sectool};
 }
 
 // 証券管理ツール貼付け用のMarkdown表を組み立てる。
@@ -5656,7 +5671,7 @@ document.fonts.ready.then(()=>{if(document.getElementById('th-input').value.trim
 （※AIへの指示：動画指定がある場合のみ末尾の動画誘導テキストを出力）
 
 ---
-【システム用の出力指示（最優先・厳守）】各ブロックは必ず見出し「【タイトル】」「【本　文】」「【Gamma用スライド構成指示】」「【サムネ構成案】」「【ハッシュタグ】」「【X（旧Twitter）告知文】」「【証券管理ツール用データ】」を行頭に付けて出力し、その直後に内容を ``` で囲んだコードブロックで記載すること。</script>
+【システム用の出力指示（最優先・厳守）】各ブロックは必ず見出し「【タイトル】」「【本　文】」「【Gamma用スライド構成指示】」「【サムネ構成案】」「【ハッシュタグ】」「【X（旧Twitter）告知文】」「【証券管理ツール用データ】」を行頭に付けて出力し、その直後に内容を ``` で囲んだコードブロックで記載すること。見出しは絶対に省略せず、必ずコードブロックの「外」（``` の前の行）に置くこと。コードブロックだけを並べる出力は禁止。</script>
 
 </body>
 </html>
