@@ -4326,11 +4326,12 @@ function buildSecToolTable(raw){
     return m?m[1]+'～'+m[2]:'';
   };
   const p0=((vals['P0']||'').replace(/[,，\s円$]/g,'').match(/[\d.]+/)||[''])[0];
+  const code=((document.getElementById('inp-ticker')||{}).value||'').trim();
   const d=new Date();
   const ymd=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-  return '| 分析日 | 分析時株価 | 短期弱気 | 短期ベース | 短期強気 | 中期弱気 | 中期ベース | 中期強気 |\n'
-    +'| --- | --- | --- | --- | --- | --- | --- | --- |\n'
-    +'| '+ymd+' | '+p0+' | '+range('短期弱気')+' | '+range('短期ベース')+' | '+range('短期強気')+' | '+range('中期弱気')+' | '+range('中期ベース')+' | '+range('中期強気')+' |';
+  return '| 証券コード | 分析日 | 分析時株価 | 短期弱気 | 短期ベース | 短期強気 | 中期弱気 | 中期ベース | 中期強気 |\n'
+    +'| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n'
+    +'| '+code+' | '+ymd+' | '+p0+' | '+range('短期弱気')+' | '+range('短期ベース')+' | '+range('短期強気')+' | '+range('中期弱気')+' | '+range('中期ベース')+' | '+range('中期強気')+' |';
 }
 
 async function geminiArticle(btnEl){
