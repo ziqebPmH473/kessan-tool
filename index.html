@@ -5,38 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>マーケット分析 画像ジェネレーター</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script>
-    /* 画像化の共通ラッパー。PC・スマホで同じ画像を出すために毎回そろえる:
-       1) プレビューの縮小表示(zoom)を解除して実寸でレンダリングする
-       2) ページのスクロール位置を一旦 0 に戻す
-          html2canvas は「要素の書類上の座標」と「スクロール量」を突き合わせて
-          切り出す。スマホはページをスクロールして使うため、ずれると画像の端が
-          切れる。0 に固定してから撮り、撮影後に元のスクロール位置へ戻す。
-       ※ ウィンドウ幅は変更しない。複製側だけ幅を変えると、レイアウトの
-          折り返しが変わって要素の座標がずれ、やはり画像が切れるため。
-          プレビュー(1200px固定)の中身は画面幅に依存しないことを検証済み。 */
-    function captureEl(el, opts) {
-      document.body.classList.add('capturing');
-      var sx = window.pageXOffset, sy = window.pageYOffset;
-      window.scrollTo(0, 0);
-      // プレビュー枠など、途中でスクロールしている親要素も一旦先頭に戻す
-      // （複製側は常に先頭から描かれるため、ずれたまま撮ると端が切れる）
-      var scrolled = [];
-      for (var n = el.parentElement; n; n = n.parentElement) {
-        if (n.scrollLeft || n.scrollTop) {
-          scrolled.push([n, n.scrollLeft, n.scrollTop]);
-          n.scrollLeft = 0; n.scrollTop = 0;
-        }
-      }
-      var o = Object.assign({ scrollX: 0, scrollY: 0 }, opts || {});
-      return html2canvas(el, o).finally(function(){
-        document.body.classList.remove('capturing');
-        scrolled.forEach(function(e){ e[0].scrollLeft = e[1]; e[0].scrollTop = e[2]; });
-        window.scrollTo(sx, sy);
-      });
-    }
-
-    </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         :root {
@@ -50,6 +18,9 @@
             --accent: #2563eb;
         }
 
+        /* Android Chrome / iOS Safari は幅の広いブロック内の文字を自動で拡大することがあり、
+           プレビュー(幅1200px)内の文字が膨らんでレイアウトが崩れる。PC表示には影響しない。 */
+        html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #e5e7eb; margin: 0; padding: 20px; display: flex; gap: 20px; }
         
         .control-panel { width: 380px; display: flex; flex-direction: column; gap: 12px; flex-shrink: 0; }
@@ -159,8 +130,8 @@
         
         .chart-wrapper { width: 100%; height: 150px; display: flex; align-items: center; justify-content: center; background: #ffffff; border: 1px solid var(--border); border-radius: 6px;}
         #capture-area canvas, #capture-area-stock canvas { display: block; width: 100%; height: 100%; }
-        /* 万一サイズ指定が失われても枠内に収める（はみ出すと flex の中央揃えで
-           左右・上下が切り取られ、チャートの月ラベルや目盛りが欠ける） */
+        /* 保険：万一サイズ指定が外れても枠内に収める（枠は中央揃えのため、
+           はみ出すとチャートの上下左右が切り取られる） */
         #capture-area canvas, #capture-area-stock canvas,
         #canvas-container img, #sa-canvas-container img { max-width: 100%; max-height: 100%; }
 
@@ -607,7 +578,7 @@
    （元ツールと同じ挙動。3タブ共通で適用） */
 /* 画面がレイアウト幅(サイドバー380px+プレビュー1200px)より広いときだけ、
    ページ全体を固定して中身だけスクロールさせる。狭い画面（スマホ／スマホのPCモード）で
-   これを効かせるとページがスクロールできず画面外に出た部分に触れなくなるため。 */
+   これを効かせるとページ自体がスクロールできず、画面外の入力欄やボタンに触れなくなる。 */
 @media (min-width: 1620px){
   body{height:100vh;box-sizing:border-box;overflow:hidden;}
   .control-panel{overflow-y:auto;}
@@ -631,10 +602,14 @@
 .sa-subtab:hover:not(.active){background:#e2e8f0;}
 
 
+
+
+
 /* ===== モバイル対応：スマホではページ全体を縦スクロールできるようにする =====
-   PC では body を 100vh + overflow:hidden にして中身だけスクロールさせているが、
-   狭い画面（スマホ）ではその指定によりページ自体がスクロール不能になり、
-   画面外の入力欄・ボタン・出力結果に触れなくなるため、縦積みレイアウトに切り替える。 */
+   横並び(サイドバー380px+プレビュー1200px)のままでは画面に収まらないため、
+   狭い画面では縦積みにしてページをスクロールできるようにする。
+   プレビュー(#capture-area/#capture-area-stock/#capture-area-price)の中身は
+   幅1200px固定で画面幅に依存しないため、生成される画像は従来と変わらない。 */
 @media (max-width: 900px) {
   html { height: auto; }
   body {
@@ -653,10 +628,6 @@
   .prev-area, #capture-area-price .prev-area { height: auto; overflow: visible; }
   #slides-view, #thumb-view { flex: none; overflow: visible; }
 }
-/* iOS Safari が幅の広いブロック内の文字を勝手に拡大する（テキスト自動サイズ調整）と
-   プレビュー／生成画像のレイアウトがPCと変わるため無効化する */
-html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
-
 
     </style>
 </head>
@@ -2517,8 +2488,6 @@ point_2=`;
 
             const canvas = document.getElementById('myChart');
             const chartWrapper = document.getElementById('canvas-container');
-            // 撮影直前に描き直し、canvas のサイズを現在の枠に確実に合わせる
-            drawChart('canvas-container', 'myChart', window._lastChartDataEarnings || '');
             const chartDataUrl = canvas.toDataURL('image/png');
             
             canvas.style.display = 'none';
@@ -2529,14 +2498,12 @@ point_2=`;
                 chartWrapper.appendChild(tempImg);
             }
             tempImg.src = chartDataUrl;
-            // サイズ指定が空だと img が元の解像度(2倍)で表示され、枠から溢れて
-            // 中央揃えで上下左右が切れるため、実測値でフォールバックする
-            tempImg.style.width  = canvas.style.width  || (chartWrapper.clientWidth  + 'px');
-            tempImg.style.height = canvas.style.height || (chartWrapper.clientHeight + 'px');
+            tempImg.style.width = canvas.style.width;
+            tempImg.style.height = canvas.style.height;
             tempImg.style.display = 'block';
 
             setTimeout(() => {
-                captureEl(captureArea, { 
+                html2canvas(captureArea, { 
                     scale: 2, 
                     useCORS: true,
                     backgroundColor: "#ffffff",
@@ -2580,8 +2547,6 @@ point_2=`;
 
             const canvas = document.getElementById('myChart');
             const chartWrapper = document.getElementById('canvas-container');
-            // 撮影直前に描き直し、canvas のサイズを現在の枠に確実に合わせる
-            drawChart('canvas-container', 'myChart', window._lastChartDataEarnings || '');
             const chartDataUrl = canvas.toDataURL('image/png');
 
             canvas.style.display = 'none';
@@ -2592,14 +2557,12 @@ point_2=`;
                 chartWrapper.appendChild(tempImg);
             }
             tempImg.src = chartDataUrl;
-            // サイズ指定が空だと img が元の解像度(2倍)で表示され、枠から溢れて
-            // 中央揃えで上下左右が切れるため、実測値でフォールバックする
-            tempImg.style.width  = canvas.style.width  || (chartWrapper.clientWidth  + 'px');
-            tempImg.style.height = canvas.style.height || (chartWrapper.clientHeight + 'px');
+            tempImg.style.width = canvas.style.width;
+            tempImg.style.height = canvas.style.height;
             tempImg.style.display = 'block';
 
             setTimeout(() => {
-                captureEl(captureArea, {
+                html2canvas(captureArea, {
                     scale: 2,
                     useCORS: true,
                     backgroundColor: "#ffffff",
@@ -2656,9 +2619,6 @@ point_2=`;
             const canvas = document.getElementById(chartCanvasId);
             const chartWrapper = document.getElementById(chartContainerId);
 
-            // 幅を変えて再フローさせるため、先にプレビューの縮小表示を解除して実寸で計測する
-            document.body.classList.add('capturing');
-
             // 高さ×16/9 を目標幅として数回反復し、16:9 になる幅へ収束させる
             let w = 1200;
             area.style.width = w + 'px';
@@ -2682,14 +2642,11 @@ point_2=`;
                 chartWrapper.appendChild(tempImg);
             }
             tempImg.src = chartDataUrl;
-            // サイズ指定が空だと img が元の解像度(2倍)で表示され、枠から溢れて
-            // 中央揃えで上下左右が切れるため、実測値でフォールバックする
-            tempImg.style.width  = canvas.style.width  || (chartWrapper.clientWidth  + 'px');
-            tempImg.style.height = canvas.style.height || (chartWrapper.clientHeight + 'px');
+            tempImg.style.width = canvas.style.width;
+            tempImg.style.height = canvas.style.height;
             tempImg.style.display = 'block';
 
             const restore = () => {
-                document.body.classList.remove('capturing');
                 canvas.style.display = 'block';
                 tempImg.style.display = 'none';
                 area.style.width = '';
@@ -2697,7 +2654,7 @@ point_2=`;
             };
 
             setTimeout(() => {
-                captureEl(area, {
+                html2canvas(area, {
                     scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false
                 }).then(rendered => {
                     // 厳密に 1920x1080 へ。収束後はほぼ 16:9 なので歪みなく等倍配置、
@@ -3818,8 +3775,6 @@ risk_3=`;
         function _doStockCapture(onCanvas) {
             const canvas      = document.getElementById('saChart');
             const chartWrapper = document.getElementById('sa-canvas-container');
-            // 撮影直前に描き直し、canvas のサイズを現在の枠に確実に合わせる
-            drawChart('sa-canvas-container', 'saChart', window._lastChartDataStock || '');
             const chartDataUrl = canvas.toDataURL('image/png');
             canvas.style.display = 'none';
             let tempImg = document.getElementById('sa-temp-chart-img');
@@ -3829,14 +3784,12 @@ risk_3=`;
                 chartWrapper.appendChild(tempImg);
             }
             tempImg.src = chartDataUrl;
-            // サイズ指定が空だと img が元の解像度(2倍)で表示され、枠から溢れて
-            // 中央揃えで上下左右が切れるため、実測値でフォールバックする
-            tempImg.style.width  = canvas.style.width  || (chartWrapper.clientWidth  + 'px');
-            tempImg.style.height = canvas.style.height || (chartWrapper.clientHeight + 'px');
+            tempImg.style.width = canvas.style.width;
+            tempImg.style.height = canvas.style.height;
             tempImg.style.display = 'block';
 
             setTimeout(() => {
-                captureEl(document.getElementById('capture-area-stock'), {
+                html2canvas(document.getElementById('capture-area-stock'), {
                     scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false
                 }).then(rendered => {
                     onCanvas(rendered);
@@ -5432,7 +5385,7 @@ async function renderToBlob(slide){
   const cv=ct.querySelector('canvas[data-chart]');
   if(cv){saDrawChart(cv,cv.dataset.chart.split(';').filter(Boolean));await new Promise(r=>setTimeout(r,120));}
   const el=ct.querySelector('.slide');
-  const c=await captureEl(el,{width:SLIDE_W,height:SLIDE_H,scale:2,useCORS:true,allowTaint:true,backgroundColor:'#f8fafc',logging:false});
+  const c=await html2canvas(el,{width:SLIDE_W,height:SLIDE_H,scale:2,useCORS:true,allowTaint:true,backgroundColor:'#f8fafc',logging:false});
   ct.innerHTML='';
   return new Promise(res=>c.toBlob(res,'image/png'));
 }
@@ -5641,7 +5594,7 @@ async function downloadThumb(){
     cont.innerHTML=buildThumbSlide(text);
     await new Promise(r=>setTimeout(r,400));
     const el=cont.querySelector('.th-slide');
-    const canvas=await captureEl(el,{width:SLIDE_W,height:SLIDE_H,scale:2,useCORS:true,allowTaint:true,backgroundColor:'#000000',logging:false});
+    const canvas=await html2canvas(el,{width:SLIDE_W,height:SLIDE_H,scale:2,useCORS:true,allowTaint:true,backgroundColor:'#000000',logging:false});
     const blob=await new Promise(res=>canvas.toBlob(res,'image/png'));
     const d=new Date();
     const ds=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
