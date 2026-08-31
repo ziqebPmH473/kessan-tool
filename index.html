@@ -36,15 +36,6 @@
       });
     }
 
-    /* プレビュー(幅1200px固定)を画面幅に収めるための縮小率を算出する（表示のみ） */
-    function updatePreviewZoom() {
-      var w = document.documentElement.clientWidth;
-      var z = (w <= 900) ? Math.min(1, (w - 28) / 1240) : 1;
-      document.documentElement.style.setProperty('--prev-zoom', z.toFixed(4));
-    }
-    window.addEventListener('resize', updatePreviewZoom);
-    window.addEventListener('orientationchange', updatePreviewZoom);
-    document.addEventListener('DOMContentLoaded', updatePreviewZoom);
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
@@ -168,6 +159,10 @@
         
         .chart-wrapper { width: 100%; height: 150px; display: flex; align-items: center; justify-content: center; background: #ffffff; border: 1px solid var(--border); border-radius: 6px;}
         #capture-area canvas, #capture-area-stock canvas { display: block; width: 100%; height: 100%; }
+        /* 万一サイズ指定が失われても枠内に収める（はみ出すと flex の中央揃えで
+           左右・上下が切り取られ、チャートの月ラベルや目盛りが欠ける） */
+        #capture-area canvas, #capture-area-stock canvas,
+        #canvas-container img, #sa-canvas-container img { max-width: 100%; max-height: 100%; }
 
         /* ↓ kessan(決算/個別銘柄)のプレビュー用テーブル。株価分析スライド(.sa)へ漏れないよう領域限定 */
         #capture-area table, #capture-area-stock table { width: 100%; border-collapse: collapse; margin-bottom: 0; }
@@ -657,16 +652,11 @@
   .ctrl, .sa .ctrl, #mode-price .ctrl { width: 100%; height: auto; overflow: visible; }
   .prev-area, #capture-area-price .prev-area { height: auto; overflow: visible; }
   #slides-view, #thumb-view { flex: none; overflow: visible; }
-  /* プレビュー（1200px固定幅）を画面幅に合わせて縮小表示する。
-     zoom は見た目だけで、画像生成時は body.capturing で必ず解除される（下記）ため
-     出力画像には影響しない。 */
-  .capture-wrapper { zoom: var(--prev-zoom, 1); }
 }
 /* iOS Safari が幅の広いブロック内の文字を勝手に拡大する（テキスト自動サイズ調整）と
    プレビュー／生成画像のレイアウトがPCと変わるため無効化する */
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
-/* 画像生成中はプレビューの縮小を解除し、常にPCと同じ実寸でレンダリングする */
-body.capturing .capture-wrapper { zoom: 1 !important; }
+
 
     </style>
 </head>
@@ -2527,6 +2517,8 @@ point_2=`;
 
             const canvas = document.getElementById('myChart');
             const chartWrapper = document.getElementById('canvas-container');
+            // 撮影直前に描き直し、canvas のサイズを現在の枠に確実に合わせる
+            drawChart('canvas-container', 'myChart', window._lastChartDataEarnings || '');
             const chartDataUrl = canvas.toDataURL('image/png');
             
             canvas.style.display = 'none';
@@ -2537,8 +2529,10 @@ point_2=`;
                 chartWrapper.appendChild(tempImg);
             }
             tempImg.src = chartDataUrl;
-            tempImg.style.width = canvas.style.width;
-            tempImg.style.height = canvas.style.height;
+            // サイズ指定が空だと img が元の解像度(2倍)で表示され、枠から溢れて
+            // 中央揃えで上下左右が切れるため、実測値でフォールバックする
+            tempImg.style.width  = canvas.style.width  || (chartWrapper.clientWidth  + 'px');
+            tempImg.style.height = canvas.style.height || (chartWrapper.clientHeight + 'px');
             tempImg.style.display = 'block';
 
             setTimeout(() => {
@@ -2586,6 +2580,8 @@ point_2=`;
 
             const canvas = document.getElementById('myChart');
             const chartWrapper = document.getElementById('canvas-container');
+            // 撮影直前に描き直し、canvas のサイズを現在の枠に確実に合わせる
+            drawChart('canvas-container', 'myChart', window._lastChartDataEarnings || '');
             const chartDataUrl = canvas.toDataURL('image/png');
 
             canvas.style.display = 'none';
@@ -2596,8 +2592,10 @@ point_2=`;
                 chartWrapper.appendChild(tempImg);
             }
             tempImg.src = chartDataUrl;
-            tempImg.style.width = canvas.style.width;
-            tempImg.style.height = canvas.style.height;
+            // サイズ指定が空だと img が元の解像度(2倍)で表示され、枠から溢れて
+            // 中央揃えで上下左右が切れるため、実測値でフォールバックする
+            tempImg.style.width  = canvas.style.width  || (chartWrapper.clientWidth  + 'px');
+            tempImg.style.height = canvas.style.height || (chartWrapper.clientHeight + 'px');
             tempImg.style.display = 'block';
 
             setTimeout(() => {
@@ -2684,8 +2682,10 @@ point_2=`;
                 chartWrapper.appendChild(tempImg);
             }
             tempImg.src = chartDataUrl;
-            tempImg.style.width = canvas.style.width;
-            tempImg.style.height = canvas.style.height;
+            // サイズ指定が空だと img が元の解像度(2倍)で表示され、枠から溢れて
+            // 中央揃えで上下左右が切れるため、実測値でフォールバックする
+            tempImg.style.width  = canvas.style.width  || (chartWrapper.clientWidth  + 'px');
+            tempImg.style.height = canvas.style.height || (chartWrapper.clientHeight + 'px');
             tempImg.style.display = 'block';
 
             const restore = () => {
@@ -3818,6 +3818,8 @@ risk_3=`;
         function _doStockCapture(onCanvas) {
             const canvas      = document.getElementById('saChart');
             const chartWrapper = document.getElementById('sa-canvas-container');
+            // 撮影直前に描き直し、canvas のサイズを現在の枠に確実に合わせる
+            drawChart('sa-canvas-container', 'saChart', window._lastChartDataStock || '');
             const chartDataUrl = canvas.toDataURL('image/png');
             canvas.style.display = 'none';
             let tempImg = document.getElementById('sa-temp-chart-img');
@@ -3827,8 +3829,10 @@ risk_3=`;
                 chartWrapper.appendChild(tempImg);
             }
             tempImg.src = chartDataUrl;
-            tempImg.style.width = canvas.style.width;
-            tempImg.style.height = canvas.style.height;
+            // サイズ指定が空だと img が元の解像度(2倍)で表示され、枠から溢れて
+            // 中央揃えで上下左右が切れるため、実測値でフォールバックする
+            tempImg.style.width  = canvas.style.width  || (chartWrapper.clientWidth  + 'px');
+            tempImg.style.height = canvas.style.height || (chartWrapper.clientHeight + 'px');
             tempImg.style.display = 'block';
 
             setTimeout(() => {
