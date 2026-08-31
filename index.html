@@ -5,6 +5,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>マーケット分析 画像ジェネレーター</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script>
+    /* スマホではプレビュー(幅1200px固定)を画面幅に合わせて縮小表示する。
+       縮小は見た目だけの措置なので、画像化(html2canvas)の間だけ必ず解除する。
+       既存のキャプチャ処理には手を加えず、html2canvas の呼び出しを包むだけ。 */
+    (function () {
+      var orig = window.html2canvas;
+      if (!orig) return;
+      window.html2canvas = function (el, opts) {
+        document.body.classList.add('capturing');
+        var p;
+        try { p = orig(el, opts); }
+        catch (e) { document.body.classList.remove('capturing'); throw e; }
+        return p.then(function (r) { document.body.classList.remove('capturing'); return r; },
+                      function (e) { document.body.classList.remove('capturing'); throw e; });
+      };
+    })();
+    /* プレビューを画面幅に収める縮小率を算出する（表示のみ・900px以下でのみ使用） */
+    function updatePreviewZoom() {
+      var w = document.documentElement.clientWidth;
+      var z = (w <= 900) ? Math.min(1, (w - 26) / 1204) : 1;
+      document.documentElement.style.setProperty('--prev-zoom', z.toFixed(4));
+    }
+    window.addEventListener('resize', updatePreviewZoom);
+    window.addEventListener('orientationchange', updatePreviewZoom);
+    document.addEventListener('DOMContentLoaded', updatePreviewZoom);
+    </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         :root {
@@ -627,6 +653,10 @@
   .ctrl, .sa .ctrl, #mode-price .ctrl { width: 100%; height: auto; overflow: visible; }
   .prev-area, #capture-area-price .prev-area { height: auto; overflow: visible; }
   #slides-view, #thumb-view { flex: none; overflow: visible; }
+  /* プレビュー(幅1200px固定)を画面幅に収めて表示する（横スクロール不要にする）。
+     画像生成中は下の .capturing で解除するので、出力画像は実寸のまま。 */
+  .capture-wrapper { zoom: var(--prev-zoom, 1); overflow-x: hidden; }
+  body.capturing .capture-wrapper { zoom: 1 !important; overflow-x: auto; }
 }
 
     </style>
