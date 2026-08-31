@@ -6,20 +6,34 @@
     <title>マーケット分析 画像ジェネレーター</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script>
-    /* 画像生成をPC・スマホで同一にするための共通オプション。
-       html2canvas は複製したドキュメントを「実際のウィンドウ幅」でレンダリングするため、
-       スマホの狭い幅ではメディアクエリ（レスポンシブ指定）が効いてレイアウトが変わってしまう。
-       常にデスクトップ相当の幅で描画させ、どの端末でも同じ画像になるようにする。 */
-    var CAPTURE_WINDOW = { windowWidth: 1920, windowHeight: 1080 };
-
-    /* 画像化の共通ラッパー。
-       - プレビューの縮小表示(zoom)を必ず解除してから実寸でレンダリングする
-       - ウィンドウ幅は常にデスクトップ相当に固定する
-       これにより PC でもスマホでも同じ画像が出力される。 */
+    /* 画像化の共通ラッパー。PC・スマホで同じ画像を出すために毎回そろえる:
+       1) プレビューの縮小表示(zoom)を解除して実寸でレンダリングする
+       2) ページのスクロール位置を一旦 0 に戻す
+          html2canvas は「要素の書類上の座標」と「スクロール量」を突き合わせて
+          切り出す。スマホはページをスクロールして使うため、ずれると画像の端が
+          切れる。0 に固定してから撮り、撮影後に元のスクロール位置へ戻す。
+       ※ ウィンドウ幅は変更しない。複製側だけ幅を変えると、レイアウトの
+          折り返しが変わって要素の座標がずれ、やはり画像が切れるため。
+          プレビュー(1200px固定)の中身は画面幅に依存しないことを検証済み。 */
     function captureEl(el, opts) {
       document.body.classList.add('capturing');
-      return html2canvas(el, Object.assign({}, opts || {}, CAPTURE_WINDOW))
-        .finally(function(){ document.body.classList.remove('capturing'); });
+      var sx = window.pageXOffset, sy = window.pageYOffset;
+      window.scrollTo(0, 0);
+      // プレビュー枠など、途中でスクロールしている親要素も一旦先頭に戻す
+      // （複製側は常に先頭から描かれるため、ずれたまま撮ると端が切れる）
+      var scrolled = [];
+      for (var n = el.parentElement; n; n = n.parentElement) {
+        if (n.scrollLeft || n.scrollTop) {
+          scrolled.push([n, n.scrollLeft, n.scrollTop]);
+          n.scrollLeft = 0; n.scrollTop = 0;
+        }
+      }
+      var o = Object.assign({ scrollX: 0, scrollY: 0 }, opts || {});
+      return html2canvas(el, o).finally(function(){
+        document.body.classList.remove('capturing');
+        scrolled.forEach(function(e){ e[0].scrollLeft = e[1]; e[0].scrollTop = e[2]; });
+        window.scrollTo(sx, sy);
+      });
     }
 
     /* プレビュー(幅1200px固定)を画面幅に収めるための縮小率を算出する（表示のみ） */
