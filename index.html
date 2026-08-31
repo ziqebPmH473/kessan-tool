@@ -590,6 +590,28 @@ body{height:100vh;box-sizing:border-box;overflow:hidden;}
 .sa-subtab:hover:not(.active){background:#e2e8f0;}
 
 
+/* ===== モバイル対応：スマホではページ全体を縦スクロールできるようにする =====
+   PC では body を 100vh + overflow:hidden にして中身だけスクロールさせているが、
+   狭い画面（スマホ）ではその指定によりページ自体がスクロール不能になり、
+   画面外の入力欄・ボタン・出力結果に触れなくなるため、縦積みレイアウトに切り替える。 */
+@media (max-width: 900px) {
+  html { height: auto; }
+  body {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+    -webkit-overflow-scrolling: touch;
+    flex-direction: column;
+    gap: 12px;
+    padding: 24px 12px 48px;
+  }
+  #app-version { top: 8px; left: 12px; }
+  .control-panel { width: 100%; flex-shrink: 1; height: auto; overflow: visible; }
+  .capture-wrapper { flex-grow: 0; overflow-x: auto; overflow-y: visible; }
+  .ctrl, .sa .ctrl, #mode-price .ctrl { width: 100%; height: auto; overflow: visible; }
+  .prev-area, #capture-area-price .prev-area { height: auto; overflow: visible; }
+  #slides-view, #thumb-view { flex: none; overflow: visible; }
+}
 
     </style>
 </head>
