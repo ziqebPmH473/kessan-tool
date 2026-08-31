@@ -5,6 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>マーケット分析 画像ジェネレーター</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script>
+    /* 画像生成をPC・スマホで同一にするための共通オプション。
+       html2canvas は複製したドキュメントを「実際のウィンドウ幅」でレンダリングするため、
+       スマホの狭い幅ではメディアクエリ（レスポンシブ指定）が効いてレイアウトが変わってしまう。
+       常にデスクトップ相当の幅で描画させ、どの端末でも同じ画像になるようにする。 */
+    var CAPTURE_WINDOW = { windowWidth: 1920, windowHeight: 1080 };
+    </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         :root {
@@ -2491,7 +2498,8 @@ point_2=`;
                     scale: 2, 
                     useCORS: true,
                     backgroundColor: "#ffffff",
-                    logging: false
+                    logging: false,
+                    ...CAPTURE_WINDOW
                 }).then(renderedCanvas => { 
                     const codeRaw = document.getElementById('out-code').innerText || '';
                     const code = codeRaw.replace(/[^0-9A-Za-z]/g, '');
@@ -2550,7 +2558,8 @@ point_2=`;
                     scale: 2,
                     useCORS: true,
                     backgroundColor: "#ffffff",
-                    logging: false
+                    logging: false,
+                    ...CAPTURE_WINDOW
                 }).then(renderedCanvas => {
                     const srcW = renderedCanvas.width;
                     const srcH = renderedCanvas.height;
@@ -2639,7 +2648,7 @@ point_2=`;
 
             setTimeout(() => {
                 html2canvas(area, {
-                    scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false
+                    scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false, ...CAPTURE_WINDOW
                 }).then(rendered => {
                     // 厳密に 1920x1080 へ。収束後はほぼ 16:9 なので歪みなく等倍配置、
                     // 端数のみ背景色でレターボックス
@@ -3774,7 +3783,7 @@ risk_3=`;
 
             setTimeout(() => {
                 html2canvas(document.getElementById('capture-area-stock'), {
-                    scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false
+                    scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false, ...CAPTURE_WINDOW
                 }).then(rendered => {
                     onCanvas(rendered);
                     canvas.style.display = 'block';
@@ -5369,7 +5378,7 @@ async function renderToBlob(slide){
   const cv=ct.querySelector('canvas[data-chart]');
   if(cv){saDrawChart(cv,cv.dataset.chart.split(';').filter(Boolean));await new Promise(r=>setTimeout(r,120));}
   const el=ct.querySelector('.slide');
-  const c=await html2canvas(el,{width:SLIDE_W,height:SLIDE_H,scale:2,useCORS:true,allowTaint:true,backgroundColor:'#f8fafc',logging:false});
+  const c=await html2canvas(el,{width:SLIDE_W,height:SLIDE_H,scale:2,useCORS:true,allowTaint:true,backgroundColor:'#f8fafc',logging:false,...CAPTURE_WINDOW});
   ct.innerHTML='';
   return new Promise(res=>c.toBlob(res,'image/png'));
 }
@@ -5578,7 +5587,7 @@ async function downloadThumb(){
     cont.innerHTML=buildThumbSlide(text);
     await new Promise(r=>setTimeout(r,400));
     const el=cont.querySelector('.th-slide');
-    const canvas=await html2canvas(el,{width:SLIDE_W,height:SLIDE_H,scale:2,useCORS:true,allowTaint:true,backgroundColor:'#000000',logging:false});
+    const canvas=await html2canvas(el,{width:SLIDE_W,height:SLIDE_H,scale:2,useCORS:true,allowTaint:true,backgroundColor:'#000000',logging:false,...CAPTURE_WINDOW});
     const blob=await new Promise(res=>canvas.toBlob(res,'image/png'));
     const d=new Date();
     const ds=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
