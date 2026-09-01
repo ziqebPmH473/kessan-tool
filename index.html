@@ -973,9 +973,10 @@
     <div class="row" style="flex-wrap:nowrap;">
       <button class="btn-sm" onclick="copyAnalysis(this)" style="flex:1.3;min-width:0;background:#475569;color:#fff;">💬 ①分析</button>
       <button class="btn-sm" onclick="saCopyFactCheck(this)" style="flex:1;min-width:0;background:#475569;color:#fff;">✅ ②ファクト</button>
-      <button class="btn-sm" onclick="copyCorrection(this)" style="flex:1;min-width:0;background:#475569;color:#fff;">🔧 ③修正</button>
+      <button class="btn-sm" onclick="copyRecheck(this)" style="flex:1;min-width:0;background:#475569;color:#fff;">🔁 ③再CK</button>
+      <button class="btn-sm" onclick="copyCorrection(this)" style="flex:1;min-width:0;background:#475569;color:#fff;">🔧 ④修正</button>
     </div>
-    <textarea id="ta-report" placeholder="ChatGPTのレポートをここに貼り付け（②③を誤りがなくなるまで繰り返す）" style="min-height:36px;"></textarea>
+    <textarea id="ta-report" placeholder="ChatGPTのレポートをここに貼り付け（②〜④を誤りがなくなるまで繰り返す）" style="min-height:36px;"></textarea>
     <div class="row" style="flex-wrap:nowrap;">
       <button class="btn-sm" onclick="pasteReport()" style="flex:1;">📋 貼り付け</button>
       <button class="btn-danger" onclick="clearReport()" style="flex:1;">✕ クリア</button>
@@ -4240,6 +4241,7 @@ function saCopyFactCheck(btn){
   if(!report){alert('レポートを貼り付けてください');return;}
   copyText(`以下のレポートは、以下の指示でAIが生成したものです。\nレポートのファクトチェックを行い、誤っている箇所と指示に沿っていない箇所のみを指摘してください。\n指摘がある場合には、指摘箇所・指摘内容・修正後内容を記載してください。\n\n--指示--\n${buildAnalysisText()}\n\n--レポート--\n${report}`,btn);
 }
+function copyRecheck(btn){copyText('修正後内容が正しいか確認して',btn);}
 function copyCorrection(btn){copyText('指摘箇所を指示の内容に沿って修正し、全文出力してください。\nただし、指摘していない箇所は一切変更しないでください。',btn);}
 function copyNBPrompt(btn){copyText(NB_PROMPT,btn);}
 
