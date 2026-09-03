@@ -6,7 +6,7 @@
 // ・ブラウザからは prompt と（任意で）resources を受け取るだけ
 // ============================================================
 
-const MODEL = "gemini-2.5-flash";
+const MODEL = "gemini-3.5-flash-lite";
 const ENDPOINT = (model, key) =>
   `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
 
