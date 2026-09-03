@@ -2743,6 +2743,15 @@ point_2=`;
 
             document.getElementById('mode-price').style.display         = mode === 'price' ? '' : 'none';
             document.getElementById('capture-area-price').style.display = mode === 'price' ? '' : 'none';
+
+            // 非表示中に描いたプレビューは実寸(offsetWidth)が取れず縮尺が狂うため、
+            // 株価分析を開いた直後に必ず再描画する（1枚目のチャート崩れ対策）
+            if (mode === 'price') {
+                requestAnimationFrame(() => {
+                    try { if ((document.getElementById('ta-data').value || '').trim()) renderPrev(); } catch (e) {}
+                    try { if ((document.getElementById('th-input').value || '').trim()) renderThumbPreview(); } catch (e) {}
+                });
+            }
         }
 
         function getSaMarket() {
@@ -3920,7 +3929,9 @@ risk_3=`;
 
             // 個別銘柄分析に復元データがあればプレビューも再現
             // 株価分析：復元データがあればプレビューを再現
-            if (restored) {
+            // 株価分析タブは初期状態で非表示。実寸が取れないまま描くとチャートが崩れるので、
+            // 表示中のときだけここで描く（非表示時は switchMode('price') で描画される）
+            if (restored && document.getElementById('mode-price').style.display !== 'none') {
                 try { if ((document.getElementById('ta-data').value || '').trim()) renderPrev(); } catch (e) {}
                 try { if ((document.getElementById('th-input').value || '').trim()) renderThumbPreview(); } catch (e) {}
             }
