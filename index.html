@@ -5828,6 +5828,10 @@ function vdBuildTabHtml(P){
       <label style="font-size:11px;color:var(--text-sub);flex:none;">チャート期間</label>
       <input type="number" id="${P}-months" min="1" placeholder="全期間" oninput="debouncedVideoPrev('${P}')" style="width:60px;flex:none;font-size:11px;padding:4px;">
       <span style="font-size:11px;color:var(--text-sub);">ヶ月（AIを通さずチャートだけ描き直し）</span>
+    </div>
+    <div class="row" style="flex-wrap:nowrap;gap:6px;align-items:center;margin-top:4px;font-size:11px;color:var(--text-sub);">
+      <label style="flex:none;">透かしロゴ <span id="${P}-logo-op-val">5</span>%</label>
+      <input type="range" id="${P}-logo-op" min="0" max="25" step="1" value="5" oninput="document.getElementById('${P}-logo-op-val').textContent=this.value;debouncedVideoPrev('${P}')" onchange="vdSyncTts('${P}')" style="flex:1;cursor:pointer;">
     </div>`;
   const artRows=c.hasNote?`
     <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:8px;">
@@ -5914,13 +5918,14 @@ function vdInnerTab(P,t){
 // 声・モデル・補正・間・形式は両タブで同じ設定を使う（片方で変えたらもう片方へ写す）
 function vdSyncTts(P){
   const other=P==='vd'?'ev':'vd';
-  ['tts-voice','tts-model','tts-eq','tts-gap','tts-format'].forEach(k=>{const a=vdEl(P,k),b=vdEl(other,k);if(a&&b)b.value=a.value;});
+  ['tts-voice','tts-model','tts-eq','tts-gap','tts-format','logo-op'].forEach(k=>{const a=vdEl(P,k),b=vdEl(other,k);if(a&&b)b.value=a.value;});
+  const lo=vdEl(other,'logo-op');if(lo)vdEl(other,'logo-op-val').textContent=lo.value;
   const eq=vdEl(other,'tts-eq'),gp=vdEl(other,'tts-gap');
   if(eq)vdEl(other,'tts-eq-val').textContent=eq.value;if(gp)vdEl(other,'tts-gap-val').textContent=gp.value;
   if(typeof saveState==='function')saveState();
 }
 function vdPersistIds(P){
-  const ids=['note-url','model','months','art-url','th-input','slides','x','insta','tiktok','raw','tts-voice','tts-model','tts-eq','tts-gap','tts-format','timing'];
+  const ids=['note-url','model','months','logo-op','art-url','th-input','slides','x','insta','tiktok','raw','tts-voice','tts-model','tts-eq','tts-gap','tts-format','timing'];
   for(let i=1;i<=5;i++)ids.push('s'+i);
   const out=ids.map(k=>`${P}-${k}`);
   if(P==='ev')out.push('ev-auto');
@@ -5932,8 +5937,8 @@ function vdRestoreFields(P){
   if(!st||!st.fields)return;
   vdPersistIds(P).forEach(id=>{const el=document.getElementById(id);if(!el||st.fields[id]==null)return;if(el.type==='checkbox')el.checked=!!st.fields[id];else el.value=st.fields[id];});
   if(st.radios&&st.radios['ev-count']){const r=document.querySelector(`input[name=ev-count][value=${st.radios['ev-count']}]`);if(r)r.checked=true;}
-  const eq=vdEl(P,'tts-eq'),gp=vdEl(P,'tts-gap');
-  if(eq)vdEl(P,'tts-eq-val').textContent=eq.value;if(gp)vdEl(P,'tts-gap-val').textContent=gp.value;
+  const eq=vdEl(P,'tts-eq'),gp=vdEl(P,'tts-gap'),lo=vdEl(P,'logo-op');
+  if(eq)vdEl(P,'tts-eq-val').textContent=eq.value;if(gp)vdEl(P,'tts-gap-val').textContent=gp.value;if(lo)vdEl(P,'logo-op-val').textContent=lo.value;
 }
 
 function vdStatus(P,msg,cls){
@@ -6481,7 +6486,8 @@ const vPts=(arr,cls)=>{
 };
 function vSig(){return `<div class="v-sig">すみっこマネー大学/@sumikko_money</div>`;}
 // 透かしロゴ：図形（カード・帯）の前、文字の後ろ。z-index で文字側を上げている
-function vLogo(cls){return `<img class="v-logo ${cls||''}" src="${VD_LOGO}" alt="">`;}
+function vdLogoOpacity(){const v=parseInt(((document.getElementById((window._vdCurP||'vd')+'-logo-op')||{}).value),10);return (isNaN(v)?5:v)/100;}
+function vLogo(cls){return `<img class="v-logo ${cls||''}" src="${VD_LOGO}" alt="" style="opacity:${vdLogoOpacity()};">`;}
 function vDisc(){return `<div class="v-disc">${esc(VIDEO_DISCLAIMER)}</div>`;}
 
 // 0 サムネ（縦）：note用サムネと同じ記法で、3段を中央に寄せる。透かしロゴは中央
@@ -6517,7 +6523,7 @@ function buildV1(v,ctx){
   const ps=fmtPrice(price,code);
   const pf=ps.length>9?'80px':ps.length>7?'92px':'104px';
   const cf=ch.pct.length>7?'60px':'74px';
-  return `<div class="vslide"><div class="v-bar"></div>${vLogo('low')}
+  return `<div class="vslide"><div class="v-bar"></div>${vLogo()}
 <div class="v-wrap">
   <div class="v1-head"><span class="v1-name">${esc(name)}</span><span class="v1-code">（${esc(code)}）</span>${ctx.desc?`<div class="v1-desc">${esc(ctx.desc)}</div>`:''}</div>
   <div class="v1-price-card">
@@ -6581,7 +6587,7 @@ function buildE1(v,d,ctx){
   const emph=((s.multi&&s.multi['強調'])||[]).slice(0,2).map(x=>{const q=String(x).split(/[|｜]/);return{l:trimDot(q[0]||''),v:trimDot(q[1]||'')};}).filter(e=>e.l||e.v);
   const emphHtml=emph.length?`<div class="e1-emph">${emph.map(e=>`<div class="e1-em"><div class="e1-el">${esc(e.l)}</div><div class="e1-ev ${evSignCls(e.v)}">${esc(e.v)}</div></div>`).join('')}</div>`:'';
   const price=evNum(mr.post_price)||evNum(mr.pre_price);
-  return `<div class="vslide"><div class="v-bar"></div>${vLogo('low')}
+  return `<div class="vslide"><div class="v-bar"></div>${vLogo()}
 <div class="v-wrap">
   <div class="v1-head"><span class="v1-name">${esc(ctx.name)}</span><span class="v1-code">（${esc(ctx.code)}）</span>${h.business_description?`<div class="v1-desc">${esc(h.business_description)}</div>`:''}</div>
   <div class="e1-badge-row"><span class="e1-q">${esc(h.quarter||'')}</span>${h.result_label?`<span class="e1-badge ${evSignCls(h.result_label)}">${esc(h.result_label)}</span>`:''}</div>
@@ -6647,6 +6653,7 @@ function buildEF(v,d,step,ctx){
 
 // サムネ＋スライドを組み立てる
 function buildVideoSlides(P,text){
+  window._vdCurP=P;
   const v=parseVideoData(text);
   const th=vdThumbText(P);
   const out=[];
