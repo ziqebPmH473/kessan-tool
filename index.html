@@ -439,7 +439,7 @@
 .v-step{position:absolute;top:44px;left:64px;font-size:30px;font-weight:700;color:#94a3b8;letter-spacing:.08em;z-index:6;}
 .v-logo{position:absolute;left:50%;top:50%;width:640px;transform:translate(-50%,-50%);opacity:.07;z-index:5;pointer-events:none;}
 .v-logo.low{top:auto;bottom:120px;width:440px;transform:translateX(-50%);}
-.v-wrap{position:relative;padding:120px 64px 110px;height:1920px;box-sizing:border-box;display:flex;flex-direction:column;gap:28px;}
+.v-wrap{position:relative;padding:100px 64px 110px;height:1920px;box-sizing:border-box;display:flex;flex-direction:column;gap:28px;}
 /* 文字は透かしより前に */
 .v-txt,.v1-head,.v1-pl,.v1-price,.v1-change,.v1-basis,.v1-chart-lbl,.v-h,.v-pn,.v-ptx,.v-pts2,.v-lead,
 .v5-title,.v5-rl,.v5-rv,.v5-q,.v5-bt,.v5-li,.v5-cta,.v5-qr,.v-disc,
@@ -471,7 +471,7 @@
 .v-pts2{font-size:34px;font-weight:500;line-height:1.4;color:#475569;margin-top:10px;}
 .v-lead{font-size:38px;color:#1e293b;line-height:1.5;margin-top:auto;padding:26px 30px;background:rgba(255,255,255,.88);border:2px solid #e2e8f0;border-radius:16px;text-align:center;font-weight:700;}
 /* ⑤ まとめ＋note誘導（上下分割・白ベース＋ネイビー1色。署名は下段の外＝スライド下端） */
-.v5-top{position:relative;flex:0 0 56%;display:flex;flex-direction:column;gap:20px;padding:110px 64px 40px;box-sizing:border-box;}
+.v5-top{position:relative;flex:0 0 56%;display:flex;flex-direction:column;gap:20px;padding:96px 64px 40px;box-sizing:border-box;}
 .v5-title{font-size:54px;font-weight:900;color:#1e3a8a;letter-spacing:.04em;}
 .v5-row{display:flex;flex-direction:column;gap:6px;background:rgba(255,255,255,.88);border:2px solid #e2e8f0;border-radius:16px;padding:18px 30px;}
 .v5-rl{font-size:30px;color:#94a3b8;font-weight:600;}
@@ -874,7 +874,7 @@
             <div id="gem-earn-filelist" style="margin-top:4px; display:flex; flex-wrap:wrap; gap:4px;"></div>
             <div class="input-row" style="margin-top: 6px; gap:4px; align-items:center;">
                 <label style="font-size:11px; color:var(--text-sub); flex:none;">チャート期間</label>
-                <input type="number" id="gem-earn-months" min="1" value="6" placeholder="全期間" style="width:60px; flex:none; font-size:11px; padding:4px;">
+                <input type="number" id="gem-earn-months" min="1" value="6" placeholder="全期間" oninput="if((document.getElementById('input-data').value||'').trim())renderImage()" style="width:60px; flex:none; font-size:11px; padding:4px;">
                 <span style="font-size:11px; color:var(--text-sub);">ヶ月（空欄=全期間）</span>
             </div>
             <div class="input-row" style="margin-top: 6px; gap:4px; align-items:center;">
@@ -897,6 +897,7 @@
                 <button class="main-btn" onclick="geminiFormatEarn(this)" style="flex:1; background:#4f46e5;">📤 出力データ作成</button>
             </div>
             <div id="gem-earn-status" style="display:none; font-size:11px; margin-top:3px;"></div>
+            <label style="font-size:11px; color:var(--text-sub); display:flex; align-items:center; gap:4px; margin-top:4px; cursor:pointer;"><input type="checkbox" id="ev-auto" checked> 整形後に動画（台本・縦スライド・投稿文）も自動生成</label>
         </div>
 
         <div class="tool-section">
@@ -1010,7 +1011,7 @@
             </div>
             <div class="input-row" style="margin-top: 6px; gap:4px; align-items:center;">
                 <label style="font-size:11px; color:var(--text-sub); flex:none;">チャート期間</label>
-                <input type="number" id="gem-sa-months" min="1" placeholder="全期間" style="width:60px; flex:none; font-size:11px; padding:4px;">
+                <input type="number" id="gem-sa-months" min="1" placeholder="全期間" oninput="if((document.getElementById('sa-input-data').value||'').trim())renderImageStock()" style="width:60px; flex:none; font-size:11px; padding:4px;">
                 <span style="font-size:11px; color:var(--text-sub);">ヶ月（空欄=全期間）</span>
             </div>
             <div class="input-row" style="margin-top: 6px; gap:4px; align-items:center;">
@@ -1142,7 +1143,7 @@
     </div>
     <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:4px;">
       <label style="font-size:11px;color:var(--text-sub);flex:none;">チャート期間</label>
-      <input type="number" id="gem-months" min="1" placeholder="全期間" style="width:60px;flex:none;font-size:11px;padding:4px;">
+      <input type="number" id="gem-months" min="1" placeholder="全期間" oninput="debouncedPrev()" style="width:60px;flex:none;font-size:11px;padding:4px;">
       <span style="font-size:11px;color:var(--text-sub);">ヶ月（空欄=全期間）</span>
     </div>
     <div class="row" style="flex-wrap:nowrap;margin-top:6px;">
@@ -2502,7 +2503,10 @@ point_2=`;
                 }
             }
 
-            const chartDataStr = (data.CHART_DATA && data.CHART_DATA.data) ? data.CHART_DATA.data : '';
+            // 株探データがあればそれを期間で絞って描く（AIを通さず期間変更できる）。無ければAI出力
+            const ef = window._earnFetched; const efd = ef && (ef.d || ef);
+            const fetchedRows = saChartRowsFromFetched(efd, (document.getElementById('gem-earn-months') || {}).value || '', false);
+            const chartDataStr = (fetchedRows && fetchedRows.length > 1) ? fetchedRows.join(';') : ((data.CHART_DATA && data.CHART_DATA.data) ? data.CHART_DATA.data : '');
             window._lastChartDataEarnings = chartDataStr;
             drawAdvancedChart(chartDataStr);
         }
@@ -2621,8 +2625,10 @@ point_2=`;
                 if (parts.length < 3) return;
                 const key = parts[0] + '-' + parts[1];
                 if (key === prevMoKey) return;
+                const isFirst = prevMoKey === null;
                 prevMoKey = key;
-                ctx.fillText(`${parseInt(parts[1])}月`, paddingLeft + i * stepXlbl + stepXlbl / 2, yDate);
+                if (isFirst) return;   // 一番左の月は出さない
+                ctx.fillText(`${parseInt(parts[1])}`, paddingLeft + i * stepXlbl + stepXlbl / 2, yDate);
             });
 
             const scaleY = candleAreaH / (maxPrice - minPrice);
@@ -3307,8 +3313,7 @@ reason_4=`;
                     change: mv.change
                 };
             }
-            const months = (document.getElementById('gem-sa-months') || {}).value || '';
-            return buildKabutanSourceText(f, code, market, move, months);
+            return buildKabutanSourceText(f, code, market, move, '');   // 期間は描画時に絞る（AIには全期間）
         }
 
         function copySaSourceData(btn) {
@@ -3328,8 +3333,7 @@ reason_4=`;
                 postPrice: ef.postPrice, postVol: (ef.postVol != null ? ef.postVol : _volOf(f, ef.postDate)),
                 change: ef.price_change
             };
-            const months = (document.getElementById('gem-earn-months') || {}).value || '';
-            return buildKabutanSourceText(f, code, getMarket(), move, months);
+            return buildKabutanSourceText(f, code, getMarket(), move, '');   // 期間は描画時に絞る（AIには全期間）
         }
 
         function copyEarnSourceData(btn) {
@@ -3971,7 +3975,8 @@ risk_3=`;
                 }
             }
 
-            const chartDataStr = (data.CHART_DATA && data.CHART_DATA.data) ? data.CHART_DATA.data : '';
+            const fetchedRowsSa = saChartRowsFromFetched(window._saFetched, (document.getElementById('gem-sa-months') || {}).value || '', false);
+            const chartDataStr = (fetchedRowsSa && fetchedRowsSa.length > 1) ? fetchedRowsSa.join(';') : ((data.CHART_DATA && data.CHART_DATA.data) ? data.CHART_DATA.data : '');
             window._lastChartDataStock = chartDataStr;
             drawChart('sa-canvas-container', 'saChart', chartDataStr);
         }
@@ -4479,7 +4484,7 @@ async function geminiFormatStock(btnEl){
   const ov=autoHigh?'':sel;
   // チャート期間を指定している場合、ルール3の「約1年分52本」を上書きし、
   // 渡した期間ぶんの週足を欠かさず出力させる（データと画像の期間を一致させる）
-  const months=parseInt((document.getElementById('gem-months')||{}).value,10);
+  const months=0;   // チャート期間は描画時に適用する（AIの出力は全期間ベースのまま）
   let chartOverride='';
   if(months>0){
     // 期間はツール側で既に絞って渡しているので、Geminiには本数・月数を指示せず
@@ -4800,6 +4805,21 @@ function calc52w(d){
 }
 // NotebookLMのソースに読み込ませる取得データ一式（基本情報＋株価＋日足時系列）
 // 日足チャート文字列を直近 months ヶ月に絞る（未指定/0/不正なら全期間）。基準は最新行の日付。
+// 日足（"YYYY-MM-DD,o,h,l,c,v;..."）→ 週足（月曜始まり）。始値=週初、高値=max、安値=min、終値=週末、出来高=合計
+function saDailyToWeekly(chartData){
+  const rows=String(chartData||'').split(';').filter(Boolean).map(r=>{const c=r.split(',');return{d:c[0],o:+c[1],h:+c[2],l:+c[3],c:+c[4],v:+(c[5]||0)};}).filter(r=>r.d&&!isNaN(r.o)&&!isNaN(r.c)).sort((a,b)=>a.d<b.d?-1:1);
+  const weeks=new Map();
+  rows.forEach(r=>{const dt=new Date(r.d);if(isNaN(dt))return;const day=(dt.getDay()+6)%7;const mon=new Date(dt);mon.setDate(dt.getDate()-day);const k=mon.toISOString().slice(0,10);
+    const w=weeks.get(k);if(!w)weeks.set(k,{d:r.d,o:r.o,h:r.h,l:r.l,c:r.c,v:r.v});else{w.h=Math.max(w.h,r.h);w.l=Math.min(w.l,r.l);w.c=r.c;w.v+=r.v;}});
+  return [...weeks.values()].map(w=>`${w.d},${w.o},${w.h},${w.l},${w.c},${w.v}`).join(';');
+}
+// 株探データ（全期間の日足）から、表示期間ぶんの行を作る。weekly=true で週足に変換
+function saChartRowsFromFetched(f,months,weekly){
+  if(!f||!f.chartData)return null;
+  const trimmed=saTrimChartByMonths(f.chartData,months);
+  const data=weekly?saDailyToWeekly(trimmed):trimmed;
+  return String(data||'').split(';').filter(Boolean);
+}
 function saTrimChartByMonths(chartData,months){
   const mm=parseInt(months,10);
   if(!chartData||!mm||mm<=0)return chartData;
@@ -4863,10 +4883,9 @@ function getSourceText(){
   if(f.high&&f.high.price)L.push(`（参考）取得範囲内の高値：${f.high.price}（${f.high.date}）`);
   if(f.low&&f.low.price)L.push(`（参考）取得範囲内の安値：${f.low.price}（${f.low.date}）`);
   L.push('');
-  const months=(document.getElementById('gem-months')||{}).value||'';
-  const periodNote=(parseInt(months,10)>0)?`（直近${parseInt(months,10)}ヶ月）`:'';
-  L.push(`■ 日足（時系列）${periodNote}  列：日付,始値,高値,安値,終値,出来高`);
-  const chart=saTrimChartByMonths(f.chartData,months);
+  // 期間は描画時に絞るので、AIには全期間を渡す
+  L.push(`■ 日足（時系列）  列：日付,始値,高値,安値,終値,出来高`);
+  const chart=f.chartData;
   if(chart)L.push(chart.split(';').filter(Boolean).join('\n'));
   return L.join('\n');
 }
@@ -5004,7 +5023,9 @@ function buildS1(d){
   const factors=getSec(d,'変動要因').slice(0,3);
   const strengths=getSec(d,'強み').slice(0,4);
   const weaknesses=getSec(d,'弱み').slice(0,4);
-  const chartLines=getSec(d,'チャート');
+  // 株探データがあればAI出力の[チャート]ではなくそれを使う（期間変更をAIなしで反映するため）
+  const fetchedLines=saChartRowsFromFetched(window._fetched,(document.getElementById('gem-months')||{}).value||'',true);
+  const chartLines=(fetchedLines&&fetchedLines.length>1)?fetchedLines:getSec(d,'チャート');
   const isDown=st.direction==='下落';
   const changeColor=isDown?'#dc2626':'#16a34a';
   const chartId='cv1_'+Math.random().toString(36).slice(2);
@@ -5590,7 +5611,9 @@ function saDrawChart(canvas,lines,k){
   data.forEach((d,i)=>{
     const key=d.yr*100+d.mo;
     if(key===prevMoKey)return;   // 同じ月はスキップ
+    const isFirst=prevMoKey===null;
     prevMoKey=key;
+    if(isFirst)return;   // 一番左の月は出さない（端で見切れやすく、見た目も詰まる）
     const label=`${d.mo}`;   // 「6月」→「6」（月ラベルは数字だけ）
     const half=ctx.measureText(label).width/2+1;
     const lx=Math.min(Math.max(pL+i*sX+sX/2,half),cW-half);
@@ -5788,17 +5811,23 @@ function vdBuildTabHtml(P){
       <label style="font-size:11px;color:var(--text-sub);flex:none;">QR用URL</label>
       <input type="text" id="${P}-note-url" placeholder="https://note.com/xxxx（QRの飛び先。アカウントトップ推奨）" oninput="debouncedVideoPrev('${P}')" style="flex:1;min-width:0;font-size:11px;">
     </div>`:'';
-  const modelRow=P==='vd'?`
+  const modelRow=`
     <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:4px;">
-      <label style="font-size:11px;color:var(--text-sub);flex:none;">モデル</label>
+      <label style="font-size:11px;color:var(--text-sub);flex:none;">文章モデル</label>
       <select id="${P}-model" style="flex:1;min-width:0;font-size:11px;padding:4px;">${VD_MODEL_OPTIONS}</select>
-    </div>`:`
+    </div>`;
+  const countRow=P==='ev'?`
     <div class="row" style="flex-wrap:nowrap;gap:8px;align-items:center;margin-top:4px;font-size:11px;color:var(--text-sub);">
       <span style="flex:none;">枚数</span>
       <label style="display:flex;align-items:center;gap:3px;cursor:pointer;"><input type="radio" name="ev-count" value="auto" checked onchange="vdOnCountChange()"> 自動（<span id="ev-count-auto">-</span>）</label>
       <label style="display:flex;align-items:center;gap:3px;cursor:pointer;"><input type="radio" name="ev-count" value="3" onchange="vdOnCountChange()"> 3枚</label>
       <label style="display:flex;align-items:center;gap:3px;cursor:pointer;"><input type="radio" name="ev-count" value="4" onchange="vdOnCountChange()"> 4枚</label>
-      <label style="display:flex;align-items:center;gap:3px;cursor:pointer;margin-left:auto;"><input type="checkbox" id="ev-auto" checked> 整形後に動画も自動生成</label>
+    </div>`:'';
+  const monthsRow=`
+    <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:4px;">
+      <label style="font-size:11px;color:var(--text-sub);flex:none;">チャート期間</label>
+      <input type="number" id="${P}-months" min="1" placeholder="全期間" oninput="debouncedVideoPrev('${P}')" style="width:60px;flex:none;font-size:11px;padding:4px;">
+      <span style="font-size:11px;color:var(--text-sub);">ヶ月（AIを通さずチャートだけ描き直し）</span>
     </div>`;
   const artRows=c.hasNote?`
     <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:8px;">
@@ -5810,14 +5839,29 @@ function vdBuildTabHtml(P){
 `:'';
   return `
   <div class="sa-card">
-    <h2>${c.title}</h2>
-    ${noteRows}${modelRow}
-    <button class="btn btn-full" id="${P}-gen-btn" onclick="geminiVideo('${P}',this)" style="background:#7c3aed;color:#fff;margin-top:6px;">${c.genLabel}</button>
+    <button class="btn btn-full" id="${P}-gen-btn" onclick="geminiVideo('${P}',this)" style="background:#7c3aed;color:#fff;">${c.genLabel}</button>
     <div id="${P}-status" style="display:none;font-size:11px;margin-top:3px;"></div>
   </div>
   <div class="sa-subtabs" style="margin-top:6px;">
     <button class="sa-subtab active" id="${P}-itab-slides" onclick="vdInnerTab('${P}','slides')">🖼 スライド・投稿</button>
     <button class="sa-subtab" id="${P}-itab-audio" onclick="vdInnerTab('${P}','audio')">🎙 台本・音声</button>
+    <button class="sa-subtab" id="${P}-itab-settings" onclick="vdInnerTab('${P}','settings')">⚙ 設定</button>
+  </div>
+
+  <div id="${P}-pane-settings" style="display:none;">
+  <div class="sa-card">
+    <h2>設定</h2>
+    ${noteRows}${modelRow}${countRow}${monthsRow}
+    <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:4px;">
+      <label style="font-size:11px;color:var(--text-sub);flex:none;">声</label>
+      <select id="${P}-tts-voice" onchange="vdSyncTts('${P}')" style="flex:1;min-width:0;font-size:11px;padding:4px;">${VD_VOICE_OPTIONS}</select>
+      <select id="${P}-tts-model" onchange="vdSyncTts('${P}')" style="flex:1;min-width:0;font-size:11px;padding:4px;">
+        <option value="gemini-3.1-flash-tts-preview" selected>Gemini 3.1 Flash TTS</option>
+        <option value="gemini-2.5-flash-preview-tts">Gemini 2.5 Flash TTS</option>
+        <option value="gemini-2.5-pro-preview-tts">Gemini 2.5 Pro TTS（有料枠）</option>
+      </select>
+    </div>
+  </div>
   </div>
 
   <div id="${P}-pane-slides">
@@ -5844,15 +5888,6 @@ function vdBuildTabHtml(P){
   <div id="${P}-pane-audio" style="display:none;">
   <div class="sa-card">
     <h2>台本と音声（スライドごと）</h2>
-    <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:6px;">
-      <label style="font-size:11px;color:var(--text-sub);flex:none;">声</label>
-      <select id="${P}-tts-voice" onchange="vdSyncTts('${P}')" style="flex:1;min-width:0;font-size:11px;padding:4px;">${VD_VOICE_OPTIONS}</select>
-      <select id="${P}-tts-model" onchange="vdSyncTts('${P}')" style="flex:1;min-width:0;font-size:11px;padding:4px;">
-        <option value="gemini-3.1-flash-tts-preview" selected>Gemini 3.1 Flash TTS</option>
-        <option value="gemini-2.5-flash-preview-tts">Gemini 2.5 Flash TTS</option>
-        <option value="gemini-2.5-pro-preview-tts">Gemini 2.5 Pro TTS（有料枠）</option>
-      </select>
-    </div>
     <div id="${P}-script-boxes"></div>
     <div id="${P}-st-total" style="font-size:12px;font-weight:700;color:var(--accent);margin-top:8px;text-align:right;"></div>
     <div style="font-size:11px;color:var(--text-sub);margin-top:8px;">結合時の設定（個別の音声化には影響しません）</div>
@@ -5874,10 +5909,7 @@ function vdBuildTabHtml(P){
   </div>`;
 }
 function vdInnerTab(P,t){
-  vdEl(P,'itab-slides').classList.toggle('active',t==='slides');
-  vdEl(P,'itab-audio').classList.toggle('active',t==='audio');
-  vdEl(P,'pane-slides').style.display=t==='slides'?'':'none';
-  vdEl(P,'pane-audio').style.display=t==='audio'?'':'none';
+  ['slides','audio','settings'].forEach(k=>{vdEl(P,'itab-'+k).classList.toggle('active',t===k);vdEl(P,'pane-'+k).style.display=t===k?'':'none';});
 }
 // 声・モデル・補正・間・形式は両タブで同じ設定を使う（片方で変えたらもう片方へ写す）
 function vdSyncTts(P){
@@ -5888,7 +5920,7 @@ function vdSyncTts(P){
   if(typeof saveState==='function')saveState();
 }
 function vdPersistIds(P){
-  const ids=['note-url','model','art-url','th-input','slides','x','insta','tiktok','raw','tts-voice','tts-model','tts-eq','tts-gap','tts-format','timing'];
+  const ids=['note-url','model','months','art-url','th-input','slides','x','insta','tiktok','raw','tts-voice','tts-model','tts-eq','tts-gap','tts-format','timing'];
   for(let i=1;i<=5;i++)ids.push('s'+i);
   const out=ids.map(k=>`${P}-${k}`);
   if(P==='ev')out.push('ev-auto');
@@ -5923,6 +5955,10 @@ function evAutoCount(){
   const d=evData();if(!d)return 3;
   const g=d.GUIDANCE||{};
   const st=String(g.status||'');
+  if(/据え置き|据置|変更なし/.test(st))return 3;   // 据え置きは予想スライドを作らない
+  // 4枚にするのは「修正前後／来期予想の数値が実際にある」場合だけ（据え置きは3枚）
+  const hasNums=[g.sales_2,g.op_2,g.ni_2].some(v=>/\d/.test(String(v||'')))&&[g.sales_1,g.op_1,g.ni_1].some(v=>/\d/.test(String(v||'')));
+  if(!hasNums)return 3;
   if(/修正|来期|本決算/.test(st))return 4;
   if(String(g.col1_header||'')==='今期実績'||/修正前/.test(String(g.col1_header||'')))return 4;
   return 3;
@@ -6034,6 +6070,7 @@ function videoPromptEv(n){
 ${VD_META_RULES}
 スライドは${four?'4枚（①決算の全体像＋株価／②今回の実績と理由／③通期予想・修正／④市場の反応＋今後の注目点）':'3枚（①決算の全体像＋株価／②実績と理由／③市場の反応＋今後の注目点）'}。各スライドの台本の目安：${secs}。冒頭5秒はサムネ表示中のフック。
 スライドの数値（売上・利益・前年比・修正前後・株価）はツールがデータから直接描くので、スライド用の文言では数値の羅列は不要。「結論＋短い補足」の文章だけを書く。
+業績予想スライド（③）は、具体的な予想数値または修正前後の数値が確認できる場合のみ作る（枚数はツール側で判定済み）。3枚構成のとき、通期予想の据え置きは実績の理由に入れず、必要なら最終スライドの「反応」や「注目点」で触れる。
 
 【出力形式（必ず${nBlocks}ブロック、この順番。各ブロックはコードブロックで囲み、コードブロックの中に見出しを書かない）】
 
@@ -6048,6 +6085,7 @@ ${VD_META_RULES}
 ・結論1|補足1（なぜこの数字になったのか）
 ・結論2|補足2
 ・結論3|補足3
+（[E2]は「今回の実績（今四半期の数字）」の理由だけ。通期予想の据え置き・修正・進捗率など「予想」に関することは[E2]に書かない）
 ${e3}[E4]
 反応:市場が評価／警戒した点を一言（30文字以内。例：好決算でもPTSはほぼ無反応、織り込み済みの見方）
 ・注目点1|補足1（今後・次回決算で確認すべき点）
@@ -6164,7 +6202,7 @@ async function geminiVideo(P,btnEl){
     prompt=VIDEO_PROMPT_VD;
   }
   const n=VD_CFG[P].labels().length;
-  const ov=(document.getElementById(P==='vd'?'vd-model':'gem-earn-model')||{}).value||'';
+  const ov=vdVal(P,'model');
   const o=btnEl?btnEl.textContent:'';
   if(btnEl){btnEl.disabled=true;btnEl.textContent='生成中…';}
   vdStatus(P,'Geminiで台本・スライド・投稿文を生成中…（30秒〜1分）','info');
@@ -6260,7 +6298,7 @@ function vdRenderPlayer(P,i){
   const a=window._vdTts[P][i],p=vdEl(P,'p'+i);if(!p)return;
   if(!a){p.textContent='未生成';return;}
   const url=URL.createObjectURL(new Blob([vdB64ToBuf(a.b64)],{type:'audio/wav'}));
-  p.innerHTML=`<div style="display:flex;align-items:center;gap:6px;"><button class="btn-sm" onclick="vdPlay(this,'${url}')" style="flex:none;padding:3px 8px;">▶</button><audio controls src="${url}" style="flex:1;min-width:0;height:28px;"></audio><span style="flex:none;">${a.seconds}秒・${esc(a.voice)}</span></div>`;
+  p.innerHTML=`<div style="display:flex;align-items:center;gap:8px;"><button class="btn-sm" onclick="vdPlay(this,'${url}')" style="flex:none;padding:3px 12px;">▶</button><span>${a.seconds}秒・${esc(a.voice)}</span></div>`;
 }
 async function vdGenTts(P,i,btn){
   const text=vdVal(P,'s'+i);
@@ -6354,7 +6392,7 @@ window._vdAudio=null;
 function vdPlay(btn,url){
   const cur=window._vdAudio;
   if(cur&&cur.src===url&&!cur.paused){cur.pause();btn.textContent='▶';return;}
-  if(cur){cur.pause();document.querySelectorAll('button[data-vdplay]').forEach(b=>b.textContent='▶');}
+  if(cur){cur.pause();document.querySelectorAll('button[data-vdplay]').forEach(b=>{b.textContent='▶';});}
   const au=new Audio(url);window._vdAudio=au;btn.dataset.vdplay='1';btn.textContent='⏹';
   au.onended=()=>{btn.textContent='▶';};
   au.play().catch(e=>{btn.textContent='▶';alert('再生できませんでした: '+e.message);});
@@ -6378,7 +6416,7 @@ async function vdExportAudio(P,btn,playOnly){
     const name=`${VD_CFG[P].audioName()}.${ext}`;
     if(!playOnly){const a=document.createElement('a');a.href=url;a.download=name;a.click();}
     const pa=vdEl(P,'p-all');
-    if(pa)pa.innerHTML=`<div style="display:flex;align-items:center;gap:6px;"><button class="btn-sm" onclick="vdPlay(this,'${url}')" style="flex:none;padding:3px 8px;">▶</button><audio controls src="${url}" style="flex:1;min-width:0;height:30px;"></audio></div><div style="font-size:10px;color:var(--text-sub);">${playOnly?'🎧 結合プレビュー':'✅ '+esc(name)} ／ ${fmtSec(cat.samples.length/cat.sampleRate)}秒</div>`;
+    if(pa)pa.innerHTML=`<div style="display:flex;align-items:center;gap:8px;"><button class="btn-sm" onclick="vdPlay(this,'${url}')" style="flex:none;padding:3px 12px;">▶</button><span style="font-size:11px;">${playOnly?'結合プレビュー':esc(name)} ／ ${fmtSec(cat.samples.length/cat.sampleRate)}秒</span></div>`;
     if(playOnly){const pb=pa&&pa.querySelector('button');if(pb)vdPlay(pb,url);}
     const labels=VD_CFG[P].labels();
     const L=[];const total=cat.samples.length/cat.sampleRate;const r1=cat.ranges[0];
@@ -6422,11 +6460,19 @@ function vdSplitChange(s){
   const rest=str.replace(m[0],'').replace(/[（）()]/g,'').trim();
   return{pct,rest};
 }
-function vdChartLines(){
+// 動画①のチャート行：株探データ（全期間）を設定タブの期間で絞る。無ければAI出力のチャート
+function vdChartLines(P){
+  const months=vdVal(P,'months');
+  if(P==='ev'){
+    const ef=window._earnFetched;const efd=ef&&(ef.d||ef);
+    const rows=saChartRowsFromFetched(efd,months,false);
+    if(rows&&rows.length>1)return rows;
+    const d=evData()||{};return String((d.CHART_DATA||{}).data||'').split(';').filter(Boolean);
+  }
+  const rows=saChartRowsFromFetched(window._fetched,months,true);
+  if(rows&&rows.length>1)return rows;
   const ta=(document.getElementById('ta-data')||{}).value||'';
   if(ta.trim()){try{const d=parseData(ta);const c=getSec(d,'チャート');if(c.length>1)return c;}catch(e){}}
-  const f=window._fetched;
-  if(f&&f.chartData){const months=(document.getElementById('gem-months')||{}).value||'';return String(saTrimChartByMonths(f.chartData,months)||'').split(';').filter(Boolean);}
   return[];
 }
 const vPts=(arr,cls)=>{
@@ -6466,12 +6512,12 @@ function buildV1(v,ctx){
   const ch=vdSplitChange(s['変化']||ctx.period);
   const basis=s['基準']||ch.rest;
   const color=/^-/.test(ch.pct)?'#dc2626':ctx.isDown?'#dc2626':'#16a34a';
-  const lines=vdChartLines();
+  const lines=vdChartLines('vd');
   const lbl=lines.length?`${chartGranularityLabel(lines)}チャート（${chartPeriodLabel(lines)}）`:'';
   const ps=fmtPrice(price,code);
   const pf=ps.length>9?'80px':ps.length>7?'92px':'104px';
   const cf=ch.pct.length>7?'60px':'74px';
-  return `<div class="vslide"><div class="v-bar"></div><div class="v-step">① 株価推移</div>${vLogo('low')}
+  return `<div class="vslide"><div class="v-bar"></div>${vLogo('low')}
 <div class="v-wrap">
   <div class="v1-head"><span class="v1-name">${esc(name)}</span><span class="v1-code">（${esc(code)}）</span>${ctx.desc?`<div class="v1-desc">${esc(ctx.desc)}</div>`:''}</div>
   <div class="v1-price-card">
@@ -6484,7 +6530,7 @@ function buildV1(v,ctx){
 }
 function buildVPoints(sec,step,cls,defTitle){
   const s=sec||{pts:[]};
-  return `<div class="vslide"><div class="v-bar"></div><div class="v-step">${esc(step)}</div>${vLogo()}
+  return `<div class="vslide"><div class="v-bar"></div>${vLogo()}
 <div class="v-wrap">
   <div class="v-h ${cls}">${esc(s['見出し']||defTitle)}</div>
   <div class="v-pts">${vPts(s.pts,cls)}</div>
@@ -6501,7 +6547,7 @@ function buildV5(v,ctx){
   const url=vdVal('vd','note-url');
   const qr=url?`<div class="v5-qr" data-qr="${esc(url)}"></div>`:`<div class="v5-qr"><div class="v5-qr-none">QR用URLを<br>入力すると<br>QRを表示</div></div>`;
   const row=(l,val,cls)=>val?`<div class="v5-row"><div class="v5-rl">${esc(l)}</div><div class="v5-rv ${cls||''}">${esc(val)}</div></div>`:'';
-  return `<div class="vslide"><div class="v-bar"></div><div class="v-step">⑤ まとめ</div>${vLogo()}
+  return `<div class="vslide"><div class="v-bar"></div>${vLogo()}
 <div class="v5-top">
   <div class="v5-title">現時点の整理</div>
   ${row(isDown?'下落幅':'上昇幅',(ch.pct?(from?from+' ':'')+ch.pct:''),isDown?'red':'green')}
@@ -6530,12 +6576,12 @@ const evIsPos=s=>/^[+＋▲]|黒字|クリア|上方|増|超過/.test(String(s||
 function evSignCls(s){return evIsNeg(s)?'red':evIsPos(s)?'green':'';}
 function buildE1(v,d,ctx){
   const s=v.E1||{multi:{}};const h=d.HEADER||{},b=d.BASIC_INFO||{},mr=d.MARKET_REACTION||{};
-  const lines=String((d.CHART_DATA||{}).data||'').split(';').filter(Boolean);
+  const lines=vdChartLines('ev');
   const lbl=lines.length?`${chartGranularityLabel(lines)}チャート（${chartPeriodLabel(lines)}）`:'';
   const emph=((s.multi&&s.multi['強調'])||[]).slice(0,2).map(x=>{const q=String(x).split(/[|｜]/);return{l:trimDot(q[0]||''),v:trimDot(q[1]||'')};}).filter(e=>e.l||e.v);
   const emphHtml=emph.length?`<div class="e1-emph">${emph.map(e=>`<div class="e1-em"><div class="e1-el">${esc(e.l)}</div><div class="e1-ev ${evSignCls(e.v)}">${esc(e.v)}</div></div>`).join('')}</div>`:'';
   const price=evNum(mr.post_price)||evNum(mr.pre_price);
-  return `<div class="vslide"><div class="v-bar"></div><div class="v-step">① 決算の全体像</div>${vLogo('low')}
+  return `<div class="vslide"><div class="v-bar"></div>${vLogo('low')}
 <div class="v-wrap">
   <div class="v1-head"><span class="v1-name">${esc(ctx.name)}</span><span class="v1-code">（${esc(ctx.code)}）</span>${h.business_description?`<div class="v1-desc">${esc(h.business_description)}</div>`:''}</div>
   <div class="e1-badge-row"><span class="e1-q">${esc(h.quarter||'')}</span>${h.result_label?`<span class="e1-badge ${evSignCls(h.result_label)}">${esc(h.result_label)}</span>`:''}</div>
@@ -6549,7 +6595,7 @@ function buildE2(v,d){
   const s=v.E2||{pts:[]};const kh=d.KPI_HEADER||{};
   const kpis=[d.KPI_1,d.KPI_2,d.KPI_3].filter(Boolean);
   const rows=kpis.map(k=>`<div class="e2-row"><div class="e2-l">${esc(k.display_label||'')}</div><div class="e2-v">${esc(addComma(evNum(k.value)))}</div><div class="e2-y ${evSignCls(k.yoy)}">${esc(evNum(k.yoy))}</div>${k.judgment&&k.judgment!=='-'?`<div class="e2-j ${evSignCls(k.judgment)}">${esc(k.judgment)}</div>`:''}</div>`).join('');
-  return `<div class="vslide"><div class="v-bar"></div><div class="v-step">② 今回の実績</div>${vLogo()}
+  return `<div class="vslide"><div class="v-bar"></div>${vLogo()}
 <div class="v-wrap" style="gap:22px;">
   <div class="v-h">${esc(s['見出し']||'今回の実績')}</div>
   <div class="e2-table">${rows}${kh.consensus_label&&kh.consensus_label!=='なし'?`<div class="e2-note">前年同期比／判定は${esc(kh.consensus_label)}との比較</div>`:''}</div>
@@ -6568,7 +6614,7 @@ function buildE3(v,d){
   ].filter(x=>evNum(x.a)||evNum(x.b));
   const rows=items.map(x=>`<div class="e3-row"><div class="e3-l">${esc(x.l)}</div><div class="e3-a">${esc(addComma(evNum(x.a))||'—')}</div><div class="e3-ar">→</div><div class="e3-b">${esc(addComma(evNum(x.b))||'—')}</div><div class="e3-r ${evSignCls(x.r)}">${esc(evNum(x.r)&&x.r!=='-'?x.r:'')}${evNum(x.p)&&x.p!=='-'?`<small>進捗 ${esc(x.p)}</small>`:''}</div></div>`).join('');
   const cls=evIsNeg(g.status)?'red':evIsPos(g.status)?'green':'';
-  return `<div class="vslide"><div class="v-bar"></div><div class="v-step">③ 通期予想</div>${vLogo()}
+  return `<div class="vslide"><div class="v-bar"></div>${vLogo()}
 <div class="v-wrap" style="gap:22px;">
   <div class="v-h ${cls}">${esc(s['見出し']||g.status||'通期予想')}</div>
   <div class="e3-head"><span></span><span>${esc(c1)}</span><span></span><span>${esc(c2)}</span><span></span></div>
@@ -6583,7 +6629,7 @@ function buildEF(v,d,step,ctx){
   const cls=evSignCls(mr.price_change);
   const pts=(s.pts||[]).slice(0,3).map(p=>{const q=String(p).split(/[|｜]/);return{h:trimDot(q[0]||''),sub:trimDot(q.slice(1).join(' ')||'')};});
   const ptsHtml=pts.map((p,i)=>`<div class="ef-pt"><div class="v-pn" style="width:64px;height:64px;font-size:34px;">${i+1}</div><div><div class="ef-ph">${esc(p.h)}</div>${p.sub?`<div class="ef-ps">${esc(p.sub)}</div>`:''}</div></div>`).join('');
-  return `<div class="vslide"><div class="v-bar"></div><div class="v-step">${esc(step)} 市場の反応と今後</div>${vLogo()}
+  return `<div class="vslide"><div class="v-bar"></div>${vLogo()}
 <div class="v-wrap" style="gap:20px;">
   <div class="v-h ${cls}">市場の反応</div>
   <div class="ef-prices">
@@ -6795,6 +6841,7 @@ function earnPrevMode(m){
   vdBuildScriptBoxes('ev',true);   // 復元した枚数設定で作り直す
   vdRestoreFields('ev');
   const thi=document.getElementById('th-input');if(thi)thi.addEventListener('input',()=>debouncedVideoPrev('vd'));
+  [['vd','gem-months'],['ev','gem-earn-months']].forEach(([P,src])=>{const m=vdEl(P,'months'),s=document.getElementById(src);if(m&&s&&!m.value&&s.value)m.value=s.value;});
   vdRestoreTts();
 })();
 
