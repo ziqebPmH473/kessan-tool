@@ -797,6 +797,11 @@
         </div>
 
         <div id="mode-earnings">
+        <div class="sa" style="margin-bottom:6px;"><div class="sa-subtabs">
+          <button class="sa-subtab active" data-etab="main" onclick="switchEarnTab('main')">📊 決算分析</button>
+          <button class="sa-subtab" data-etab="video" onclick="switchEarnTab('video')">🎬 動画</button>
+        </div></div>
+        <div id="earn-tab-main">
         <div class="tool-section">
             <div class="section-heading" style="display:flex; justify-content:space-between; align-items:center; border-bottom:none; padding-bottom:0;">
                 <span style="border-bottom:2px solid var(--accent); padding-bottom:4px;">1. 情報収集 ＆ AIプロンプト生成</span>
@@ -913,10 +918,8 @@
                 <img id="mobile-preview-img" src="" alt="生成画像プレビュー">
             </div>
         </div>
-        <div class="tool-section">
-            <div class="section-heading">3. SNS動画（縦型）</div>
-            <div id="earn-video" class="sa" style="display:flex;flex-direction:column;gap:6px;margin-top:6px;"></div>
-        </div>
+        </div><!-- /earn-tab-main -->
+        <div id="earn-tab-video" class="sa" style="display:none;flex-direction:column;gap:6px;"></div>
         </div><!-- /mode-earnings -->
 
         <div id="mode-stock" style="display:none;">
@@ -1346,10 +1349,6 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
     </div>
   </div>
 </div>
-        </div>
-        <div id="earn-prev-tabs" class="prev-tabs" style="display:flex;">
-            <button class="prev-tab active" id="earn-ptab-image" onclick="earnPrevMode('image')">🖼 横画像</button>
-            <button class="prev-tab" id="earn-ptab-video" onclick="earnPrevMode('video')">🎬 縦スライド</button>
         </div>
         <div id="capture-area">
             
@@ -2902,10 +2901,8 @@ point_2=`;
             document.getElementById('mode-earnings').style.display = mode === 'earnings' ? '' : 'none';
             document.getElementById('mode-stock').style.display   = mode === 'stock'    ? '' : 'none';
             document.getElementById('capture-area').style.display       = mode === 'earnings' ? '' : 'none';
-            { const ept=document.getElementById('earn-prev-tabs'); if(ept) ept.style.display = mode === 'earnings' ? 'flex' : 'none';
-              const evv=document.getElementById('earn-video-view');
-              if(evv && mode !== 'earnings') evv.style.display = 'none';
-              if(evv && mode === 'earnings' && evv.style.display === 'flex'){ document.getElementById('capture-area').style.display = 'none'; requestAnimationFrame(()=>{ try{ renderVideoPrev('ev'); }catch(e){} }); } }
+            if (mode === 'earnings' && typeof switchEarnTab === 'function') requestAnimationFrame(() => switchEarnTab(window._earnTab || 'main'));
+            else { const evv = document.getElementById('earn-video-view'); if (evv) evv.style.display = 'none'; }
             document.getElementById('capture-area-stock').style.display = mode === 'stock'    ? 'flex' : 'none';
 
             document.getElementById('mode-price').style.display         = mode === 'price' ? '' : 'none';
@@ -5801,7 +5798,7 @@ function vdBuildTabHtml(P){
       <label style="display:flex;align-items:center;gap:3px;cursor:pointer;"><input type="radio" name="ev-count" value="auto" checked onchange="vdOnCountChange()"> 自動（<span id="ev-count-auto">-</span>）</label>
       <label style="display:flex;align-items:center;gap:3px;cursor:pointer;"><input type="radio" name="ev-count" value="3" onchange="vdOnCountChange()"> 3枚</label>
       <label style="display:flex;align-items:center;gap:3px;cursor:pointer;"><input type="radio" name="ev-count" value="4" onchange="vdOnCountChange()"> 4枚</label>
-      <label style="display:flex;align-items:center;gap:3px;cursor:pointer;margin-left:auto;"><input type="checkbox" id="ev-auto" checked> 整形と同時に生成</label>
+      <label style="display:flex;align-items:center;gap:3px;cursor:pointer;margin-left:auto;"><input type="checkbox" id="ev-auto" checked> 整形後に動画も自動生成</label>
     </div>`;
   const artRows=c.hasNote?`
     <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:8px;">
@@ -5810,11 +5807,10 @@ function vdBuildTabHtml(P){
       <button class="btn-sm" onclick="vdPasteArtUrl('${P}')" style="flex:none;">📋 貼付け</button>
       <button class="btn-sm" onclick="vdApplyArtUrl('${P}')" style="flex:none;background:#0d9488;color:#fff;">🔁 URLを差し込み</button>
     </div>
-    <div style="font-size:10px;color:var(--text-sub);margin-top:2px;">X投稿文の1行目（【】）の直下にURLを入れます。差し込みは何度でも可</div>`:'';
+`:'';
   return `
   <div class="sa-card">
     <h2>${c.title}</h2>
-    <div style="font-size:10px;color:var(--text-sub);">${c.hint}</div>
     ${noteRows}${modelRow}
     <button class="btn btn-full" id="${P}-gen-btn" onclick="geminiVideo('${P}',this)" style="background:#7c3aed;color:#fff;margin-top:6px;">${c.genLabel}</button>
     <div id="${P}-status" style="display:none;font-size:11px;margin-top:3px;"></div>
@@ -5825,14 +5821,10 @@ function vdBuildTabHtml(P){
   </div>
 
   <div id="${P}-pane-slides">
-  <div class="sa-card">
-    <h2>サムネイル（動画の0〜5秒／カバー画像）</h2>
-    <textarea id="${P}-th-input" oninput="debouncedVideoPrev('${P}')" rows="2" placeholder="上段：中段：下段（生成後に入ります）" style="height:46px;min-height:46px;"></textarea>
-    <p style="font-size:10px;color:var(--text-sub);margin:2px 0 0;">「：」で上・中・下段を区切る。色指定: <span style="color:#ff914d">*オレンジ*</span>　<span style="color:#5ce1e6">#水色#</span>　<span style="color:#ffde59">%黄色%</span></p>
-  </div>
+  ${P==='ev'?`<div class="sa-card"><h2>サムネイル</h2><textarea id="ev-th-input" oninput="debouncedVideoPrev('ev')" rows="2" placeholder="上段：中段：下段（整形データから自動）" style="height:46px;min-height:46px;"></textarea></div>`:`<div style="font-size:11px;color:var(--text-sub);">サムネは「サムネイル」タブのテキストを使います</div>`}
   <div class="sa-card">
     <h2>縦スライド</h2>
-    <div style="display:flex;justify-content:space-between;align-items:center;"><label style="font-size:11px;color:var(--text-sub);">スライド用データ（編集するとプレビューに反映）</label><button class="btn-sm" onclick="copyText(document.getElementById('${P}-slides').value,this)">📋 コピー</button></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;"><label style="font-size:11px;color:var(--text-sub);">スライド用データ</label><button class="btn-sm" onclick="copyText(document.getElementById('${P}-slides').value,this)">📋 コピー</button></div>
     <textarea id="${P}-slides" oninput="debouncedVideoPrev('${P}')" placeholder="生成後にスライド用データが入ります" style="min-height:90px;font-size:10px;"></textarea>
     <button class="btn btn-full" id="${P}-dl-btn" onclick="downloadVideoSlides('${P}')" style="margin-top:6px;">⬇ 縦スライド＋台本をZIPでダウンロード</button>
   </div>
@@ -5852,7 +5844,6 @@ function vdBuildTabHtml(P){
   <div id="${P}-pane-audio" style="display:none;">
   <div class="sa-card">
     <h2>台本と音声（スライドごと）</h2>
-    <div style="font-size:10px;color:var(--text-sub);">各ボックスはナレーション文だけ。修正してから🔊で音声化（そのスライドだけ作り直せます）。目安は7文字/秒</div>
     <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:6px;">
       <label style="font-size:11px;color:var(--text-sub);flex:none;">声</label>
       <select id="${P}-tts-voice" onchange="vdSyncTts('${P}')" style="flex:1;min-width:0;font-size:11px;padding:4px;">${VD_VOICE_OPTIONS}</select>
@@ -5862,19 +5853,22 @@ function vdBuildTabHtml(P){
         <option value="gemini-2.5-pro-preview-tts">Gemini 2.5 Pro TTS（有料枠）</option>
       </select>
     </div>
+    <div id="${P}-script-boxes"></div>
+    <div id="${P}-st-total" style="font-size:12px;font-weight:700;color:var(--accent);margin-top:8px;text-align:right;"></div>
+    <div style="font-size:11px;color:var(--text-sub);margin-top:8px;">結合時の設定（個別の音声化には影響しません）</div>
     <div class="row" style="flex-wrap:nowrap;gap:8px;align-items:center;margin-top:4px;font-size:11px;color:var(--text-sub);">
       <label style="display:flex;align-items:center;gap:4px;flex:1;">補正 <span id="${P}-tts-eq-val">30</span>% <input type="range" id="${P}-tts-eq" min="0" max="100" step="10" value="30" oninput="document.getElementById('${P}-tts-eq-val').textContent=this.value" onchange="vdSyncTts('${P}')" style="flex:1;cursor:pointer;"></label>
       <label style="display:flex;align-items:center;gap:4px;flex:1;">間 <span id="${P}-tts-gap-val">500</span>ms <input type="range" id="${P}-tts-gap" min="0" max="1500" step="50" value="500" oninput="document.getElementById('${P}-tts-gap-val').textContent=this.value" onchange="vdSyncTts('${P}')" style="flex:1;cursor:pointer;"></label>
       <select id="${P}-tts-format" onchange="vdSyncTts('${P}')" style="font-size:11px;padding:3px;"><option value="mp3" selected>MP3</option><option value="wav">WAV</option></select>
     </div>
-    <div id="${P}-script-boxes"></div>
     <div class="row" style="flex-wrap:nowrap;margin-top:8px;">
-      <button class="btn-sm" id="${P}-tts-all-btn" onclick="vdGenAllTts('${P}',this)" style="flex:1;background:#0891b2;color:#fff;">🔊 未生成のスライドをまとめて音声化</button>
-      <button class="btn-sm" id="${P}-tts-export-btn" onclick="vdExportAudio('${P}',this)" style="flex:1;background:#0d9488;color:#fff;">⬇ 1本にして出力</button>
+      <button class="btn-sm" id="${P}-tts-all-btn" onclick="vdGenAllTts('${P}',this)" style="flex:1;background:#0891b2;color:#fff;">🔊 未生成を音声化</button>
+      <button class="btn-sm" id="${P}-tts-play-btn" onclick="vdExportAudio('${P}',this,true)" style="flex:1;background:#475569;color:#fff;">▶ 結合して再生</button>
+      <button class="btn-sm" id="${P}-tts-export-btn" onclick="vdExportAudio('${P}',this)" style="flex:1;background:#0d9488;color:#fff;">⬇ 音声出力</button>
     </div>
     <div id="${P}-tts-status" style="font-size:11px;color:var(--text-sub);min-height:14px;margin-top:3px;"></div>
     <div id="${P}-p-all" style="margin-top:4px;"></div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">スライド切替タイミング（1本出力時に更新）</label><button class="btn-sm" onclick="copyText(document.getElementById('${P}-timing').value,this)">📋 コピー</button></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">スライド切替タイミング</label><button class="btn-sm" onclick="copyText(document.getElementById('${P}-timing').value,this)">📋 コピー</button></div>
     <textarea id="${P}-timing" readonly placeholder="音声を1本にすると、各スライドの開始・終了秒が入ります" style="min-height:90px;font-family:monospace;font-size:10px;"></textarea>
   </div>
   </div>`;
@@ -5953,7 +5947,7 @@ const VD_SCRIPT_RULES=`台本共通：話し言葉。「〜です・ます」の
 const VD_META_RULES=`動画はスライドを1枚ずつ流しっぱなしで映し、ナレーションを重ねる。テロップは入れない。したがって台本は「そのまま読み上げる文章」だけを書く。秒数・カット名・見出し・テロップ・演出指示・括弧書きのメタ情報は一切書かない。読み上げ速度は1秒あたり約7文字。`;
 
 const VIDEO_PROMPT_VD=`あなたは「論理的で客観的だが、初心者に寄り添って分かりやすく話す投資のナビゲーター」です。
-提供される【株価分析レポート】と【基本情報】を根拠に、SNS向け縦型ショート動画（X / TikTok / Instagramリール、約100秒）の素材を、下記の10ブロックで出力してください。
+提供される【株価分析レポート】と【基本情報】を根拠に、SNS向け縦型ショート動画（X / TikTok / Instagramリール、約100秒）の素材を、下記の9ブロックで出力してください。
 
 【無料範囲と有料範囲（最重要・厳守）】
 ・動画で扱ってよいのは「無料範囲」のみ：株価の値動き（どれくらい下落/上昇したか）、その理由、企業の強み、企業の弱み・懸念。
@@ -5965,11 +5959,10 @@ const VIDEO_PROMPT_VD=`あなたは「論理的で客観的だが、初心者に
 ${VD_META_RULES}
 各スライドの目安：①150文字（冒頭5秒はサムネ表示中のフック）／②150文字／③125文字／④125文字／⑤150文字。合計650〜750文字。
 
-【出力形式（必ず10ブロック、この順番。各ブロックはコードブロックで囲み、コードブロックの中に見出しを書かない）】
+【出力形式（必ず9ブロック、この順番。各ブロックはコードブロックで囲み、コードブロックの中に見出しを書かない）】
 
-1. 【サムネ】：1行だけ。「上段：中段：下段」を全角コロンで区切る。上段＝感情・問題提起（8〜10文字）、中段＝銘柄名（6〜9文字）、下段＝問いかけ（8〜10文字）。強調したい数値や語句は *〜* で囲む（例：最高値から*49%下落*：メック：#底値#はまだ先？）。
 
-2. 【縦スライド】：スライドに載せる文言だけ。ナレーションで説明する前提なので、文字は控えめにする。次の形式を厳守（キー名は変更禁止）：
+1. 【縦スライド】：スライドに載せる文言だけ。ナレーションで説明する前提なので、文字は控えめにする。次の形式を厳守（キー名は変更禁止）：
 [V1]
 銘柄:銘柄名|証券コード
 株価:現在株価の数値のみ（カンマ・単位なし）
@@ -5999,18 +5992,18 @@ ${VD_META_RULES}
 弱み:半導体需要依存＋新工場負担（16文字以内）
 　[V2]〜[V4]の各行は「結論|補足」の2段構成：結論＝15〜25文字の体言止め（例：AI期待の剥落とPERの正常化）、補足＝20〜35文字でその意味や根拠（例：期待先行で上昇した反動が出た）。1スライドの合計は100〜150文字に収める。noteの記事のような長文にはしない。
 
-3. 【台本①】：スライド①（株価推移）。冒頭で銘柄名と下落/上昇率を言い切り、「原因は業績悪化なのでしょうか？」のような問いで引き込んでから、いつの高値/安値からどれだけ動いたかを説明する。
-4. 【台本②】：スライド②。[V2]の3つの結論を、その順番で、その語句を使って、意味が分かるように話す。
-5. 【台本③】：スライド③。[V3]の3点を順に。「株価が下がった＝会社が悪くなったわけではない」という視点。
-6. 【台本④】：スライド④。[V4]の3点を順に。
-7. 【台本⑤】：スライド⑤（まとめ＋note誘導）。「ここまでが現在の状況です」と締めてから[V5]の問いを投げ、「3〜9か月の底値レンジ、12か月後のシナリオ、判断に使うモノサシ、リスクはnoteで詳しく分析しています」と案内して終える。免責文はスライドに載せるので読まない。
+2. 【台本①】：スライド①（株価推移）。冒頭で銘柄名と下落/上昇率を言い切り、「原因は業績悪化なのでしょうか？」のような問いで引き込んでから、いつの高値/安値からどれだけ動いたかを説明する。
+3. 【台本②】：スライド②。[V2]の3つの結論を、その順番で、その語句を使って、意味が分かるように話す。
+4. 【台本③】：スライド③。[V3]の3点を順に。「株価が下がった＝会社が悪くなったわけではない」という視点。
+5. 【台本④】：スライド④。[V4]の3点を順に。
+6. 【台本⑤】：スライド⑤（まとめ＋note誘導）。「ここまでが現在の状況です」と締めてから[V5]の問いを投げ、必ず次の一文をそのまま含めて案内し、終える：「株価の底値、12か月後の株価シナリオ、株価以外の転換点のモノサシ、そしてリスクについては、noteで詳しく分析しています」（上昇分析では「株価の底値」を「株価の天井」に置き換える。他の語句は変えない）。免責文はスライドに載せるので読まない。
 ${VD_SCRIPT_RULES}
 
-8. 【X投稿文】：140文字以内（ハッシュタグ含む。URLはツールが後から1行追加する）。1行目は「【 #銘柄名（証券コード）｜〇ヶ月で〇％下落】」だけの行にする（この行の直下にURLが入る）。2行目以降に動画の問いかけを1〜2文。最終行は必ず「▼ 底値レンジ・12か月シナリオはnoteで」で終える（その後に何も書かない。「（noteリンク）」等のプレースホルダーも書かない）。結論・目標株価は書かない。ハッシュタグは2〜3個を最終行の直前の行に。
+7. 【X投稿文】：140文字以内（ハッシュタグ含む。URLはツールが後から1行追加する）。1行目は「【 #銘柄名（証券コード）｜〇ヶ月で〇％下落】」だけの行にする（この行の直下にURLが入る）。2行目以降に動画の問いかけを1〜2文。最終行は必ず「▼ 底値レンジ・12か月シナリオはnoteで」で終える（その後に何も書かない。「（noteリンク）」等のプレースホルダーも書かない）。結論・目標株価は書かない。ハッシュタグは2〜3個を最終行の直前の行に。
 
-9. 【Instagram投稿文】：リール用キャプション。1行目にフック（絵文字可）、2〜4行で動画の要点（無料範囲のみ）、「▶ 続き（底値レンジ・12か月シナリオ・モノサシ・リスク）はプロフィールのリンクから」を入れ、空行を1つ挟んでハッシュタグを10〜15個（銘柄名・証券コード・業種・テーマ・#株式投資 #日本株 など）。
+8. 【Instagram投稿文】：リール用キャプション。1行目にフック（絵文字可）、2〜4行で動画の要点（無料範囲のみ）、「▶ 続き（底値レンジ・12か月シナリオ・モノサシ・リスク）はプロフィールのリンクから」を入れ、空行を1つ挟んでハッシュタグを10〜15個（銘柄名・証券コード・業種・テーマ・#株式投資 #日本株 など）。
 
-10. 【TikTok投稿文】：150文字以内。フック1文＋「続きはプロフのリンクから」＋ハッシュタグ3〜5個（#銘柄名 #株 #投資 など）。
+9. 【TikTok投稿文】：150文字以内。フック1文＋「続きはプロフのリンクから」＋ハッシュタグ3〜5個（#銘柄名 #株 #投資 など）。
 
 【共通ルール】
 ・すべて元レポートの事実に基づき、レポートにない数値・事実を創作しない。
@@ -6025,14 +6018,14 @@ function videoPromptEv(n){
 理由:修正の理由を一言（30文字以内。例：好採算案件の増加と原価改善）
 ・結論|補足（会社が今後をどう見ているか。1〜2行、任意）
 `:'';
-  const scripts=four?`3. 【台本①】：スライド①。冒頭は銘柄名＋今回もっとも強い事実で言い切り（例：「〇〇、1Qで営業黒字転換。何が変わったのでしょうか？」）、決算の一言結論と株価の位置を話す。「決算を解説します」のような入り方はしない。
-4. 【台本②】：スライド②。今回の実績（売上・利益・前年比）と、[E2]の3つの理由をその順番・その語句で話す。
-5. 【台本③】：スライド③。通期予想・修正の内容（修正前→修正後の要点）と[E3]の理由を話す。会社が今後をどう見ているかを伝える。
-6. 【台本④】：スライド④。決算前後の株価反応と、市場が何を評価／警戒したか（[E4]の反応）、今後の注目点を[E4]の順に。最後は[E4]の「焦点」の文で締める。実績と株価反応にズレがあればここで説明する。`
-:`3. 【台本①】：スライド①。冒頭は銘柄名＋今回もっとも強い事実で言い切り（例：「〇〇、1Qで営業黒字転換。何が変わったのでしょうか？」）、決算の一言結論と株価の位置を話す。「決算を解説します」のような入り方はしない。
-4. 【台本②】：スライド②。今回の実績（売上・利益・前年比）と、[E2]の3つの理由をその順番・その語句で話す。
-5. 【台本③】：スライド③。決算前後の株価反応と、市場が何を評価／警戒したか（[E4]の反応）、今後の注目点を[E4]の順に。最後は[E4]の「焦点」の文で締める。`;
-  const nBlocks=four?10:9;
+  const scripts=four?`2. 【台本①】：スライド①。冒頭は銘柄名＋今回もっとも強い事実で言い切り（例：「〇〇、1Qで営業黒字転換。何が変わったのでしょうか？」）、決算の一言結論と株価の位置を話す。「決算を解説します」のような入り方はしない。
+3. 【台本②】：スライド②。今回の実績（売上・利益・前年比）と、[E2]の3つの理由をその順番・その語句で話す。
+4. 【台本③】：スライド③。通期予想・修正の内容（修正前→修正後の要点）と[E3]の理由を話す。会社が今後をどう見ているかを伝える。
+5. 【台本④】：スライド④。決算前後の株価反応と、市場が何を評価／警戒したか（[E4]の反応）、今後の注目点を[E4]の順に。最後は[E4]の「焦点」の文で締める。実績と株価反応にズレがあればここで説明する。`
+:`2. 【台本①】：スライド①。冒頭は銘柄名＋今回もっとも強い事実で言い切り（例：「〇〇、1Qで営業黒字転換。何が変わったのでしょうか？」）、決算の一言結論と株価の位置を話す。「決算を解説します」のような入り方はしない。
+3. 【台本②】：スライド②。今回の実績（売上・利益・前年比）と、[E2]の3つの理由をその順番・その語句で話す。
+4. 【台本③】：スライド③。決算前後の株価反応と、市場が何を評価／警戒したか（[E4]の反応）、今後の注目点を[E4]の順に。最後は[E4]の「焦点」の文で締める。`;
+  const nBlocks=four?9:8;
   return `あなたは「論理的で客観的だが、初心者に寄り添って分かりやすく話す投資のナビゲーター」です。
 提供される【決算分析の整形済みデータ】と【基本情報】を根拠に、SNS向け縦型ショート動画（X / TikTok / Instagramリール）の素材を、下記の${nBlocks}ブロックで出力してください。
 この動画は有料記事への誘導ではなく、決算内容を短時間で理解してもらいフォロワーを増やすための「認知型」の動画です。noteへの誘導文は書かない。
@@ -6044,9 +6037,8 @@ ${VD_META_RULES}
 
 【出力形式（必ず${nBlocks}ブロック、この順番。各ブロックはコードブロックで囲み、コードブロックの中に見出しを書かない）】
 
-1. 【サムネ】：1行だけ。「上段：中段：下段」を全角コロンで区切る。上段＝今回もっとも強い事実（8〜10文字。例：*営業黒字*転換）、中段＝銘柄名（6〜9文字）、下段＝問いかけ（8〜10文字。例：市場の反応は？）。強調したい数値や語句は *〜* で囲む。
 
-2. 【縦スライド】：次の形式を厳守（キー名は変更禁止）：
+1. 【縦スライド】：次の形式を厳守（キー名は変更禁止）：
 [E1]
 結論:今回の決算の一言結論（16文字以内。例：売上8倍で営業黒字転換）
 強調:ラベル|値（最も強い数字。例：売上高|+847%）
@@ -6067,9 +6059,9 @@ ${e3}[E4]
 ${scripts}
 ${VD_SCRIPT_RULES}
 
-${four?'7':'6'}. 【X投稿文】：140文字以内（ハッシュタグ含む）。1行目は「【 #銘柄名（証券コード）｜決算の一言結論】」だけの行にする。2行目以降に要点と問いかけを1〜2文。ハッシュタグ2〜3個を最終行に。noteやリンクの文言は書かない。
-${four?'8':'7'}. 【Instagram投稿文】：リール用キャプション。1行目にフック（絵文字可）、2〜4行で決算の要点、「▶ 決算解説を毎回投稿しています。フォローで見逃し防止」を入れ、空行を1つ挟んでハッシュタグを10〜15個（銘柄名・証券コード・#決算 #株式投資 #日本株 ・業種など）。
-${four?'9':'8'}. 【TikTok投稿文】：150文字以内。フック1文＋「フォローで毎回の決算解説」＋ハッシュタグ3〜5個。
+${four?'6':'5'}. 【X投稿文】：140文字以内（ハッシュタグ含む）。1行目は「【 #銘柄名（証券コード）｜決算の一言結論】」だけの行にする。2行目以降に要点と問いかけを1〜2文。ハッシュタグ2〜3個を最終行に。noteやリンクの文言は書かない。
+${four?'7':'6'}. 【Instagram投稿文】：リール用キャプション。1行目にフック（絵文字可）、2〜4行で決算の要点、「▶ 決算解説を毎回投稿しています。フォローで見逃し防止」を入れ、空行を1つ挟んでハッシュタグを10〜15個（銘柄名・証券コード・#決算 #株式投資 #日本株 ・業種など）。
+${four?'8':'7'}. 【TikTok投稿文】：150文字以内。フック1文＋「フォローで毎回の決算解説」＋ハッシュタグ3〜5個。
 
 【共通ルール】
 ・すべて整形済みデータの事実に基づき、データにない数値・事実を創作しない。
@@ -6105,7 +6097,7 @@ function vdBasicInfo(P){
 }
 
 function parseVideoOutput(text,nScripts){
-  const defs=[{key:'thumb',re:/【\s*サムネ[^】]*】/},{key:'slides',re:/【\s*縦スライド[^】]*】/}];
+  const defs=[{key:'slides',re:/【\s*縦スライド[^】]*】/}];
   const nums=['[①1１]','[②2２]','[③3３]','[④4４]','[⑤5５]'];
   for(let i=1;i<=nScripts;i++)defs.push({key:'s'+i,re:new RegExp(`【\\s*台本\\s*${nums[i-1]}[^】]*】`)});
   defs.push({key:'x',re:/【\s*X[^】]*投稿文\s*】/},{key:'insta',re:/【\s*Instagram[^】]*】/i},{key:'tiktok',re:/【\s*TikTok[^】]*】/i});
@@ -6181,7 +6173,7 @@ async function geminiVideo(P,btnEl){
   if(!r.ok){vdStatus(P,'エラー: '+r.error,'error');return false;}
   const p=parseVideoOutput(r.text,n);
   vdBuildScriptBoxes(P,true);
-  vdEl(P,'th-input').value=(p.thumb||'').split('\n')[0].trim();
+  if(P==='ev'){const t=vdEl('ev','th-input');if(t)t.value=evThumbText();}   // サムネ文言はAIに作らせない（株価分析はサムネイルタブの文言を流用）
   for(let i=1;i<=n;i++){vdEl(P,'s'+i).value=vdCleanScript(deJargonP0(p['s'+i]||''));}
   vdEl(P,'slides').value=deJargonP0(p.slides||'');
   vdEl(P,'x').value=vdNormalizeXPost(deJargonP0(p.x||''));
@@ -6192,14 +6184,14 @@ async function geminiVideo(P,btnEl){
   await vdClearAllTts(P);   // 台本が変わったので前の音声は破棄
   vdUpdateScriptStats(P);
   if(typeof saveState==='function')saveState();
-  const missing=[!p.thumb&&'サムネ',!(p.s1&&p['s'+n])&&'台本',!p.slides&&'縦スライド',!p.x&&'X',!p.insta&&'Instagram',!p.tiktok&&'TikTok'].filter(Boolean);
+  const missing=[!(p.s1&&p['s'+n])&&'台本',!p.slides&&'縦スライド',!p.x&&'X',!p.insta&&'Instagram',!p.tiktok&&'TikTok'].filter(Boolean);
   vdStatus(P,`生成完了（${r.model||'gemini'}${r.fellBack?'・降格':''}${saTokenNote(r.usage)}）${missing.length?' ※'+missing.join('・')+'は全文から確認':''}`,missing.length?'info':'ok');
   vdShowPreview(P);
   return true;
 }
 function vdShowPreview(P){
   if(P==='vd'){setMode('video');}
-  else{earnPrevMode('video');}
+  else{switchEarnTab('video');}
 }
 
 // ---- 台本ボックス ----
@@ -6235,6 +6227,10 @@ function vdUpdateScriptStats(P){
     if(a&&p&&a.text!==ta.value.trim())p.innerHTML=`<span style="color:#d97706;">台本が変更されています。🔊で作り直してください（旧音声 ${a.seconds}秒）</span>`;
     else if(a&&p&&!p.querySelector('audio'))vdRenderPlayer(P,i);
   }
+  const tot=vdEl(P,'st-total');
+  if(tot){let chars=0;for(let i=1;i<=secs.length;i++){chars+=((vdEl(P,'s'+i)||{}).value||'').replace(/\s/g,'').length;}
+    const frame=secs.reduce((a,b)=>a+b,0);
+    tot.textContent=`合計 ${chars}文字 ／ 目安 ${Math.round(chars/VD_TTS_CHARS_PER_SEC)}秒（枠 ${frame}秒）`;}
 }
 function vdScriptAllText(P){
   return VD_CFG[P].labels().map((lb,i)=>`■ ${lb}\n${(vdEl(P,'s'+(i+1))||{}).value||''}`).join('\n\n');
@@ -6264,7 +6260,7 @@ function vdRenderPlayer(P,i){
   const a=window._vdTts[P][i],p=vdEl(P,'p'+i);if(!p)return;
   if(!a){p.textContent='未生成';return;}
   const url=URL.createObjectURL(new Blob([vdB64ToBuf(a.b64)],{type:'audio/wav'}));
-  p.innerHTML=`<div style="display:flex;align-items:center;gap:6px;"><audio controls src="${url}" style="flex:1;min-width:0;height:28px;"></audio><span style="flex:none;">${a.seconds}秒・${esc(a.voice)}</span></div>`;
+  p.innerHTML=`<div style="display:flex;align-items:center;gap:6px;"><button class="btn-sm" onclick="vdPlay(this,'${url}')" style="flex:none;padding:3px 8px;">▶</button><audio controls src="${url}" style="flex:1;min-width:0;height:28px;"></audio><span style="flex:none;">${a.seconds}秒・${esc(a.voice)}</span></div>`;
 }
 async function vdGenTts(P,i,btn){
   const text=vdVal(P,'s'+i);
@@ -6353,26 +6349,37 @@ async function vdProcessAudio(concat,strength,format){
   return format==='mp3'?{blob:await vdBufToMp3(samples,sr),ext:'mp3'}:{blob:new Blob([await vdFloatToWavBuf(samples,sr)],{type:'audio/wav'}),ext:'wav'};
 }
 const fmtSec=s=>(Math.round(s*10)/10).toFixed(1);
-async function vdExportAudio(P,btn){
+// ▶ボタンでの再生（audio要素の操作が効かない環境向け。1つ再生すると他は止める）
+window._vdAudio=null;
+function vdPlay(btn,url){
+  const cur=window._vdAudio;
+  if(cur&&cur.src===url&&!cur.paused){cur.pause();btn.textContent='▶';return;}
+  if(cur){cur.pause();document.querySelectorAll('button[data-vdplay]').forEach(b=>b.textContent='▶');}
+  const au=new Audio(url);window._vdAudio=au;btn.dataset.vdplay='1';btn.textContent='⏹';
+  au.onended=()=>{btn.textContent='▶';};
+  au.play().catch(e=>{btn.textContent='▶';alert('再生できませんでした: '+e.message);});
+}
+async function vdExportAudio(P,btn,playOnly){
   const n=VD_CFG[P].labels().length;
   const idx=[];for(let i=1;i<=n;i++)if(window._vdTts[P][i])idx.push(i);
   if(!idx.length){alert('先に各スライドの台本を🔊で音声化してください');return;}
   const stale=idx.filter(i=>window._vdTts[P][i].text!==vdVal(P,'s'+i));
   if(stale.length&&!confirm(`スライド${stale.join('・')}の台本が音声化後に変更されています。古い音声のまま連結しますか？`))return;
-  const old=btn.textContent;btn.disabled=true;btn.textContent='連結中…';
+  const old=btn.textContent;btn.disabled=true;btn.textContent='結合中…';
   try{
     const gapMs=parseInt(vdEl(P,'tts-gap').value,10)||0;
     const strength=(parseInt(vdEl(P,'tts-eq').value,10)||0)/100;
-    const format=vdEl(P,'tts-format').value;
-    vdTtsStatus(P,'連結中…');
+    const format=playOnly?'wav':vdEl(P,'tts-format').value;
+    vdTtsStatus(P,'結合中…');
     const cat=await vdConcatWavs(idx.map(i=>window._vdTts[P][i].b64),gapMs);
     vdTtsStatus(P,'補正・変換中…');
     const {blob,ext}=await vdProcessAudio(cat,strength,format);
     const url=URL.createObjectURL(blob);
     const name=`${VD_CFG[P].audioName()}.${ext}`;
-    const a=document.createElement('a');a.href=url;a.download=name;a.click();
+    if(!playOnly){const a=document.createElement('a');a.href=url;a.download=name;a.click();}
     const pa=vdEl(P,'p-all');
-    if(pa)pa.innerHTML=`<audio controls src="${url}" style="width:100%;height:30px;"></audio><div style="font-size:10px;color:var(--text-sub);">✅ ${fmtSec(cat.samples.length/cat.sampleRate)}秒 ／ ${esc(name)}</div>`;
+    if(pa)pa.innerHTML=`<div style="display:flex;align-items:center;gap:6px;"><button class="btn-sm" onclick="vdPlay(this,'${url}')" style="flex:none;padding:3px 8px;">▶</button><audio controls src="${url}" style="flex:1;min-width:0;height:30px;"></audio></div><div style="font-size:10px;color:var(--text-sub);">${playOnly?'🎧 結合プレビュー':'✅ '+esc(name)} ／ ${fmtSec(cat.samples.length/cat.sampleRate)}秒</div>`;
+    if(playOnly){const pb=pa&&pa.querySelector('button');if(pb)vdPlay(pb,url);}
     const labels=VD_CFG[P].labels();
     const L=[];const total=cat.samples.length/cat.sampleRate;const r1=cat.ranges[0];
     if(idx[0]===1)L.push(`0 サムネ　　　　　　 ${fmtSec(r1.start)}〜${fmtSec(Math.min(r1.end,r1.start+5))}秒（音声①の冒頭）`);
@@ -6380,7 +6387,7 @@ async function vdExportAudio(P,btn){
     L.push(`合計 ${fmtSec(total)}秒（間 ${gapMs}ms）`);
     vdEl(P,'timing').value=L.join('\n');
     if(typeof saveState==='function')saveState();
-    vdTtsStatus(P,'✅ 音声を出力しました');
+    vdTtsStatus(P,playOnly?'🎧 結合して再生中':'✅ 音声を出力しました');
   }catch(e){vdTtsStatus(P,'❌ '+e.message);}
   finally{btn.disabled=false;btn.textContent=old;}
 }
@@ -6487,6 +6494,9 @@ function buildV5(v,ctx){
   const s=v.V5||{};
   const ch=vdSplitChange(s['変化']||(v.V1&&v.V1['変化'])||ctx.period);
   const isDown=ctx.isDown;
+  // 「いつの高値/安値から」を出す：[V1]の基準（例：2026年5月高値比）→「2026年5月高値から」
+  const basis=((v.V1&&v.V1['基準'])||'').trim();
+  const from=basis?basis.replace(/比$/,'').replace(/(高値|安値)$/,'$1から'):ch.rest;
   const list=VD_NOTE_ITEMS[isDown?'down':'up'].map(n=>`<div class="v5-li">${esc(n)}</div>`).join('');
   const url=vdVal('vd','note-url');
   const qr=url?`<div class="v5-qr" data-qr="${esc(url)}"></div>`:`<div class="v5-qr"><div class="v5-qr-none">QR用URLを<br>入力すると<br>QRを表示</div></div>`;
@@ -6494,7 +6504,7 @@ function buildV5(v,ctx){
   return `<div class="vslide"><div class="v-bar"></div><div class="v-step">⑤ まとめ</div>${vLogo()}
 <div class="v5-top">
   <div class="v5-title">現時点の整理</div>
-  ${row(isDown?'下落幅':'上昇幅',(ch.pct?(ch.rest?ch.rest+' ':'')+ch.pct:''),isDown?'red':'green')}
+  ${row(isDown?'下落幅':'上昇幅',(ch.pct?(from?from+' ':'')+ch.pct:''),isDown?'red':'green')}
   ${row(isDown?'下落要因':'上昇要因',s['要因'])}
   ${row('強み',s['強み'])}
   ${row('弱み・注意点',s['弱み'])}
@@ -6592,7 +6602,7 @@ function buildEF(v,d,step,ctx){
 // サムネ＋スライドを組み立てる
 function buildVideoSlides(P,text){
   const v=parseVideoData(text);
-  const th=vdVal(P,'th-input');
+  const th=vdThumbText(P);
   const out=[];
   if(P==='ev'){
     const d=evData()||{};const h=d.HEADER||{};
@@ -6663,7 +6673,7 @@ function renderVideoPrev(P){
   const area=vdEl(P,'prev-area');if(!area)return;
   const text=vdVal(P,'slides');
   area.innerHTML='';
-  if(!text&&!vdVal(P,'th-input')){area.innerHTML='<div style="font-size:11px;color:var(--text-sub);padding:8px;">「SNS動画」で生成すると、サムネ＋縦スライドのプレビューがここに出ます</div>';return;}
+  if(!text&&!vdThumbText(P)){area.innerHTML='<div style="font-size:11px;color:var(--text-sub);padding:8px;">生成するとプレビューがここに出ます</div>';return;}
   let slides;
   try{slides=buildVideoSlides(P,text);}
   catch(e){area.innerHTML=`<div style="color:#f87171;font-size:12px;padding:8px;font-family:monospace;white-space:pre-wrap;">レンダリングエラー:\n${e.message}\n${e.stack||''}</div>`;console.error(e);return;}
@@ -6736,6 +6746,27 @@ async function downloadVideoSlides(P){
   btn.disabled=false;
 }
 
+// 決算分析のサムネ文言：整形データから組む（上段=今回の評価、中段=社名、下段=通期予想の状態 or 問い）
+function evThumbText(){
+  const d=evData()||{};const hd=d.HEADER||{},g=d.GUIDANCE||{};
+  const top=hd.result_label?`*${hd.result_label}*`:'決算発表';
+  const mid=VD_CFG.ev.name()||hd.company||'';
+  const bot=/修正/.test(g.status||'')?`#${g.status}#も`:'市場の反応は？';
+  return `${top}：${mid}：${bot}`;
+}
+// サムネ文言：株価分析は「サムネイル」タブ（note用）のテキストをそのまま使う
+function vdThumbText(P){return P==='vd'?((document.getElementById('th-input')||{}).value||'').trim():vdVal('ev','th-input');}
+
+// ---- 決算分析：左のサブタブ（決算分析／動画）。動画タブでは右ペインも縦スライドに切り替える ----
+window._earnTab='main';
+function switchEarnTab(t){
+  window._earnTab=t;
+  document.querySelectorAll('#mode-earnings .sa-subtab').forEach(b=>b.classList.toggle('active',b.dataset.etab===t));
+  const m=document.getElementById('earn-tab-main'),v=document.getElementById('earn-tab-video');
+  if(m)m.style.display=t==='video'?'none':'';
+  if(v)v.style.display=t==='video'?'flex':'none';
+  earnPrevMode(t==='video'?'video':'image');
+}
 // ---- 決算分析：右ペインの「横画像／縦スライド」切替 ----
 function earnPrevMode(m){
   const cap=document.getElementById('capture-area'),vv=document.getElementById('earn-video-view');
@@ -6751,7 +6782,7 @@ function earnPrevMode(m){
 // ---- 初期化：両タブのHTMLを組み立て、保存値を復元し、保存済み音声を戻す ----
 (function vdInit(){
   ['vd','ev'].forEach(P=>{
-    const host=document.getElementById(P==='vd'?'sa-tab-video':'earn-video');
+    const host=document.getElementById(P==='vd'?'sa-tab-video':'earn-tab-video');
     if(!host)return;
     host.innerHTML=vdBuildTabHtml(P);
     vdBuildScriptBoxes(P,true);
@@ -6763,6 +6794,7 @@ function earnPrevMode(m){
   const a=document.getElementById('ev-count-auto');if(a)a.textContent=evAutoCount()+'枚';
   vdBuildScriptBoxes('ev',true);   // 復元した枚数設定で作り直す
   vdRestoreFields('ev');
+  const thi=document.getElementById('th-input');if(thi)thi.addEventListener('input',()=>debouncedVideoPrev('vd'));
   vdRestoreTts();
 })();
 
