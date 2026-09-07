@@ -803,9 +803,9 @@
         </div></div>
         <div id="earn-tab-main">
         <div class="tool-section">
-            <div class="section-heading" style="display:flex; justify-content:space-between; align-items:center; border-bottom:none; padding-bottom:0;">
-                <span style="border-bottom:2px solid var(--accent); padding-bottom:4px;">1. 情報収集 ＆ AIプロンプト生成</span>
-                <button class="btn-sub" onclick="clearEarnInputs()" style="padding:4px 12px; font-size:11px; flex:none; background:#fee2e2; color:#b91c1c;">🗑 クリア</button>
+            <div class="section-heading" style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:4px 8px; border-bottom:none; padding-bottom:0;">
+                <span style="border-bottom:2px solid var(--accent); padding-bottom:4px; white-space:nowrap;">1. 情報収集 ＆ AIプロンプト生成</span>
+                <span style="display:flex; gap:4px; flex:none; margin-left:auto;"><button class="btn-sub" onclick="exportTabData('earnings')" title="このタブの内容（裏データ含む）をJSONで保存" style="padding:4px 10px; font-size:11px; flex:none; background:#e0f2fe; color:#075985;">📤 エクスポート</button><button class="btn-sub" onclick="importTabDataPick('earnings')" title="保存したJSONを読み込んで続きから再開" style="padding:4px 10px; font-size:11px; flex:none; background:#dcfce7; color:#166534;">📥 インポート</button><button class="btn-sub" onclick="clearEarnInputs()" style="padding:4px 12px; font-size:11px; flex:none; background:#fee2e2; color:#b91c1c;">🗑 クリア</button></span>
             </div>
 
             <div class="input-row" style="margin-bottom: 4px;">
@@ -925,9 +925,9 @@
 
         <div id="mode-stock" style="display:none;">
         <div class="tool-section">
-            <div class="section-heading" style="display:flex; justify-content:space-between; align-items:center; border-bottom:none; padding-bottom:0;">
-                <span style="border-bottom:2px solid var(--accent); padding-bottom:4px;">1. 情報収集 ＆ AIプロンプト生成</span>
-                <button class="btn-sub" onclick="clearSaInputs()" style="padding:4px 12px; font-size:11px; flex:none; background:#fee2e2; color:#b91c1c;">🗑 クリア</button>
+            <div class="section-heading" style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:4px 8px; border-bottom:none; padding-bottom:0;">
+                <span style="border-bottom:2px solid var(--accent); padding-bottom:4px; white-space:nowrap;">1. 情報収集 ＆ AIプロンプト生成</span>
+                <span style="display:flex; gap:4px; flex:none; margin-left:auto;"><button class="btn-sub" onclick="exportTabData('stock')" title="このタブの内容（裏データ含む）をJSONで保存" style="padding:4px 10px; font-size:11px; flex:none; background:#e0f2fe; color:#075985;">📤 エクスポート</button><button class="btn-sub" onclick="importTabDataPick('stock')" title="保存したJSONを読み込んで続きから再開" style="padding:4px 10px; font-size:11px; flex:none; background:#dcfce7; color:#166534;">📥 インポート</button><button class="btn-sub" onclick="clearSaInputs()" style="padding:4px 12px; font-size:11px; flex:none; background:#fee2e2; color:#b91c1c;">🗑 クリア</button></span>
             </div>
 
             <div class="input-row" style="margin-bottom: 4px;">
@@ -1069,7 +1069,7 @@
   <div class="sa-card">
     <div class="row" style="justify-content:space-between;align-items:center;">
       <h2 style="margin:0;">1. 情報収集 ＆ AIプロンプト生成</h2>
-      <button class="btn-sm" onclick="clearPriceInputs()" style="flex:none;padding:4px 12px;font-size:11px;background:#fee2e2;color:#b91c1c;">🗑 クリア</button>
+      <span style="display:flex;gap:4px;flex:none;"><button class="btn-sm" onclick="exportTabData('price')" title="このタブの内容（裏データ含む）をJSONで保存" style="flex:none;padding:4px 10px;font-size:11px; background:#e0f2fe; color:#075985;">📤 エクスポート</button><button class="btn-sm" onclick="importTabDataPick('price')" title="保存したJSONを読み込んで続きから再開" style="flex:none;padding:4px 10px;font-size:11px; background:#dcfce7; color:#166534;">📥 インポート</button><button class="btn-sm" onclick="clearPriceInputs()" style="flex:none;padding:4px 12px;font-size:11px;background:#fee2e2;color:#b91c1c;">🗑 クリア</button></span>
     </div>
     <div class="sa-sub">▼ 基本情報</div>
     <div class="row" style="flex-wrap:nowrap;justify-content:space-between;">
@@ -3470,7 +3470,7 @@ reason_4=`;
             }
             if (state.radios) {
                 Object.keys(state.radios).forEach(name => {
-                    const r = document.querySelector(`input[name=${name}][value=${state.radios[name]}]`);
+                    const r = document.querySelector(`input[name="${name}"][value="${state.radios[name]}"]`);
                     if (r) r.checked = true;
                 });
             }
@@ -5940,7 +5940,7 @@ function vdRestoreFields(P){
   let st=null;try{st=JSON.parse(localStorage.getItem(SA_STORAGE_KEY)||'null');}catch(e){}
   if(!st||!st.fields)return;
   vdPersistIds(P).forEach(id=>{const el=document.getElementById(id);if(!el||st.fields[id]==null)return;if(el.type==='checkbox')el.checked=!!st.fields[id];else el.value=st.fields[id];});
-  if(st.radios&&st.radios['ev-count']){const r=document.querySelector(`input[name=ev-count][value=${st.radios['ev-count']}]`);if(r)r.checked=true;}
+  if(st.radios&&st.radios['ev-count']){const r=document.querySelector(`input[name=ev-count][value="${st.radios["ev-count"]}"]`);if(r)r.checked=true;}
   const eq=vdEl(P,'tts-eq'),gp=vdEl(P,'tts-gap'),lo=vdEl(P,'logo-op');
   if(eq)vdEl(P,'tts-eq-val').textContent=eq.value;if(gp)vdEl(P,'tts-gap-val').textContent=gp.value;if(lo)vdEl(P,'logo-op-val').textContent=lo.value;
 }
@@ -6856,6 +6856,220 @@ function earnPrevMode(m){
   [['vd','gem-months'],['ev','gem-earn-months']].forEach(([P,src])=>{const m=vdEl(P,'months'),s=document.getElementById(src);if(m&&s&&!m.value&&s.value)m.value=s.value;});
   vdRestoreTts();
 })();
+
+// ============================================================
+// タブ内容のエクスポート／インポート（決算分析・個別銘柄分析・株価分析）
+// ------------------------------------------------------------
+// 画面の入力欄だけでなく、裏で持っているデータ（株探の取得データ、添付PDF、
+// 生成済み音声、サムネ背景画像など）も 1 つの JSON にまとめて書き出す。
+// 読み込むと入力欄・裏データ・localStorage/IndexedDB をすべて戻し、
+// プレビューも描き直すので、そのまま続きから再開できる。
+// ============================================================
+const TAB_IO_FORMAT=1;
+const TAB_IO={
+  earnings:{label:'決算分析',  roots:['#mode-earnings','#capture-area','#earn-video-view'], codeId:'p-code',        nameId:'p-name'},
+  stock:   {label:'個別銘柄分析',roots:['#mode-stock','#capture-area-stock'],                 codeId:'sa-code-input', nameId:'sa-name-input'},
+  price:   {label:'株価分析',  roots:['#mode-price','#capture-area-price'],                 codeId:'inp-ticker',    nameId:'inp-name'},
+};
+// タブ内のフォーム要素をすべて集める（動画サブタブなど JS で作った欄も含む）
+function tabIoElements(tab){
+  const out=[];const seen=new Set();
+  TAB_IO[tab].roots.forEach(sel=>{
+    const root=document.querySelector(sel);if(!root)return;
+    root.querySelectorAll('input,textarea,select').forEach(el=>{
+      const t=(el.type||'').toLowerCase();
+      if(t==='file'||t==='button'||t==='submit')return;
+      const key=t==='radio'?'radio:'+el.name+':'+el.value:'id:'+el.id;
+      if(seen.has(key))return;seen.add(key);
+      out.push(el);
+    });
+  });
+  return out;
+}
+function tabIoCollectFields(tab){
+  const fields={},radios={};
+  tabIoElements(tab).forEach(el=>{
+    const t=(el.type||'').toLowerCase();
+    if(t==='radio'){if(el.name&&el.checked)radios[el.name]=el.value;return;}
+    if(!el.id)return;
+    fields[el.id]=(t==='checkbox')?el.checked:el.value;
+  });
+  return {fields,radios};
+}
+function tabIoApplyFields(tab,fields,radios){
+  tabIoElements(tab).forEach(el=>{
+    const t=(el.type||'').toLowerCase();
+    if(t==='radio'){if(el.name&&radios&&radios[el.name]!=null)el.checked=(el.value===String(radios[el.name]));return;}
+    if(!el.id||!fields||!(el.id in fields))return;
+    if(t==='checkbox')el.checked=!!fields[el.id];else el.value=fields[el.id]==null?'':fields[el.id];
+  });
+}
+function tabIoHidden(tab){
+  if(tab==='earnings')return{
+    fetched:window._earnFetched||null,
+    files:window._earnFiles||[],
+    tts:(window._vdTts&&window._vdTts.ev)||{},
+    earnTab:window._earnTab||'main',
+  };
+  if(tab==='stock')return{fetched:window._saFetched||null};
+  return{
+    fetched:window._fetched||null,
+    tts:(window._vdTts&&window._vdTts.vd)||{},
+    thumbBg:thBgUrl?{dataUrl:thBgUrl,name:(document.getElementById('th-bg-meta')||{}).textContent||''}:null,
+    thumb:{bgOpacity:THUMB.bgOpacity,bgScale:THUMB.bgScale,offsetTop:THUMB.offsetTop,offsetMid:THUMB.offsetMid,offsetBot:THUMB.offsetBot},
+  };
+}
+function tabIoFileName(tab){
+  const cfg=TAB_IO[tab];
+  const code=((document.getElementById(cfg.codeId)||{}).value||'').trim().replace(/[\\\/:*?"<>|\s]/g,'')||'銘柄';
+  const name=((document.getElementById(cfg.nameId)||{}).value||'').trim().replace(/[\\\/:*?"<>|\s]/g,'');
+  const d=new Date(),p=n=>String(n).padStart(2,'0');
+  const stamp=`${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
+  return `${cfg.label}_${code}${name?'_'+name:''}_${stamp}.json`;
+}
+function exportTabData(tab){
+  const cfg=TAB_IO[tab];if(!cfg)return;
+  try{
+    if(typeof saveStateNow==='function')saveStateNow();
+    const {fields,radios}=tabIoCollectFields(tab);
+    const data={app:'kessan-tool',format:TAB_IO_FORMAT,tab,label:cfg.label,exportedAt:new Date().toISOString(),fields,radios,hidden:tabIoHidden(tab)};
+    const blob=new Blob([JSON.stringify(data)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download=tabIoFileName(tab);
+    document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),2000);
+  }catch(e){alert('エクスポートに失敗しました: '+((e&&e.message)||e));}
+}
+function importTabDataPick(tab){
+  const inp=document.createElement('input');
+  inp.type='file';inp.accept='.json,application/json';inp.style.display='none';
+  inp.onchange=async()=>{const f=inp.files&&inp.files[0];inp.remove();if(f)await importTabDataFile(tab,f);};
+  document.body.appendChild(inp);inp.click();
+}
+async function importTabDataFile(tab,file){
+  let data;
+  try{data=JSON.parse(await file.text());}catch(e){alert('JSONとして読み込めませんでした: '+((e&&e.message)||e));return;}
+  if(!data||data.app!=='kessan-tool'||!TAB_IO[data.tab]){alert('このツールでエクスポートしたファイルではありません');return;}
+  if(data.format>TAB_IO_FORMAT){alert('このファイルは新しい形式（format '+data.format+'）です。ツールを更新してください');return;}
+  if(data.tab!==tab){
+    if(!confirm(`このファイルは「${TAB_IO[data.tab].label}」のデータです。\n「${TAB_IO[data.tab].label}」タブに読み込みますか？`))return;
+    tab=data.tab;
+  }
+  if(!confirm(`「${TAB_IO[tab].label}」の現在の内容をファイルの内容で置き換えます。\n（入力欄・取得データ・添付・音声などすべて上書き）\nよろしいですか？`))return;
+  try{await importTabData(tab,data);}
+  catch(e){console.error(e);alert('インポート中にエラーが発生しました: '+((e&&e.message)||e));return;}
+  alert(`「${TAB_IO[tab].label}」に読み込みました`);
+}
+// 音声（IndexedDB 保存分）を丸ごと差し替える
+async function tabIoRestoreTts(P,tts){
+  if(typeof vdClearAllTts==='function')await vdClearAllTts(P);
+  const src=tts||{};
+  for(const k of Object.keys(src)){
+    const i=parseInt(k,10);if(!(i>=1&&i<=5)||!src[k]||!src[k].b64)continue;
+    window._vdTts[P][i]=src[k];
+    await vdDbPut(`${P}:${i}`,src[k]);
+  }
+  for(let i=1;i<=5;i++)if(window._vdTts[P][i]&&typeof vdRenderPlayer==='function')vdRenderPlayer(P,i);
+}
+function tabIoSetThBg(bg){
+  const t=document.getElementById('th-bg-thumb'),msg=document.getElementById('th-bg-msg'),meta=document.getElementById('th-bg-meta'),clr=document.getElementById('th-bg-clear'),inp=document.getElementById('th-bg-input');
+  if(inp)inp.value='';
+  if(bg&&bg.dataUrl){
+    thBgUrl=bg.dataUrl;
+    if(t){t.src=bg.dataUrl;t.style.display='block';}
+    if(msg)msg.textContent='別の画像に変更：';
+    if(meta)meta.textContent=bg.name||'';
+    if(clr)clr.style.display='';
+  }else{
+    thBgUrl=null;
+    if(t){t.style.display='none';t.src='';}
+    if(msg)msg.textContent='ドロップ、または';
+    if(meta)meta.textContent='';
+    if(clr)clr.style.display='none';
+  }
+}
+async function importTabData(tab,data){
+  const fields=data.fields||{},radios=data.radios||{},hidden=data.hidden||{};
+  // 1) 入力欄・ラジオを戻す
+  tabIoApplyFields(tab,fields,radios);
+
+  // 2) 裏データを戻す
+  if(tab==='earnings'){
+    window._earnFetched=hidden.fetched||null;
+    window._earnFiles=Array.isArray(hidden.files)?hidden.files:[];
+    if(typeof renderEarnFiles==='function')renderEarnFiles();
+    if(typeof persistEarnFiles==='function')persistEarnFiles();
+    const fi=document.getElementById('gem-earn-files');if(fi)fi.value='';
+    // 枚数設定（自動/3/4）に合わせて台本ボックスを作り直してから、台本の値を入れ直す
+    const a=document.getElementById('ev-count-auto');if(a&&typeof evAutoCount==='function')a.textContent=evAutoCount()+'枚';
+    if(typeof vdBuildScriptBoxes==='function')vdBuildScriptBoxes('ev',true);
+    tabIoApplyFields(tab,fields,radios);
+    await tabIoRestoreTts('ev',hidden.tts);
+    window._earnTab=hidden.earnTab==='video'?'video':'main';
+  }else if(tab==='stock'){
+    window._saFetched=hidden.fetched||null;
+    if(typeof switchSaCompareMode==='function')switchSaCompareMode(getSaCompareMode());
+  }else{
+    window._fetched=hidden.fetched||null;
+    await tabIoRestoreTts('vd',hidden.tts);
+    // サムネ設定（プリセットの位置・背景の透過率/拡大率・背景画像）
+    const th=hidden.thumb||{};
+    const preset=radios['th-preset']||'note';
+    if(THUMB_PRESETS[preset]){THUMB.offsetTop=THUMB_PRESETS[preset].offsetTop;THUMB.offsetMid=THUMB_PRESETS[preset].offsetMid;THUMB.offsetBot=THUMB_PRESETS[preset].offsetBot;}
+    if(typeof th.offsetTop==='number')THUMB.offsetTop=th.offsetTop;
+    if(typeof th.offsetMid==='number')THUMB.offsetMid=th.offsetMid;
+    if(typeof th.offsetBot==='number')THUMB.offsetBot=th.offsetBot;
+    const op=document.getElementById('th-op'),sc=document.getElementById('th-sc');
+    if(op){THUMB.bgOpacity=Number(op.value)/100;const v=document.getElementById('th-op-val');if(v)v.textContent=op.value;}
+    else if(typeof th.bgOpacity==='number')THUMB.bgOpacity=th.bgOpacity;
+    if(sc){THUMB.bgScale=Number(sc.value);const v=document.getElementById('th-sc-val');if(v)v.textContent=sc.value;}
+    else if(typeof th.bgScale==='number')THUMB.bgScale=th.bgScale;
+    tabIoSetThBg(hidden.thumbBg);
+    // 株探の指標サマリ（取得後に出る1行）を復元
+    const d=window._fetched,infoEl=document.getElementById('fetch-info');
+    if(infoEl){
+      if(d&&d.per!==undefined){
+        const w52=(typeof calc52w==='function')?calc52w(d):'';
+        infoEl.textContent=`PER:${d.per||'-'} PBR:${d.pbr||'-'} 配当:${d.yield||'-'} ${d.marketCap||'-'} 52週:${w52||'-'}`;
+        infoEl.style.display='block';
+      }else{infoEl.textContent='';infoEl.style.display='none';}
+    }
+  }
+
+  // 3) リロード保持（localStorage）へも書き出し、動画タブの表示ラベル類を同期
+  if(typeof saveStateNow==='function')saveStateNow();
+  const P=tab==='earnings'?'ev':tab==='price'?'vd':null;
+  if(P){
+    if(typeof vdRestoreFields==='function')vdRestoreFields(P);
+    if(typeof vdUpdateScriptStats==='function')vdUpdateScriptStats(P);
+  }
+
+  // 4) そのタブへ切り替えてプレビューを描き直す（非表示中は幅が取れず崩れるため表示後に描く）
+  const frame=()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+  switchMode(tab);
+  if(tab==='earnings'){
+    // 横画像は表示中に描いてから、保存されていたサブタブ（決算分析／動画）へ戻す
+    const earnTab=window._earnTab;
+    if(typeof switchEarnTab==='function')switchEarnTab('main');
+    await frame();
+    if(typeof renderImage==='function')try{renderImage();}catch(e){console.warn(e);}
+    if(earnTab==='video'&&typeof switchEarnTab==='function'){switchEarnTab('video');await frame();}
+  }else if(tab==='stock'){
+    await frame();
+    if(typeof renderImageStock==='function')try{renderImageStock();}catch(e){console.warn(e);}
+  }else{
+    // スライド → サムネイル → 縦スライド の順に、それぞれ表示した状態で描く
+    if(typeof switchPriceTab==='function')switchPriceTab('make');
+    if(typeof setMode==='function')setMode('slides');
+    await frame();
+    try{if((document.getElementById('ta-data').value||'').trim())renderPrev();else document.getElementById('prev-area').innerHTML='';}catch(e){console.warn(e);}
+    if(typeof setMode==='function'){setMode('thumb');await frame();}
+    try{renderThumbPreview();}catch(e){console.warn(e);}
+    if(typeof setMode==='function'){setMode('video');await frame();}
+    try{renderVideoPrev('vd');}catch(e){console.warn(e);}
+    if(typeof setMode==='function'){setMode('slides');await frame();}
+  }
+}
 
 // mobile responsive
 function checkMob(){const ctrl=document.querySelector('.ctrl');if(window.innerWidth<820){document.body.style.flexDirection='column';ctrl.style.width='100%';ctrl.style.maxHeight='none';}else{document.body.style.flexDirection='';ctrl.style.width='';ctrl.style.maxHeight='';}}
