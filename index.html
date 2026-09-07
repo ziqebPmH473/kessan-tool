@@ -4855,7 +4855,9 @@ function chartPeriodLabel(chartLines){
   if(max.getDate()-min.getDate()>=15)months+=1;   // 端数の日数を四捨五入
   if(months<1)months=1;
   if(months<12)return `直近${months}ヶ月`;
-  return `直近${Math.round(months/12)}年`;
+  // 1年以上は年と月を両方出す（15ヶ月→「直近1年3ヶ月」。丸めるとチャートと合わなくなる）
+  const y=Math.floor(months/12),m=months%12;
+  return `直近${y}年${m?m+'ヶ月':''}`;
 }
 
 function getSourceText(){
