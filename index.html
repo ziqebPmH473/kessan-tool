@@ -1375,7 +1375,7 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
                     </div>
                 </div>
                 <div class="card">
-                    <div class="section-title">📈 日足チャート (直近)</div>
+                    <div class="section-title" id="earn-chart-title">📈 日足チャート (直近)</div>
                     <div class="chart-wrapper" id="canvas-container">
                         <canvas id="myChart"></canvas>
                     </div>
@@ -1579,7 +1579,7 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
 
                 <!-- ② チャートカード -->
                 <div class="card" id="sa-card-chart">
-                    <div class="section-title">📈 日足チャート（直近）</div>
+                    <div class="section-title" id="sa-chart-title">📈 日足チャート（直近）</div>
                     <div class="chart-wrapper" id="sa-canvas-container">
                         <canvas id="saChart"></canvas>
                     </div>
@@ -2508,6 +2508,7 @@ point_2=`;
             const fetchedRows = saChartRowsFromFetched(efd, (document.getElementById('gem-earn-months') || {}).value || '', false);
             const chartDataStr = (fetchedRows && fetchedRows.length > 1) ? fetchedRows.join(';') : ((data.CHART_DATA && data.CHART_DATA.data) ? data.CHART_DATA.data : '');
             window._lastChartDataEarnings = chartDataStr;
+            { const t = document.getElementById('earn-chart-title'); const rows = chartDataStr.split(';').filter(Boolean); if (t && rows.length > 1) t.textContent = `📈 ${chartGranularityLabel(rows)}チャート（${chartPeriodLabel(rows)}）`; }
             drawAdvancedChart(chartDataStr);
         }
 
@@ -3978,6 +3979,7 @@ risk_3=`;
             const fetchedRowsSa = saChartRowsFromFetched(window._saFetched, (document.getElementById('gem-sa-months') || {}).value || '', false);
             const chartDataStr = (fetchedRowsSa && fetchedRowsSa.length > 1) ? fetchedRowsSa.join(';') : ((data.CHART_DATA && data.CHART_DATA.data) ? data.CHART_DATA.data : '');
             window._lastChartDataStock = chartDataStr;
+            { const t = document.getElementById('sa-chart-title'); const rows = chartDataStr.split(';').filter(Boolean); if (t && rows.length > 1) t.textContent = `📈 ${chartGranularityLabel(rows)}チャート（${chartPeriodLabel(rows)}）`; }
             drawChart('sa-canvas-container', 'saChart', chartDataStr);
         }
 
@@ -4111,7 +4113,7 @@ risk_3=`;
 
 // 株価分析：サイドバーのサブタブ切替（1.2.＝スライド作成 / 3.＝記事・SNS）
 function switchPriceTab(t){
-  document.querySelectorAll('#mode-price .sa-subtab').forEach(b=>b.classList.toggle('active',b.dataset.satab===t));
+  document.querySelectorAll('#mode-price .sa-subtab[data-satab]').forEach(b=>b.classList.toggle('active',b.dataset.satab===t));   // 動画タブ内の内側タブ（data-satabなし）は触らない
   const mk=document.getElementById('sa-tab-make'), ar=document.getElementById('sa-tab-article'), vd=document.getElementById('sa-tab-video');
   if(mk) mk.style.display = t==='make' ? '' : 'none';
   if(ar) ar.style.display = t==='article' ? '' : 'none';
@@ -6303,7 +6305,8 @@ function vdRenderPlayer(P,i){
   const a=window._vdTts[P][i],p=vdEl(P,'p'+i);if(!p)return;
   if(!a){p.textContent='未生成';return;}
   const url=URL.createObjectURL(new Blob([vdB64ToBuf(a.b64)],{type:'audio/wav'}));
-  p.innerHTML=`<div style="display:flex;align-items:center;gap:8px;"><button class="btn-sm" onclick="vdPlay(this,'${url}')" style="flex:none;padding:3px 12px;">▶</button><span>${a.seconds}秒・${esc(a.voice)}</span></div>`;
+  // 標準プレーヤー（再生＋メニューから単品ダウンロードができる）
+  p.innerHTML=`<div style="display:flex;align-items:center;gap:6px;"><audio controls src="${url}" style="flex:1;min-width:0;height:30px;"></audio><span style="flex:none;">${a.seconds}秒・${esc(a.voice)}</span></div>`;
 }
 async function vdGenTts(P,i,btn){
   const text=vdVal(P,'s'+i);
@@ -6421,8 +6424,8 @@ async function vdExportAudio(P,btn,playOnly){
     const name=`${VD_CFG[P].audioName()}.${ext}`;
     if(!playOnly){const a=document.createElement('a');a.href=url;a.download=name;a.click();}
     const pa=vdEl(P,'p-all');
-    if(pa)pa.innerHTML=`<div style="display:flex;align-items:center;gap:8px;"><button class="btn-sm" onclick="vdPlay(this,'${url}')" style="flex:none;padding:3px 12px;">▶</button><span style="font-size:11px;">${playOnly?'結合プレビュー':esc(name)} ／ ${fmtSec(cat.samples.length/cat.sampleRate)}秒</span></div>`;
-    if(playOnly){const pb=pa&&pa.querySelector('button');if(pb)vdPlay(pb,url);}
+    if(pa)pa.innerHTML=`<audio controls src="${url}" style="width:100%;height:30px;"></audio><div style="font-size:11px;color:var(--text-sub);">${playOnly?'結合プレビュー':esc(name)} ／ ${fmtSec(cat.samples.length/cat.sampleRate)}秒</div>`;
+    if(playOnly){const au=pa&&pa.querySelector('audio');if(au)au.play().catch(()=>{});}
     const labels=VD_CFG[P].labels();
     const L=[];const total=cat.samples.length/cat.sampleRate;const r1=cat.ranges[0];
     if(idx[0]===1)L.push(`0 サムネ　　　　　　 ${fmtSec(r1.start)}〜${fmtSec(Math.min(r1.end,r1.start+5))}秒（音声①の冒頭）`);
@@ -6814,7 +6817,7 @@ function vdThumbText(P){return P==='vd'?((document.getElementById('th-input')||{
 window._earnTab='main';
 function switchEarnTab(t){
   window._earnTab=t;
-  document.querySelectorAll('#mode-earnings .sa-subtab').forEach(b=>b.classList.toggle('active',b.dataset.etab===t));
+  document.querySelectorAll('#mode-earnings .sa-subtab[data-etab]').forEach(b=>b.classList.toggle('active',b.dataset.etab===t));
   const m=document.getElementById('earn-tab-main'),v=document.getElementById('earn-tab-video');
   if(m)m.style.display=t==='video'?'none':'';
   if(v)v.style.display=t==='video'?'flex':'none';
