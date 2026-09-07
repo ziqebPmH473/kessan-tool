@@ -1185,8 +1185,17 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
     <textarea id="art-body" placeholder="生成後にnote記事本文が入ります" style="min-height:130px;"></textarea>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">ハッシュタグ</label><button class="btn-sm" onclick="copyText(document.getElementById('art-tags').value,this)">📋 コピー</button></div>
     <textarea id="art-tags" placeholder="生成後にハッシュタグが入ります" rows="2" style="height:46px;min-height:46px;"></textarea>
+    <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:10px;">
+      <label style="font-size:11px;color:var(--text-sub);flex:none;">記事URL</label>
+      <input type="text" id="art-url" placeholder="note記事のURL（公開後に貼り付け）" style="flex:1;min-width:0;font-size:11px;">
+      <button class="btn-sm" onclick="pasteArtUrl()" style="flex:none;">📋 貼付け</button>
+      <button class="btn-sm" onclick="applyArtUrl()" style="flex:none;background:#0d9488;color:#fff;">🔁 URLを差し替え</button>
+    </div>
+    <div style="font-size:10px;color:var(--text-sub);margin-top:2px;">X＝最終行にURL／YouTube＝【】行の下にURL。差し替えは何度でも可（前のURL行を置き換えます）</div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">X投稿文</label><button class="btn-sm" onclick="copyText(document.getElementById('art-x').value,this)">📋 コピー</button></div>
     <textarea id="art-x" placeholder="生成後にX投稿文が入ります" style="min-height:50px;"></textarea>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">YouTube投稿文（コミュニティ／概要欄）</label><button class="btn-sm" onclick="copyText(document.getElementById('art-yt').value,this)">📋 コピー</button></div>
+    <textarea id="art-yt" placeholder="生成後にYouTube投稿文が入ります" style="min-height:50px;"></textarea>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">証券管理ツール貼付け用</label><button class="btn-sm" onclick="copyText(document.getElementById('art-sec').value,this)">📋 コピー</button></div>
     <textarea id="art-sec" placeholder="生成後に証券管理ツール貼付け用データ（Markdown表）が入ります" style="min-height:56px;font-family:monospace;font-size:10px;white-space:pre;"></textarea>
     <details style="margin-top:6px;"><summary style="font-size:10px;color:var(--text-sub);cursor:pointer;">生成全文（うまく分割できない時のフォールバック）</summary><textarea id="art-raw" style="min-height:80px;"></textarea></details>
@@ -3371,7 +3380,7 @@ reason_4=`;
             'ta-report', 'ta-data', 'th-input',
             'gem-model', 'gem-months', 'gem-article-model',
             's6-axis-min', 's6-axis-max', 's6-axis-step',
-            'art-title', 'art-body', 'art-thumb', 'art-tags', 'art-x', 'art-sec', 'art-raw',
+            'art-title', 'art-body', 'art-thumb', 'art-tags', 'art-x', 'art-yt', 'art-url', 'art-sec', 'art-raw',
             // SNS動画タブ
             'vd-note-url', 'gem-video-model', 'vd-script', 'vd-slides', 'vd-x', 'vd-insta', 'vd-tiktok', 'vd-raw'
         ];
@@ -4577,6 +4586,40 @@ function buildSecToolTable(raw){
     +'| '+code+' | '+ymd+' | '+p0+' | '+range('短期弱気')+' | '+range('短期ベース')+' | '+range('短期強気')+' | '+range('中期弱気')+' | '+range('中期ベース')+' | '+range('中期強気')+' |';
 }
 
+// ---- 記事URLの差し替え（AI不要）----
+// 投稿文からURLだけの行を取り除いた「本文」を作り、Xは最終行、YouTubeは【】行（1行目）の直下にURLを入れる。
+// 何度押しても前のURL行が置き換わるだけで本文は変わらない。
+const isUrlLine=l=>/^\s*https?:\/\/\S+\s*$/.test(l);
+function stripUrlLines(t){return String(t||'').split('\n').filter(l=>!isUrlLine(l)).join('\n').replace(/\n{3,}/g,'\n\n').trim();}
+function buildXPost(base,url){return url?stripUrlLines(base)+'\n'+url:stripUrlLines(base);}
+function buildYtPost(base,url){
+  const lines=stripUrlLines(base).split('\n');
+  if(!url)return lines.join('\n');
+  if(!lines.length||!lines[0].trim())return url+'\n'+lines.join('\n');
+  return [lines[0],url,...lines.slice(1)].join('\n');
+}
+function applyArtUrl(silent){
+  const url=((document.getElementById('art-url')||{}).value||'').trim();
+  if(!url){if(!silent)alert('記事URLを入力してください');return;}
+  if(!/^https?:\/\//.test(url)){if(!silent)alert('URLは https:// から始めてください');return;}
+  const x=document.getElementById('art-x'),yt=document.getElementById('art-yt');
+  // 本文はX欄を正とする（X欄が空ならYouTube欄から取る）
+  const base=stripUrlLines(x.value)||stripUrlLines(yt.value);
+  if(!base){if(!silent)alert('先に「記事・SNSを生成」を実行してください');return;}
+  x.value=buildXPost(base,url);
+  yt.value=buildYtPost(base,url);
+  if(typeof saveState==='function')saveState();
+  if(!silent)setArtStatus('X／YouTube投稿文にURLを差し替えました','ok');
+}
+async function pasteArtUrl(){
+  try{
+    const t=(await navigator.clipboard.readText()||'').trim();
+    if(!t){alert('クリップボードが空です');return;}
+    document.getElementById('art-url').value=t;
+    if(typeof saveState==='function')saveState();
+  }catch(e){alert('クリップボードへのアクセスが拒否されました。手動で貼り付けてください。');}
+}
+
 async function geminiArticle(btnEl){
   const report=(document.getElementById('ta-report').value||'').trim();
   if(!report){alert('「2. ChatGPT分析」のレポートを貼り付けてください');return;}
@@ -4595,6 +4638,9 @@ async function geminiArticle(btnEl){
   document.getElementById('art-thumb').value=p.thumbnail;
   document.getElementById('art-tags').value=p.hashtags;
   document.getElementById('art-x').value=fixBoldBrackets(deJargonP0(p.xpost));
+  document.getElementById('art-yt').value=document.getElementById('art-x').value;
+  // 記事URLは記事ごとに変わるため、前回のURLが新しい投稿文に混入しないよう空にする
+  document.getElementById('art-url').value='';
   document.getElementById('art-sec').value=buildSecToolTable(p.sectool);
   document.getElementById('art-raw').value=r.text;
   // 値をJSで入れた場合は input イベントが飛ばず保存されないため、明示的に保存する
@@ -6265,8 +6311,8 @@ document.fonts.ready.then(()=>{if(document.getElementById('th-input').value.trim
 5. 【ハッシュタグ】：note用タグ5〜7個をテキスト用コードブロックで囲む。
    - タグ選定：汎用的すぎて検索価値の低いタグ（例：「#投資初心者」「#投資」単体など、どの記事にも付く定型タグ）は原則使わないこと。代わりに、①銘柄名 ②証券コード ③業種・セクター（例：電子部品、半導体） ④この記事固有のテーマ・材料（例：MLCC、AIサーバー、業績下方修正、PBR）を中心に、実際に検索・回遊されやすい具体的なタグを選ぶこと。銘柄名と証券コードは必ず含める。
 
-6. 【X（旧Twitter）告知文】：140文字以内で作成し、テキスト用コードブロックで囲む。
-   - 内容：記事の核心的な「問いかけ」や「注目ポイント（ギャップ）」を基に、Xからのトラフィックを最大化する文章にする。結論（目標株価など）の記載は厳禁。冒頭は「【 #銘柄名（証券コード）｜〇ヶ月で〇％下落】」の形式で始めること
+6. 【X（旧Twitter）告知文】：本文は115文字以内で作成し、テキスト用コードブロックで囲む（記事URLはツールが後から1行追加するため、URLやリンクの文言は書かない。X上でURLは23文字換算なので、合計140文字に収めるため本文を115文字以内にする）。
+   - 内容：記事の核心的な「問いかけ」や「注目ポイント（ギャップ）」を基に、Xからのトラフィックを最大化する文章にする。結論（目標株価など）の記載は厳禁。冒頭の1行目は必ず「【 #銘柄名（証券コード）｜〇ヶ月で〇％下落】」だけの行にすること（この行の直下にURLが挿入される）
    - フォーマット：絵文字を交えつつ「空行なし（詰め）」で構成する。段落分けのための連続改行（空白行の作成）は禁止。ハッシュタグも本文直後の行に空行を挟まず配置すること。
 
 7. 【証券管理ツール用データ】：レポートから株価データを機械的に抽出し、テキスト用コードブロックで以下の7行のみを出力する（解説・注記・追加行は一切禁止）。
