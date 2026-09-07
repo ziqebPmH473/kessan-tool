@@ -32,6 +32,7 @@
     document.addEventListener('DOMContentLoaded', updatePreviewZoom);
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         :root {
             --bg: #f8fafc;
@@ -424,6 +425,63 @@
 .sl-bar{position:absolute;top:0;left:0;right:0;height:6px;background:linear-gradient(90deg,#1d4ed8,#0284c7);}
 .sl-sig{position:absolute;bottom:10px;right:28px;font-size:13px;color:#cbd5e1;font-weight:700;letter-spacing:.04em;}
 .sl-card{background:#fff;border:1px solid #e2e8f0;border-radius:8px;}
+
+/* ===== VERTICAL SLIDES (1080×1920, SNS動画用) =====
+   ナレーションの補助資料なので文字量は最小限（見出し1つ＋ポイント3つ）。
+   スマホ全画面で読めるよう本文は44px以上を基準にする。 */
+.vslide{width:1080px;height:1920px;overflow:hidden;position:relative;background:#f8fafc;
+  font-family:'Noto Sans JP','Hiragino Sans','Yu Gothic','Meiryo',Arial,sans-serif;color:#0f172a;}
+.v-bar{position:absolute;top:0;left:0;right:0;height:14px;background:linear-gradient(90deg,#1d4ed8,#0284c7);}
+.v-sig{position:absolute;bottom:34px;right:56px;font-size:26px;color:#cbd5e1;font-weight:700;letter-spacing:.04em;}
+.v-step{position:absolute;top:44px;left:64px;font-size:30px;font-weight:700;color:#94a3b8;letter-spacing:.08em;}
+.v-wrap{padding:120px 64px 110px;height:1920px;box-sizing:border-box;display:flex;flex-direction:column;gap:28px;}
+/* ① 株価推移 */
+.v1-head{border-bottom:3px solid #e2e8f0;padding-bottom:22px;}
+.v1-name{font-size:78px;font-weight:900;line-height:1.15;word-break:break-all;}
+.v1-code{font-size:34px;color:#94a3b8;font-weight:500;margin-left:12px;}
+.v1-desc{font-size:30px;color:#64748b;margin-top:10px;line-height:1.4;}
+.v1-price-card{background:#fff;border:2px solid #e2e8f0;border-radius:20px;padding:30px 40px;display:flex;align-items:center;justify-content:space-between;gap:20px;}
+.v1-pl{font-size:28px;font-weight:600;color:#94a3b8;letter-spacing:.08em;margin-bottom:8px;}
+.v1-price{font-size:104px;font-weight:900;line-height:1;white-space:nowrap;}
+.v1-change{font-size:74px;font-weight:900;line-height:1;white-space:nowrap;text-align:right;}
+.v1-basis{font-size:30px;font-weight:500;color:#94a3b8;margin-top:12px;text-align:right;}
+.v1-chart-card{flex:1;background:#fff;border:2px solid #e2e8f0;border-radius:20px;overflow:hidden;position:relative;min-height:600px;}
+.v1-chart-lbl{position:absolute;top:18px;left:26px;font-size:28px;color:#94a3b8;z-index:1;}
+.v1-chart-canvas{display:block;width:100%;height:100%;}
+.v1-metrics{display:flex;gap:16px;}
+.v1-metric{flex:1;background:#fff;border:2px solid #e2e8f0;border-radius:16px;padding:18px 20px;text-align:center;}
+.v1-ml{font-size:26px;color:#94a3b8;}
+.v1-mv{font-size:38px;font-weight:700;margin-top:6px;white-space:nowrap;}
+/* ②③④ 見出し＋ポイント3つ */
+.v-h{font-size:82px;font-weight:900;line-height:1.2;padding-left:28px;border-left:16px solid #2563eb;margin:20px 0 30px;}
+.v-h.green{border-color:#059669;} .v-h.red{border-color:#dc2626;}
+.v-pts{display:flex;flex-direction:column;gap:44px;flex:1;justify-content:center;}
+.v-pt{display:flex;gap:30px;align-items:center;background:#eff6ff;border:2px solid #bfdbfe;border-radius:24px;padding:54px 40px;}
+.v-pt.green{background:#f0fdf4;border-color:#bbf7d0;} .v-pt.red{background:#fef2f2;border-color:#fecaca;}
+.v-pn{flex:none;width:84px;height:84px;border-radius:50%;background:#2563eb;color:#fff;font-size:44px;font-weight:900;display:flex;align-items:center;justify-content:center;}
+.v-pt.green .v-pn{background:#059669;} .v-pt.red .v-pn{background:#dc2626;}
+.v-ptx{font-size:50px;font-weight:700;line-height:1.4;color:#1e293b;}
+.v-lead{font-size:38px;color:#475569;line-height:1.5;margin-top:auto;padding:26px 30px;background:#fff;border:2px solid #e2e8f0;border-radius:16px;}
+/* ⑤ まとめ＋note誘導（上下分割） */
+.v5-top{flex:0 0 58%;display:flex;flex-direction:column;gap:22px;padding:110px 64px 40px;box-sizing:border-box;}
+.v5-title{font-size:54px;font-weight:900;color:#1d4ed8;letter-spacing:.04em;}
+.v5-row{display:flex;flex-direction:column;gap:6px;background:#fff;border:2px solid #e2e8f0;border-radius:16px;padding:20px 30px;}
+.v5-rl{font-size:30px;color:#94a3b8;font-weight:600;}
+.v5-rv{font-size:44px;font-weight:700;line-height:1.35;}
+.v5-rv.red{color:#dc2626;} .v5-rv.green{color:#047857;} .v5-rv.blue{color:#1d4ed8;}
+.v5-q{margin-top:auto;background:#1d4ed8;color:#fff;border-radius:22px;padding:36px 30px;font-size:54px;font-weight:900;line-height:1.3;text-align:center;}
+.v5-bot{flex:1;background:#0f172a;color:#fff;padding:54px 64px 40px;box-sizing:border-box;display:flex;flex-direction:column;gap:18px;}
+.v5-bt{font-size:50px;font-weight:900;color:#93c5fd;}
+.v5-list{display:flex;flex-direction:column;gap:14px;}
+.v5-li{font-size:44px;font-weight:700;line-height:1.35;display:flex;gap:16px;}
+.v5-li::before{content:'▶';color:#60a5fa;font-size:36px;flex:none;margin-top:6px;}
+.v5-foot{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:24px;}
+.v5-cta{font-size:64px;font-weight:900;line-height:1.25;}
+.v5-cta small{display:block;font-size:30px;font-weight:500;color:#94a3b8;margin-top:10px;}
+.v5-qr{flex:none;width:250px;height:250px;background:#fff;border-radius:16px;padding:14px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;}
+.v5-qr img,.v5-qr canvas{width:222px!important;height:222px!important;}
+.v5-qr-none{font-size:22px;color:#64748b;text-align:center;line-height:1.4;}
+.v5-sig{font-size:26px;color:#475569;font-weight:700;text-align:right;}
 
 /* ===== SLIDE 1: 現状の整理 ===== */
 .s1-wrap{padding:24px 64px 22px;display:flex;flex-direction:column;gap:8px;height:720px;box-sizing:border-box;justify-content:center;}
@@ -932,6 +990,7 @@
   <div class="sa-subtabs">
     <button class="sa-subtab active" data-satab="make" onclick="switchPriceTab('make')">📊 スライド作成</button>
     <button class="sa-subtab" data-satab="article" onclick="switchPriceTab('article')">📝 記事・SNS</button>
+    <button class="sa-subtab" data-satab="video" onclick="switchPriceTab('video')">🎬 動画</button>
   </div>
   <div id="sa-tab-make">
 
@@ -1134,6 +1193,46 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
   </div>
   </div><!-- /sa-tab-article -->
 
+  <div id="sa-tab-video" style="display:none;">
+  <div class="sa-card">
+    <h2>4. SNS動画（縦型 9:16）</h2>
+    <div style="font-size:10px;color:var(--text-sub);">「2.」のChatGPTレポートの無料範囲（値動き・下落理由・強み・弱み）から、100〜110秒の台本・縦スライド5枚・X／Instagram／TikTokの投稿文を生成します</div>
+    <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:6px;">
+      <label style="font-size:11px;color:var(--text-sub);flex:none;">noteURL</label>
+      <input type="text" id="vd-note-url" placeholder="https://note.com/xxxx（QRコードの飛び先。アカウントトップ推奨）" oninput="debouncedVideoPrev()" style="flex:1;min-width:0;font-size:11px;">
+    </div>
+    <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:4px;">
+      <label style="font-size:11px;color:var(--text-sub);flex:none;">モデル</label>
+      <select id="gem-video-model" style="flex:1;min-width:0;font-size:11px;padding:4px;">
+        <option value="" selected>自動（上位から上限で自動降格）</option>
+        <option value="gemini-3.8-flash">Gemini 3.8 Flash（20回/日）</option>
+        <option value="gemini-3.7-flash">Gemini 3.7 Flash（20回/日）</option>
+        <option value="gemini-3.6-flash">Gemini 3.6 Flash（20回/日）</option>
+        <option value="gemini-3.5-flash">Gemini 3.5 Flash（20回/日）</option>
+        <option value="gemini-3-flash-preview">Gemini 3 Flash（20回/日）</option>
+        <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite（500回/日）</option>
+        <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite（500回/日）</option>
+        <option value="gemini-2.5-flash">Gemini 2.5 Flash（20回/日）</option>
+      </select>
+    </div>
+    <button class="btn btn-full" id="vd-gen-btn" onclick="geminiVideo(this)" style="background:#7c3aed;color:#fff;margin-top:6px;">🎬 台本・縦スライド・投稿文を生成</button>
+    <div id="gem-video-status" style="display:none;font-size:11px;margin-top:3px;"></div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">台本（カット割り・ナレーション・テロップ）</label><button class="btn-sm" onclick="copyText(document.getElementById('vd-script').value,this)">📋 コピー</button></div>
+    <textarea id="vd-script" placeholder="生成後に台本が入ります" style="min-height:130px;"></textarea>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">縦スライド用データ（編集するとプレビューに反映）</label><button class="btn-sm" onclick="copyText(document.getElementById('vd-slides').value,this)">📋 コピー</button></div>
+    <textarea id="vd-slides" oninput="debouncedVideoPrev()" placeholder="生成後にスライド用データが入ります" style="min-height:90px;font-size:10px;"></textarea>
+    <button class="btn btn-full" id="vd-dl-btn" onclick="downloadVideoSlides()" style="margin-top:6px;">⬇ 縦スライド5枚をZIPでダウンロード</button>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">X投稿文（動画用）</label><button class="btn-sm" onclick="copyText(document.getElementById('vd-x').value,this)">📋 コピー</button></div>
+    <textarea id="vd-x" placeholder="生成後にX投稿文が入ります" style="min-height:50px;"></textarea>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">Instagram投稿文（リール）</label><button class="btn-sm" onclick="copyText(document.getElementById('vd-insta').value,this)">📋 コピー</button></div>
+    <textarea id="vd-insta" placeholder="生成後にInstagram投稿文が入ります" style="min-height:60px;"></textarea>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">TikTok投稿文</label><button class="btn-sm" onclick="copyText(document.getElementById('vd-tiktok').value,this)">📋 コピー</button></div>
+    <textarea id="vd-tiktok" placeholder="生成後にTikTok投稿文が入ります" style="min-height:50px;"></textarea>
+    <details style="margin-top:6px;"><summary style="font-size:10px;color:var(--text-sub);cursor:pointer;">生成全文（うまく分割できない時のフォールバック）</summary><textarea id="vd-raw" style="min-height:80px;"></textarea></details>
+  </div>
+  </div><!-- /sa-tab-video -->
+
   <div id="status"></div>
   <div id="mob-prev">
     <p style="font-size:10px;color:#ef4444;font-weight:bold;margin-bottom:5px;">保存ダイアログが出ない場合は画像を長押しして保存</p>
@@ -1149,6 +1248,13 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
   <div class="prev-tabs">
     <button class="prev-tab active" id="tab-slides" onclick="setMode('slides')">📊 スライド</button>
     <button class="prev-tab" id="tab-thumb" onclick="setMode('thumb')">🖼 サムネイル</button>
+    <button class="prev-tab" id="tab-video" onclick="setMode('video')">🎬 縦スライド</button>
+  </div>
+
+  <!-- 縦スライド（SNS動画用）ビュー -->
+  <div id="video-view" style="display:none;flex-direction:column;gap:6px;flex:1;overflow-y:auto;">
+    <div style="font-size:11px;color:var(--text-sub);">縦スライド 1080×1920 プレビュー（クリックで個別ダウンロード）</div>
+    <div class="prev-wrap" id="video-prev-area"></div>
   </div>
 
   <!-- スライドビュー -->
@@ -3265,7 +3371,9 @@ reason_4=`;
             'ta-report', 'ta-data', 'th-input',
             'gem-model', 'gem-months', 'gem-article-model',
             's6-axis-min', 's6-axis-max', 's6-axis-step',
-            'art-title', 'art-body', 'art-thumb', 'art-tags', 'art-x', 'art-sec', 'art-raw'
+            'art-title', 'art-body', 'art-thumb', 'art-tags', 'art-x', 'art-sec', 'art-raw',
+            // SNS動画タブ
+            'vd-note-url', 'gem-video-model', 'vd-script', 'vd-slides', 'vd-x', 'vd-insta', 'vd-tiktok', 'vd-raw'
         ];
         const PERSIST_RADIO_NAMES = ['sa-market', 'sa-compare-mode', 'mkt', 'dir'];
 
@@ -3951,9 +4059,15 @@ risk_3=`;
 // 株価分析：サイドバーのサブタブ切替（1.2.＝スライド作成 / 3.＝記事・SNS）
 function switchPriceTab(t){
   document.querySelectorAll('#mode-price .sa-subtab').forEach(b=>b.classList.toggle('active',b.dataset.satab===t));
-  const mk=document.getElementById('sa-tab-make'), ar=document.getElementById('sa-tab-article');
+  const mk=document.getElementById('sa-tab-make'), ar=document.getElementById('sa-tab-article'), vd=document.getElementById('sa-tab-video');
   if(mk) mk.style.display = t==='make' ? '' : 'none';
   if(ar) ar.style.display = t==='article' ? '' : 'none';
+  if(vd) vd.style.display = t==='video' ? '' : 'none';
+  // 動画タブでは右側のプレビューも縦スライドに切り替える（戻る時はスライドへ）
+  if(typeof setMode==='function'){
+    if(t==='video')setMode('video');
+    else if(document.getElementById('tab-video')?.classList.contains('active'))setMode('slides');
+  }
 }
 // 「2.」の下のボタン：記事タブへ遷移してから生成する（結果が見える状態で走る）
 async function geminiArticleFromMake(){
@@ -5309,16 +5423,20 @@ function buildS6(d){
 // ============================================================
 // CHART (light theme)
 // ============================================================
-function saDrawChart(canvas,lines){
+function saDrawChart(canvas,lines,k){
+  // k：描画倍率（省略=1）。縦スライドのように大きなキャンバスに描く時は k=2 前後を渡すと、
+  // 文字・余白・ローソク幅がまとめて k 倍になり、スマホ全画面でも読める太さになる。
+  k=k||1;
   // 非表示中などで実寸が取れない場合は親要素の実寸を使う（390×320で描いて
   // CSSで引き伸ばされ、チャートが横に伸びて崩れるのを防ぐ）
   const par=canvas.parentElement;
-  const cW=canvas.offsetWidth||(par&&par.clientWidth)||390;
-  const cH=canvas.offsetHeight||(par&&par.clientHeight)||320;
-  canvas.width=cW*2;canvas.height=cH*2;
-  canvas.style.width=cW+'px';canvas.style.height=cH+'px';
+  const realW=canvas.offsetWidth||(par&&par.clientWidth)||390;
+  const realH=canvas.offsetHeight||(par&&par.clientHeight)||320;
+  canvas.width=realW*2;canvas.height=realH*2;
+  canvas.style.width=realW+'px';canvas.style.height=realH+'px';
   const ctx=canvas.getContext('2d');
-  ctx.scale(2,2);ctx.clearRect(0,0,cW,cH);
+  const cW=realW/k,cH=realH/k;   // 以降は論理サイズで描く
+  ctx.scale(2*k,2*k);ctx.clearRect(0,0,cW,cH);
   ctx.fillStyle='#f8fafc';ctx.fillRect(0,0,cW,cH);
 
   const data=[];
@@ -5507,12 +5625,415 @@ async function downloadAll(){
       setStatus(`レンダリング中 ${i+1}/${slides.length}...`);
       zip.file(slides[i].name+'.png',await renderToBlob(slides[i]));
     }
+    // 固定の「ご注意」スライド（assets/disclaimer_note.png）を末尾に同梱する。
+    // 取得できなくても本体スライドのZIPは作る（ネットワーク断・ローカル起動などで失敗しうる）
+    const info=parseBankyo(d);
+    try{
+      setStatus('ご注意スライドを追加中...');
+      const r=await fetch('assets/disclaimer_note.png');
+      if(r.ok)zip.file(`${info.code||''}_${info.name||''}_99_ご注意.png`,await r.blob());
+    }catch(e){console.warn('disclaimer slide skipped',e);}
     setStatus('ZIPを作成中...');
     const zb=await zip.generateAsync({type:'blob'});
-    const info=parseBankyo(d);
     const url=URL.createObjectURL(zb);
     const a=document.createElement('a');
     a.href=url;a.download=`${info.code||'stock'}_${info.name||'analysis'}_slides.zip`;a.click();
+    URL.revokeObjectURL(url);
+    setStatus('✓ ダウンロード完了！',3000);
+  }catch(e){setStatus('エラー: '+e.message);}
+  btn.disabled=false;
+}
+
+// ============================================================
+// SNS動画（縦型 9:16）：台本・縦スライド5枚・投稿文
+// 同じChatGPTレポートの「無料範囲」（値動き・変動理由・強み・弱み）だけを使い、
+// 有料範囲（底値レンジ・12か月シナリオ・モノサシ・リスク）は「noteで解説」として紹介に留める。
+// ============================================================
+const VSLIDE_W=1080,VSLIDE_H=1920;
+const VIDEO_DISCLAIMER='この動画は情報提供を目的としており、特定銘柄の売買を推奨するものではありません。投資判断はご自身の責任でお願いします';
+
+const VIDEO_PROMPT=`あなたは「論理的で客観的だが、初心者に寄り添って分かりやすく話す投資のナビゲーター」です。
+提供される【株価分析レポート】と【基本情報】を根拠に、SNS向け縦型ショート動画（X / TikTok / Instagramリール、100〜110秒）の素材を、下記の5ブロックで出力してください。
+
+【無料範囲と有料範囲（最重要・厳守）】
+・動画で扱ってよいのは「無料範囲」のみ：株価の値動き（どれくらい下落/上昇したか）、その理由、企業の強み、企業の弱み・懸念。
+・「有料範囲」＝3〜9か月の底値/天井レンジ、12か月後シナリオ、株価以外の判断モノサシ、リスク・シナリオが崩れる条件。これらの【具体的な数値・条件・結論】は台本・スライド・投稿文のどこにも絶対に出さない。「noteで分析している項目名」として紹介するだけにする。
+・動画だけで「なぜ動いているのか」までは理解できる構成にし、最後に「では、ここまで下がった現在株価は本当に安いのか？」（上昇分析なら「ここから買っても間に合うのか？」）という問いでnoteへ誘導する。
+・基本情報の「方向」が上昇の場合は、下落→上昇、底値→天井、安い→高い、と読み替える。
+
+【出力形式（必ず5ブロック。各ブロックはコードブロックで囲み、コードブロックの中に見出しを書かない）】
+
+1. 【台本】
+   - 合計100〜110秒。日本語ナレーションは1秒5.5文字が目安なので、ナレーション合計は550〜600文字。
+   - 必ず次の6カットで構成し、各カットは下記の形式で書く：
+     ■ カット1｜0〜5秒｜スライド①｜フック
+     ナレーション：（銘柄名と下落/上昇率を言い切り、「原因は業績悪化なのか？」のような問いで引き込む）
+     テロップ：（20文字以内）
+     ■ カット2｜5〜23秒｜スライド①｜株価推移
+     ■ カット3｜23〜45秒｜スライド②｜なぜ動いているのか（3ポイント）
+     ■ カット4｜45〜63秒｜スライド③｜企業の強み（「株価が下がった＝会社が悪くなったわけではない」という視点）
+     ■ カット5｜63〜82秒｜スライド④｜企業の弱み・注意点
+     ■ カット6｜82〜105秒｜スライド⑤｜まとめ＋note誘導（「ここまでが現在の状況です。では…本当に安いのか。底値レンジ・12か月後シナリオ・判断のモノサシ・リスクはnoteで詳しく分析しています」の流れ）
+   - 話し言葉。「〜です・ます」の3連続を避け、「〜ですよね」「〜というわけです」を混ぜる。
+   - 専門用語の「〜とは」解説は不要。「プロの目線で」等の権威付けは禁止。「P0」等の内部記号は禁止。
+   - 免責文はツール側で末尾に自動追加するので書かない。
+
+2. 【縦スライド】：スライドに載せる文言だけ。ナレーションで説明する前提なので、文字は最小限にする。次の形式を厳守（キー名は変更禁止）：
+[V1]
+銘柄:銘柄名|証券コード
+株価:現在株価の数値のみ（カンマ・単位なし）
+変化:高値から -48.9%（のように「基準＋変化率」を14文字以内で）
+基準:2026年5月高値比（変化の基準を12文字以内で）
+一言:株価の状況を一言で（16文字以内。例：5月高値からほぼ半値に）
+[V2]
+見出し:なぜ下落している？（12文字以内。上昇分析なら「なぜ上昇している？」）
+・ポイント1（22文字以内・体言止め）
+・ポイント2
+・ポイント3
+[V3]
+見出し:この会社の強み
+・強み1（22文字以内）
+・強み2
+・強み3
+[V4]
+見出し:一方で注意点も
+・弱み1（22文字以内）
+・弱み2
+・弱み3
+[V5]
+問い:では、現在株価は本当に安いのか？（22文字以内。上昇分析なら「ここから買っても間に合うのか？」）
+変化:高値から -48.9%（V1と同じ）
+要因:期待剥落＋需給悪化（16文字以内に圧縮）
+強み:高シェア＋研究開発力（16文字以内）
+弱み:半導体需要依存＋新工場負担（16文字以内）
+note:3〜9か月の底値レンジ
+note:12か月後の3シナリオ
+note:買い判断に使うモノサシ
+note:主要リスク
+（noteの4行は項目名だけ。数値・結論は書かない）
+
+3. 【X投稿文】：140文字以内（ハッシュタグ含む）。冒頭は「【 #銘柄名（証券コード）｜〇ヶ月で〇％下落】」形式。動画の問いかけを1〜2文で書き、「▼ 底値レンジ・12か月シナリオはnoteで」＋「（noteリンク）」というプレースホルダー行を置く。結論・目標株価は書かない。空行なし、ハッシュタグは2〜3個を末尾行に。
+
+4. 【Instagram投稿文】：リール用キャプション。1行目にフック（絵文字可）、2〜4行で動画の要点（無料範囲のみ）、「▶ 続き（底値レンジ・12か月シナリオ・モノサシ・リスク）はプロフィールのリンクから」を入れ、空行を1つ挟んでハッシュタグを10〜15個（銘柄名・証券コード・業種・テーマ・#株式投資 #日本株 など）。
+
+5. 【TikTok投稿文】：150文字以内。フック1文＋「続きはプロフのリンクから」＋ハッシュタグ3〜5個（#銘柄名 #株 #投資 など）。
+
+【共通ルール】
+・すべて元レポートの事実に基づき、レポートにない数値・事実を創作しない。
+・数値は3桁カンマ区切り（例：6,250円）。ただし[V1]の「株価:」だけはカンマなしの数値のみ。
+・他の銘柄にも使い回せる汎用表現ではなく、その企業固有の事業・製品・材料を必ず入れる。`;
+
+function vdStatus(msg,cls){
+  const el=document.getElementById('gem-video-status');if(!el)return;
+  el.style.display=msg?'block':'none';el.textContent=msg||'';
+  el.style.color=cls==='error'?'#dc2626':cls==='ok'?'#059669':'var(--text-sub)';
+}
+
+// 基本情報（入力欄）をGeminiに渡すテキストにまとめる
+function vdBasicInfo(){
+  const L=[];
+  const name=getName(),code=getTicker();
+  L.push(`銘柄名：${name||'（不明）'}`);
+  L.push(`証券コード：${code||'（不明）'}`);
+  L.push(`市場：${getMkt()==='us'?'米国株':'国内株'}`);
+  L.push(`方向：${getDir()==='down'?'下落':'上昇'}`);
+  const cp=(document.getElementById('inp-cur-price')||{}).value||'',cd=(document.getElementById('inp-cur-date')||{}).value||'';
+  const bp=(document.getElementById('inp-base-price')||{}).value||'',bd=(document.getElementById('inp-base-date')||{}).value||'';
+  if(cp)L.push(`現在株価：${cp}${cd?'（'+cd+'）':''}`);
+  if(bp)L.push(`基準株価：${bp}${bd?'（'+bd+'）':''}`);
+  const period=getPeriod();if(period)L.push(`期間・変動：${period}`);
+  const f=window._fetched;
+  if(f&&f.business)L.push(`事業内容：${f.business}`);
+  return L.join('\n');
+}
+
+function parseVideoOutput(text){
+  const defs=[
+    {key:'script', re:/【\s*台本\s*】/},
+    {key:'slides', re:/【\s*縦スライド[^】]*】/},
+    {key:'x',      re:/【\s*X[^】]*投稿文\s*】/},
+    {key:'insta',  re:/【\s*Instagram[^】]*】/i},
+    {key:'tiktok', re:/【\s*TikTok[^】]*】/i}
+  ];
+  const found=defs.map(d=>{const m=text.match(d.re);return m?{key:d.key,idx:m.index,end:m.index+m[0].length}:null;}).filter(Boolean);
+  found.sort((a,b)=>a.idx-b.idx);
+  const out={};
+  for(let i=0;i<found.length;i++){
+    const chunk=text.slice(found[i].end,(i+1<found.length)?found[i+1].idx:text.length).trim();
+    const fence=chunk.match(/```[^\n]*\n([\s\S]*?)```/);
+    out[found[i].key]=(fence?fence[1]:chunk.replace(/```/g,'')).trim();
+  }
+  const order=['script','slides','x','insta','tiktok'];
+  if(order.some(k=>!out[k])){
+    const fences=[...text.matchAll(/```[^\n]*\n([\s\S]*?)```/g)].map(m=>m[1].trim());
+    if(fences.length===order.length)order.forEach((k,i)=>{if(!out[k])out[k]=fences[i];});
+  }
+  order.forEach(k=>{out[k]=(out[k]||'').replace(/^【[^】\n]{1,20}】\s*\n/,'').trim();});
+  // スライドデータは [V1] から始まる塊をどこからでも拾う（見出し欠落時の保険）
+  if(!/\[V1\]/.test(out.slides)){const m=text.match(/\[V1\][\s\S]*?\[V5\][\s\S]*?(?=```|$)/);if(m)out.slides=m[0].trim();}
+  return out;
+}
+
+async function geminiVideo(btnEl){
+  const report=(document.getElementById('ta-report').value||'').trim();
+  if(!report){alert('「2. ChatGPT分析」のレポートを貼り付けてください');return;}
+  const resources=[{label:'株価分析レポート',text:report},{label:'基本情報',text:vdBasicInfo()}];
+  const ov=(document.getElementById('gem-video-model')||{}).value||'';
+  const o=btnEl?btnEl.textContent:'';
+  if(btnEl){btnEl.disabled=true;btnEl.textContent='生成中…';}
+  vdStatus('Geminiで台本・スライド・投稿文を生成中…（30秒〜1分）','info');
+  const r=await saCallGeminiAnalyze(VIDEO_PROMPT,resources,{cls:'high',temperature:0.7,modelOverride:ov});
+  if(btnEl){btnEl.disabled=false;btnEl.textContent=o;}
+  if(!r.ok){vdStatus('エラー: '+r.error,'error');return;}
+  const p=parseVideoOutput(r.text);
+  let script=deJargonP0(p.script||'');
+  if(script&&!script.includes(VIDEO_DISCLAIMER))script+=`\n\n■ エンド｜105〜110秒｜スライド⑤｜免責（テロップのみ・ナレーションなし）\nテロップ：${VIDEO_DISCLAIMER}`;
+  document.getElementById('vd-script').value=script;
+  document.getElementById('vd-slides').value=deJargonP0(p.slides||'');
+  document.getElementById('vd-x').value=deJargonP0(p.x||'');
+  document.getElementById('vd-insta').value=deJargonP0(p.insta||'');
+  document.getElementById('vd-tiktok').value=deJargonP0(p.tiktok||'');
+  document.getElementById('vd-raw').value=r.text;
+  if(typeof saveState==='function')saveState();
+  const missing=[!p.script&&'台本',!p.slides&&'縦スライド',!p.x&&'X投稿文',!p.insta&&'Instagram',!p.tiktok&&'TikTok'].filter(Boolean);
+  vdStatus(`生成完了（${r.model||'gemini'}${r.fellBack?'・降格':''}${saTokenNote(r.usage)}）${missing.length?' ※'+missing.join('・')+'は全文から確認':''}`,missing.length?'info':'ok');
+  setMode('video');
+}
+
+// [V1]〜[V5] の「キー:値」「・ポイント」を読む。同じキーが複数ある場合（note:）は配列にする
+function parseVideoData(text){
+  const v={};let cur=null;
+  for(const raw of String(text||'').split('\n')){
+    const t=raw.trim();if(!t)continue;
+    const m=t.match(/^\[(V[1-5])\]$/);
+    if(m){cur=m[1];v[cur]={pts:[],multi:{}};continue;}
+    if(!cur)continue;
+    if(/^[・･•\-]/.test(t)){v[cur].pts.push(trimDot(t.replace(/^[・･•\-]\s*/,'')));continue;}
+    const i=t.search(/[:：]/);
+    if(i>0){
+      const k=t.slice(0,i).trim(),val=t.slice(i+1).trim();
+      (v[cur].multi[k]=v[cur].multi[k]||[]).push(val);
+      if(v[cur][k]===undefined)v[cur][k]=val;
+    }
+  }
+  return v;
+}
+
+// 変化率の文字列から「-48.9%」の部分と、それ以外（基準）を分ける
+function vdSplitChange(s){
+  const str=String(s||'').replace(/[▼▲]/g,'').trim();
+  const m=str.match(/[-+−－ー]?\s*\d+(?:\.\d+)?\s*[%％]/);
+  if(!m)return{pct:str,rest:''};
+  let pct=m[0].replace(/\s/g,'').replace(/[−－ー]/,'-').replace(/％/,'%');
+  const rest=str.replace(m[0],'').replace(/[（）()]/g,'').trim();
+  return{pct,rest};
+}
+
+// スライド①のチャート行：スライド作成タブの[チャート]があればそれ、なければ株探の取得データ
+function vdChartLines(){
+  const ta=(document.getElementById('ta-data')||{}).value||'';
+  if(ta.trim()){try{const d=parseData(ta);const c=getSec(d,'チャート');if(c.length>1)return c;}catch(e){}}
+  const f=window._fetched;
+  if(f&&f.chartData){const months=(document.getElementById('gem-months')||{}).value||'';return String(saTrimChartByMonths(f.chartData,months)||'').split(';').filter(Boolean);}
+  return[];
+}
+
+function vSig(){return `<div class="v-sig">すみっこマネー大学/@sumikko_money</div>`;}
+
+function buildV1(v,ctx){
+  const s=v.V1||{};
+  const bk=(s['銘柄']||'').split('|');
+  const name=(bk[0]||'').trim()||ctx.name,code=(bk[1]||'').trim()||ctx.code;
+  const price=ctx.price||s['株価']||'';
+  const ch=vdSplitChange(s['変化']||ctx.period);
+  const basis=s['基準']||ch.rest;
+  const isDown=ctx.isDown;
+  const color=/^-/.test(ch.pct)?'#dc2626':isDown?'#dc2626':'#16a34a';
+  const lines=vdChartLines();
+  const lbl=lines.length?`${chartGranularityLabel(lines)}チャート（${chartPeriodLabel(lines)}）`:'';
+  const ps=fmtPrice(price,code);
+  const pf=ps.length>9?'80px':ps.length>7?'92px':'104px';
+  const cf=ch.pct.length>7?'60px':'74px';
+  const metrics=[{l:isUSCode(code)?'実績PER':'予想PER',v:ctx.per},{l:'実績PBR',v:ctx.pbr},{l:'52週レンジ',v:ctx.w52}].filter(m=>m.v);
+  const metricsHtml=metrics.length?`<div class="v1-metrics">${metrics.map(m=>`<div class="v1-metric"><div class="v1-ml">${esc(m.l)}</div><div class="v1-mv" style="font-size:${String(m.v).length>12?'28px':String(m.v).length>9?'32px':'38px'};">${esc(addComma(m.v))}</div></div>`).join('')}</div>`:'';
+  return `<div class="vslide"><div class="v-bar"></div><div class="v-step">① 株価推移</div>
+<div class="v-wrap">
+  <div class="v1-head"><span class="v1-name">${esc(name)}</span><span class="v1-code">（${esc(code)}）</span>${ctx.desc?`<div class="v1-desc">${esc(ctx.desc)}</div>`:''}</div>
+  <div class="v1-price-card">
+    <div><div class="v1-pl">株価</div><div class="v1-price" style="font-size:${pf};">${esc(ps)}</div></div>
+    <div><div class="v1-change" style="color:${color};font-size:${cf};">${esc(ch.pct)}</div>${basis?`<div class="v1-basis">${esc(basis)}</div>`:''}</div>
+  </div>
+  <div class="v1-chart-card">${lbl?`<div class="v1-chart-lbl">${esc(lbl)}</div>`:''}<canvas class="v1-chart-canvas" data-chart="${esc(lines.join(';'))}" data-k="2.2"></canvas></div>
+  ${metricsHtml}
+  ${s['一言']?`<div class="v-lead" style="margin-top:0;text-align:center;font-weight:700;color:#1e293b;">${esc(s['一言'])}</div>`:''}
+</div>${vSig()}</div>`;
+}
+
+function buildVPoints(sec,step,cls,defTitle){
+  const s=sec||{pts:[]};
+  const pts=(s.pts||[]).slice(0,3);
+  const ptsHtml=pts.length?pts.map((p,i)=>`<div class="v-pt ${cls}"><div class="v-pn">${i+1}</div><div class="v-ptx">${esc(p)}</div></div>`).join(''):`<div class="v-pt ${cls}"><div class="v-ptx" style="color:#94a3b8;">（データなし）</div></div>`;
+  return `<div class="vslide"><div class="v-bar"></div><div class="v-step">${esc(step)}</div>
+<div class="v-wrap">
+  <div class="v-h ${cls}">${esc(s['見出し']||defTitle)}</div>
+  <div class="v-pts">${ptsHtml}</div>
+  ${s['補足']?`<div class="v-lead">${esc(s['補足'])}</div>`:''}
+</div>${vSig()}</div>`;
+}
+
+function buildV5(v,ctx){
+  const s=v.V5||{multi:{}};
+  const ch=vdSplitChange(s['変化']||(v.V1&&v.V1['変化'])||ctx.period);
+  const isDown=ctx.isDown;
+  const notes=((s.multi&&(s.multi['note']||s.multi['NOTE']||s.multi['ｎｏｔｅ']))||[]).slice(0,4);
+  const defNotes=isDown?['3〜9か月の底値レンジ','12か月後の3シナリオ','買い判断に使うモノサシ','主要リスク']:['3〜9か月の天井レンジ','12か月後の3シナリオ','売り時を見極めるモノサシ','主要リスク'];
+  const list=(notes.length?notes:defNotes).map(n=>`<div class="v5-li">${esc(n)}</div>`).join('');
+  const url=((document.getElementById('vd-note-url')||{}).value||'').trim();
+  const qr=url?`<div class="v5-qr" data-qr="${esc(url)}"></div>`:`<div class="v5-qr"><div class="v5-qr-none">noteURLを<br>入力すると<br>QRを表示</div></div>`;
+  const row=(l,val,cls)=>val?`<div class="v5-row"><div class="v5-rl">${esc(l)}</div><div class="v5-rv ${cls||''}">${esc(val)}</div></div>`:'';
+  return `<div class="vslide"><div class="v-bar"></div><div class="v-step">⑤ まとめ</div>
+<div class="v5-top">
+  <div class="v5-title">現時点の整理</div>
+  ${row(isDown?'下落幅':'上昇幅',(ch.pct?(ch.rest?ch.rest+' ':'')+ch.pct:''),isDown?'red':'green')}
+  ${row(isDown?'下落要因':'上昇要因',s['要因'],'blue')}
+  ${row('強み',s['強み'],'green')}
+  ${row('弱み・注意点',s['弱み'],'red')}
+  <div class="v5-q">${esc(s['問い']||(isDown?'では、現在株価は本当に安いのか？':'では、ここから買っても間に合うのか？'))}</div>
+</div>
+<div class="v5-bot">
+  <div class="v5-bt">noteではここから分析</div>
+  <div class="v5-list">${list}</div>
+  <div class="v5-foot">
+    <div class="v5-cta">続きはnoteで<small>プロフィール／投稿のリンクから</small></div>
+    ${qr}
+  </div>
+  <div class="v5-sig">すみっこマネー大学/@sumikko_money</div>
+</div></div>`;
+}
+
+// 縦スライド5枚を組み立てる（入力欄・株探データ・スライド作成タブのデータで補完）
+function buildVideoSlides(text){
+  const v=parseVideoData(text);
+  const f=window._fetched||{};
+  let info={};
+  const ta=(document.getElementById('ta-data')||{}).value||'';
+  if(ta.trim()){try{info=parseBankyo(parseData(ta));}catch(e){info={};}}
+  const bk=((v.V1||{})['銘柄']||'').split('|');
+  const ctx={
+    name:getName()||info.name||(bk[0]||'').trim(),
+    code:getTicker()||info.code||(bk[1]||'').trim(),
+    price:((document.getElementById('inp-cur-price')||{}).value||'').trim()||info.price||'',
+    period:getPeriod()||info.change||'',
+    isDown:getDir()==='down',
+    desc:info.desc||(f.business?String(f.business).slice(0,40):''),
+    per:info['PER']||f.per||'',pbr:info['PBR']||f.pbr||'',w52:info['52週']||(f.chartData?calc52w(f):'')||''
+  };
+  const n=ctx.name||'',c=ctx.code||'';
+  const isDown=ctx.isDown;
+  return[
+    {html:buildV1(v,ctx),name:`${c}_${n}_V1_株価推移`},
+    {html:buildVPoints(v.V2,isDown?'② 下落理由':'② 上昇理由','',isDown?'なぜ下落している？':'なぜ上昇している？'),name:`${c}_${n}_V2_${isDown?'下落理由':'上昇理由'}`},
+    {html:buildVPoints(v.V3,'③ 企業の強み','green','この会社の強み'),name:`${c}_${n}_V3_強み`},
+    {html:buildVPoints(v.V4,'④ 企業の弱み','red','一方で注意点も'),name:`${c}_${n}_V4_弱み`},
+    {html:buildV5(v,ctx),name:`${c}_${n}_V5_まとめ`},
+  ];
+}
+
+// 挿入済みHTMLの中のチャート・QRを描く（プレビュー／レンダリング共通）
+function vFillDynamic(root){
+  const cv=root.querySelector('canvas[data-chart]');
+  if(cv){
+    let tries=0;
+    (function draw(){
+      if(!cv.offsetWidth&&tries++<10)return setTimeout(draw,150);
+      saDrawChart(cv,cv.dataset.chart.split(';').filter(Boolean),parseFloat(cv.dataset.k)||1);
+    })();
+  }
+  root.querySelectorAll('[data-qr]').forEach(el=>{
+    if(el.dataset.done)return;el.dataset.done='1';
+    try{
+      if(typeof QRCode==='undefined')throw new Error('QRCode lib not loaded');
+      new QRCode(el,{text:el.dataset.qr,width:222,height:222,correctLevel:QRCode.CorrectLevel.M});
+    }catch(e){el.innerHTML='<div class="v5-qr-none">QR生成不可</div>';console.warn(e);}
+  });
+}
+
+let vdPrevTimer=null;
+function debouncedVideoPrev(){clearTimeout(vdPrevTimer);vdPrevTimer=setTimeout(()=>{if(document.getElementById('tab-video')?.classList.contains('active'))renderVideoPrev();},600);}
+
+function renderVideoPrev(){
+  const area=document.getElementById('video-prev-area');if(!area)return;
+  const text=((document.getElementById('vd-slides')||{}).value||'').trim();
+  area.innerHTML='';
+  if(!text){area.innerHTML='<div style="font-size:11px;color:var(--text-sub);padding:8px;">「4. SNS動画」で生成すると、縦スライド5枚のプレビューがここに出ます</div>';return;}
+  let slides;
+  try{slides=buildVideoSlides(text);}
+  catch(e){area.innerHTML=`<div style="color:#f87171;font-size:12px;padding:8px;font-family:monospace;white-space:pre-wrap;">レンダリングエラー:\n${e.message}\n${e.stack||''}</div>`;console.error(e);return;}
+  const ctrlW=document.querySelector('.ctrl')?.offsetWidth||Math.min(440,Math.max(300,window.innerWidth*0.3));
+  const W=(area.clientWidth||(window.innerWidth-ctrlW-42))-28;
+  const gap=10,cols=3;
+  const iW=Math.floor((W-gap*(cols-1))/cols*0.96);
+  const scale=iW/VSLIDE_W;
+  const iH=Math.round(VSLIDE_H*scale);
+  slides.forEach(s=>{
+    const wrap=document.createElement('div');
+    wrap.className='prev-slide';
+    wrap.style.cssText=`width:${iW}px;height:${iH}px;`;
+    wrap.title=s.name;
+    wrap.addEventListener('click',()=>dlVideoSingle(s));
+    const inner=document.createElement('div');
+    inner.style.cssText=`position:absolute;top:0;left:0;width:${VSLIDE_W}px;height:${VSLIDE_H}px;transform:scale(${scale});transform-origin:top left;pointer-events:none;`;
+    inner.innerHTML=s.html;
+    wrap.appendChild(inner);
+    area.appendChild(wrap);
+    setTimeout(()=>vFillDynamic(inner),60);
+  });
+}
+window.addEventListener('resize',()=>{if(document.getElementById('tab-video')?.classList.contains('active'))debouncedVideoPrev();});
+
+async function renderVideoToBlob(slide){
+  const ct=document.getElementById('render-target');
+  ct.innerHTML=slide.html;
+  await new Promise(r=>setTimeout(r,150));
+  vFillDynamic(ct);
+  await new Promise(r=>setTimeout(r,250));
+  const el=ct.querySelector('.vslide');
+  const c=await html2canvas(el,{width:VSLIDE_W,height:VSLIDE_H,scale:2,useCORS:true,allowTaint:true,backgroundColor:'#f8fafc',logging:false});
+  ct.innerHTML='';
+  return new Promise(res=>c.toBlob(res,'image/png'));
+}
+
+async function dlVideoSingle(slide){
+  setStatus(`${slide.name} をレンダリング中...`);
+  try{
+    const blob=await renderVideoToBlob(slide);
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download=slide.name+'.png';a.click();
+    URL.revokeObjectURL(url);
+    document.getElementById('mob-img').src=url;
+    document.getElementById('mob-prev').style.display='block';
+    setStatus(`✓ ${slide.name}.png をダウンロードしました`,3000);
+  }catch(e){setStatus('エラー: '+e.message);}
+}
+
+async function downloadVideoSlides(){
+  const text=((document.getElementById('vd-slides')||{}).value||'').trim();
+  if(!text){alert('先に「🎬 台本・縦スライド・投稿文を生成」を実行してください');return;}
+  const btn=document.getElementById('vd-dl-btn');btn.disabled=true;
+  try{
+    const slides=buildVideoSlides(text);
+    const zip=new JSZip();
+    for(let i=0;i<slides.length;i++){
+      setStatus(`縦スライド レンダリング中 ${i+1}/${slides.length}...`);
+      zip.file(slides[i].name+'.png',await renderVideoToBlob(slides[i]));
+    }
+    const script=(document.getElementById('vd-script')||{}).value||'';
+    if(script.trim())zip.file('台本.txt',script);
+    setStatus('ZIPを作成中...');
+    const zb=await zip.generateAsync({type:'blob'});
+    const url=URL.createObjectURL(zb);
+    const a=document.createElement('a');
+    a.href=url;a.download=`${getTicker()||'stock'}_${getName()||'analysis'}_video_slides.zip`;a.click();
     URL.revokeObjectURL(url);
     setStatus('✓ ダウンロード完了！',3000);
   }catch(e){setStatus('エラー: '+e.message);}
@@ -5527,12 +6048,15 @@ checkMob();window.addEventListener('resize',checkMob);
 // MODE SWITCH (スライド / サムネイル)
 // ============================================================
 function setMode(mode){
-  const isThumb=mode==='thumb';
-  document.getElementById('slides-view').style.display=isThumb?'none':'flex';
+  const isThumb=mode==='thumb',isVideo=mode==='video';
+  document.getElementById('slides-view').style.display=(!isThumb&&!isVideo)?'flex':'none';
   document.getElementById('thumb-view').style.display=isThumb?'flex':'none';
-  document.getElementById('tab-slides').classList.toggle('active',!isThumb);
+  document.getElementById('video-view').style.display=isVideo?'flex':'none';
+  document.getElementById('tab-slides').classList.toggle('active',!isThumb&&!isVideo);
   document.getElementById('tab-thumb').classList.toggle('active',isThumb);
+  document.getElementById('tab-video').classList.toggle('active',isVideo);
   if(isThumb)renderThumbPreview();
+  if(isVideo)renderVideoPrev();   // 非表示中に描くと幅0で崩れるため、表示後に描く
 }
 
 // ============================================================
