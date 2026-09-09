@@ -6079,7 +6079,11 @@ ${VD_META_RULES}
 6. 【台本⑤】：スライド⑤（まとめ＋note誘導）。「ここまでが現在の状況です」と締めてから[V5]の問いを投げ、必ず次の一文をそのまま含めて案内し、終える：「株価の底値、12か月後の株価シナリオ、株価以外の転換点のモノサシ、そしてリスクについては、noteで詳しく分析しています」（上昇分析では「株価の底値」を「株価の天井」に置き換える。他の語句は変えない）。免責文はスライドに載せるので読まない。
 ${VD_SCRIPT_RULES}
 
-7. 【X投稿文】：140文字以内（ハッシュタグ含む。URLはツールが後から1行追加する）。1行目は「【 #銘柄名（証券コード）｜〇ヶ月で〇％下落】」だけの行にする（この行の直下にURLが入る）。2行目以降に動画の問いかけを1〜2文。最終行は必ず「▼ 底値レンジ・12か月シナリオはnoteで」で終える（その後に何も書かない。「（noteリンク）」等のプレースホルダーも書かない）。結論・目標株価は書かない。ハッシュタグは2〜3個を最終行の直前の行に。
+7. 【X投稿文】：140文字以内（ハッシュタグ含む。URLはツールが最終行に追加する）。次の構成・順番を厳守する。
+   1行目：「【 #銘柄名（証券コード）｜〇ヶ月で〇％下落】」だけの行
+   2行目：動画の問いかけを1〜2文（結論・目標株価は書かない）
+   3行目：ハッシュタグ2〜3個だけの行
+   4行目：「▼ 底値レンジ・12か月シナリオはnoteで」で終える（その後には何も書かない。URLや「（noteリンク）」等のプレースホルダーも書かない）
 
 8. 【Instagram投稿文】：リール用キャプション。1行目にフック（絵文字可）、2〜4行で動画の要点（無料範囲のみ）、「▶ 続き（底値レンジ・12か月シナリオ・モノサシ・リスク）はプロフィールのリンクから」を入れ、空行を1つ挟んでハッシュタグを3個だけ（銘柄名・証券コード・#株式投資 など。ツールが固定タグを2個足して合計5個にするため、絶対に3個を超えない）。
 
@@ -6219,7 +6223,18 @@ function vdAddFixedTags(P,text,maxTotal){
   const add=tags.filter(t=>words.indexOf(t)<0);
   // タグ数の上限があるときは、固定タグの分を空けてから本文側のタグを後ろから削る
   if(maxTotal)out=vdTrimTags(out,Math.max(0,maxTotal-add.length));
-  return add.length?out+'\n'+add.join(' '):out;
+  if(!add.length)return out;
+  // 既存のハッシュタグ行があればその行に足す（note案内やURLより後ろに置かないため）
+  const lines=out.split('\n');
+  let idx=-1;
+  for(let i=lines.length-1;i>=0;i--){
+    const w=lines[i].trim().split(/[\s、,]+/).filter(Boolean);
+    if(w.length&&w.every(t=>t.charAt(0)==='#')){idx=i;break;}
+  }
+  if(idx>=0){lines[idx]=lines[idx].replace(/\s+$/,'')+' '+add.join(' ');return lines.join('\n');}
+  const note=lines.findIndex(l=>/^\s*▼/.test(l));
+  if(note>=0){lines.splice(note,0,add.join(' '));return lines.join('\n');}
+  return out+'\n'+add.join(' ');
 }
 // 本文中のハッシュタグを max 個までに減らす（後ろのものから削除）
 function vdTrimTags(text,max){
@@ -6245,7 +6260,7 @@ function vdApplyArtUrl(P,silent){
   if(!/^https?:\/\//.test(url)){if(!silent)alert('URLは https:// から始めてください');return;}
   const x=vdEl(P,'x');const base=stripUrlLines(x.value);
   if(!base){if(!silent)alert('先に生成してください');return;}
-  x.value=buildYtPost(base,url);
+  x.value=buildXPost(base,url);   // URLは最終行（【】→本文→タグ→note案内→URL の順）
   if(typeof saveState==='function')saveState();
   if(!silent)vdStatus(P,'X投稿文にURLを差し込みました','ok');
 }
