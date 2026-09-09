@@ -506,14 +506,12 @@
 .e1-price small{font-size:24px;color:#94a3b8;}
 /* 決算分析 ②：実績テーブル */
 .e2-table{background:rgba(255,255,255,.88);border:2px solid #e2e8f0;border-radius:20px;padding:10px 30px;}
-.e2-row{display:grid;grid-template-columns:200px 1fr 220px 150px;align-items:center;gap:12px;padding:16px 0;border-bottom:2px solid #f1f5f9;}
+.e2-row{display:grid;grid-template-columns:200px 1fr 240px;align-items:center;gap:12px;padding:16px 0;border-bottom:2px solid #f1f5f9;}
 .e2-row:last-of-type{border-bottom:none;}
 .e2-l{font-size:34px;color:#64748b;font-weight:600;}
-.e2-v{font-size:46px;font-weight:900;white-space:nowrap;}
-.e2-y{font-size:36px;font-weight:700;text-align:right;white-space:nowrap;color:#475569;}
+.e2-v{font-size:46px;font-weight:900;white-space:nowrap;font-variant-numeric:tabular-nums;font-feature-settings:"tnum";}
+.e2-y{font-size:36px;font-weight:700;text-align:right;white-space:nowrap;color:#475569;font-variant-numeric:tabular-nums;font-feature-settings:"tnum";}
 .e2-y.green{color:#047857;} .e2-y.red{color:#dc2626;}
-.e2-j{font-size:26px;font-weight:700;text-align:center;padding:6px 8px;border-radius:999px;background:#e2e8f0;color:#334155;}
-.e2-j.green{background:#dcfce7;color:#047857;} .e2-j.red{background:#fee2e2;color:#b91c1c;}
 .e2-note{font-size:24px;color:#94a3b8;padding:6px 0 10px;}
 .e2-why{font-size:38px;font-weight:900;color:#1e3a8a;margin-top:6px;}
 /* 決算分析 ③：通期予想 */
@@ -6611,17 +6609,17 @@ function buildE1(v,d,ctx){
   <div class="e1-concl">${esc(s['結論']||h.result_label||'')}</div>
   ${emphHtml}
   <div class="v1-chart-card" style="min-height:560px;">${lbl?`<div class="v1-chart-lbl">${esc(lbl)}</div>`:''}<canvas class="v1-chart-canvas" data-chart="${esc(lines.join(';'))}" data-k="2.2"></canvas></div>
-  ${price?`<div class="e1-price">株価 <b>${esc(addComma(price))}${/^[A-Za-z]+$/.test(ctx.code)?'':'円'}</b>${mr.price_change?`<span class="${evSignCls(mr.price_change)}">${esc(mr.price_change)}</span>`:''}<small>${esc((mr.post_price_label||'').replace(/^決算後/,'決算後'))}</small></div>`:''}
+  ${price?`<div class="e1-price">株価 <b>${esc(fmtPrice(price,ctx.code))}</b>${mr.price_change?`<span class="${evSignCls(mr.price_change)}">${esc(mr.price_change)}</span>`:''}<small>${esc((mr.post_price_label||'').replace(/^決算後/,'決算後'))}</small></div>`:''}
 </div>${vSig()}</div>`;
 }
 function buildE2(v,d){
   const s=v.E2||{pts:[]};const kh=d.KPI_HEADER||{};
   const kpis=[d.KPI_1,d.KPI_2,d.KPI_3].filter(Boolean);
-  const rows=kpis.map(k=>`<div class="e2-row"><div class="e2-l">${esc(k.display_label||'')}</div><div class="e2-v">${esc(addComma(evNum(k.value)))}</div><div class="e2-y ${evSignCls(k.yoy)}">${esc(evNum(k.yoy))}</div>${k.judgment&&k.judgment!=='-'?`<div class="e2-j ${evSignCls(k.judgment)}">${esc(k.judgment)}</div>`:''}</div>`).join('');
+  const rows=kpis.map(k=>`<div class="e2-row"><div class="e2-l">${esc(k.display_label||'')}</div><div class="e2-v">${esc(addComma(evNum(k.value)))}</div><div class="e2-y ${evSignCls(k.yoy)}">${esc(evNum(k.yoy))}</div></div>`).join('');
   return `<div class="vslide"><div class="v-bar"></div>${vLogo()}
 <div class="v-wrap" style="gap:22px;">
   <div class="v-h">${esc(s['見出し']||'今回の実績')}</div>
-  <div class="e2-table">${rows}${kh.consensus_label&&kh.consensus_label!=='なし'?`<div class="e2-note">前年同期比／判定は${esc(kh.consensus_label)}との比較</div>`:''}</div>
+  <div class="e2-table">${rows}${kh.consensus_label&&kh.consensus_label!=='なし'?`<div class="e2-note">前年同期比は${esc(kh.consensus_label)}との比較</div>`:''}</div>
   <div class="e2-why">なぜこの数字になったのか</div>
   <div class="v-pts" style="justify-content:flex-start;gap:26px;">${vPts(s.pts,'')}</div>
 </div>${vSig()}</div>`;
@@ -6648,7 +6646,6 @@ function buildE3(v,d){
 }
 function buildEF(v,d,step,ctx){
   const s=v.E4||v.E3||{pts:[]};const mr=d.MARKET_REACTION||{};
-  const yen=/^[A-Za-z]+$/.test(ctx.code)?'':'円';
   const cls=evSignCls(mr.price_change);
   const pts=(s.pts||[]).slice(0,3).map(p=>{const q=String(p).split(/[|｜]/);return{h:trimDot(q[0]||''),sub:trimDot(q.slice(1).join(' ')||'')};});
   const ptsHtml=pts.map((p,i)=>`<div class="ef-pt"><div class="v-pn" style="width:64px;height:64px;font-size:34px;">${i+1}</div><div><div class="ef-ph">${esc(p.h)}</div>${p.sub?`<div class="ef-ps">${esc(p.sub)}</div>`:''}</div></div>`).join('');
@@ -6656,9 +6653,9 @@ function buildEF(v,d,step,ctx){
 <div class="v-wrap" style="gap:20px;">
   <div class="v-h ${cls}">市場の反応</div>
   <div class="ef-prices">
-    <div class="ef-pc"><div class="ef-pl">${esc(mr.pre_price_label||'決算前')}</div><div class="ef-pv">${esc(addComma(evNum(mr.pre_price)))}${yen}</div></div>
+    <div class="ef-pc"><div class="ef-pl">${esc(mr.pre_price_label||'決算前')}</div><div class="ef-pv">${esc(fmtPrice(evNum(mr.pre_price),ctx.code))}</div></div>
     <div class="ef-arrow ${cls}">${esc(evNum(mr.price_change)||'→')}</div>
-    <div class="ef-pc"><div class="ef-pl">${esc(mr.post_price_label||'決算後')}</div><div class="ef-pv ${cls}">${esc(addComma(evNum(mr.post_price)))}${yen}</div></div>
+    <div class="ef-pc"><div class="ef-pl">${esc(mr.post_price_label||'決算後')}</div><div class="ef-pv ${cls}">${esc(fmtPrice(evNum(mr.post_price),ctx.code))}</div></div>
   </div>
   ${s['反応']?`<div class="ef-react">${esc(s['反応'])}</div>`:''}
   <div class="e2-why" style="margin-top:10px;">今後の注目点</div>
