@@ -907,10 +907,12 @@
         <div class="tool-section">
             <div class="section-heading" style="display: flex; justify-content: space-between; border-bottom: none; padding-bottom: 0; align-items:center;">
                 <span style="border-bottom: 2px solid var(--accent); padding-bottom: 4px;">2. データ入力 ＆ 画像生成</span>
-                <button class="btn-sub" onclick="pasteFromClipboard()" style="padding: 4px 12px; font-size: 11px; flex: none; background: #e2e8f0;">📋 貼付</button>
+                <span style="display:flex; gap:4px; flex:none;">
+                    <button class="btn-sub" onclick="pasteFromClipboard()" style="padding: 4px 12px; font-size: 11px; flex: none; background: #e2e8f0;">📋 貼付</button>
+                    <button class="btn-sub" onclick="complementEarnData()" title="株探の取得値で数値を上書き補完（出力データ作成時は自動実行済み）" style="padding: 4px 12px; font-size: 11px; flex: none; background:#0891b2; color:#fff;">📋 データ補完</button>
+                </span>
             </div>
             <textarea id="input-data" placeholder="NotebookLMで整形されたテキストをここにペーストしてください"></textarea>
-            <button class="btn-sub" onclick="complementEarnData()" style="width:100%; margin-bottom:4px; background:#0891b2; color:#fff;">📋 データ補完</button>
             <button class="main-btn" onclick="renderImage()" style="margin-bottom: 4px;">画像生成</button>
             <div style="display:flex; gap:6px;">
                 <button class="main-btn download-btn" style="flex:1; font-size:13px; padding:10px 4px;" onclick="downloadImage()">💾 通常保存</button>
@@ -1999,7 +2001,8 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
 
             if (!r.ok) { setGemStatus('gem-earn-status', 'エラー: ' + r.error, 'error'); return; }
             document.getElementById('input-data').value = r.text;
-            renderImage();
+            // 株探の確定値で自動補完（自動取得済みのときのみ。ボタンは手動リカバリ用に残す）
+            if (window._earnFetched) complementEarnData(); else renderImage();
             // 整形と同時に動画素材（サムネ・台本・縦スライド・投稿文）も作る（決算分析の動画セクションのチェックで切替）
             if ((document.getElementById('ev-auto') || {}).checked) { try { await geminiVideo('ev'); } catch (e) { console.warn('video gen', e); } }
             setGemStatus('gem-earn-status', `整形完了（${r.model || 'gemini'}${r.fellBack ? '・降格' : ''}${tokenNote(r.usage)}）`, 'ok');
