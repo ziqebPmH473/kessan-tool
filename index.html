@@ -544,6 +544,11 @@
 /* サムネ（縦）：黒地に3段、中央寄せ。note用サムネと同じ記法（：区切り・色マーカー） */
 .vth{width:1080px;height:1920px;overflow:hidden;position:relative;background:#000;font-family:'Noto Sans JP',sans-serif;}
 .vth-band{display:flex;align-items:center;justify-content:center;overflow:hidden;}
+.vth-top{position:absolute;top:44px;left:56px;right:56px;display:flex;align-items:center;justify-content:space-between;z-index:3;}
+.vth-cat{display:flex;align-items:center;gap:20px;font-size:56px;font-weight:900;color:#fff;line-height:1;}
+.vth-cat i{display:block;width:12px;height:58px;background:#f59e0b;border-radius:3px;}
+.vth-date{font-size:56px;font-weight:900;color:#fff;line-height:1;letter-spacing:1px;}
+.vth-cta{position:absolute;right:56px;bottom:52px;z-index:3;font-size:52px;font-weight:900;color:#f59e0b;line-height:1;}
 
 /* ===== SLIDE 1: 現状の整理 ===== */
 .s1-wrap{padding:24px 64px 22px;display:flex;flex-direction:column;gap:8px;height:720px;box-sizing:border-box;justify-content:center;}
@@ -6519,7 +6524,10 @@ function vLogo(cls){return `<img class="v-logo ${cls||''}" src="${VD_LOGO}" alt=
 function vDisc(){return `<div class="v-disc">${esc(VIDEO_DISCLAIMER)}</div>`;}
 
 // 0 サムネ（縦）：note用サムネと同じ記法で、3段を中央に寄せる。透かしロゴは中央
-function buildVThumb(text){
+function buildVThumb(text,P){
+  const cat=(P||window._vdCurP)==='ev'?'決算分析':'株価分析';
+  const dt=new Date();
+  const dateStr=`${dt.getFullYear()}.${dt.getMonth()+1}.${dt.getDate()}`;
   const parts=String(text||'').split(/[：:]/);
   const segs=[parseThumbnailMarkup(parts[0]||''),parseThumbnailMarkup(parts[1]||''),parseThumbnailMarkup(parts[2]||'')];
   const fit=(sg,base,weight)=>{const em=thumbTextEm(sg.map(s=>s.text).join(''),weight);if(!em)return base;return Math.max(48,Math.min(base,Math.floor((VSLIDE_W-80)/em)));};
@@ -6527,6 +6535,8 @@ function buildVThumb(text){
   const H=[330,360,330];
   const top=Math.round((VSLIDE_H-H[0]-H[1]-H[2])/2)-40;
   return `<div class="vth">${vLogo('dark')}
+  <div class="vth-top"><div class="vth-cat"><i></i>${esc(cat)}</div><div class="vth-date">${esc(dateStr)}</div></div>
+  <div class="vth-cta">タップで動画を再生 ▶</div>
   <div style="position:absolute;left:0;right:0;top:${top}px;display:flex;flex-direction:column;">
     <div class="vth-band" style="height:${H[0]}px;"><div class="v-txt" style="font-size:${tF}px;font-weight:700;line-height:1;white-space:nowrap;font-family:${THUMB_FF};">${segsHtml(segs[0],'#ffffff')}</div></div>
     <div class="vth-band" style="height:${H[1]}px;background:#fff;"><div class="v-txt" style="font-size:${mF}px;font-weight:900;line-height:1;white-space:nowrap;font-family:${THUMB_FF};">${segsHtml(segs[1],'#004aad')}</div></div>
@@ -6688,7 +6698,7 @@ function buildVideoSlides(P,text){
     const d=evData()||{};const h=d.HEADER||{};
     const ctx={name:VD_CFG.ev.name()||h.company||'',code:VD_CFG.ev.code()||h.code||''};
     const n=ctx.name,c=ctx.code;
-    if(th)out.push({html:buildVThumb(th),name:`${c}_${n}_0_サムネ`,thumb:true});
+    if(th)out.push({html:buildVThumb(th,'ev'),name:`${c}_${n}_0_サムネ`,thumb:true});
     out.push({html:buildE1(v,d,ctx),name:`${c}_${n}_1_決算全体像`});
     out.push({html:buildE2(v,d),name:`${c}_${n}_2_実績`});
     if(evCount()===4){
@@ -6714,7 +6724,7 @@ function buildVideoSlides(P,text){
   };
   const n=ctx.name||'',c=ctx.code||'';
   const isDown=ctx.isDown;
-  if(th)out.push({html:buildVThumb(th),name:`${c}_${n}_0_サムネ`,thumb:true});
+  if(th)out.push({html:buildVThumb(th,'vd'),name:`${c}_${n}_0_サムネ`,thumb:true});
   out.push(
     {html:buildV1(v,ctx),name:`${c}_${n}_1_株価推移`},
     {html:buildVPoints(v.V2,isDown?'② 下落理由':'② 上昇理由','',isDown?'なぜ下落している？':'なぜ上昇している？'),name:`${c}_${n}_2_${isDown?'下落理由':'上昇理由'}`},
