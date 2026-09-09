@@ -4102,6 +4102,19 @@ risk_3=`;
             switchSaCompareMode(getSaCompareMode());
             bindPersistence();
 
+            // 動画タブの初期化(vdInit)は restoreState より前に走るため、その時点では「2.」のデータが空で
+            // 枚数判定が常に3枚になってしまう。復元後にもう一度判定し直して台本ボックスを作り直す。
+            if (typeof evAutoCount === 'function') {
+                const cntEl = document.getElementById('ev-count-auto');
+                if (cntEl) cntEl.textContent = evAutoCount() + '枚';
+            }
+            if (typeof vdBuildScriptBoxes === 'function') {
+                vdBuildScriptBoxes('ev', true);
+                if (typeof vdRestoreFields === 'function') vdRestoreFields('ev');
+                if (typeof vdUpdateScriptStats === 'function') vdUpdateScriptStats('ev');
+                if (typeof vdRestoreTts === 'function') vdRestoreTts();   // 作り直したボックスに保存済み音声のプレーヤーを戻す
+            }
+
             // 決算資料ファイル：ドロップ設定＋IndexedDBから復元
             setupEarnFileDrop();
             restoreEarnFiles();
