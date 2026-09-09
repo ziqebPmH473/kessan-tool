@@ -5889,6 +5889,10 @@ function vdBuildTabHtml(P){
     <h2>設定</h2>
     ${noteRows}${modelRow}${countRow}${monthsRow}
     <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:4px;">
+      <label style="font-size:11px;color:var(--text-sub);flex:none;" title="X・Instagram・TikTokの投稿文の末尾に必ず付けるタグ（両タブ共通）">固定タグ</label>
+      <input type="text" id="${P}-fixed-tags" value="${VD_FIXED_TAGS_DEFAULT}" oninput="vdSyncTts('${P}')" placeholder="#タグ1 #タグ2（空欄で付けない）" style="flex:1;min-width:0;font-size:11px;padding:4px;">
+    </div>
+    <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:4px;">
       <label style="font-size:11px;color:var(--text-sub);flex:none;">声</label>
       <select id="${P}-tts-voice" onchange="vdSyncTts('${P}')" style="flex:1;min-width:0;font-size:11px;padding:4px;">${VD_VOICE_OPTIONS}</select>
       <select id="${P}-tts-model" onchange="vdSyncTts('${P}')" style="flex:1;min-width:0;font-size:11px;padding:4px;">
@@ -5947,17 +5951,20 @@ function vdBuildTabHtml(P){
 function vdInnerTab(P,t){
   ['slides','audio','settings'].forEach(k=>{vdEl(P,'itab-'+k).classList.toggle('active',t===k);vdEl(P,'pane-'+k).style.display=t===k?'':'none';});
 }
-// 声・モデル・補正・間・形式は両タブで同じ設定を使う（片方で変えたらもう片方へ写す）
+// 投稿文の末尾に必ず付ける固定タグ（設定タブで変更可・両タブ共通）
+const VD_FIXED_TAGS_DEFAULT='#ナレスラ #編集なしで動画作成';
+const VD_INSTA_MAX_TAGS=5;   // Instagramのハッシュタグ上限（固定タグを含めた合計）
+// 声・モデル・補正・間・形式・固定タグは両タブで同じ設定を使う（片方で変えたらもう片方へ写す）
 function vdSyncTts(P){
   const other=P==='vd'?'ev':'vd';
-  ['tts-voice','tts-model','tts-eq','tts-gap','tts-format','logo-op'].forEach(k=>{const a=vdEl(P,k),b=vdEl(other,k);if(a&&b)b.value=a.value;});
+  ['tts-voice','tts-model','tts-eq','tts-gap','tts-format','logo-op','fixed-tags'].forEach(k=>{const a=vdEl(P,k),b=vdEl(other,k);if(a&&b)b.value=a.value;});
   const lo=vdEl(other,'logo-op');if(lo)vdEl(other,'logo-op-val').textContent=lo.value;
   const eq=vdEl(other,'tts-eq'),gp=vdEl(other,'tts-gap');
   if(eq)vdEl(other,'tts-eq-val').textContent=eq.value;if(gp)vdEl(other,'tts-gap-val').textContent=gp.value;
   if(typeof saveState==='function')saveState();
 }
 function vdPersistIds(P){
-  const ids=['note-url','model','months','logo-op','art-url','th-input','slides','x','insta','tiktok','raw','tts-voice','tts-model','tts-eq','tts-gap','tts-format','timing'];
+  const ids=['note-url','model','months','logo-op','art-url','th-input','slides','x','insta','tiktok','raw','tts-voice','tts-model','tts-eq','tts-gap','tts-format','timing','fixed-tags'];
   for(let i=1;i<=5;i++)ids.push('s'+i);
   const out=ids.map(k=>`${P}-${k}`);
   if(P==='ev')out.push('ev-auto');
@@ -6074,7 +6081,7 @@ ${VD_SCRIPT_RULES}
 
 7. 【X投稿文】：140文字以内（ハッシュタグ含む。URLはツールが後から1行追加する）。1行目は「【 #銘柄名（証券コード）｜〇ヶ月で〇％下落】」だけの行にする（この行の直下にURLが入る）。2行目以降に動画の問いかけを1〜2文。最終行は必ず「▼ 底値レンジ・12か月シナリオはnoteで」で終える（その後に何も書かない。「（noteリンク）」等のプレースホルダーも書かない）。結論・目標株価は書かない。ハッシュタグは2〜3個を最終行の直前の行に。
 
-8. 【Instagram投稿文】：リール用キャプション。1行目にフック（絵文字可）、2〜4行で動画の要点（無料範囲のみ）、「▶ 続き（底値レンジ・12か月シナリオ・モノサシ・リスク）はプロフィールのリンクから」を入れ、空行を1つ挟んでハッシュタグを10〜15個（銘柄名・証券コード・業種・テーマ・#株式投資 #日本株 など）。
+8. 【Instagram投稿文】：リール用キャプション。1行目にフック（絵文字可）、2〜4行で動画の要点（無料範囲のみ）、「▶ 続き（底値レンジ・12か月シナリオ・モノサシ・リスク）はプロフィールのリンクから」を入れ、空行を1つ挟んでハッシュタグを3個だけ（銘柄名・証券コード・#株式投資 など。ツールが固定タグを2個足して合計5個にするため、絶対に3個を超えない）。
 
 9. 【TikTok投稿文】：150文字以内。フック1文＋「続きはプロフのリンクから」＋ハッシュタグ3〜5個（#銘柄名 #株 #投資 など）。
 
@@ -6135,8 +6142,8 @@ ${scripts}
 ${VD_SCRIPT_RULES}
 
 ${four?'6':'5'}. 【X投稿文】：140文字以内（ハッシュタグ含む）。1行目は「【 #銘柄名（証券コード）｜決算の一言結論】」だけの行にする。2行目以降に要点と問いかけを1〜2文。ハッシュタグ2〜3個を最終行に。noteやリンクの文言は書かない。
-${four?'7':'6'}. 【Instagram投稿文】：リール用キャプション。1行目にフック（絵文字可）、2〜4行で決算の要点、「▶ 決算解説を毎回投稿しています。フォローで見逃し防止」を入れ、空行を1つ挟んでハッシュタグを10〜15個（銘柄名・証券コード・#決算 #株式投資 #日本株 ・業種など）。
-${four?'8':'7'}. 【TikTok投稿文】：150文字以内。フック1文＋「フォローで毎回の決算解説」＋ハッシュタグ3〜5個。
+${four?'7':'6'}. 【Instagram投稿文】：リール用キャプション。1行目にフック（絵文字可）、2〜4行で決算の要点、「▶ 決算や株価の解説を投稿しています。フォローで見逃し防止」を入れ（「毎回」「必ず」など投稿頻度を約束する表現は使わない）、空行を1つ挟んでハッシュタグを3個だけ（銘柄名・証券コード・#決算 など。ツールが固定タグを2個足して合計5個にするため、絶対に3個を超えない）。
+${four?'8':'7'}. 【TikTok投稿文】：150文字以内。フック1文＋「フォローで決算解説をチェック」＋ハッシュタグ3〜5個。投稿頻度を約束する表現（「毎回」「毎日」など）は使わない。
 
 【共通ルール】
 ・すべて整形済みデータの事実に基づき、データにない数値・事実を創作しない。
@@ -6201,6 +6208,29 @@ function vdCleanScript(s){
     .filter(l=>l&&!/^[■▼◆●【\[]/.test(l)&&!/^\(?（?[0-9０-９]+\s*[〜~～-]\s*[0-9０-９]+\s*秒/.test(l))
     .join('\n').trim();
 }
+// 投稿文の末尾に固定タグを付ける（すでに入っているタグは重複させない）
+function vdAddFixedTags(P,text,maxTotal){
+  const el=vdEl(P,'fixed-tags');
+  const raw=(el&&el.value!=null)?el.value:VD_FIXED_TAGS_DEFAULT;
+  const tags=String(raw).split(/[\s、,]+/).filter(t=>t.length>1&&t.charAt(0)==='#');
+  let out=String(text||'').replace(/\s+$/,'');
+  if(!out)return out;
+  const words=out.split(/[\s、,]+/);
+  const add=tags.filter(t=>words.indexOf(t)<0);
+  // タグ数の上限があるときは、固定タグの分を空けてから本文側のタグを後ろから削る
+  if(maxTotal)out=vdTrimTags(out,Math.max(0,maxTotal-add.length));
+  return add.length?out+'\n'+add.join(' '):out;
+}
+// 本文中のハッシュタグを max 個までに減らす（後ろのものから削除）
+function vdTrimTags(text,max){
+  let out=String(text||'');
+  const tags=out.match(/#[^\s#、,]+/g)||[];
+  for(let i=tags.length-1;i>=max;i--){
+    const pos=out.lastIndexOf(tags[i]);
+    if(pos>=0)out=out.slice(0,pos)+out.slice(pos+tags[i].length);
+  }
+  return out.replace(/[ 　\t]{2,}/g,' ').replace(/[ 　\t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').replace(/\s+$/,'');
+}
 // X投稿文の形を固定する：1行目は【】だけ、プレースホルダー行は除去
 function vdNormalizeXPost(t){
   let lines=String(t||'').split('\n').map(l=>l.replace(/\s+$/,''));
@@ -6251,9 +6281,9 @@ async function geminiVideo(P,btnEl){
   if(P==='ev'){const t=vdEl('ev','th-input');if(t)t.value=evThumbText();}   // サムネ文言はAIに作らせない（株価分析はサムネイルタブの文言を流用）
   for(let i=1;i<=n;i++){vdEl(P,'s'+i).value=vdCleanScript(deJargonP0(p['s'+i]||''));}
   vdEl(P,'slides').value=deJargonP0(p.slides||'');
-  vdEl(P,'x').value=vdNormalizeXPost(deJargonP0(p.x||''));
-  vdEl(P,'insta').value=deJargonP0(p.insta||'');
-  vdEl(P,'tiktok').value=deJargonP0(p.tiktok||'');
+  vdEl(P,'x').value=vdAddFixedTags(P,vdNormalizeXPost(deJargonP0(p.x||'')));
+  vdEl(P,'insta').value=vdAddFixedTags(P,deJargonP0(p.insta||''),VD_INSTA_MAX_TAGS);   // Instagramはタグ5個まで
+  vdEl(P,'tiktok').value=vdAddFixedTags(P,deJargonP0(p.tiktok||''));
   vdEl(P,'raw').value=r.text;
   if(P==='vd'){const u=vdEl('vd','art-url');if(u)u.value='';}   // 記事ごとに変わるので前回のURLを消す
   await vdClearAllTts(P);   // 台本が変わったので前の音声は破棄
