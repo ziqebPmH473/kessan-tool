@@ -859,12 +859,9 @@
             </div>
             <textarea id="fc-report" placeholder="ファクトチェック対象のレポートをここに貼り付けてください（ファクトCKボタンで末尾に自動追加されます）" style="font-size:11px; height:52px; min-height:40px; margin-top:2px;"></textarea>
             <div class="input-row" style="margin-top: 4px;">
-                <button class="btn-prompt" onclick="copyFactCheck(this)">✅ ファクトCK</button>
-                <button class="btn-prompt" onclick="copyFactCheckFix(this)">🔧 FC修正指示</button>
-            </div>
-            <div class="input-row" style="margin-top: 4px;">
-                <button class="btn-sub" onclick="copyUrls(this)" style="flex:1;">📋 URLコピー</button>
-                <button class="btn-sub" onclick="copyEarnSourceData(this)" style="flex:1; background:#0d9488; color:#fff;">📄 ソースデータ</button>
+                <button class="btn-prompt" onclick="copyFactCheck(this)">✅ CK</button>
+                <button class="btn-prompt" onclick="copyFactCheckVerify(this)">🔍 FC CK</button>
+                <button class="btn-prompt" onclick="copyFactCheckFix(this)">🔧 修正</button>
             </div>
             <div class="input-row" style="margin-top: 6px; gap:4px; align-items:center;">
                 <label style="font-size:11px; color:var(--text-sub); flex:none;">決算資料</label>
@@ -893,11 +890,18 @@
                 </select>
             </div>
             <div class="input-row" style="margin-top: 4px;">
-                <button class="btn-prompt" onclick="copyNotebookLM(this)" style="flex:1;">📓 NotebookLM</button>
                 <button class="main-btn" onclick="geminiFormatEarn(this)" style="flex:1; background:#4f46e5;">📤 出力データ作成</button>
             </div>
             <div id="gem-earn-status" style="display:none; font-size:11px; margin-top:3px;"></div>
             <label style="font-size:11px; color:var(--text-sub); display:flex; align-items:center; gap:4px; margin-top:4px; cursor:pointer;"><input type="checkbox" id="ev-auto" checked> 整形後に動画（台本・縦スライド・投稿文）も自動生成</label>
+            <details style="margin-top:6px;">
+                <summary style="font-size:11px; color:var(--text-sub); cursor:pointer;">notebookLM用</summary>
+                <div class="input-row" style="margin-top: 4px;">
+                    <button class="btn-sub" onclick="copyUrls(this)" style="flex:1;">📋 URLコピー</button>
+                    <button class="btn-sub" onclick="copyEarnSourceData(this)" style="flex:1; background:#0d9488; color:#fff;">📄 ソースデータ</button>
+                    <button class="btn-prompt" onclick="copyNotebookLM(this)" style="flex:1;">📓 NotebookLM</button>
+                </div>
+            </details>
         </div>
 
         <div class="tool-section">
@@ -2154,6 +2158,11 @@ ${stockPriceInfo}
             } catch (e) {
                 alert('クリップボードの読み取りに失敗しました。手動で貼り付けてください。');
             }
+        }
+
+        // FC CK：修正後レポートの検算用（指摘の修正内容が正しいかを確認させる）
+        function copyFactCheckVerify(btnElement) {
+            copyToClipboard('修正後内容が正しいか確認して', btnElement, '✔ コピー完了！');
         }
 
         function copyFactCheckFix(btnElement) {
