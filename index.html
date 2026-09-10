@@ -5842,6 +5842,10 @@ function vdBuildTabHtml(P){
     <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:6px;">
       <label style="font-size:11px;color:var(--text-sub);flex:none;">QR用URL</label>
       <input type="text" id="${P}-note-url" placeholder="https://note.com/xxxx（QRの飛び先。アカウントトップ推奨）" oninput="debouncedVideoPrev('${P}')" style="flex:1;min-width:0;font-size:11px;">
+    </div>
+    <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:6px;">
+      <label style="font-size:11px;color:var(--text-sub);flex:none;" title="X投稿文（返信用）の3行目に入れる案内文">note案内文</label>
+      <input type="text" id="${P}-xnote" value="${VD_X_NOTE_LINE_DEFAULT}" placeholder="${VD_X_NOTE_LINE_DEFAULT}" style="flex:1;min-width:0;font-size:11px;">
     </div>`:'';
   const modelRow=`
     <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:4px;">
@@ -5865,14 +5869,7 @@ function vdBuildTabHtml(P){
       <label style="flex:none;">透かしロゴ <span id="${P}-logo-op-val">5</span>%</label>
       <input type="range" id="${P}-logo-op" min="0" max="25" step="1" value="5" oninput="document.getElementById('${P}-logo-op-val').textContent=this.value;debouncedVideoPrev('${P}')" onchange="vdSyncTts('${P}')" style="flex:1;cursor:pointer;">
     </div>`;
-  const artRows=c.hasNote?`
-    <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:8px;">
-      <label style="font-size:11px;color:var(--text-sub);flex:none;">記事URL</label>
-      <input type="text" id="${P}-art-url" placeholder="note記事のURL（公開後に貼り付け）" style="flex:1;min-width:0;font-size:11px;">
-      <button class="btn-sm" onclick="vdPasteArtUrl('${P}')" style="flex:none;">📋 貼付け</button>
-      <button class="btn-sm" onclick="vdApplyArtUrl('${P}')" style="flex:none;background:#0d9488;color:#fff;">🔁 URLを差し込み</button>
-    </div>
-`:'';
+  const artRows='';   // X投稿文は本体ポスト（note告知）への返信用なのでURLは入れない
   return `
   <div class="sa-card">
     <button class="btn btn-full" id="${P}-gen-btn" onclick="geminiVideo('${P}',this)" style="background:#7c3aed;color:#fff;">${c.genLabel}</button>
@@ -5964,7 +5961,7 @@ function vdSyncTts(P){
   if(typeof saveState==='function')saveState();
 }
 function vdPersistIds(P){
-  const ids=['note-url','model','months','logo-op','art-url','th-input','slides','x','insta','tiktok','raw','tts-voice','tts-model','tts-eq','tts-gap','tts-format','timing','fixed-tags'];
+  const ids=['note-url','xnote','model','months','logo-op','th-input','slides','x','insta','tiktok','raw','tts-voice','tts-model','tts-eq','tts-gap','tts-format','timing','fixed-tags'];
   for(let i=1;i<=5;i++)ids.push('s'+i);
   const out=ids.map(k=>`${P}-${k}`);
   if(P==='ev')out.push('ev-auto');
@@ -6079,11 +6076,7 @@ ${VD_META_RULES}
 6. 【台本⑤】：スライド⑤（まとめ＋note誘導）。「ここまでが現在の状況です」と締めてから[V5]の問いを投げ、必ず次の一文をそのまま含めて案内し、終える：「株価の底値、12か月後の株価シナリオ、株価以外の転換点のモノサシ、そしてリスクについては、noteで詳しく分析しています」（上昇分析では「株価の底値」を「株価の天井」に置き換える。他の語句は変えない）。免責文はスライドに載せるので読まない。
 ${VD_SCRIPT_RULES}
 
-7. 【X投稿文】：140文字以内（ハッシュタグ含む。URLはツールが最終行に追加する）。次の構成・順番を厳守する。
-   1行目：「【 #銘柄名（証券コード）｜〇ヶ月で〇％下落】」だけの行
-   2行目：動画の問いかけを1〜2文（結論・目標株価は書かない）
-   3行目：ハッシュタグ2〜3個だけの行
-   4行目：「▼ 底値レンジ・12か月シナリオはnoteで」で終える（その後には何も書かない。URLや「（noteリンク）」等のプレースホルダーも書かない）
+7. 【X用ハッシュタグ】：ハッシュタグだけを1行で出力する（文章・URL・誘導文・「【 】」の見出しは書かない）。#銘柄名 #証券コード を先頭に置き、そのあとに業種・製品・テーマのタグを足して合計4〜6個。「#投資初心者」「#投資」「#株」のように、どの銘柄にも付く汎用タグは使わない。
 
 8. 【Instagram投稿文】：リール用キャプション。1行目にフック（絵文字可）、2〜4行で動画の要点（無料範囲のみ）、「▶ 続き（底値レンジ・12か月シナリオ・モノサシ・リスク）はプロフィールのリンクから」を入れ、空行を1つ挟んでハッシュタグを3個だけ（銘柄名・証券コード・#株式投資 など。ツールが固定タグを2個足して合計5個にするため、絶対に3個を超えない）。
 
@@ -6194,7 +6187,7 @@ function parseVideoOutput(text,nScripts){
   const defs=[{key:'slides',re:/【\s*縦スライド[^】]*】/}];
   const nums=['[①1１]','[②2２]','[③3３]','[④4４]','[⑤5５]'];
   for(let i=1;i<=nScripts;i++)defs.push({key:'s'+i,re:new RegExp(`【\\s*台本\\s*${nums[i-1]}[^】]*】`)});
-  defs.push({key:'x',re:/【\s*X[^】]*投稿文\s*】/},{key:'insta',re:/【\s*Instagram[^】]*】/i},{key:'tiktok',re:/【\s*TikTok[^】]*】/i});
+  defs.push({key:'x',re:/【\s*X[^】]*(?:投稿文|ハッシュタグ)\s*】/},{key:'insta',re:/【\s*Instagram[^】]*】/i},{key:'tiktok',re:/【\s*TikTok[^】]*】/i});
   const found=defs.map(d=>{const m=text.match(d.re);return m?{key:d.key,idx:m.index,end:m.index+m[0].length}:null;}).filter(Boolean);
   found.sort((a,b)=>a.idx-b.idx);
   const out={};
@@ -6221,10 +6214,13 @@ function vdCleanScript(s){
     .join('\n').trim();
 }
 // 投稿文の末尾に固定タグを付ける（すでに入っているタグは重複させない）
-function vdAddFixedTags(P,text,maxTotal){
+function vdFixedTagList(P){
   const el=vdEl(P,'fixed-tags');
   const raw=(el&&el.value!=null)?el.value:VD_FIXED_TAGS_DEFAULT;
-  const tags=String(raw).split(/[\s、,]+/).filter(t=>t.length>1&&t.charAt(0)==='#');
+  return String(raw).split(/[\s、,]+/).filter(t=>t.length>1&&t.charAt(0)==='#');
+}
+function vdAddFixedTags(P,text,maxTotal){
+  const tags=vdFixedTagList(P);
   let out=String(text||'').replace(/\s+$/,'');
   if(!out)return out;
   const words=out.split(/[\s、,]+/);
@@ -6254,27 +6250,35 @@ function vdTrimTags(text,max){
   }
   return out.replace(/[ 　\t]{2,}/g,' ').replace(/[ 　\t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').replace(/\s+$/,'');
 }
+// 株価分析のX投稿文：note告知の本体ポストへ「返信」で動画を添付する前提の文。
+// 1〜3行目はツールで組み立て（文言のぶれ防止）、AIにはハッシュタグだけ作らせる。
+const VD_X_NOTE_LINE_DEFAULT='その答えはnoteで分析しています。';
+const VD_X_MAX=140;                    // Xの上限（日本語は1文字=2、280/2=140文字）
+function vdBuildXReply(P,tagText,slidesText){
+  const v=parseVideoData(slidesText||'');
+  const isDown=getDir()==='down';
+  const name=getName()||'この銘柄';
+  const period=getPeriod();
+  const q=trimDot(((v.V5||{})['問い']||''))||(isDown?'では、現在株価は本当に安いのか？':'では、ここから買っても間に合うのか？');
+  const noteLine=(vdVal(P,'xnote')||VD_X_NOTE_LINE_DEFAULT).trim();
+  const head=`${name}の株価が${period}${isDown?'下がった':'上がった'}理由、現状、強みと弱みは動画にまとめました。`;
+  const body=[head,q,noteLine].filter(Boolean).join('\n');
+  const fixed=vdFixedTagList(P);
+  let tags=(String(tagText||'').match(/#[^\s#、,]+/g)||[]).filter(t=>fixed.indexOf(t)<0);
+  // 140文字に収まるまで、AIが付けた業種・テーマのタグを後ろから削る（銘柄名・コードと固定タグは残す）
+  for(;;){
+    const line=tags.concat(fixed).join(' ');
+    const out=body+(line?'\n'+line:'');
+    if([...out].length<=VD_X_MAX||tags.length<=2)return out;
+    tags.pop();
+  }
+}
 // X投稿文の形を固定する：1行目は【】だけ、プレースホルダー行は除去
 function vdNormalizeXPost(t){
   let lines=String(t||'').split('\n').map(l=>l.replace(/\s+$/,''));
   if(lines.length){const m=lines[0].match(/^(\s*【[^】]*】)\s*(\S.*)$/);if(m){lines.splice(0,1,m[1].trim(),m[2].trim());}}
   lines=lines.filter(l=>!/^[（(]\s*note\s*(リンク|URL)\s*[）)]$/i.test(l.trim()));
   return lines.join('\n').replace(/\n{3,}/g,'\n\n').trim();
-}
-// 記事URLの差し込み（X投稿文の1行目【】の直下）。何度押しても前のURL行が置き換わる
-function vdApplyArtUrl(P,silent){
-  const url=vdVal(P,'art-url');
-  if(!url){if(!silent)alert('記事URLを入力してください');return;}
-  if(!/^https?:\/\//.test(url)){if(!silent)alert('URLは https:// から始めてください');return;}
-  const x=vdEl(P,'x');const base=stripUrlLines(x.value);
-  if(!base){if(!silent)alert('先に生成してください');return;}
-  x.value=buildXPost(base,url);   // URLは最終行（【】→本文→タグ→note案内→URL の順）
-  if(typeof saveState==='function')saveState();
-  if(!silent)vdStatus(P,'X投稿文にURLを差し込みました','ok');
-}
-async function vdPasteArtUrl(P){
-  try{const t=(await navigator.clipboard.readText()||'').trim();if(!t){alert('クリップボードが空です');return;}vdEl(P,'art-url').value=t;if(typeof saveState==='function')saveState();}
-  catch(e){alert('クリップボードへのアクセスが拒否されました。手動で貼り付けてください。');}
 }
 
 async function geminiVideo(P,btnEl){
@@ -6304,11 +6308,11 @@ async function geminiVideo(P,btnEl){
   if(P==='ev'){const t=vdEl('ev','th-input');if(t)t.value=evThumbText();}   // サムネ文言はAIに作らせない（株価分析はサムネイルタブの文言を流用）
   for(let i=1;i<=n;i++){vdEl(P,'s'+i).value=vdCleanScript(deJargonP0(p['s'+i]||''));}
   vdEl(P,'slides').value=deJargonP0(p.slides||'');
-  vdEl(P,'x').value=vdAddFixedTags(P,vdNormalizeXPost(deJargonP0(p.x||'')));
+  vdEl(P,'x').value=(P==='vd')?vdBuildXReply(P,p.x||'',vdEl(P,'slides').value)
+                              :vdAddFixedTags(P,vdNormalizeXPost(deJargonP0(p.x||'')));
   vdEl(P,'insta').value=vdAddFixedTags(P,deJargonP0(p.insta||''),VD_INSTA_MAX_TAGS);   // Instagramはタグ5個まで
   vdEl(P,'tiktok').value=vdAddFixedTags(P,deJargonP0(p.tiktok||''));
   vdEl(P,'raw').value=r.text;
-  if(P==='vd'){const u=vdEl('vd','art-url');if(u)u.value='';}   // 記事ごとに変わるので前回のURLを消す
   await vdClearAllTts(P);   // 台本が変わったので前の音声は破棄
   vdUpdateScriptStats(P);
   if(typeof saveState==='function')saveState();
