@@ -5938,6 +5938,9 @@ function vdBuildTabHtml(P){
       <button class="btn-sm" id="${P}-tts-play-btn" onclick="vdExportAudio('${P}',this,true)" style="flex:1;background:#475569;color:#fff;">▶ 結合して再生</button>
       <button class="btn-sm" id="${P}-tts-export-btn" onclick="vdExportAudio('${P}',this)" style="flex:1;background:#0d9488;color:#fff;">⬇ 音声出力</button>
     </div>
+    <div class="row" style="flex-wrap:nowrap;margin-top:6px;">
+      <button class="btn-sm" id="${P}-dl-btn2" onclick="downloadVideoSlides('${P}')" style="flex:1;background:#7c3aed;color:#fff;">⬇ 縦スライド＋台本をZIPでダウンロード</button>
+    </div>
     <div id="${P}-tts-status" style="font-size:11px;color:var(--text-sub);min-height:14px;margin-top:3px;"></div>
     <div id="${P}-p-all" style="margin-top:4px;"></div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">スライド切替タイミング</label><button class="btn-sm" onclick="copyText(document.getElementById('${P}-timing').value,this)">📋 コピー</button></div>
@@ -6873,26 +6876,28 @@ async function dlVideoSingle(slide){
 async function downloadVideoSlides(P){
   const text=vdVal(P,'slides');
   if(!text){alert('先に「🎬 サムネ・台本・縦スライド・投稿文を生成」を実行してください');return;}
-  const btn=vdEl(P,'dl-btn');btn.disabled=true;
+  const btns=[vdEl(P,'dl-btn'),vdEl(P,'dl-btn2')].filter(Boolean);
+  btns.forEach(b=>b.disabled=true);
+  const say=m=>{setStatus(m);vdTtsStatus(P,m);};   // 台本・音声タブから押しても進み具合が見えるように
   try{
     const slides=buildVideoSlides(P,text);
     const zip=new JSZip();
     for(let i=0;i<slides.length;i++){
-      setStatus(`縦スライド レンダリング中 ${i+1}/${slides.length}...`);
+      say(`縦スライド レンダリング中 ${i+1}/${slides.length}...`);
       zip.file(slides[i].name+'.png',await renderVideoToBlob(slides[i]));
     }
     zip.file('台本.txt',vdScriptAllText(P));
     const timing=vdVal(P,'timing');
     if(timing)zip.file('スライド切替タイミング.txt',timing);
-    setStatus('ZIPを作成中...');
+    say('ZIPを作成中...');
     const zb=await zip.generateAsync({type:'blob'});
     const url=URL.createObjectURL(zb);
     const a=document.createElement('a');
     a.href=url;a.download=`${VD_CFG[P].zipName()}.zip`;a.click();
     URL.revokeObjectURL(url);
-    setStatus('✓ ダウンロード完了！',3000);
-  }catch(e){setStatus('エラー: '+e.message);}
-  btn.disabled=false;
+    say('✓ ダウンロード完了！');setStatus('✓ ダウンロード完了！',3000);
+  }catch(e){say('エラー: '+e.message);}
+  btns.forEach(b=>b.disabled=false);
 }
 
 // 決算分析のサムネ文言：整形データから組む（上段=今回の評価、中段=社名、下段=通期予想の状態 or 問い）
