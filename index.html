@@ -515,14 +515,15 @@
 .e2-note{font-size:24px;color:#94a3b8;padding:6px 0 10px;}
 .e2-why{font-size:38px;font-weight:900;color:#1e3a8a;margin-top:6px;}
 /* 決算分析 ③：通期予想 */
-.e3-head{display:grid;grid-template-columns:200px 1fr 60px 1fr 220px;gap:10px;font-size:26px;color:#94a3b8;font-weight:600;text-align:center;padding:0 30px;}
+.e3-head{display:grid;grid-template-columns:170px minmax(0,1fr) 150px;gap:12px;font-size:26px;color:#94a3b8;font-weight:600;text-align:center;padding:0 30px;}
 .e3-table{background:rgba(255,255,255,.88);border:2px solid #e2e8f0;border-radius:20px;padding:10px 30px;}
-.e3-row{display:grid;grid-template-columns:200px 1fr 60px 1fr 220px;align-items:center;gap:10px;padding:16px 0;border-bottom:2px solid #f1f5f9;}
+.e3-row{display:grid;grid-template-columns:170px minmax(0,1fr) 150px;align-items:center;gap:12px;padding:18px 0;border-bottom:2px solid #f1f5f9;}
 .e3-row:last-of-type{border-bottom:none;}
 .e3-l{font-size:32px;color:#64748b;font-weight:600;}
-.e3-a{font-size:36px;font-weight:600;color:#64748b;text-align:center;white-space:nowrap;}
-.e3-ar{font-size:36px;color:#94a3b8;text-align:center;}
-.e3-b{font-size:42px;font-weight:900;text-align:center;white-space:nowrap;}
+.e3-mid{display:flex;align-items:baseline;justify-content:center;gap:12px;min-width:0;}
+.e3-a{font-size:36px;font-weight:600;color:#64748b;white-space:nowrap;}
+.e3-ar{font-size:36px;color:#94a3b8;}
+.e3-b{font-size:46px;font-weight:900;white-space:nowrap;}
 .e3-r{font-size:32px;font-weight:700;text-align:right;white-space:nowrap;color:#475569;}
 .e3-r small{display:block;font-size:22px;color:#94a3b8;font-weight:500;}
 .e3-r.green{color:#047857;} .e3-r.red{color:#dc2626;}
@@ -5999,7 +6000,7 @@ function evAutoCount(){
   const d=evData();if(!d)return 3;
   const g=d.GUIDANCE||{};
   const st=String(g.status||'');
-  if(/据え置き|据置|変更なし/.test(st))return 3;   // 据え置きは予想スライドを作らない
+  if(/据え置き|据置|変更なし|修正なし|修正は?ない|修正はありません|未修正/.test(st))return 3;   // 据え置きは予想スライドを作らない
   // 4枚にするのは「修正前後／来期予想の数値が実際にある」場合だけ（据え置きは3枚）
   const hasNums=[g.sales_2,g.op_2,g.ni_2].some(v=>/\d/.test(String(v||'')))&&[g.sales_1,g.op_1,g.ni_1].some(v=>/\d/.test(String(v||'')));
   if(!hasNums)return 3;
@@ -6098,16 +6099,18 @@ function videoPromptEv(n){
   const four=n===4;
   const secs=four?'①125文字／②125文字／③125文字／④125文字（合計約500文字・約70秒）':'①125文字／②155文字／③125文字（合計約400文字・約55秒）';
   const e3=four?`[E3]
-見出し:通期予想を上方修正（14文字以内。据え置き・下方修正・来期予想など内容に合わせる）
+見出し:通期予想を上方修正（14文字以内。据え置き・下方修正・来期予想・レンジ予想など内容に合わせる）
 理由:修正の理由を一言（30文字以内。例：好採算案件の増加と原価改善）
 ・結論|補足（会社が今後をどう見ているか。1〜2行、任意）
 `:'';
-  const scripts=four?`2. 【台本①】：スライド①。冒頭は銘柄名＋今回もっとも強い事実で言い切り（例：「〇〇、1Qで営業黒字転換。何が変わったのでしょうか？」）、決算の一言結論と株価の位置を話す。「決算を解説します」のような入り方はしない。
-3. 【台本②】：スライド②。今回の実績（売上・利益・前年比）と、[E2]の3つの理由をその順番・その語句で話す。
-4. 【台本③】：スライド③。通期予想・修正の内容（修正前→修正後の要点）と[E3]の理由を話す。会社が今後をどう見ているかを伝える。
+  const s1=`スライド①。スライド①は決算の「概要」だけで、売上・利益の金額や前年比の表は載っていない。冒頭は銘柄名＋今回の決算の一言結論で言い切り（例：「〇〇、1Qで営業黒字転換。何が変わったのでしょうか？」）、[E1]の結論・強調と株価の位置を話す。売上高・営業利益・純利益の金額や前年比、通期予想の数値は台本①では言わない（台本②・③で話す）。「決算を解説します」のような入り方はしない。`;
+  const s2=`スライド②。細かい数字はここで話す。スライド②の表に載る今回の実績（売上・利益の金額と前年比。基本情報の【各スライドに表示される数値】のとおり）を話してから、[E2]の3つの理由をその順番・その語句で話す。`;
+  const scripts=four?`2. 【台本①】：${s1}
+3. 【台本②】：${s2}
+4. 【台本③】：スライド③。通期予想の内容と[E3]の理由を話す。会社が今後をどう見ているかを伝える。数値は基本情報の【各スライドに表示される数値】のスライド③に合わせる。修正前→修正後の表なら修正前後の要点を、会社予想がレンジ（下限〜上限）なら「売上高は〇〇億〜〇〇億円の見通し」のように幅として話す（下限・上限を修正前・修正後のように話さない、「レンジ下限」「レンジ上限」という言葉は使わない）。
 5. 【台本④】：スライド④。決算前後の株価反応と、市場が何を評価／警戒したか（[E4]の反応）、今後の注目点を[E4]の順に。最後は[E4]の「焦点」の文で締める。実績と株価反応にズレがあればここで説明する。`
-:`2. 【台本①】：スライド①。冒頭は銘柄名＋今回もっとも強い事実で言い切り（例：「〇〇、1Qで営業黒字転換。何が変わったのでしょうか？」）、決算の一言結論と株価の位置を話す。「決算を解説します」のような入り方はしない。
-3. 【台本②】：スライド②。今回の実績（売上・利益・前年比）と、[E2]の3つの理由をその順番・その語句で話す。
+:`2. 【台本①】：${s1}
+3. 【台本②】：${s2}
 4. 【台本③】：スライド③。決算前後の株価反応と、市場が何を評価／警戒したか（[E4]の反応）、今後の注目点を[E4]の順に。最後は[E4]の「焦点」の文で締める。`;
   const nBlocks=four?9:8;
   return `あなたは「論理的で客観的だが、初心者に寄り添って分かりやすく話す投資のナビゲーター」です。
@@ -6144,6 +6147,7 @@ ${e3}[E4]
 
 ${scripts}
 ${VD_SCRIPT_RULES}
+台本の数値（厳守）：各台本で話す数値は、そのスライドに表示される数値（基本情報の【各スライドに表示される数値】）と、自分が【縦スライド】のそのスライドに書いた数値だけにする。別のスライドの数値を先取りして話さない。金額はスライドの表示と同じ丸めで読む（例：476.1億円 →「約476億円」）。
 
 ${four?'6':'5'}. 【X投稿文】：140文字以内（ハッシュタグ含む）。1行目は「【 #銘柄名（証券コード）｜決算の一言結論】」だけの行にする。2行目以降に要点と問いかけを1〜2文。ハッシュタグ2〜3個を最終行に。noteやリンクの文言は書かない。
 ${four?'7':'6'}. 【Instagram投稿文】：リール用キャプション。1行目にフック（絵文字可）、2〜4行で決算の要点、「▶ 決算や株価の解説を投稿しています。フォローで見逃し防止」を入れ（「毎回」「必ず」など投稿頻度を約束する表現は使わない）、空行を1つ挟んでハッシュタグを3個だけ（銘柄名・証券コード・#決算 など。ツールが固定タグを2個足して合計5個にするため、絶対に3個を超えない）。
@@ -6158,6 +6162,30 @@ ${four?'8':'7'}. 【TikTok投稿文】：200〜300文字（TikTokは検索流入
 ・数値は3桁カンマ区切り。他の銘柄にも使い回せる汎用表現ではなく、その企業固有の事業・製品・材料を必ず入れる。`;
 }
 
+// 決算分析：各スライドにツールが描く数値を、台本を書くAIに渡す（台本とスライドの数値を揃えるため）
+function evSlideNumbersText(d){
+  const mr=d.MARKET_REACTION||{},g=d.GUIDANCE||{};
+  const four=evCount()===4;
+  const code=VD_CFG.ev.code()||(d.HEADER||{}).code||'';
+  const price=evNum(mr.post_price)||evNum(mr.pre_price);
+  const L=['【各スライドに表示される数値（ツールがデータから描画する。台本の数値はこれに合わせる）】'];
+  L.push(`スライド①：株価 ${price?fmtPrice(price,code):'—'}${evNum(mr.price_change)?'（'+mr.price_change+'）':''}、および[E1]の「強調」に書いた値だけ。売上・利益の金額や前年比の表は無い`);
+  const kpis=[d.KPI_1,d.KPI_2,d.KPI_3].filter(Boolean).map(k=>`${k.display_label||''} ${addComma(evCompactYen(k.value))}${evNum(k.yoy)?'（'+k.yoy+'）':''}`);
+  L.push(`スライド②：${kpis.join('／')||'—'}`);
+  if(four){
+    const isRange=evGuidanceIsRange(g),pl=evProgressLabel(g);
+    const rows=evGuidanceItems(g).map(x=>{
+      const v=isRange?evRangeText(addComma(x.a),addComma(x.b)):`${addComma(x.a)||'—'}→${addComma(x.b)||'—'}`;
+      const extra=[isRange&&!evGuidanceIsRevised(g)?'':x.r,x.p?pl+' '+x.p:''].filter(Boolean).join('、');
+      return `${x.l} ${v}${extra?'（'+extra+'）':''}`;
+    });
+    const head=isRange?`通期の会社予想レンジ（下限〜上限。修正前→修正後ではない）${evGuidanceIsRevised(g)?'※修正後のレンジ':''}`:`${g.col1_header||'修正前'}→${g.col2_header||'修正後'}`;
+    L.push(`スライド③：${head}：${rows.join('／')||'—'}`);
+  }
+  L.push(`スライド${four?'④':'③'}：${mr.pre_price_label||'決算前'} ${fmtPrice(evNum(mr.pre_price),code)} → ${mr.post_price_label||'決算後'} ${fmtPrice(evNum(mr.post_price),code)}${evNum(mr.price_change)?'（'+mr.price_change+'）':''}`);
+  return L.join('\n');
+}
+
 // 基本情報（入力欄）をGeminiに渡すテキストにまとめる
 function vdBasicInfo(P){
   const L=[];
@@ -6169,6 +6197,7 @@ function vdBasicInfo(P){
     L.push(`スライド枚数：${evCount()}枚（業績予想の修正${evCount()===4?'あり':'なし'}）`);
     if(h.quarter)L.push(`決算期：${h.quarter}`);
     if((d.GUIDANCE||{}).status)L.push(`通期予想：${d.GUIDANCE.status}`);
+    L.push('',evSlideNumbersText(d));
     return L.join('\n');
   }
   const name=getName(),code=getTicker();
@@ -6680,6 +6709,38 @@ const evNum=s=>String(s==null?'':s).trim();
 const evIsNeg=s=>/^[-−▼]|赤字|未達|下方|減|悪化/.test(String(s||''));
 const evIsPos=s=>/^[+＋▲]|黒字|クリア|上方|増|超過/.test(String(s||''));
 function evSignCls(s){return evIsNeg(s)?'red':evIsPos(s)?'green':'';}
+// 金額を縦スライド用に短くする（476億1,300万円 → 476.1億円、1兆2,345億6,700万円 → 1兆2,345億円）
+function evCompactYen(s){
+  const t=evNum(s).replace(/\s/g,'');
+  const m=t.match(/^([+\-−▲▼]?)(?:([\d,]+)兆)?(?:([\d,]+)億)?(?:([\d,]+)万)?円$/);
+  if(!m||!(m[2]||m[3]))return t;
+  const n=x=>parseInt(String(x||'0').replace(/,/g,''),10)||0;
+  if(m[2])return `${m[1]}${addComma(String(n(m[2])))}兆${n(m[3])?addComma(String(n(m[3])))+'億':''}円`;
+  const oku=m[4]?(n(m[3])+n(m[4])/10000).toFixed(1):String(n(m[3]));
+  return `${m[1]}${addComma(oku)}億円`;
+}
+// 通期予想がレンジ（下限〜上限）で開示されているか（修正前→修正後と取り違えない）
+function evGuidanceIsRange(g){return /下限|上限|レンジ/.test(String((g||{}).col1_header||'')+String((g||{}).col2_header||''));}
+function evGuidanceIsRevised(g){const st=String((g||{}).status||'');return /修正/.test(st)&&!/修正なし|修正は?ない|修正はありません|未修正/.test(st);}
+// 通期予想の行（スライド③と台本用の数値で共通）。無配→無配のような意味のない配当行は出さない
+function evGuidanceItems(g){
+  const zero=s=>!/[1-9１-９]/.test(evNum(s));
+  return [
+    {l:g.sales_label||'売上高',a:g.sales_1,b:g.sales_2,r:g.sales_rate,p:g.sales_progress},
+    {l:g.op_label||'営業利益',a:g.op_1,b:g.op_2,r:g.op_rate,p:g.op_progress},
+    {l:g.ni_label||'純利益',a:g.ni_1,b:g.ni_2,r:g.ni_rate,p:g.ni_progress},
+    {l:'配当',a:g.div_1,b:g.div_2,r:'',p:'',div:true}
+  ].filter(x=>(evNum(x.a)||evNum(x.b))&&!(x.div&&zero(x.a)&&zero(x.b)))
+   .map(x=>({...x,a:evCompactYen(x.a),b:evCompactYen(x.b),r:evNum(x.r)==='-'?'':evNum(x.r),p:evNum(x.p)==='-'?'':evNum(x.p)}));
+}
+// レンジは「476.1〜488.2億円」のように単位を1つにまとめる
+function evRangeText(a,b){
+  const u=(String(b).match(/[兆億万]?円$/)||[''])[0];
+  const a2=u&&String(a).endsWith(u)&&!/兆/.test(a)?String(a).slice(0,-u.length):a;
+  return `${a2||'—'}〜${b||'—'}`;
+}
+// 本決算は「今期実績→来期予想」なので、右列の小さい数字は進捗ではなく前年比
+function evProgressLabel(g){return /実績/.test(String((g||{}).col1_header||''))?'前年比':'進捗';}
 function buildE1(v,d,ctx){
   const s=v.E1||{multi:{}};const h=d.HEADER||{},b=d.BASIC_INFO||{},mr=d.MARKET_REACTION||{};
   const lines=vdChartLines('ev');
@@ -6700,7 +6761,7 @@ function buildE1(v,d,ctx){
 function buildE2(v,d){
   const s=v.E2||{pts:[]};const kh=d.KPI_HEADER||{};
   const kpis=[d.KPI_1,d.KPI_2,d.KPI_3].filter(Boolean);
-  const rows=kpis.map(k=>`<div class="e2-row"><div class="e2-l">${esc(k.display_label||'')}</div><div class="e2-v">${esc(addComma(evNum(k.value)))}</div><div class="e2-y ${evSignCls(k.yoy)}">${esc(evNum(k.yoy))}</div></div>`).join('');
+  const rows=kpis.map(k=>`<div class="e2-row"><div class="e2-l">${esc(k.display_label||'')}</div><div class="e2-v">${esc(addComma(evCompactYen(k.value)))}</div><div class="e2-y ${evSignCls(k.yoy)}">${esc(evNum(k.yoy))}</div></div>`).join('');
   return `<div class="vslide"><div class="v-bar"></div>${vLogo()}
 <div class="v-wrap" style="gap:22px;">
   <div class="v-h">${esc(s['見出し']||'今回の実績')}</div>
@@ -6711,19 +6772,31 @@ function buildE2(v,d){
 }
 function buildE3(v,d){
   const s=v.E3||{pts:[]};const g=d.GUIDANCE||{};
+  const isRange=evGuidanceIsRange(g),revised=evGuidanceIsRevised(g);
   const c1=g.col1_header||'修正前',c2=g.col2_header||'修正後';
-  const items=[
-    {l:g.sales_label||'売上高',a:g.sales_1,b:g.sales_2,r:g.sales_rate,p:g.sales_progress},
-    {l:g.op_label||'営業利益',a:g.op_1,b:g.op_2,r:g.op_rate,p:g.op_progress},
-    {l:g.ni_label||'純利益',a:g.ni_1,b:g.ni_2,r:g.ni_rate,p:g.ni_progress},
-    {l:'配当',a:g.div_1,b:g.div_2,r:'',p:''}
-  ].filter(x=>evNum(x.a)||evNum(x.b));
-  const rows=items.map(x=>`<div class="e3-row"><div class="e3-l">${esc(x.l)}</div><div class="e3-a">${esc(addComma(evNum(x.a))||'—')}</div><div class="e3-ar">→</div><div class="e3-b">${esc(addComma(evNum(x.b))||'—')}</div><div class="e3-r ${evSignCls(x.r)}">${esc(evNum(x.r)&&x.r!=='-'?x.r:'')}${evNum(x.p)&&x.p!=='-'?`<small>進捗 ${esc(x.p)}</small>`:''}</div></div>`).join('');
+  const pl=evProgressLabel(g);
+  const items=evGuidanceItems(g).map(x=>({...x,r:isRange&&!revised?'':x.r}));
+  // 中央列（約530px）に収まるよう、文字幅を測って文字サイズを決める
+  const MID_W=520;
+  const fitFs=(em,base)=>em?Math.max(26,Math.min(base,Math.floor(MID_W/em))):base;
+  const rows=items.map(x=>{
+    let mid;
+    if(isRange){
+      const t=evRangeText(addComma(x.a),addComma(x.b));
+      mid=`<div class="e3-b" style="font-size:${fitFs(thumbTextEm(t,900),46)}px;">${esc(t)}</div>`;
+    }else{
+      const a=addComma(x.a)||'—',b=addComma(x.b)||'—';
+      const fs=fitFs(thumbTextEm(a,600)*0.82+1.4+thumbTextEm(b,900),46);
+      mid=`<div class="e3-a" style="font-size:${Math.round(fs*0.82)}px;">${esc(a)}</div><div class="e3-ar" style="font-size:${Math.round(fs*0.8)}px;">→</div><div class="e3-b" style="font-size:${fs}px;">${esc(b)}</div>`;
+    }
+    return `<div class="e3-row"><div class="e3-l">${esc(x.l)}</div><div class="e3-mid">${mid}</div><div class="e3-r ${evSignCls(x.r)}">${esc(x.r)}${x.p?`<small>${pl} ${esc(x.p)}</small>`:''}</div></div>`;
+  }).join('');
+  const midHead=isRange?`${revised?'修正後の':''}会社予想レンジ（下限〜上限）`:`${c1} → ${c2}`;
   const cls=evIsNeg(g.status)?'red':evIsPos(g.status)?'green':'';
   return `<div class="vslide"><div class="v-bar"></div>${vLogo()}
 <div class="v-wrap" style="gap:22px;">
   <div class="v-h ${cls}">${esc(s['見出し']||g.status||'通期予想')}</div>
-  <div class="e3-head"><span></span><span>${esc(c1)}</span><span></span><span>${esc(c2)}</span><span></span></div>
+  <div class="e3-head"><span></span><span>${esc(midHead)}</span><span></span></div>
   <div class="e3-table">${rows||'<div class="e2-note">通期予想データなし</div>'}</div>
   ${s['理由']?`<div class="e3-why"><div class="e2-why" style="margin:0 0 8px;">なぜ${/下方/.test(g.status||'')?'下方修正':/上方/.test(g.status||'')?'上方修正':'この見通し'}なのか</div><div class="e3-reason">${esc(s['理由'])}</div></div>`:''}
   ${s.pts&&s.pts.length?`<div class="v-pts" style="justify-content:flex-start;gap:22px;">${vPts(s.pts,cls)}</div>`:''}
