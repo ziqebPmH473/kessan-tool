@@ -5926,7 +5926,7 @@ function vdBuildTabHtml(P){
   <div id="${P}-pane-audio" style="display:none;">
   <div class="sa-card">
     <h2>台本と音声（スライドごと）</h2>
-    <div id="${P}-script-boxes"></div>
+    <div id="${P}-script-boxes"></div>${P==='ev'?`<textarea id="ev-s-guidance" hidden></textarea>`:''}
     <div id="${P}-st-total" style="font-size:12px;font-weight:700;color:var(--accent);margin-top:8px;text-align:right;"></div>
     <div style="font-size:11px;color:var(--text-sub);margin-top:8px;">結合時の設定（個別の音声化には影響しません）</div>
     <div class="row" style="flex-wrap:nowrap;gap:8px;align-items:center;margin-top:4px;font-size:11px;color:var(--text-sub);">
@@ -5968,7 +5968,7 @@ function vdPersistIds(P){
   const ids=['note-url','xnote','model','months','logo-op','th-input','slides','x','insta','tiktok','raw','tts-voice','tts-model','tts-eq','tts-gap','tts-format','timing','fixed-tags'];
   for(let i=1;i<=5;i++)ids.push('s'+i);
   const out=ids.map(k=>`${P}-${k}`);
-  if(P==='ev')out.push('ev-auto');
+  if(P==='ev')out.push('ev-auto','ev-s-guidance');
   return out;
 }
 // restoreState はこのモジュールより前に走るので、自前で復元する
@@ -6013,11 +6013,42 @@ function evCount(){
   const v=sel?sel.value:'auto';
   return v==='3'?3:v==='4'?4:evAutoCount();
 }
-function vdOnCountChange(){
+async function vdOnCountChange(){
   const a=document.getElementById('ev-count-auto');if(a)a.textContent=evAutoCount()+'枚';
-  vdBuildScriptBoxes('ev',true);
+  const host=vdEl('ev','script-boxes');
+  const prev=host?host.children.length:0,next=evCount();
+  if((prev===3||prev===4)&&prev!==next)await evRemapScripts(prev,next);
+  else vdBuildScriptBoxes('ev',true);
+  for(let i=1;i<=5;i++){const p=vdEl('ev','p'+i);if(!p)continue;if(window._vdTts.ev[i])vdRenderPlayer('ev',i);else p.textContent='未生成';}
+  vdUpdateScriptStats('ev');
   if(typeof saveState==='function')saveState();
   debouncedVideoPrev('ev');
+}
+// 3枚⇔4枚の切替：台本と音声は番号ではなく「スライドの役割」で引き継ぐ
+//   4枚：①全体像 ②実績 ③通期予想 ④市場反応 ／ 3枚：①全体像 ②実績 ③市場反応
+//   4→3 は③(通期予想)を退避して④を③へ。3→4 は③を④へ移し、退避していた通期予想を③へ戻す
+async function evRemapScripts(prev,next){
+  const g=vdEl('ev','s-guidance');
+  const val=i=>((vdEl('ev','s'+i)||{}).value||'');
+  if(prev===4&&next===3){
+    const s3=val(3),s4=val(4);
+    vdBuildScriptBoxes('ev',true);
+    if(g)g.value=s3;
+    vdEl('ev','s3').value=s4;
+    await evMoveTts(3,'g');await evMoveTts(4,3);
+  }else if(prev===3&&next===4){
+    const s3=val(3);
+    vdBuildScriptBoxes('ev',true);
+    vdEl('ev','s4').value=s3;
+    vdEl('ev','s3').value=g?g.value:'';
+    if(g)g.value='';
+    await evMoveTts(3,4);await evMoveTts('g',3);
+  }
+}
+async function evMoveTts(from,to){
+  const t=window._vdTts.ev,a=t[from];
+  delete t[from];await vdDbDel(`ev:${from}`);
+  if(a){t[to]=a;await vdDbPut(`ev:${to}`,a);}else{delete t[to];await vdDbDel(`ev:${to}`);}
 }
 
 // ============================================================
@@ -6418,7 +6449,7 @@ async function vdDbLoad(){
     db.close();return all;
   }catch(e){console.warn('vdDbLoad',e);return{};}
 }
-async function vdClearAllTts(P){window._vdTts[P]={};for(let i=1;i<=5;i++){await vdDbDel(`${P}:${i}`);const p=vdEl(P,'p'+i);if(p)p.textContent='未生成';}const pa=vdEl(P,'p-all');if(pa)pa.innerHTML='';}
+async function vdClearAllTts(P){window._vdTts[P]={};await vdDbDel(`${P}:g`);const sg=vdEl(P,'s-guidance');if(sg)sg.value='';for(let i=1;i<=5;i++){await vdDbDel(`${P}:${i}`);const p=vdEl(P,'p'+i);if(p)p.textContent='未生成';}const pa=vdEl(P,'p-all');if(pa)pa.innerHTML='';}
 function vdB64ToBuf(b64){const bin=atob(b64);const u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return u.buffer;}
 function vdRenderPlayer(P,i){
   const a=window._vdTts[P][i],p=vdEl(P,'p'+i);if(!p)return;
@@ -6560,7 +6591,7 @@ async function vdExportAudio(P,btn,playOnly){
 }
 async function vdRestoreTts(){
   const all=await vdDbLoad();
-  Object.keys(all).forEach(k=>{const m=k.match(/^(vd|ev):(\d+)$/);if(m)window._vdTts[m[1]][parseInt(m[2],10)]=all[k];});
+  Object.keys(all).forEach(k=>{const m=k.match(/^(vd|ev):(\d+|g)$/);if(m)window._vdTts[m[1]][m[2]==='g'?'g':parseInt(m[2],10)]=all[k];});
   ['vd','ev'].forEach(P=>{vdUpdateScriptStats(P);for(let i=1;i<=5;i++)if(window._vdTts[P][i])vdRenderPlayer(P,i);});
 }
 
@@ -7134,7 +7165,7 @@ async function tabIoRestoreTts(P,tts){
   if(typeof vdClearAllTts==='function')await vdClearAllTts(P);
   const src=tts||{};
   for(const k of Object.keys(src)){
-    const i=parseInt(k,10);if(!(i>=1&&i<=5)||!src[k]||!src[k].b64)continue;
+    const i=k==='g'?'g':parseInt(k,10);if(!(i==='g'||(i>=1&&i<=5))||!src[k]||!src[k].b64)continue;
     window._vdTts[P][i]=src[k];
     await vdDbPut(`${P}:${i}`,src[k]);
   }
