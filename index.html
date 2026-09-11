@@ -5810,6 +5810,7 @@ const VD_CFG={
     genLabel:'🎬 サムネ・台本・縦スライド・投稿文を生成',
     labels:()=>['① 株価推移（フック含む）','② 変動理由','③ 企業の強み','④ 企業の弱み','⑤ まとめ＋note誘導'],
     secs:()=>[22,22,18,18,22],
+    slots:()=>[1,2,3,4,5],
     code:()=>getTicker(),name:()=>getName(),
     audioName:()=>`株価分析_${getTicker()||'stock'}_${getName()||'analysis'}`,
     zipName:()=>`株価分析_${getTicker()||'stock'}_${getName()||'analysis'}_video_slides`,
@@ -5822,6 +5823,8 @@ const VD_CFG={
     genLabel:'🎬 サムネ・台本・縦スライド・投稿文を生成',
     labels:()=>evCount()===4?['① 決算の全体像＋株価','② 今回の実績と理由','③ 通期予想・修正','④ 市場の反応＋今後の注目点']:['① 決算の全体像＋株価','② 実績と理由','③ 市場の反応＋今後の注目点'],
     secs:()=>evCount()===4?[18,18,18,18]:[18,22,18],
+    // 台本欄は常に4つ（①全体像 ②実績 ③通期予想 ④市場反応）。3枚のときは③の欄を隠すだけで、処理は表示中の欄だけ
+    slots:()=>evCount()===4?[1,2,3,4]:[1,2,4],
     code:()=>((document.getElementById('p-code')||{}).value||'').trim(),
     name:()=>((document.getElementById('p-name')||{}).value||'').trim(),
     audioName:()=>`決算分析_${VD_CFG.ev.code()||'stock'}_${VD_CFG.ev.name()||'analysis'}`,
@@ -5926,7 +5929,7 @@ function vdBuildTabHtml(P){
   <div id="${P}-pane-audio" style="display:none;">
   <div class="sa-card">
     <h2>台本と音声（スライドごと）</h2>
-    <div id="${P}-script-boxes"></div>${P==='ev'?`<textarea id="ev-s-guidance" hidden></textarea>`:''}
+    <div id="${P}-script-boxes"></div>
     <div id="${P}-st-total" style="font-size:12px;font-weight:700;color:var(--accent);margin-top:8px;text-align:right;"></div>
     <div style="font-size:11px;color:var(--text-sub);margin-top:8px;">結合時の設定（個別の音声化には影響しません）</div>
     <div class="row" style="flex-wrap:nowrap;gap:8px;align-items:center;margin-top:4px;font-size:11px;color:var(--text-sub);">
@@ -5968,7 +5971,7 @@ function vdPersistIds(P){
   const ids=['note-url','xnote','model','months','logo-op','th-input','slides','x','insta','tiktok','raw','tts-voice','tts-model','tts-eq','tts-gap','tts-format','timing','fixed-tags'];
   for(let i=1;i<=5;i++)ids.push('s'+i);
   const out=ids.map(k=>`${P}-${k}`);
-  if(P==='ev')out.push('ev-auto','ev-s-guidance');
+  if(P==='ev')out.push('ev-auto');
   return out;
 }
 // restoreState はこのモジュールより前に走るので、自前で復元する
@@ -6013,42 +6016,11 @@ function evCount(){
   const v=sel?sel.value:'auto';
   return v==='3'?3:v==='4'?4:evAutoCount();
 }
-async function vdOnCountChange(){
+function vdOnCountChange(){
   const a=document.getElementById('ev-count-auto');if(a)a.textContent=evAutoCount()+'枚';
-  const host=vdEl('ev','script-boxes');
-  const prev=host?host.children.length:0,next=evCount();
-  if((prev===3||prev===4)&&prev!==next)await evRemapScripts(prev,next);
-  else vdBuildScriptBoxes('ev',true);
-  for(let i=1;i<=5;i++){const p=vdEl('ev','p'+i);if(!p)continue;if(window._vdTts.ev[i])vdRenderPlayer('ev',i);else p.textContent='未生成';}
-  vdUpdateScriptStats('ev');
+  vdBuildScriptBoxes('ev',true);   // 欄は4つのまま、見出しと表示・非表示だけ変わる
   if(typeof saveState==='function')saveState();
   debouncedVideoPrev('ev');
-}
-// 3枚⇔4枚の切替：台本と音声は番号ではなく「スライドの役割」で引き継ぐ
-//   4枚：①全体像 ②実績 ③通期予想 ④市場反応 ／ 3枚：①全体像 ②実績 ③市場反応
-//   4→3 は③(通期予想)を退避して④を③へ。3→4 は③を④へ移し、退避していた通期予想を③へ戻す
-async function evRemapScripts(prev,next){
-  const g=vdEl('ev','s-guidance');
-  const val=i=>((vdEl('ev','s'+i)||{}).value||'');
-  if(prev===4&&next===3){
-    const s3=val(3),s4=val(4);
-    vdBuildScriptBoxes('ev',true);
-    if(g)g.value=s3;
-    vdEl('ev','s3').value=s4;
-    await evMoveTts(3,'g');await evMoveTts(4,3);
-  }else if(prev===3&&next===4){
-    const s3=val(3);
-    vdBuildScriptBoxes('ev',true);
-    vdEl('ev','s4').value=s3;
-    vdEl('ev','s3').value=g?g.value:'';
-    if(g)g.value='';
-    await evMoveTts(3,4);await evMoveTts('g',3);
-  }
-}
-async function evMoveTts(from,to){
-  const t=window._vdTts.ev,a=t[from];
-  delete t[from];await vdDbDel(`ev:${from}`);
-  if(a){t[to]=a;await vdDbPut(`ev:${to}`,a);}else{delete t[to];await vdDbDel(`ev:${to}`);}
 }
 
 // ============================================================
@@ -6369,7 +6341,10 @@ async function geminiVideo(P,btnEl){
   const p=parseVideoOutput(r.text,n);
   vdBuildScriptBoxes(P,true);
   if(P==='ev'){const t=vdEl('ev','th-input');if(t)t.value=evThumbText();}   // サムネ文言はAIに作らせない（株価分析はサムネイルタブの文言を流用）
-  for(let i=1;i<=n;i++){vdEl(P,'s'+i).value=vdCleanScript(deJargonP0(p['s'+i]||''));}
+  // AIの台本①〜は表示中の欄へ順に入れる。使わない欄（3枚のときの通期予想）は前回の台本を残さない
+  const slots=VD_CFG[P].slots();
+  for(let i=1;i<=5;i++){const el=vdEl(P,'s'+i);if(el&&slots.indexOf(i)<0)el.value='';}
+  slots.forEach((s,k)=>{vdEl(P,'s'+s).value=vdCleanScript(deJargonP0(p['s'+(k+1)]||''));});
   vdEl(P,'slides').value=deJargonP0(p.slides||'');
   vdEl(P,'x').value=(P==='vd')?vdBuildXReply(P,p.x||'',vdEl(P,'slides').value)
                               :vdAddFixedTags(P,vdNormalizeXPost(deJargonP0(p.x||'')));
@@ -6392,14 +6367,17 @@ function vdShowPreview(P){
 // ---- 台本ボックス ----
 function vdBuildScriptBoxes(P,force){
   const host=vdEl(P,'script-boxes');if(!host)return;
-  const labels=VD_CFG[P].labels(),secs=VD_CFG[P].secs();
-  if(!force&&host.children.length===labels.length)return;
-  // 既存の入力を退避してから作り直す（枚数切替で消えないように）
+  const labels=VD_CFG[P].labels(),secs=VD_CFG[P].secs(),slots=VD_CFG[P].slots();
+  // 欄は常に全部作り、使わない欄は隠す（決算分析の3枚は③通期予想を隠す）
+  const all=P==='ev'?[1,2,3,4]:[1,2,3,4,5];
+  const evFull=['① 決算の全体像＋株価','② 今回の実績と理由','③ 通期予想・修正','④ 市場の反応＋今後の注目点'];
+  if(!force&&host.children.length===all.length)return;
+  // 既存の入力を退避してから作り直す
   const keep={};for(let i=1;i<=5;i++){const el=vdEl(P,'s'+i);if(el)keep[i]=el.value;}
-  host.innerHTML=labels.map((lb,i)=>{const n=i+1;return `
-    <div style="margin-top:8px;">
+  host.innerHTML=all.map(n=>{const k=slots.indexOf(n);const lb=k>=0?labels[k]:(P==='ev'?evFull[n-1]:'');return `
+    <div style="margin-top:8px;${k<0?'display:none;':''}">
       <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--text-sub);">
-        <span>${lb}</span><span id="${P}-st${n}" style="color:var(--accent);font-weight:600;">0文字 ／ 目安 0秒（枠 ${secs[i]}秒）</span>
+        <span>${lb}</span><span id="${P}-st${n}" style="color:var(--accent);font-weight:600;">0文字 ／ 目安 0秒（枠 ${k>=0?secs[k]:0}秒）</span>
       </div>
       <textarea id="${P}-s${n}" oninput="vdUpdateScriptStats('${P}')" placeholder="生成後にナレーションが入ります" style="min-height:72px;"></textarea>
       <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:2px;">
@@ -6407,28 +6385,29 @@ function vdBuildScriptBoxes(P,force){
         <div id="${P}-p${n}" style="flex:1;min-width:0;font-size:10px;color:var(--text-sub);">未生成</div>
       </div>
     </div>`;}).join('');
-  for(let i=1;i<=labels.length;i++){const el=vdEl(P,'s'+i);if(el&&keep[i]!=null)el.value=keep[i];}
+  for(let i=1;i<=5;i++){const el=vdEl(P,'s'+i);if(el&&keep[i]!=null)el.value=keep[i];}
   vdUpdateScriptStats(P);
 }
 function vdUpdateScriptStats(P){
-  const secs=VD_CFG[P].secs();
-  for(let i=1;i<=secs.length;i++){
-    const ta=vdEl(P,'s'+i),st=vdEl(P,'st'+i);if(!ta||!st)continue;
+  const secs=VD_CFG[P].secs(),slots=VD_CFG[P].slots();
+  slots.forEach((i,k)=>{
+    const ta=vdEl(P,'s'+i),st=vdEl(P,'st'+i);if(!ta||!st)return;
     const chars=ta.value.replace(/\s/g,'').length,sec=Math.round(chars/VD_TTS_CHARS_PER_SEC);
-    const over=sec>secs[i-1]+6;
-    st.textContent=`${chars}文字 ／ 目安 ${sec}秒（枠 ${secs[i-1]}秒）`;
+    const over=sec>secs[k]+6;
+    st.textContent=`${chars}文字 ／ 目安 ${sec}秒（枠 ${secs[k]}秒）`;
     st.style.color=over?'#dc2626':'var(--accent)';
     const a=window._vdTts[P][i];const p=vdEl(P,'p'+i);
     if(a&&p&&a.text!==ta.value.trim())p.innerHTML=`<span style="color:#d97706;">台本が変更されています。🔊で作り直してください（旧音声 ${a.seconds}秒）</span>`;
     else if(a&&p&&!p.querySelector('audio'))vdRenderPlayer(P,i);
-  }
+  });
   const tot=vdEl(P,'st-total');
-  if(tot){let chars=0;for(let i=1;i<=secs.length;i++){chars+=((vdEl(P,'s'+i)||{}).value||'').replace(/\s/g,'').length;}
+  if(tot){let chars=0;slots.forEach(i=>{chars+=((vdEl(P,'s'+i)||{}).value||'').replace(/\s/g,'').length;});
     const frame=secs.reduce((a,b)=>a+b,0);
     tot.textContent=`合計 ${chars}文字 ／ 目安 ${Math.round(chars/VD_TTS_CHARS_PER_SEC)}秒（枠 ${frame}秒）`;}
 }
 function vdScriptAllText(P){
-  return VD_CFG[P].labels().map((lb,i)=>`■ ${lb}\n${(vdEl(P,'s'+(i+1))||{}).value||''}`).join('\n\n');
+  const slots=VD_CFG[P].slots();
+  return VD_CFG[P].labels().map((lb,k)=>`■ ${lb}\n${(vdEl(P,'s'+slots[k])||{}).value||''}`).join('\n\n');
 }
 
 // ---- 音声（スライド単位で保持。IndexedDBにも保存してリロード後も残す。キーは「P:番号」） ----
@@ -6449,7 +6428,7 @@ async function vdDbLoad(){
     db.close();return all;
   }catch(e){console.warn('vdDbLoad',e);return{};}
 }
-async function vdClearAllTts(P){window._vdTts[P]={};await vdDbDel(`${P}:g`);const sg=vdEl(P,'s-guidance');if(sg)sg.value='';for(let i=1;i<=5;i++){await vdDbDel(`${P}:${i}`);const p=vdEl(P,'p'+i);if(p)p.textContent='未生成';}const pa=vdEl(P,'p-all');if(pa)pa.innerHTML='';}
+async function vdClearAllTts(P){window._vdTts[P]={};for(let i=1;i<=5;i++){await vdDbDel(`${P}:${i}`);const p=vdEl(P,'p'+i);if(p)p.textContent='未生成';}const pa=vdEl(P,'p-all');if(pa)pa.innerHTML='';}
 function vdB64ToBuf(b64){const bin=atob(b64);const u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return u.buffer;}
 function vdRenderPlayer(P,i){
   const a=window._vdTts[P][i],p=vdEl(P,'p'+i);if(!p)return;
@@ -6477,11 +6456,12 @@ async function vdGenTts(P,i,btn){
 }
 async function vdGenAllTts(P,btn){
   const old=btn.textContent;btn.disabled=true;
-  const n=VD_CFG[P].labels().length;let done=0;
-  for(let i=1;i<=n;i++){
+  const slots=VD_CFG[P].slots(),n=slots.length;let done=0;   // 表示中の欄だけ
+  for(let k=0;k<n;k++){
+    const i=slots[k];
     const text=vdVal(P,'s'+i);const a=window._vdTts[P][i];
     if(!text||(a&&a.text===text))continue;
-    btn.textContent=`生成中… ${i}/${n}`;vdTtsStatus(P,`音声を生成中… スライド${i}`);
+    btn.textContent=`生成中… ${k+1}/${n}`;vdTtsStatus(P,`音声を生成中… スライド${k+1}`);
     if(await vdGenTts(P,i,vdEl(P,'tb'+i)))done++;
   }
   btn.disabled=false;btn.textContent=old;
@@ -6558,11 +6538,12 @@ function vdPlay(btn,url){
   au.play().catch(e=>{btn.textContent='▶';alert('再生できませんでした: '+e.message);});
 }
 async function vdExportAudio(P,btn,playOnly){
-  const n=VD_CFG[P].labels().length;
-  const idx=[];for(let i=1;i<=n;i++)if(window._vdTts[P][i])idx.push(i);
+  const slots=VD_CFG[P].slots();   // 表示中の欄だけを結合（idx は欄番号、表示番号は slots 内の順番）
+  const idx=slots.filter(i=>window._vdTts[P][i]);
+  const no=i=>slots.indexOf(i)+1;
   if(!idx.length){alert('先に各スライドの台本を🔊で音声化してください');return;}
   const stale=idx.filter(i=>window._vdTts[P][i].text!==vdVal(P,'s'+i));
-  if(stale.length&&!confirm(`スライド${stale.join('・')}の台本が音声化後に変更されています。古い音声のまま連結しますか？`))return;
+  if(stale.length&&!confirm(`スライド${stale.map(no).join('・')}の台本が音声化後に変更されています。古い音声のまま連結しますか？`))return;
   const old=btn.textContent;btn.disabled=true;btn.textContent='結合中…';
   try{
     const gapMs=parseInt(vdEl(P,'tts-gap').value,10)||0;
@@ -6581,7 +6562,7 @@ async function vdExportAudio(P,btn,playOnly){
     const labels=VD_CFG[P].labels();
     const L=[];const total=cat.samples.length/cat.sampleRate;const r1=cat.ranges[0];
     if(idx[0]===1)L.push(`0 サムネ　　　　　　 ${fmtTc(r1.start)}〜${fmtTc(Math.min(r1.end,r1.start+5))}（音声①の冒頭）`);
-    idx.forEach((i,k)=>{const r=cat.ranges[k];const s=(i===1&&idx[0]===1)?Math.min(r.end,r.start+5):r.start;L.push(`${i} ${labels[i-1].replace(/^[①-⑤]\s*/,'').padEnd(14,'　')} ${fmtTc(s)}〜${fmtTc(r.end)}`);});
+    idx.forEach((i,k)=>{const r=cat.ranges[k];const s=(i===1&&idx[0]===1)?Math.min(r.end,r.start+5):r.start;L.push(`${no(i)} ${labels[no(i)-1].replace(/^[①-⑤]\s*/,'').padEnd(14,'　')} ${fmtTc(s)}〜${fmtTc(r.end)}`);});
     L.push(`合計 ${fmtTc(total)}（間 ${gapMs}ms）`);
     vdEl(P,'timing').value=L.join('\n');
     if(typeof saveState==='function')saveState();
@@ -6591,7 +6572,7 @@ async function vdExportAudio(P,btn,playOnly){
 }
 async function vdRestoreTts(){
   const all=await vdDbLoad();
-  Object.keys(all).forEach(k=>{const m=k.match(/^(vd|ev):(\d+|g)$/);if(m)window._vdTts[m[1]][m[2]==='g'?'g':parseInt(m[2],10)]=all[k];});
+  Object.keys(all).forEach(k=>{const m=k.match(/^(vd|ev):(\d+)$/);if(m)window._vdTts[m[1]][parseInt(m[2],10)]=all[k];});
   ['vd','ev'].forEach(P=>{vdUpdateScriptStats(P);for(let i=1;i<=5;i++)if(window._vdTts[P][i])vdRenderPlayer(P,i);});
 }
 
@@ -7165,7 +7146,7 @@ async function tabIoRestoreTts(P,tts){
   if(typeof vdClearAllTts==='function')await vdClearAllTts(P);
   const src=tts||{};
   for(const k of Object.keys(src)){
-    const i=k==='g'?'g':parseInt(k,10);if(!(i==='g'||(i>=1&&i<=5))||!src[k]||!src[k].b64)continue;
+    const i=parseInt(k,10);if(!(i>=1&&i<=5)||!src[k]||!src[k].b64)continue;
     window._vdTts[P][i]=src[k];
     await vdDbPut(`${P}:${i}`,src[k]);
   }
