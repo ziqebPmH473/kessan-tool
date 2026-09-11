@@ -6000,7 +6000,7 @@ function evAutoCount(){
   const d=evData();if(!d)return 3;
   const g=d.GUIDANCE||{};
   const st=String(g.status||'');
-  if(/据え置き|据置|変更なし|修正なし|修正は?ない|修正はありません|未修正/.test(st))return 3;   // 据え置きは予想スライドを作らない
+  if(/据え置き|据置|変更なし/.test(st))return 3;   // 据え置きは予想スライドを作らない
   // 4枚にするのは「修正前後／来期予想の数値が実際にある」場合だけ（据え置きは3枚）
   const hasNums=[g.sales_2,g.op_2,g.ni_2].some(v=>/\d/.test(String(v||'')))&&[g.sales_1,g.op_1,g.ni_1].some(v=>/\d/.test(String(v||'')));
   if(!hasNums)return 3;
