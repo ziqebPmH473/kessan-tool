@@ -455,7 +455,7 @@
 .v1-pl{font-size:28px;font-weight:600;color:#94a3b8;letter-spacing:.08em;margin-bottom:8px;}
 .v1-price{font-size:104px;font-weight:900;line-height:1;white-space:nowrap;}
 .v1-change{font-size:74px;font-weight:900;line-height:1;white-space:nowrap;text-align:right;}
-.v1-basis{font-size:30px;font-weight:500;color:#94a3b8;margin-top:12px;text-align:right;}
+.v1-basis{font-size:28px;font-weight:600;color:#94a3b8;letter-spacing:.08em;margin-bottom:8px;text-align:right;}
 .v1-chart-card{flex:1;background:#fff;border:2px solid #e2e8f0;border-radius:20px;overflow:hidden;position:relative;min-height:760px;}
 .v1-chart-lbl{position:absolute;top:18px;left:26px;font-size:28px;color:#94a3b8;}
 .v1-chart-canvas{display:block;width:100%;height:100%;}
@@ -6669,7 +6669,7 @@ function buildV1(v,ctx){
   <div class="v1-head"><span class="v1-name">${esc(name)}</span><span class="v1-code">（${esc(code)}）</span>${ctx.desc?`<div class="v1-desc">${esc(ctx.desc)}</div>`:''}</div>
   <div class="v1-price-card">
     <div><div class="v1-pl">株価</div><div class="v1-price" style="font-size:${pf};">${esc(ps)}</div></div>
-    <div><div class="v1-change" style="color:${color};font-size:${cf};">${esc(ch.pct)}</div>${basis?`<div class="v1-basis">${esc(basis)}</div>`:''}</div>
+    <div>${basis?`<div class="v1-basis">${esc(basis)}</div>`:''}<div class="v1-change" style="color:${color};font-size:${cf};">${esc(ch.pct)}</div></div>
   </div>
   <div class="v1-chart-card">${lbl?`<div class="v1-chart-lbl">${esc(lbl)}</div>`:''}<canvas class="v1-chart-canvas" data-chart="${esc(lines.join(';'))}" data-k="2.2"></canvas></div>
   ${s['一言']?`<div class="v-lead" style="margin-top:0;">${esc(s['一言'])}</div>`:''}
