@@ -443,7 +443,7 @@
 /* 文字は透かしより前に */
 .v-txt,.v1-head,.v1-pl,.v1-price,.v1-change,.v1-basis,.v1-chart-lbl,.v-h,.v-pn,.v-ptx,.v-pts2,.v-lead,
 .v5-title,.v5-rl,.v5-rv,.v5-q,.v5-bt,.v5-li,.v5-cta,.v5-qr,.v-disc,
-.e1-badge-row,.e1-concl,.e1-el,.e1-ev,.e1-price,.e2-row>div,.e2-note,.e2-why,.e3-head>span,.e3-row>div,.e3-reason,
+.e1-badge-row,.e1-concl,.e1-price,.e2-row>div,.e2-note,.e2-why,.e3-head>span,.e3-row>div,.e3-reason,
 .ef-pl,.ef-pv,.ef-arrow,.ef-react,.ef-ph,.ef-ps{position:relative;z-index:6;}
 .v-disc{font-size:22px;color:#94a3b8;line-height:1.4;margin-top:18px;}
 /* ① 株価推移 */
@@ -495,11 +495,6 @@
 .e1-badge{font-size:30px;font-weight:900;padding:6px 20px;border-radius:999px;background:#e2e8f0;color:#334155;}
 .e1-badge.green{background:#dcfce7;color:#047857;} .e1-badge.red{background:#fee2e2;color:#b91c1c;}
 .e1-concl{font-size:66px;font-weight:900;line-height:1.25;color:#0f172a;}
-.e1-emph{display:flex;gap:16px;}
-.e1-em{flex:1;min-width:0;background:rgba(255,255,255,.88);border:2px solid #e2e8f0;border-radius:20px;padding:22px 26px;text-align:center;}
-.e1-el{font-size:28px;color:#94a3b8;font-weight:600;}
-.e1-ev{font-size:70px;font-weight:900;line-height:1.1;margin-top:6px;white-space:nowrap;}
-.e1-ev.green{color:#047857;} .e1-ev.red{color:#dc2626;}
 .e1-price{font-size:34px;color:#475569;display:flex;align-items:baseline;gap:16px;justify-content:center;}
 .e1-price b{font-size:44px;color:#0f172a;}
 .e1-price .green{color:#047857;font-weight:700;} .e1-price .red{color:#dc2626;font-weight:700;}
@@ -6141,7 +6136,7 @@ function videoPromptEv(n){
 理由:修正の理由を一言（30文字以内。例：好採算案件の増加と原価改善）
 ・結論|補足（会社が今後をどう見ているか。1〜2行、任意）
 `:'';
-  const s1=`スライド①。スライド①は決算の「概要」だけで、売上・利益の金額や前年比の表は載っていない。冒頭は銘柄名＋今回の決算の一言結論で言い切り、問いかけで引き込んでから、[E1]の結論（その語句をそのまま使う）・強調と株価の位置を話す。売上高・営業利益・純利益の金額や前年比、通期予想の数値は台本①では言わない（台本②・③で話す）。「決算を解説します」のような入り方はしない。`;
+  const s1=`スライド①。スライド①は決算の「概要」だけで、売上・利益の金額や前年比の表は載っていない。冒頭は銘柄名＋今回の決算の一言結論で言い切り、問いかけで引き込んでから、[E1]の結論（その語句をそのまま使う）と株価の位置を話す。売上高・営業利益・純利益の金額や前年比、通期予想の数値は台本①では言わない（台本②・③で話す）。「決算を解説します」のような入り方はしない。`;
   const s2=`スライド②。表の数字は画面に映っているので、全部は読み上げない。表の中から、この会社の今回の決算で特に伝えるべき数字を1〜2個だけ選んで話す。どの項目を選ぶか、金額と前年比のどちらを言うか（両方言うか）は、決算の内容から判断し、毎回同じ選び方に固定しない。表の残りは触れないか、ごく短くまとめる。そのあと[E2]の理由（[E2]に書いた数だけ）をその順番で話す。各理由は[E2]の結論の語句（例：「売上高は増収」）を口にしてから、整形済みデータの理由（reason）の具体的な中身で肉付けして説明する（スライドの読み上げだけで薄くしない）。`;
   const scripts=four?`2. 【台本①】：${s1}
 3. 【台本②】：${s2}
@@ -6167,9 +6162,6 @@ ${VD_META_RULES}
 1. 【縦スライド】：次の形式を厳守（キー名は変更禁止）：
 [E1]
 結論:今回の決算の一言結論（16文字以内。例：売上8倍で営業黒字転換。基本情報の「通期予想」の状態と矛盾させない。据え置きなら「上方修正」「下方修正」と書かない（上振れ・下振れの見通しは修正ではない））
-強調:ラベル|値（最も強い数字。例：売上高|+847%）
-強調:ラベル|値（2つ目。例：営業利益|黒字転換）
-　強調のラベルは「売上高」「営業利益」など日本語の項目名（データの項目名 result_label などは書かない）。値は8文字以内。株価と実績の評価ラベル（result_label）はスライドに別途表示されるので、強調には使わない。
 [E2]
 見出し:実績の見出し（14文字以内。例：大型案件で売上が急増）
 ・結論1|補足1（なぜこの数字になったのか）
@@ -6208,7 +6200,7 @@ function evSlideNumbersText(d){
   const code=VD_CFG.ev.code()||(d.HEADER||{}).code||'';
   const price=evNum(mr.post_price)||evNum(mr.pre_price);
   const L=['【各スライドに表示される数値（ツールがデータから描画する。台本の数値はこれに合わせる）】'];
-  L.push(`スライド①：株価 ${price?fmtPrice(price,code):'—'}${evNum(mr.price_change)?'（'+mr.price_change+'）':''}、および[E1]の「強調」に書いた値だけ。売上・利益の金額や前年比の表は無い`);
+  L.push(`スライド①：株価 ${price?fmtPrice(price,code):'—'}${evNum(mr.price_change)?'（'+mr.price_change+'）':''}だけ。売上・利益の金額や前年比の表は無い`);
   const kpis=[d.KPI_1,d.KPI_2,d.KPI_3].filter(Boolean).map(k=>{const r=evYoyOrJudge(k);return `${k.display_label||''} ${addComma(evCompactYen(k.value))}${r?'（'+r+'）':''}`;});
   L.push(`スライド②：${kpis.join('／')||'—'}`);
   if(four){
@@ -6796,20 +6788,13 @@ function buildE1(v,d,ctx){
   const s=v.E1||{multi:{}};const h=d.HEADER||{},b=d.BASIC_INFO||{},mr=d.MARKET_REACTION||{};
   const lines=vdChartLines('ev');
   const lbl=lines.length?`${chartGranularityLabel(lines)}チャート（${chartPeriodLabel(lines)}）`:'';
-  // 株価（下に表示）・実績ラベル（バッジに表示）と重なる強調や、項目名そのまま（result_label等）は出さない
-  const rl=trimDot(h.result_label||'');
-  const emph=((s.multi&&s.multi['強調'])||[]).map(x=>{const q=String(x).split(/[|｜]/);return{l:trimDot(q[0]||''),v:trimDot(q[1]||'')};})
-    .filter(e=>(e.l||e.v)&&!/株価|^[A-Za-z_]+$/.test(e.l)&&!(rl&&e.v===rl)).slice(0,2);
-  // カード幅に収まるよう、値の文字幅を測って文字サイズを決める（2枚なら1枚約410px、1枚なら約890px）
-  const EM_W=emph.length>1?400:880;
-  const emphHtml=emph.length?`<div class="e1-emph">${emph.map(e=>`<div class="e1-em"><div class="e1-el">${esc(e.l)}</div><div class="e1-ev ${evSignCls(e.v)}" style="font-size:${Math.max(34,Math.min(70,Math.floor(EM_W/(thumbTextEm(e.v,900)||1))))}px;">${esc(e.v)}</div></div>`).join('')}</div>`:'';
+  // ①は全体像だけ（売上・利益の数字は②に任せるので強調カードは置かない）
   const price=evNum(mr.post_price)||evNum(mr.pre_price);
   return `<div class="vslide"><div class="v-bar"></div>${vLogo()}
 <div class="v-wrap">
   <div class="v1-head"><span class="v1-name">${esc(ctx.name)}</span><span class="v1-code">（${esc(ctx.code)}）</span>${h.business_description?`<div class="v1-desc">${esc(h.business_description)}</div>`:''}</div>
   <div class="e1-badge-row"><span class="e1-q">${esc(h.quarter||'')}</span>${h.result_label?`<span class="e1-badge ${evSignCls(h.result_label)}">${esc(h.result_label)}</span>`:''}</div>
   <div class="e1-concl">${esc(s['結論']||h.result_label||'')}</div>
-  ${emphHtml}
   <div class="v1-chart-card" style="min-height:560px;">${lbl?`<div class="v1-chart-lbl">${esc(lbl)}</div>`:''}<canvas class="v1-chart-canvas" data-chart="${esc(lines.join(';'))}" data-k="2.2"></canvas></div>
   ${price?`<div class="e1-price">株価 <b>${esc(fmtPrice(price,ctx.code))}</b>${mr.price_change?`<span class="${evSignCls(mr.price_change)}">${esc(mr.price_change)}</span>`:''}<small>${esc((mr.post_price_label||'').replace(/^決算後/,'決算後'))}</small></div>`:''}
 </div>${vSig()}</div>`;
