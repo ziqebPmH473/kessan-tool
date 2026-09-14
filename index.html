@@ -3450,6 +3450,15 @@ reason_4=`;
         function saveStateNow() {
             try {
                 const state = { fields: {}, radios: {}, fetched: window._saFetched || null, earnFetched: window._earnFetched || null, priceFetched: window._fetched || null };
+                // 各タブの入力欄はエクスポートと同じ範囲（タブ内のすべての入力欄）を保持する。
+                // PERSIST_IDS に書き漏れた欄（ファクトCKのレポート等）もリロードで消えないように。
+                if (typeof TAB_IO !== 'undefined') Object.keys(TAB_IO).forEach(tab => {
+                    const c = tabIoCollectFields(tab);
+                    Object.assign(state.fields, c.fields); Object.assign(state.radios, c.radios);
+                });
+                const mt = document.querySelector('.mode-tab.active');
+                const pt = document.querySelector('#mode-price .sa-subtab.active[data-satab]');
+                state.ui = { mode: mt ? mt.dataset.mode : 'earnings', earnTab: window._earnTab || 'main', priceTab: pt ? pt.dataset.satab : 'make' };
                 PERSIST_IDS.forEach(id => {
                     const el = document.getElementById(id);
                     if (!el) return;
@@ -3493,6 +3502,7 @@ reason_4=`;
             window._saFetched = state.fetched || null;
             window._earnFetched = state.earnFetched || null;
             window._fetched = state.priceFetched || null;
+            window._restoredUi = state.ui || null;
             return true;
         }
 
@@ -3505,6 +3515,9 @@ reason_4=`;
                 const els = document.getElementsByName(name);
                 for (let r of els) r.addEventListener('change', saveState);
             });
+            // 後から JS で作られる欄（動画の台本ボックス等）も含め、どの欄を触っても保存する
+            document.addEventListener('input', saveState, true);
+            document.addEventListener('change', saveState, true);
         }
 
         function clearSaInputs() {
@@ -3522,7 +3535,7 @@ reason_4=`;
 
         function clearEarnInputs() {
             if (!confirm('決算分析の入力をすべてクリアして、新しい銘柄の分析を始めます。よろしいですか？')) return;
-            ['input-data', 'p-code', 'p-name', 'p-reaction']
+            ['input-data', 'fc-report', 'p-code', 'p-name', 'p-reaction']
                 .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
             const ah = document.getElementById('p-post-after-hours'); if (ah) ah.checked = true;  // 決算は既定ON
             window._earnFetched = null;
@@ -4107,6 +4120,16 @@ risk_3=`;
             const restored = restoreState();
             switchSaCompareMode(getSaCompareMode());
             bindPersistence();
+            // 欄の値から作る表示・設定も戻す（サムネの透過率/拡大率/プリセット、株探の指標サマリ、サムネ背景画像）
+            if (restored) {
+                try { thumbSyncFromControls(); } catch (e) {}
+                try { renderPriceFetchInfo(); } catch (e) {}
+            }
+            idbGet('thumbBg').then(bg => {
+                if (!bg || !bg.dataUrl) return;
+                tabIoSetThBg(bg);
+                if (document.getElementById('mode-price').style.display !== 'none') try { renderThumbPreview(); } catch (e) {}
+            }).catch(() => {});
 
             // 動画タブの初期化(vdInit)は restoreState より前に走るため、その時点では「2.」のデータが空で
             // 枚数判定が常に3枚になってしまう。復元後にもう一度判定し直して台本ボックスを作り直す。
@@ -4137,6 +4160,16 @@ risk_3=`;
             }
             if (restored && (document.getElementById('sa-input-data').value || '').trim()) {
                 try { renderImageStock(); } catch (e) { /* データ不備でも起動継続 */ }
+            }
+
+            // 開いていたタブ・サブタブへ戻す（プレビューは表示してから描き直される）
+            const ui = window._restoredUi;
+            if (ui) {
+                if (ui.earnTab === 'video') window._earnTab = 'video';
+                if (ui.mode && ui.mode !== 'earnings') switchMode(ui.mode);
+                else if (window._earnTab === 'video') switchEarnTab('video');
+                // 非表示のまま切り替えるとプレビューの縮尺が狂うので、株価分析を開いている時だけ戻す
+                if (ui.mode === 'price' && ui.priceTab && ui.priceTab !== 'make') requestAnimationFrame(() => switchPriceTab(ui.priceTab));
             }
         };
 
@@ -7177,6 +7210,16 @@ function tabIoSetThBg(bg){
     if(clr)clr.style.display='none';
   }
 }
+// 株価分析：株探の指標サマリ（取得後に出る1行）を取得データから描き直す（インポート・リロード復元）
+function renderPriceFetchInfo(){
+  const d=window._fetched,infoEl=document.getElementById('fetch-info');
+  if(!infoEl)return;
+  if(d&&d.per!==undefined){
+    const w52=(typeof calc52w==='function')?calc52w(d):'';
+    infoEl.textContent=`PER:${d.per||'-'} PBR:${d.pbr||'-'} 配当:${d.yield||'-'} ${d.marketCap||'-'} 52週:${w52||'-'}`;
+    infoEl.style.display='block';
+  }else{infoEl.textContent='';infoEl.style.display='none';}
+}
 async function importTabData(tab,data){
   const fields=data.fields||{},radios=data.radios||{},hidden=data.hidden||{};
   // 1) 入力欄・ラジオを戻す
@@ -7214,15 +7257,8 @@ async function importTabData(tab,data){
     if(sc){THUMB.bgScale=Number(sc.value);const v=document.getElementById('th-sc-val');if(v)v.textContent=sc.value;}
     else if(typeof th.bgScale==='number')THUMB.bgScale=th.bgScale;
     tabIoSetThBg(hidden.thumbBg);
-    // 株探の指標サマリ（取得後に出る1行）を復元
-    const d=window._fetched,infoEl=document.getElementById('fetch-info');
-    if(infoEl){
-      if(d&&d.per!==undefined){
-        const w52=(typeof calc52w==='function')?calc52w(d):'';
-        infoEl.textContent=`PER:${d.per||'-'} PBR:${d.pbr||'-'} 配当:${d.yield||'-'} ${d.marketCap||'-'} 52週:${w52||'-'}`;
-        infoEl.style.display='block';
-      }else{infoEl.textContent='';infoEl.style.display='none';}
-    }
+    persistThBg(hidden.thumbBg);
+    renderPriceFetchInfo();
   }
 
   // 3) リロード保持（localStorage）へも書き出し、動画タブの表示ラベル類を同期
@@ -7296,6 +7332,17 @@ const THUMB_PRESETS={
   youtube:{offsetTop:-10,offsetMid:-10,offsetBot:-10},
 };
 let thBgUrl=null;
+// サムネ設定（プリセット位置・透過率・拡大率）を画面の欄の値に合わせる（リロード復元時）
+function thumbSyncFromControls(){
+  const pr=document.querySelector('input[name=th-preset]:checked');
+  const p=THUMB_PRESETS[pr?pr.value:'note'];
+  if(p){THUMB.offsetTop=p.offsetTop;THUMB.offsetMid=p.offsetMid;THUMB.offsetBot=p.offsetBot;}
+  const op=document.getElementById('th-op'),sc=document.getElementById('th-sc');
+  if(op){THUMB.bgOpacity=Number(op.value)/100;document.getElementById('th-op-val').textContent=op.value;}
+  if(sc){THUMB.bgScale=Number(sc.value);document.getElementById('th-sc-val').textContent=sc.value;}
+}
+// サムネ背景画像は大きいので localStorage ではなく IndexedDB に保持する
+function persistThBg(bg){idbPut('thumbBg',bg||null).catch(e=>console.warn('サムネ背景の保存に失敗',e));}
 
 function applyThumbPreset(name){
   const p=THUMB_PRESETS[name];
@@ -7314,6 +7361,7 @@ function setThBg(file){
     document.getElementById('th-bg-msg').textContent='別の画像に変更：';
     document.getElementById('th-bg-meta').textContent=file.name;
     document.getElementById('th-bg-clear').style.display='';
+    persistThBg({dataUrl:thBgUrl,name:file.name});
     renderThumbPreview();
   };
   r.readAsDataURL(file);
@@ -7327,6 +7375,7 @@ function clearThBg(){
   document.getElementById('th-bg-msg').textContent='ドロップ、または';
   document.getElementById('th-bg-meta').textContent='';
   document.getElementById('th-bg-clear').style.display='none';
+  persistThBg(null);
   renderThumbPreview();
 }
 (function(){
