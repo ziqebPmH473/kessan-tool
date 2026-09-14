@@ -496,7 +496,7 @@
 .e1-badge.green{background:#dcfce7;color:#047857;} .e1-badge.red{background:#fee2e2;color:#b91c1c;}
 .e1-concl{font-size:66px;font-weight:900;line-height:1.25;color:#0f172a;}
 .e1-emph{display:flex;gap:16px;}
-.e1-em{flex:1;background:rgba(255,255,255,.88);border:2px solid #e2e8f0;border-radius:20px;padding:22px 26px;text-align:center;}
+.e1-em{flex:1;min-width:0;background:rgba(255,255,255,.88);border:2px solid #e2e8f0;border-radius:20px;padding:22px 26px;text-align:center;}
 .e1-el{font-size:28px;color:#94a3b8;font-weight:600;}
 .e1-ev{font-size:70px;font-weight:900;line-height:1.1;margin-top:6px;white-space:nowrap;}
 .e1-ev.green{color:#047857;} .e1-ev.red{color:#dc2626;}
@@ -6107,7 +6107,7 @@ function videoPromptEv(n){
 ・結論|補足（会社が今後をどう見ているか。1〜2行、任意）
 `:'';
   const s1=`スライド①。スライド①は決算の「概要」だけで、売上・利益の金額や前年比の表は載っていない。冒頭は銘柄名＋今回の決算の一言結論で言い切り、問いかけで引き込んでから、[E1]の結論・強調と株価の位置を話す。売上高・営業利益・純利益の金額や前年比、通期予想の数値は台本①では言わない（台本②・③で話す）。「決算を解説します」のような入り方はしない。`;
-  const s2=`スライド②。表の数字は画面に映っているので、全部は読み上げない。表の中から、この会社の今回の決算で特に伝えるべき数字を1〜2個だけ選んで話す。どの項目を選ぶか、金額と前年比のどちらを言うか（両方言うか）は、決算の内容から判断し、毎回同じ選び方に固定しない。表の残りは触れないか、ごく短くまとめる。そのあと[E2]の3つの理由をその順番・その語句で話す。`;
+  const s2=`スライド②。表の数字は画面に映っているので、全部は読み上げない。表の中から、この会社の今回の決算で特に伝えるべき数字を1〜2個だけ選んで話す。どの項目を選ぶか、金額と前年比のどちらを言うか（両方言うか）は、決算の内容から判断し、毎回同じ選び方に固定しない。表の残りは触れないか、ごく短くまとめる。そのあと[E2]の理由（[E2]に書いた数だけ）をその順番・その語句で話す。`;
   const scripts=four?`2. 【台本①】：${s1}
 3. 【台本②】：${s2}
 4. 【台本③】：スライド③。通期予想の内容と[E3]の理由を話す。会社が今後をどう見ているかを伝える。表の数字は画面に映っているので全部は読み上げず、特に伝えるべき数字を1〜2個だけ選ぶ（どの項目・どの数字を選ぶかは決算の内容から判断する）。数値は基本情報の【各スライドに表示される数値】のスライド③に合わせる。会社予想がレンジ（下限〜上限）の場合は幅として話し、下限・上限を修正前・修正後のように話さない。「レンジ下限」「レンジ上限」という言葉は使わない。
@@ -6134,11 +6134,12 @@ ${VD_META_RULES}
 結論:今回の決算の一言結論（16文字以内。例：売上8倍で営業黒字転換）
 強調:ラベル|値（最も強い数字。例：売上高|+847%）
 強調:ラベル|値（2つ目。例：営業利益|黒字転換）
+　強調のラベルは「売上高」「営業利益」など日本語の項目名（データの項目名 result_label などは書かない）。値は8文字以内。株価と実績の評価ラベル（result_label）はスライドに別途表示されるので、強調には使わない。
 [E2]
 見出し:実績の見出し（14文字以内。例：大型案件で売上が急増）
 ・結論1|補足1（なぜこの数字になったのか）
 ・結論2|補足2
-・結論3|補足3
+・結論3|補足3（任意。データに理由が書かれていない項目は「〇〇と同様」のような埋め草を書かず、2つで終える）
 （[E2]は「今回の実績（今四半期の数字）」の理由だけ。通期予想の据え置き・修正・進捗率など「予想」に関することは[E2]に書かない）
 ${e3}[E4]
 反応:市場が評価／警戒した点を一言（30文字以内。例：好決算でもPTSはほぼ無反応、織り込み済みの見方）
@@ -6173,7 +6174,7 @@ function evSlideNumbersText(d){
   const price=evNum(mr.post_price)||evNum(mr.pre_price);
   const L=['【各スライドに表示される数値（ツールがデータから描画する。台本の数値はこれに合わせる）】'];
   L.push(`スライド①：株価 ${price?fmtPrice(price,code):'—'}${evNum(mr.price_change)?'（'+mr.price_change+'）':''}、および[E1]の「強調」に書いた値だけ。売上・利益の金額や前年比の表は無い`);
-  const kpis=[d.KPI_1,d.KPI_2,d.KPI_3].filter(Boolean).map(k=>`${k.display_label||''} ${addComma(evCompactYen(k.value))}${evNum(k.yoy)?'（'+k.yoy+'）':''}`);
+  const kpis=[d.KPI_1,d.KPI_2,d.KPI_3].filter(Boolean).map(k=>{const r=evYoyOrJudge(k);return `${k.display_label||''} ${addComma(evCompactYen(k.value))}${r?'（'+r+'）':''}`;});
   L.push(`スライド②：${kpis.join('／')||'—'}`);
   if(four){
     const isRange=evGuidanceIsRange(g),pl=evProgressLabel(g);
@@ -6731,6 +6732,8 @@ function evCompactYen(s){
   const oku=m[4]?(n(m[3])+n(m[4])/10000).toFixed(1):String(n(m[3]));
   return `${m[1]}${addComma(oku)}億円`;
 }
+// 前年比が出せない（赤字などで「-」）ときは判定（赤字拡大・黒字転換など）を代わりに出す
+function evYoyOrJudge(k){const y=evNum((k||{}).yoy);return /^[-－—―]?$/.test(y)?evNum(k.judgment):y;}
 // 通期予想がレンジ（下限〜上限）で開示されているか（修正前→修正後と取り違えない）
 function evGuidanceIsRange(g){return /下限|上限|レンジ/.test(String((g||{}).col1_header||'')+String((g||{}).col2_header||''));}
 function evGuidanceIsRevised(g){const st=String((g||{}).status||'');return /修正/.test(st)&&!/修正なし|修正は?ない|修正はありません|未修正/.test(st);}
@@ -6757,8 +6760,13 @@ function buildE1(v,d,ctx){
   const s=v.E1||{multi:{}};const h=d.HEADER||{},b=d.BASIC_INFO||{},mr=d.MARKET_REACTION||{};
   const lines=vdChartLines('ev');
   const lbl=lines.length?`${chartGranularityLabel(lines)}チャート（${chartPeriodLabel(lines)}）`:'';
-  const emph=((s.multi&&s.multi['強調'])||[]).slice(0,2).map(x=>{const q=String(x).split(/[|｜]/);return{l:trimDot(q[0]||''),v:trimDot(q[1]||'')};}).filter(e=>e.l||e.v);
-  const emphHtml=emph.length?`<div class="e1-emph">${emph.map(e=>`<div class="e1-em"><div class="e1-el">${esc(e.l)}</div><div class="e1-ev ${evSignCls(e.v)}">${esc(e.v)}</div></div>`).join('')}</div>`:'';
+  // 株価（下に表示）・実績ラベル（バッジに表示）と重なる強調や、項目名そのまま（result_label等）は出さない
+  const rl=trimDot(h.result_label||'');
+  const emph=((s.multi&&s.multi['強調'])||[]).map(x=>{const q=String(x).split(/[|｜]/);return{l:trimDot(q[0]||''),v:trimDot(q[1]||'')};})
+    .filter(e=>(e.l||e.v)&&!/株価|^[A-Za-z_]+$/.test(e.l)&&!(rl&&e.v===rl)).slice(0,2);
+  // カード幅に収まるよう、値の文字幅を測って文字サイズを決める（2枚なら1枚約410px、1枚なら約890px）
+  const EM_W=emph.length>1?400:880;
+  const emphHtml=emph.length?`<div class="e1-emph">${emph.map(e=>`<div class="e1-em"><div class="e1-el">${esc(e.l)}</div><div class="e1-ev ${evSignCls(e.v)}" style="font-size:${Math.max(34,Math.min(70,Math.floor(EM_W/(thumbTextEm(e.v,900)||1))))}px;">${esc(e.v)}</div></div>`).join('')}</div>`:'';
   const price=evNum(mr.post_price)||evNum(mr.pre_price);
   return `<div class="vslide"><div class="v-bar"></div>${vLogo()}
 <div class="v-wrap">
@@ -6773,11 +6781,11 @@ function buildE1(v,d,ctx){
 function buildE2(v,d){
   const s=v.E2||{pts:[]};const kh=d.KPI_HEADER||{};
   const kpis=[d.KPI_1,d.KPI_2,d.KPI_3].filter(Boolean);
-  const rows=kpis.map(k=>`<div class="e2-row"><div class="e2-l">${esc(k.display_label||'')}</div><div class="e2-v">${esc(addComma(evCompactYen(k.value)))}</div><div class="e2-y ${evSignCls(k.yoy)}">${esc(evNum(k.yoy))}</div></div>`).join('');
+  const rows=kpis.map(k=>{const r=evYoyOrJudge(k);return `<div class="e2-row"><div class="e2-l">${esc(k.display_label||'')}</div><div class="e2-v">${esc(addComma(evCompactYen(k.value)))}</div><div class="e2-y ${evSignCls(r)}"${thumbTextEm(r,700)>6?` style="font-size:${Math.max(24,Math.floor(236/thumbTextEm(r,700)))}px;"`:''}>${esc(r)}</div></div>`;}).join('');
   return `<div class="vslide"><div class="v-bar"></div>${vLogo()}
 <div class="v-wrap" style="gap:22px;">
   <div class="v-h">${esc(s['見出し']||'今回の実績')}</div>
-  <div class="e2-table">${rows}${kh.consensus_label&&kh.consensus_label!=='なし'?`<div class="e2-note">前年同期比は${esc(kh.consensus_label)}との比較</div>`:''}</div>
+  <div class="e2-table">${rows}${kh.consensus_label&&kh.consensus_label!=='なし'?`<div class="e2-note">右列の増減は${esc(kh.consensus_label)}との比較</div>`:''}</div>
   <div class="e2-why">なぜこの数字になったのか</div>
   <div class="v-pts" style="justify-content:flex-start;gap:26px;">${vPts(s.pts,'')}</div>
 </div>${vSig()}</div>`;
