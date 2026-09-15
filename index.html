@@ -7139,7 +7139,7 @@ function tabIoFileName(tab){
   const name=((document.getElementById(cfg.nameId)||{}).value||'').trim().replace(/[\\\/:*?"<>|\s]/g,'');
   const d=new Date(),p=n=>String(n).padStart(2,'0');
   const stamp=`${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
-  return `${cfg.label}_${code}${name?'_'+name:''}_${stamp}.json`;
+  return `${stamp}_${cfg.label}_${code}${name?'_'+name:''}.json`;
 }
 function exportTabData(tab){
   const cfg=TAB_IO[tab];if(!cfg)return;
