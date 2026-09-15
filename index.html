@@ -2005,6 +2005,8 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
             // 整形と同時に動画素材（サムネ・台本・縦スライド・投稿文）も作る（決算分析の動画セクションのチェックで切替）
             if ((document.getElementById('ev-auto') || {}).checked) { try { await geminiVideo('ev'); } catch (e) { console.warn('video gen', e); } }
             setGemStatus('gem-earn-status', `整形完了（${r.model || 'gemini'}${r.fellBack ? '・降格' : ''}${tokenNote(r.usage)}）`, 'ok');
+            // 処理の最後にタブ内容（裏データ含む）をJSONで書き出す（手動の📤エクスポートと同じ）
+            try { exportTabData('earnings'); } catch (e) { console.warn('export', e); }
         }
 
         // 個別銘柄タブ：Geminiで整形 → #sa-input-data に投入して描画
@@ -4750,6 +4752,8 @@ async function geminiArticle(btnEl){
   if(typeof saveState==='function')saveState();
   const missing=[!p.title&&'タイトル',!p.body&&'本文',!p.xpost&&'X投稿文',!p.sectool&&'証券管理データ'].filter(Boolean);
   setArtStatus(`生成完了（${r.model||'gemini'}${r.fellBack?'・降格':''}${saTokenNote(r.usage)}）${missing.length?' ※'+missing.join('・')+'は全文から確認':''}`,missing.length?'info':'ok');
+  // 処理の最後にタブ内容（裏データ含む）をJSONで書き出す（手動の📤エクスポートと同じ）
+  try{exportTabData('price');}catch(e){console.warn('export',e);}
 }
 
 // ============================================================
