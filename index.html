@@ -1265,6 +1265,27 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">ハッシュタグ</label><button class="btn-sm" onclick="copyText(document.getElementById('art-tags').value,this)">📋 コピー</button></div>
     <textarea id="art-tags" placeholder="生成後にハッシュタグが入ります" rows="2" style="height:46px;min-height:46px;"></textarea>
     <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:10px;">
+      <label style="font-size:11px;color:var(--text-sub);flex:none;">関連記事</label>
+      <select id="art-rel-sel" onchange="relOnPick()" style="flex:1;min-width:0;font-size:11px;padding:4px;"><option value="">（記事生成時に自動で選ばれます）</option></select>
+      <button class="btn-sm" onclick="relFetch(this)" style="flex:none;" title="noteの公開記事一覧を取り直します">🔄</button>
+    </div>
+    <input type="hidden" id="art-rel-url">
+    <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:4px;">
+      <input type="text" id="art-rel-intro" placeholder="紹介文（空なら挿入時にAIが1文書きます）" oninput="saveState()" style="flex:1;min-width:0;font-size:11px;">
+      <button class="btn-sm" onclick="relInsert(this)" style="flex:none;background:#0d9488;color:#fff;">📎 本文に挿入</button>
+    </div>
+    <div style="font-size:10px;color:var(--text-sub);margin-top:2px;">本文の末尾（ご注意画像の後）に「あわせて読みたい」＋紹介文＋URLを差し込みます。何度押しても差し替わります。noteでURL行の末尾にカーソルを置きEnterでカードになります</div>
+    <details style="margin-top:4px;"><summary style="font-size:10px;color:var(--text-sub);cursor:pointer;">関連記事の設定</summary>
+      <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:4px;">
+        <label style="font-size:11px;color:var(--text-sub);flex:none;">note ID</label>
+        <input type="text" id="note-id" value="sumikko_money" style="flex:1;min-width:0;font-size:11px;">
+        <label style="font-size:11px;color:var(--text-sub);flex:none;">直近</label>
+        <input type="number" id="art-rel-days" value="90" min="7" max="3650" style="width:56px;font-size:11px;">
+        <span style="font-size:11px;color:var(--text-sub);flex:none;">日・有料のみ</span>
+      </div>
+      <div id="art-rel-info" style="font-size:10px;color:var(--text-sub);margin-top:2px;"></div>
+    </details>
+    <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:10px;">
       <label style="font-size:11px;color:var(--text-sub);flex:none;">記事URL</label>
       <input type="text" id="art-url" placeholder="note記事のURL（公開後に貼り付け）" style="flex:1;min-width:0;font-size:11px;">
       <button class="btn-sm" onclick="pasteArtUrl()" style="flex:none;">📋 貼付け</button>
@@ -3441,7 +3462,7 @@ reason_4=`;
             'ta-report', 'ta-data', 'th-input',
             'gem-model', 'gem-months', 'gem-article-model',
             's6-axis-min', 's6-axis-max', 's6-axis-step',
-            'art-title', 'art-body', 'art-thumb', 'art-tags', 'art-x', 'art-yt', 'art-url', 'art-sec', 'art-raw', 'art-check',
+            'art-title', 'art-body', 'art-thumb', 'art-tags', 'art-x', 'art-yt', 'art-url', 'art-sec', 'art-raw', 'art-check', 'note-id', 'art-rel-days', 'art-rel-url', 'art-rel-intro',
         ];
         const PERSIST_RADIO_NAMES = ['sa-market', 'sa-compare-mode', 'mkt', 'dir'];
 
@@ -4734,6 +4755,177 @@ async function pasteArtUrl(){
 }
 
 // ============================================================
+// 関連記事リンク（あわせて読みたい）
+// ・note の公開API（/api/note-articles 経由）で自分の有料記事一覧を取る
+// ・今回の記事のハッシュタグ・証券コードとの近さで1本を自動で選ぶ（一覧から手動変更可）
+// ・紹介文を1文だけ AI（Lite）に書かせ、本文の末尾に差し込む
+// ・note のエディタで URL 行の末尾に Enter を押すとカードになる（^7201 の記法と同じ挙動）
+// ============================================================
+const REL_HEAD='## あわせて読みたい';
+const REL_CACHE_KEY='kt-note-articles';
+const REL_CACHE_HOURS=6;
+let _relList=[];
+const relVal=id=>((document.getElementById(id)||{}).value||'');
+function relSetInfo(msg){const el=document.getElementById('art-rel-info');if(el)el.textContent=msg||'';}
+// 「#6278」「#186A」のような証券コードのタグは、テーマの一致には数えない（別途コードで判定するため）
+const REL_CODE_RE=/^[0-9]{3,4}[A-Za-z]?$/;
+// どの記事にも付く汎用タグはテーマの一致に数えない（銘柄・業種・材料のタグだけで近さを測る）
+const REL_STOP_TAGS=['株価分析','株式投資','投資','株','日本株','米国株','投資初心者','資産運用','マネー','お金','note','決算','企業分析','株価'];
+function relMyTags(){
+  return relVal('art-tags').split(/[\s　]+/).map(t=>t.replace(/^#/,'').trim()).filter(Boolean);
+}
+function relCacheLoad(){
+  try{const j=JSON.parse(localStorage.getItem(REL_CACHE_KEY)||'null');
+    if(j&&Array.isArray(j.items)){_relList=j.items;return j;}}catch(e){}
+  return null;
+}
+function relCacheSave(items){
+  try{localStorage.setItem(REL_CACHE_KEY,JSON.stringify({at:Date.now(),items}));}catch(e){}
+}
+// 今回書いている記事そのものを候補から外す
+function relExcluded(it){
+  const myUrl=relVal('art-url').trim();
+  if(myUrl&&it.url===myUrl)return true;
+  const myTitle=relVal('art-title').trim();
+  if(myTitle&&(it.title||'').trim()===myTitle)return true;
+  const code=(typeof getTicker==='function'?getTicker():'')||'';
+  const d=(Date.now()-Date.parse(it.publishAt||0))/86400000;
+  // 同じ銘柄で直近14日以内＝今回公開したばかりの記事とみなす（過去の分析ならリンク先として有効）
+  if(code&&(it.tags||[]).some(t=>t===String(code))&&isFinite(d)&&d<14)return true;
+  return false;
+}
+function relScore(it){
+  const code=(typeof getTicker==='function'?getTicker():'')||'';
+  const tags=(it.tags||[]).map(t=>String(t).toLowerCase());
+  let s=0;
+  if(code&&tags.includes(String(code).toLowerCase()))s+=25;      // 同じ銘柄の過去記事
+  relMyTags().forEach(t=>{
+    if(REL_CODE_RE.test(t)||REL_STOP_TAGS.includes(t))return;
+    if(tags.includes(t.toLowerCase()))s+=10;                      // テーマ・業種タグの一致
+  });
+  const d=(Date.now()-Date.parse(it.publishAt||0))/86400000;
+  if(isFinite(d))s+=Math.max(0,9-Math.floor(d/10));               // 新しいものを優先
+  return s;
+}
+function relCandidates(){
+  return _relList.filter(it=>it&&it.url&&!relExcluded(it))
+    .map(it=>({it,sc:relScore(it)}))
+    .sort((a,b)=>b.sc-a.sc||String(b.it.publishAt).localeCompare(String(a.it.publishAt)))
+    .map(x=>x.it);
+}
+function relFillSelect(keep){
+  const sel=document.getElementById('art-rel-sel');if(!sel)return;
+  const want=keep||relVal('art-rel-url');
+  const list=relCandidates();
+  sel.innerHTML='<option value="">（選択なし）</option>'+list.map(it=>{
+    const d=(it.publishAt||'').slice(0,10);
+    return `<option value="${esc(it.url)}">${esc(d+'  '+(it.title||''))}</option>`;
+  }).join('');
+  if(want&&list.some(it=>it.url===want))sel.value=want;
+  return list;
+}
+function relOnPick(){
+  const sel=document.getElementById('art-rel-sel');
+  const u=document.getElementById('art-rel-url');
+  if(u)u.value=sel?sel.value:'';
+  const intro=document.getElementById('art-rel-intro');
+  if(intro)intro.value='';     // 選び直したら紹介文は作り直す
+  if(typeof saveState==='function')saveState();
+}
+async function relFetch(btn,silent){
+  const id=(relVal('note-id')||'sumikko_money').trim().replace(/^@/,'');
+  const days=parseInt(relVal('art-rel-days'),10)||90;
+  const o=btn?btn.textContent:'';
+  if(btn){btn.disabled=true;btn.textContent='…';}
+  relSetInfo('note の記事一覧を取得中…');
+  try{
+    const res=await fetch(`/api/note-articles?urlname=${encodeURIComponent(id)}&days=${days}&paid=1`);
+    const d=await res.json();
+    if(!res.ok||!d.ok)throw new Error((d&&d.error)||`HTTP ${res.status}`);
+    _relList=d.items||[];
+    relCacheSave(_relList);
+    relFillSelect();
+    relSetInfo(`${id} の有料記事 ${_relList.length}件（直近${days}日）を取得しました${d.truncated?'／古い分は打ち切り':''}`);
+    return true;
+  }catch(e){
+    relSetInfo('取得に失敗しました: '+((e&&e.message)||e));
+    if(!silent&&btn)alert('note の記事一覧を取得できませんでした\n\n'+((e&&e.message)||e));
+    return false;
+  }finally{ if(btn){btn.disabled=false;btn.textContent=o;} }
+}
+const REL_INTRO_PROMPT=`あなたは株価分析note記事の編集者です。いま書いた記事の末尾に、過去記事へのリンクを1本置きます。その紹介文を1文だけ書いてください。
+
+【条件】
+・40〜70文字の1文。体言止めにせず「〜です」「〜ています」で終える。
+・2つの記事の共通点（同じセクター、同じ材料、同じ下落/上昇の構図など）に触れ、続けて読みたくなる内容にする。
+・リンク先の記事タイトルをそのまま繰り返さない。銘柄名と証券コードは入れてよい。
+・読者に売買行動を促す表現（買う・売る・待つ・見送る・仕込む・利確・損切り等）は使わない。
+・読者に確認・監視・判断を求める表現（〜する必要があります・〜を注視する等）も使わない。
+・資料にない事実・数値を創作しない。タイトルとタグから読み取れる範囲で書く。
+
+【出力形式】紹介文の1文だけを出力する。前置き・見出し・記号・カギ括弧・コードブロックは付けない。`;
+async function relMakeIntro(item){
+  const resources=[
+    {label:'いま書いた記事',text:`タイトル: ${relVal('art-title')}\nハッシュタグ: ${relVal('art-tags')}`},
+    {label:'リンクする過去記事',text:`タイトル: ${item.title||''}\nハッシュタグ: ${(item.tags||[]).map(t=>'#'+t).join(' ')}\n公開日: ${(item.publishAt||'').slice(0,10)}`}
+  ];
+  // 1文を書くだけなので Lite 系（1日500回）で足りる。上位モデルの枠を使わない。
+  const r=await saCallGeminiAnalyze(REL_INTRO_PROMPT,resources,{cls:'low',temperature:0.6});
+  if(!r.ok)return'';
+  return String(r.text||'').replace(/```/g,'').split('\n').map(s=>s.trim()).filter(Boolean)[0]||'';
+}
+// 既に入っている「あわせて読みたい」ブロックを取り除く（何度差し替えても増えない）
+function relStrip(body){
+  const i=String(body||'').indexOf(REL_HEAD);
+  return (i<0?String(body||''):String(body).slice(0,i)).replace(/\s+$/,'');
+}
+async function relInsert(btn,silent){
+  const body=document.getElementById('art-body');
+  if(!body||!body.value.trim()){ if(!silent)alert('先に「記事・SNSを生成」を実行してください'); return{ok:false,msg:'関連記事: 本文なし'}; }
+  if(!_relList.length){ const c=relCacheLoad(); if(c)relFillSelect(); }
+  let url=relVal('art-rel-url')||relVal('art-rel-sel');
+  if(!url){
+    const list=relFillSelect();
+    if(!list||!list.length){ if(!silent)alert('関連記事の候補がありません。🔄 で一覧を取得してください'); return{ok:false,msg:'関連記事: 候補なし'}; }
+    url=list[0].url;
+    const sel=document.getElementById('art-rel-sel');if(sel)sel.value=url;
+    const u=document.getElementById('art-rel-url');if(u)u.value=url;
+  }
+  const item=_relList.find(it=>it.url===url);
+  if(!item){ if(!silent)alert('選んだ記事が一覧にありません。🔄 で取得し直してください'); return{ok:false,msg:'関連記事: 候補なし'}; }
+  const introEl=document.getElementById('art-rel-intro');
+  let intro=(introEl?introEl.value:'').trim();
+  const o=btn?btn.textContent:'';
+  if(!intro){
+    if(btn){btn.disabled=true;btn.textContent='作成中…';}
+    if(!silent)setArtStatus('関連記事の紹介文を作成中…','info');
+    intro=await relMakeIntro(item);
+    if(btn){btn.disabled=false;btn.textContent=o;}
+    if(!intro)intro=`${item.title||''} でも、同じ構図を分析しています。`;
+    if(introEl)introEl.value=intro;
+  }
+  body.value=relStrip(body.value)+`\n\n${REL_HEAD}\n\n${fixBoldBrackets(deJargonP0(intro))}\n\n${item.url}\n`;
+  if(typeof saveState==='function')saveState();
+  const msg=`関連記事: ${(item.title||'').slice(0,20)}… を挿入`;
+  if(!silent)setArtStatus(msg,'ok');
+  return{ok:true,msg};
+}
+// 記事生成の最後に自動で実行する。失敗しても記事はそのまま残す
+async function relAuto(){
+  try{
+    const c=relCacheLoad();
+    const stale=!c||!c.items||!c.items.length||(Date.now()-(c.at||0))>REL_CACHE_HOURS*3600000;
+    if(stale)await relFetch(null,true); else relFillSelect();
+    // 生成のたびに選び直す（前回の銘柄の関連記事が残らないように）
+    const sel=document.getElementById('art-rel-sel');if(sel)sel.value='';
+    const u=document.getElementById('art-rel-url');if(u)u.value='';
+    const introEl=document.getElementById('art-rel-intro');if(introEl)introEl.value='';
+    const r=await relInsert(null,true);
+    return r.msg||'';
+  }catch(e){ return '関連記事: 失敗（'+((e&&e.message)||e)+'）'; }
+}
+
+// ============================================================
 // 売買表現チェック：事実確認ではなく「読者に売買行動を推奨・指示する表現がないか」だけを見る。
 // ・JSの禁止語検知（単純一致。誤検知があるのでAIへの参考情報と、修正後の残存確認に使う）
 // ・AIには違反箇所だけを「原文→修正文」で返させ、ツールが完全一致で置換する（他の文は1文字も変えない）
@@ -4871,7 +5063,11 @@ async function geminiArticle(btnEl){
   if(btnEl){btnEl.disabled=true;btnEl.textContent='チェック中…';}
   const ck=await artComplianceCheck(null,true);
   if(btnEl){btnEl.disabled=false;btnEl.textContent=o;}
-  setArtStatus(genMsg+' ／ '+ck.summary,(missing.length||!ck.clean)?'info':'ok');
+  // 関連記事（あわせて読みたい）を本文の末尾に差し込む。失敗しても記事はそのまま残す
+  if(btnEl){btnEl.disabled=true;btnEl.textContent='関連記事…';}
+  const rel=await relAuto();
+  if(btnEl){btnEl.disabled=false;btnEl.textContent=o;}
+  setArtStatus(genMsg+' ／ '+ck.summary+(rel?' ／ '+rel:''),(missing.length||!ck.clean)?'info':'ok');
   // 処理の最後にタブ内容（裏データ含む）をJSONで書き出す（手動の📤エクスポートと同じ）
   try{exportTabData('price');}catch(e){console.warn('export',e);}
 }
@@ -7609,6 +7805,8 @@ async function downloadThumb(){
 
 // 初期プレビュー（フォントロード後）
 document.fonts.ready.then(()=>{if(document.getElementById('th-input').value.trim())renderThumbPreview();});
+// 関連記事の候補はキャッシュから復元する（リロードでセレクトが空にならないように）
+try{if(typeof relCacheLoad==='function'&&relCacheLoad())relFillSelect();}catch(e){}
     </script>
 <div class="sa">
 <div id="render-target" style="position:fixed;left:-9999px;top:0;pointer-events:none;"></div>
