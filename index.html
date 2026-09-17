@@ -1274,13 +1274,13 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
       <input type="text" id="art-rel-intro" placeholder="紹介文（空なら挿入時にAIが1文書きます）" oninput="saveState()" style="flex:1;min-width:0;font-size:11px;">
       <button class="btn-sm" onclick="relInsert(this)" style="flex:none;background:#0d9488;color:#fff;">📎 本文に挿入</button>
     </div>
-    <div style="font-size:10px;color:var(--text-sub);margin-top:2px;">本文の末尾（ご注意画像の後）に「あわせて読みたい」＋紹介文＋URLを差し込みます。何度押しても差し替わります。noteでURL行の末尾にカーソルを置きEnterでカードになります</div>
+    <div style="font-size:10px;color:var(--text-sub);margin-top:2px;">本文の末尾（ご注意画像の後）に「あわせて読みたい」＋紹介文＋URLを差し込みます。何度押しても差し替わります。⭐＝今回の記事との関連が強い候補。noteでURL行の末尾にカーソルを置きEnterでカードになります</div>
     <details style="margin-top:4px;"><summary style="font-size:10px;color:var(--text-sub);cursor:pointer;">関連記事の設定</summary>
       <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:4px;">
         <label style="font-size:11px;color:var(--text-sub);flex:none;">note ID</label>
         <input type="text" id="note-id" value="sumikko_money" style="flex:1;min-width:0;font-size:11px;">
         <label style="font-size:11px;color:var(--text-sub);flex:none;">直近</label>
-        <input type="number" id="art-rel-days" value="90" min="7" max="3650" style="width:56px;font-size:11px;">
+        <input type="number" id="art-rel-days" value="365" min="7" max="3650" style="width:56px;font-size:11px;">
         <span style="font-size:11px;color:var(--text-sub);flex:none;">日・有料のみ</span>
       </div>
       <div id="art-rel-info" style="font-size:10px;color:var(--text-sub);margin-top:2px;"></div>
@@ -4804,7 +4804,7 @@ function relScore(it){
     if(tags.includes(t.toLowerCase()))s+=10;                      // テーマ・業種タグの一致
   });
   const d=(Date.now()-Date.parse(it.publishAt||0))/86400000;
-  if(isFinite(d))s+=Math.max(0,9-Math.floor(d/10));               // 新しいものを優先
+  if(isFinite(d))s+=Math.max(0,12-Math.floor(d/30));              // 新しいものを優先（1年で0）
   return s;
 }
 function relCandidates(){
@@ -4816,10 +4816,13 @@ function relCandidates(){
 function relFillSelect(keep){
   const sel=document.getElementById('art-rel-sel');if(!sel)return;
   const want=keep||relVal('art-rel-url');
-  const list=relCandidates();
-  sel.innerHTML='<option value="">（選択なし）</option>'+list.map(it=>{
+  const list=relCandidates();                       // スコア順（自動選択はこの先頭）
+  const rec=new Set(list.slice(0,3).map(it=>it.url)); // おすすめ上位3件
+  // 一覧は探しやすさを優先して日付の降順で並べる
+  const byDate=list.slice().sort((a,b)=>String(b.publishAt).localeCompare(String(a.publishAt)));
+  sel.innerHTML='<option value="">（選択なし）</option>'+byDate.map(it=>{
     const d=(it.publishAt||'').slice(0,10);
-    return `<option value="${esc(it.url)}">${esc(d+'  '+(it.title||''))}</option>`;
+    return `<option value="${esc(it.url)}">${esc((rec.has(it.url)?'⭐ ':'　 ')+d+'  '+(it.title||''))}</option>`;
   }).join('');
   if(want&&list.some(it=>it.url===want))sel.value=want;
   return list;
@@ -4834,7 +4837,7 @@ function relOnPick(){
 }
 async function relFetch(btn,silent){
   const id=(relVal('note-id')||'sumikko_money').trim().replace(/^@/,'');
-  const days=parseInt(relVal('art-rel-days'),10)||90;
+  const days=parseInt(relVal('art-rel-days'),10)||365;
   const o=btn?btn.textContent:'';
   if(btn){btn.disabled=true;btn.textContent='…';}
   relSetInfo('note の記事一覧を取得中…');
@@ -7805,8 +7808,21 @@ async function downloadThumb(){
 
 // 初期プレビュー（フォントロード後）
 document.fonts.ready.then(()=>{if(document.getElementById('th-input').value.trim())renderThumbPreview();});
+// 関連記事：既定の対象期間を90日→365日に広げた分を、保存済みの設定にも1度だけ反映する。
+// 保存値の復元（window.onload 内の restoreState）より後に動かす必要があるため load で実行する。
+window.addEventListener('load',()=>{
+try{
+  if(!localStorage.getItem('kt-rel-days-365')){
+    const el=document.getElementById('art-rel-days');
+    if(el&&(el.value===''||el.value==='90'))el.value='365';
+    localStorage.removeItem('kt-note-articles');     // 旧期間のキャッシュは捨てて取り直す
+    localStorage.setItem('kt-rel-days-365','1');
+    if(typeof saveState==='function')saveState();
+  }
+}catch(e){}
 // 関連記事の候補はキャッシュから復元する（リロードでセレクトが空にならないように）
 try{if(typeof relCacheLoad==='function'&&relCacheLoad())relFillSelect();}catch(e){}
+});
     </script>
 <div class="sa">
 <div id="render-target" style="position:fixed;left:-9999px;top:0;pointer-events:none;"></div>

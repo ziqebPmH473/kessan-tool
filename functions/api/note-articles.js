@@ -7,8 +7,9 @@
 //   「指定期間より古い記事が出たら打ち切り」＋ページ数の上限で抑える
 // ============================================================
 
-const PAGE_MAX = 12;          // 1 回の呼び出しで取りに行くページ数の上限（1ページ6件）
-const DAYS_DEFAULT = 90;
+const PAGE_MAX = 26;          // 1 回の呼び出しで取りに行くページ数の上限（1ページ6件）
+                              // 全144本＝24ページでも subrequests は 24 で、無料プランの上限50に収まる
+const DAYS_DEFAULT = 365;
 
 function json(obj, status = 200) {
   return new Response(JSON.stringify(obj), {
