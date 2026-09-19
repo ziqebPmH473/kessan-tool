@@ -518,23 +518,30 @@
 .yt-s .yt7-note .s4-inote{font-size:20px;} .yt-s .yt7-note .s1-sw-item{font-size:20px;}
 /* ===== 横動画の音声カット一覧（右ペイン） ===== */
 #ya-list{border:1px solid var(--border);border-radius:6px;background:#fff;}
-.ya-ln{display:flex;gap:6px;padding:2px 8px;border-bottom:1px solid #f1f5f9;font-size:13px;align-items:center;color:#1f2937;line-height:1.45;}
+.ya-ln{display:flex;gap:5px;padding:2px 8px;border-bottom:1px solid #f1f5f9;font-size:13px;align-items:center;color:#1f2937;line-height:1.45;}
+.ya-ln.now{background:#fef9c3;}
 .ya-ln input[type=checkbox]{flex:none;margin:0;}
-.ya-no{flex:none;width:28px;color:#94a3b8;text-align:right;font-size:11px;} .ya-tc{flex:none;width:44px;color:#94a3b8;font-size:11px;}
+.ya-no{flex:none;width:26px;color:#94a3b8;text-align:right;font-size:11px;}
+.ya-tc{flex:none;width:44px;color:#64748b;font-size:11px;cursor:pointer;} .ya-tc:hover{color:#2563eb;text-decoration:underline;}
 .ya-sp{flex:none;width:12px;font-weight:700;font-size:12px;} .ya-sp.sp1{color:#2563eb;} .ya-sp.sp2{color:#db2777;}
+.ya-ctl{flex:none;width:236px;display:flex;flex-wrap:wrap;gap:2px 4px;align-items:center;font-size:10px;color:#64748b;white-space:nowrap;}
 .ya-tx{flex:1;min-width:0;} .ya-ln.cut .ya-tx{color:#94a3b8;text-decoration:line-through;} .ya-tx del{color:#dc2626;background:#fee2e2;}
-.ya-ctl{flex:none;display:flex;gap:4px;align-items:center;font-size:10px;color:#64748b;white-space:nowrap;}
 .ya-adj{display:inline-flex;align-items:center;gap:1px;}
-.ya-nd{padding:0 4px;font-size:10px;line-height:16px;border:1px solid #cbd5e1;background:#f1f5f9;border-radius:3px;cursor:pointer;}
-.ya-play{padding:0 6px;font-size:10px;line-height:16px;border:0;background:#2563eb;color:#fff;border-radius:3px;cursor:pointer;}
+.ya-nd{flex:none;padding:0 4px;font-size:10px;line-height:16px;border:1px solid #cbd5e1;background:#f1f5f9;border-radius:3px;cursor:pointer;}
 .ya-part{display:inline-flex;align-items:center;gap:2px;}
+.ya-go{flex:none;padding:0 6px;font-size:10px;line-height:16px;border:1px solid #93c5fd;background:#eff6ff;color:#1d4ed8;border-radius:3px;cursor:pointer;}
+.ya-go.on{background:#dc2626;color:#fff;border-color:#dc2626;}
+.ya-tag{color:#b45309;font-weight:700;border:1px solid #fcd34d;background:#fffbeb;border-radius:3px;padding:0 3px;} .ya-tag.must{color:#b91c1c;border-color:#fca5a5;background:#fef2f2;}
+.ya-warn{color:#b45309;font-weight:700;}
+.ya-pri{flex:none;display:inline-block;width:18px;text-align:center;border-radius:8px;background:#e2e8f0;font-size:10px;}
+.ya-head{position:sticky;top:0;z-index:3;background:#fff;padding:4px 0;display:flex;flex-direction:column;gap:4px;}
 #ya-selbtn{display:none;position:fixed;z-index:50;transform:translateX(-50%);padding:3px 10px;font-size:12px;font-weight:700;border:0;border-radius:4px;background:#dc2626;color:#fff;cursor:pointer;}
 .ya-go{padding:0 6px;font-size:10px;line-height:16px;border:1px solid #93c5fd;background:#eff6ff;color:#1d4ed8;border-radius:3px;cursor:pointer;}
 .ya-go.on,.ya-play.on{background:#dc2626;color:#fff;border-color:#dc2626;}
 .ya-tag{color:#b45309;font-weight:700;border:1px solid #fcd34d;background:#fffbeb;border-radius:3px;padding:0 3px;} .ya-tag.must{color:#b91c1c;border-color:#fca5a5;background:#fef2f2;}
 .ya-warn{color:#b45309;font-weight:700;}
 .ya-pri{flex:none;display:inline-block;width:18px;text-align:center;border-radius:8px;background:#e2e8f0;font-size:10px;}
-.ya-sec{background:#eff6ff;color:#1e3a8a;font-weight:700;font-size:12px;padding:3px 8px;border-bottom:1px solid #dbeafe;position:sticky;top:0;z-index:1;}
+.ya-sec{background:#eff6ff;color:#1e3a8a;font-weight:700;font-size:12px;padding:3px 8px;border-bottom:1px solid #dbeafe;}
 /* ===== VERTICAL SLIDES (1080×1920, SNS動画用) =====
    ナレーションの補助資料なので文字量は控えめ（見出し1つ＋「結論＋短い補足」×3）。
    テロップは入れない前提で、スマホ全画面で読める大きさにする。
@@ -1440,9 +1447,11 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
 
   <!-- 横動画の音声カット（NotebookLMの音声） -->
   <div id="ya-view" style="display:none;flex-direction:column;gap:6px;flex:1;overflow-y:auto;">
-    <div style="font-size:11px;color:var(--text-sub);">数字＝AIの点数（🔒＝流れに必須）。チェックで削る／戻す（理由はマウスを重ねると表示）。▶＝その文を前後つきで再生（削る文はつなぎ目。カットは飛ばす、もう一度押すと停止）。◀▶＝切り口を0.05秒ずつ調整、文の一部を削る＝その部分をドラッグで選んで「✂ 選んだ部分を削る」。<span class="ya-warn">⚠</span>＝切り口の近くに無音が無い。前後の秒数は「設定」タブ</div>
-    <div id="ya-sum" style="font-size:12px;">-</div>
-    <audio id="ya-edited" controls style="display:none;width:100%;height:34px;"></audio>
+    <div style="font-size:11px;color:var(--text-sub);">時刻＝カット後の時間（押すとそこから通しで再生。元の時刻はマウスを重ねると表示）。数字＝AIの点数（🔒＝流れに必須）。チェックで削る／戻す。▶＝その文を前後つきで再生（削る文はつなぎ目。カットは飛ばす）。◀▶＝切り口を0.05秒ずつ調整、文の一部を削る＝その部分をドラッグで選んで「✂ 選んだ部分を削る」。<span class="ya-warn">⚠</span>＝切り口の近くに無音が無い。前後の秒数は「設定」タブ</div>
+    <div id="ya-head" class="ya-head">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><span id="ya-sum" style="font-size:12px;">-</span><button class="btn-sm" onclick="yaPlayCut()" style="flex:none;background:#475569;color:#fff;">▶ 通しで聴く</button><span id="ya-player-stale" class="ya-warn" style="display:none;font-size:11px;">カットを変えました。「▶ 通しで聴く」で作り直せます</span></div>
+      <div id="ya-player" style="display:none;"><audio id="ya-edited" controls style="width:100%;height:34px;display:block;"></audio></div>
+    </div>
     <div id="ya-list"></div>
     <button id="ya-selbtn" onmousedown="event.preventDefault()" onclick="yaAddManualPart(+this.dataset.n)">✂ 選んだ部分を削る</button>
   </div>
@@ -8522,10 +8531,43 @@ function yaRenderCut(){
     const f=Math.min(Math.round(sr*0.01),L>>1);for(let i=0;i<f;i++){out[o+i]*=i/f;out[o+L-1-i]*=i/f;}o+=L;}
   return{samples:out,sampleRate:sr};
 }
-function yaPlayCut(){
-  if(!YA.buf){alert('音声が読み込まれていません');return;}
-  const r=yaRenderCut();const el=yaEl('edited');
-  vdFloatToWavBuf(r.samples,r.sampleRate).then(ab=>{el.src=URL.createObjectURL(new Blob([ab],{type:'audio/wav'}));el.style.display='';el.play().catch(()=>{});});
+// カット後の音声をプレーヤーに入れる（カットが変わっていなければ作り直さない）
+let _yaCutKey='';
+async function yaPrepareCut(){
+  if(!YA.buf){alert('音声が読み込まれていません');return false;}
+  const key=JSON.stringify(yaMerged());const el=yaEl('edited');
+  if(key===_yaCutKey&&el.src)return true;
+  const r=yaRenderCut();const ab=await vdFloatToWavBuf(r.samples,r.sampleRate);
+  if(el.src)URL.revokeObjectURL(el.src);
+  el.src=URL.createObjectURL(new Blob([ab],{type:'audio/wav'}));_yaCutKey=key;
+  yaEl('player').style.display='';yaRenderSum();
+  return true;
+}
+async function yaPlayCut(){
+  if(typeof setMode==='function'&&!document.getElementById('tab-ya')?.classList.contains('active'))setMode('ytaudio');
+  yaStop();if(!await yaPrepareCut())return;yaEl('edited').play().catch(()=>{});
+}
+// 一覧の時刻を押したら、カット後の音声のその位置から再生
+async function yaSeekEdited(sec){
+  yaStop();if(!await yaPrepareCut())return;const el=yaEl('edited');
+  const go=()=>{el.currentTime=Math.max(0,sec-0.2);el.play().catch(()=>{});};
+  if(el.readyState>=1)go();else el.addEventListener('loadedmetadata',go,{once:true});
+}
+// 一覧の枠を画面の高さに合わせ、枠の中だけでスクロールさせる（上部のプレーヤーを常に見えるように）
+function yaFitView(){const v=document.getElementById('ya-view');if(!v||v.style.display==='none')return;v.style.height=Math.max(300,window.innerHeight-v.getBoundingClientRect().top-12)+'px';v.style.flex='none';}
+window.addEventListener('resize',()=>yaFitView());
+// 再生中の文に色を付け、見えていなければ一覧を送る
+function yaTrackPlayback(){
+  const el=yaEl('edited');if(!el||el._yaTrack)return;el._yaTrack=1;
+  el.addEventListener('timeupdate',()=>{
+    if(_yaCutKey!==JSON.stringify(yaMerged()))return;   // カットを変えた後は古い音声なので追わない
+    const t=el.currentTime,rows=[...document.querySelectorAll('#ya-list .ya-ln')].filter(r=>r.dataset.es!=='');
+    let cur=null;for(const r of rows){if(+r.dataset.es<=t+0.05)cur=r;else break;}
+    document.querySelectorAll('#ya-list .ya-ln.now').forEach(r=>{if(r!==cur)r.classList.remove('now');});
+    if(cur&&!cur.classList.contains('now')){cur.classList.add('now');
+      const box=document.getElementById('ya-view'),hb=box.getBoundingClientRect(),rb=cur.getBoundingClientRect(),hh=(document.getElementById('ya-head')||{}).offsetHeight||0;
+      if(!el.paused&&(rb.top<hb.top+hh||rb.bottom>hb.bottom))box.scrollTop+=rb.top-hb.top-hh-60;}
+  });
 }
 async function yaDownloadCut(btn){
   if(!YA.buf){alert('音声が読み込まれていません');return;}
@@ -8553,25 +8595,28 @@ function yaRender(keepScroll){
   const by={};YA.cuts.forEach((c,i)=>{(by[c.n]=by[c.n]||[]).push(i);});
   const secStart={};YA.sections.forEach(x=>{secStart[x.from]=x;});
   if(!YA.sents.length){list.innerHTML=`<div style="font-size:12px;color:var(--text-sub);padding:10px;">${YA.mono?'「文字起こし」を押すと、ここに文の一覧が出ます':'左の「音声」タブで NotebookLM の音声を読み込んでください'}</div>`;yaRenderSum();return;}
-  // 1文を1行に：番号・時刻・話者・点数・チェック・文・（削る文だけ）切り口の調整と試聴・一部カット。理由などはマウスを重ねると出る
-  const adj=(k,c)=>`<span class="ya-adj"><button class="ya-nd" data-nd="${k},s,-1">◀</button>${yaTc(yaCS(c))}<button class="ya-nd" data-nd="${k},s,1">▶</button>〜<button class="ya-nd" data-nd="${k},e,-1">◀</button>${yaTc(yaCE(c))}<button class="ya-nd" data-nd="${k},e,1">▶</button></span><button class="ya-play" data-play="${k}" title="つなぎ目を再生（カットは飛ばす）">試聴</button>`;
+  // 1文を1行に。左から 番号・修正後の時刻・話者・点数・チェック・▶・✂・調整（幅を固定して、文の開始位置をそろえる）・文
+  // 時刻はカット後の時間（元の時刻はマウスを重ねると出る）。▶＝残す文はその文、削る文はつなぎ目を再生（カットは飛ばす）
+  const K=yaKeep();
+  const adj=(k,c)=>`<span class="ya-adj" title="切り口を0.05秒ずつ調整"><button class="ya-nd" data-nd="${k},s,-1">◀</button>${yaTc(yaCS(c))}<button class="ya-nd" data-nd="${k},s,1">▶</button>〜<button class="ya-nd" data-nd="${k},e,-1">◀</button>${yaTc(yaCE(c))}<button class="ya-nd" data-nd="${k},e,1">▶</button></span>`;
   list.innerHTML=YA.sents.map((s,i)=>{
     const n=i+1,ids=by[n]||[];let tx=esc(s.text),whole=false;
     ids.forEach(k=>{const c=YA.cuts[k];if(!c.on)return;if(!c.part)whole=true;else tx=tx.replace(esc(c.part),`<del>${esc(c.part)}</del>`);});
     const sc=YA.score&&YA.score[n],badge=`<span class="ya-pri" title="${sc?YA_SCORE_LABEL[sc]:'点数なし'}">${sc?(sc===5?'🔒':sc):''}</span>`;
     const mk=ids.find(k=>YA.cuts[k].kind!=='part');
     const mc=mk!=null?YA.cuts[mk]:null;
-    const tags=mc?`${mc.kind==='must'?'<span class="ya-tag must">必ず削る</span>':''}${mc.review?`<span class="ya-tag" title="${esc(mc.review)}">要確認</span>`:''}${mc.on&&!mc.quiet?'<span class="ya-warn" title="切り口の近くに無音が無い（要試聴）">⚠</span>':''}`:'';
+    const tags=mc?`${mc.kind==='must'?'<span class="ya-tag must">必ず削る</span>':''}${mc.review?`<span class="ya-tag" title="${esc(mc.review)}">要確認</span>`:''}${mc.on&&!mc.quiet?'<span class="ya-warn" title="切り口の近くに無音が無い（要確認）">⚠</span>':''}`:'';
     const box=mc?`<input type="checkbox" data-k="${mk}" ${mc.on?'checked':''} title="${esc(mc.reason||'')}">`:`<input type="checkbox" data-sent="${n}" title="削る">`;
     const parts=ids.filter(k=>YA.cuts[k].kind==='part').map(k=>{const c=YA.cuts[k];return `<label class="ya-part" title="${esc(c.reason||'')}"><input type="checkbox" data-k="${k}" ${c.on?'checked':''}>一部</label>${c.on?adj(k,c):''}`;}).join('');
+    const es=yaToEdit(s.s,K);
     const head=secStart[n]?`<div class="ya-sec">■ ${esc(secStart[n].title)}（${secStart[n].from}〜${secStart[n].to}）<span data-secsum="${n}"></span></div>`:'';
-    return `${head}<div class="ya-ln${whole?' cut':''}"><span class="ya-no">${n}</span><span class="ya-tc">${yaTc(s.s)}</span><span class="ya-sp sp${s.sp}">${s.sp?(s.sp===1?'A':'B'):''}</span>${badge}${box}<span class="ya-tx" data-n="${n}">${tx}</span><span class="ya-ctl">${tags}${mc&&mc.on?adj(mk,mc):''}${parts}<button class="ya-go" data-go="${n}" title="${whole?'つなぎ目を再生':'この文を再生'}（カットは飛ばす）">▶</button><button class="ya-nd" data-part="${n}" title="文の中で削りたい部分をドラッグして選んでから押す">✂</button></span></div>`;
+    return `${head}<div class="ya-ln${whole?' cut':''}" data-es="${whole?'':es.toFixed(2)}"><span class="ya-no">${n}</span><span class="ya-tc" data-seek="${es.toFixed(2)}" title="元の時刻 ${yaTc(s.s)}${whole?'':'（押すとカット後の音声をここから再生）'}">${whole?'—':yaTc(es)}</span><span class="ya-sp sp${s.sp}">${s.sp?(s.sp===1?'A':'B'):''}</span>${badge}${box}<button class="ya-go" data-go="${n}" title="${whole?'つなぎ目を再生':'この文を再生'}（カットは飛ばす。もう一度押すと停止）">▶</button><button class="ya-nd" data-part="${n}" title="文の中で削りたい部分をドラッグして選んでから押す">✂</button><span class="ya-ctl">${tags}${mc&&mc.on?adj(mk,mc):''}${parts}</span><span class="ya-tx" data-n="${n}">${tx}</span></div>`;
   }).join('');
   list.querySelectorAll('input[data-k]').forEach(el=>el.onchange=()=>{const c=YA.cuts[+el.dataset.k];c.on=el.checked;c.manual=true;c.manualOn=el.checked;yaSave();yaRender(true);});
   list.querySelectorAll('input[data-sent]').forEach(el=>el.onchange=()=>yaToggleSentence(+el.dataset.sent,el.checked));
   list.querySelectorAll('button[data-part]').forEach(el=>el.onclick=()=>yaAddManualPart(+el.dataset.part));
   list.querySelectorAll('button[data-nd]').forEach(el=>el.onclick=()=>{const [k,w,d]=el.dataset.nd.split(',');const c=YA.cuts[+k];if(w==='s')c.adjS=(c.adjS||0)+0.05*d;else c.adjE=(c.adjE||0)+0.05*d;yaSave();yaRender(true);yaStop();yaAudition(c);});
-  list.querySelectorAll('button[data-play]').forEach(el=>el.onclick=()=>yaAudition(YA.cuts[+el.dataset.play],el));
+  list.querySelectorAll('[data-seek]').forEach(el=>el.onclick=()=>{if(el.textContent!=='—')yaSeekEdited(+el.dataset.seek);});
   list.querySelectorAll('button[data-go]').forEach(el=>el.onclick=()=>{const n=+el.dataset.go,c=YA.cuts.find(x=>x.n===n&&x.kind!=='part'&&x.on);if(c)yaAudition(c,el);else yaPlaySentence(n,el);});
   YA.sections.forEach(x=>{
     let o=0,c=0;for(let n=x.from;n<=x.to&&n<=YA.sents.length;n++){const s=YA.sents[n-1];o+=Math.max(0,s.e-s.s);}
@@ -8582,7 +8627,9 @@ function yaRender(keepScroll){
   if(keepScroll)list.parentElement.scrollTop=y;
 }
 function yaRenderSum(){
+  yaTrackPlayback();
   const m=yaMerged(),cutSec=m.reduce((a,c)=>a+c.end-c.start,0);
+  const pl=yaEl('player-stale');if(pl)pl.style.display=_yaCutKey&&_yaCutKey!==JSON.stringify(m)?'':'none';
   const txt=YA.dur?`元 ${yaTc(YA.dur)} → カット後 <b>${yaTc(YA.dur-cutSec)}</b>（${m.length}か所・${yaTc(cutSec)}を削除）`+(YA.reach===false?' <span class="ya-warn">🔒以外をすべて削っても目標に届きません</span>':''):'';
   ['sum','sum2'].forEach(id=>{const el=yaEl(id);if(el)el.innerHTML=txt||'-';});
 }
@@ -8924,7 +8971,7 @@ function setMode(mode){
   if(isThumb)renderThumbPreview();
   if(isVideo)renderVideoPrev('vd');   // 非表示中に描くと幅0で崩れるため、表示後に描く
   if(isYt)renderYtPrev();
-  if(isYa)yaRender();
+  if(isYa){yaRender();yaFitView();}
 }
 
 // ============================================================
