@@ -6,7 +6,7 @@
 // ・リクエストは音声そのもの（body=バイナリ）。?lang=ja&model=… は任意
 // ============================================================
 
-const DEFAULT_MODEL = "whisper-large-v3-turbo";
+const DEFAULT_MODEL = "whisper-large-v3";   // turbo より語の時刻が正確（2026-09-20 実音声で比較）
 const ENDPOINT = "https://api.groq.com/openai/v1/audio/transcriptions";
 
 function json(obj, status = 200) {

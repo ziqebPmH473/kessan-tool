@@ -22,7 +22,7 @@
   .ln .no{flex:none;width:34px;color:#94a3b8;text-align:right;} .ln .tc{flex:none;width:52px;color:#94a3b8;}
   .ln .sp{flex:none;width:18px;font-weight:700;} .sp1{color:#2563eb;} .sp2{color:#db2777;}
   .ln .tx{flex:1;} .ln.cut .tx{color:#94a3b8;text-decoration:line-through;} del{color:#dc2626;background:#fee2e2;}
-  .ln .ctl{flex:none;display:flex;gap:6px;align-items:center;font-size:11px;color:#64748b;}
+  .ln .ctl{flex:none;display:flex;flex-direction:column;gap:3px;align-items:flex-end;font-size:11px;color:#64748b;} .ln .ctl span{white-space:nowrap;} button.nd{padding:0 5px;font-size:10px;}
   .warn{color:#b45309;font-weight:700;} .pri{display:inline-block;min-width:16px;text-align:center;border-radius:8px;background:#e2e8f0;padding:0 4px;}
 </style>
 </head>
@@ -37,6 +37,10 @@
     <button id="btn-tr" disabled>文字起こし</button>
     <span id="st-tr" class="st"></span>
   </div>
+  <div class="st" style="margin:6px 0 4px;"><b>文章の精度を上げる（推奨）</b>：Whisper は「ああ」「ええ」などを落とすので、正確な文章は Gemini（Web版）で起こし、ここで時刻と突き合わせます。<br>
+  ① <button id="btn-gcopy" class="sec" style="padding:2px 10px;">文字起こし用プロンプトをコピー</button> → https://gemini.google.com/ で、音声ファイルを添付してプロンプトを貼り、送信<br>
+  ② 返ってきた文字起こしを下に貼り、<button id="btn-galign" class="sec" style="padding:2px 10px;" disabled>時刻と突き合わせる</button> <span id="st-g"></span></div>
+  <textarea id="gtext" rows="4" placeholder="A: …&#10;B: …"></textarea>
 </div>
 
 <div class="box">
@@ -59,7 +63,7 @@
   </div>
   <audio id="edited" controls style="width:100%;height:34px;display:none;"></audio>
   <div id="list"></div>
-  <div class="st" style="margin-top:6px;">優先度：1=必ず削る（投資推奨など）／2=繰り返し・まとめの重複／3=間延び・前置き／4=長すぎる説明／5=単独の感嘆・受けの一言。<span class="warn">⚠</span>＝切り口に十分な無音が無い（要試聴）。</div>
+  <div class="st" style="margin-top:6px;">優先度：1=必ず削る（投資推奨など）／2=繰り返し・まとめの重複／3=間延び・前置き／4=長すぎる説明／5=単独の感嘆・受けの一言。<span class="warn">⚠</span>＝切り口の近くに無音が無く、声の立ち上がりに合わせられなかった（要試聴・要調整）。◀▶で0.05秒ずつ調整すると、調整後の位置で試聴します。</div>
 </div>
 
 <div class="box">
@@ -95,6 +99,7 @@ $('audio').onchange=async e=>{
     S.mono=(await off.startRendering()).getChannelData(0);
     const hop=Math.round(S.sr*HOP),n=Math.floor(S.mono.length/hop);S.env=new Float32Array(n);
     for(let i=0;i<n;i++){let a=0;for(let j=0;j<hop;j++){const x=S.mono[i*hop+j];a+=x*x;}S.env[i]=Math.sqrt(a/hop);}
+    calcSilence();
     $('st-tr').textContent=`読み込み完了（${tc(S.dur)}）`;$('btn-tr').disabled=false;
   }catch(err){$('st-tr').innerHTML=`<span class="err">読み込めませんでした: ${esc(err.message)}</span>`;}
 };
@@ -140,12 +145,68 @@ function loadTranscript(data){
     S.sents.push({text:t,nt,ci0:a,ci1:b,s:S.chars[a].s,e:S.chars[b].e,sp:0});
     pos=b+1;
   }
+  S.wchars=S.chars;
   labelSpeakers();
   S.cuts=[];render();
+  $('btn-galign').disabled=false;
+  if($('gtext').value.trim()){try{alignGemini($('gtext').value);}catch(e){}}
   ['btn-ai','btn-copy','btn-paste','btn-auto','btn-render','btn-svpz'].forEach(id=>$(id).disabled=false);
   $('st-tr').textContent=`✅ ${S.sents.length}文（${tc(S.dur)}）`;
 }
 window.loadTranscript=loadTranscript;
+
+const G_PROMPT=`添付の音声を、一字一句そのまま文字起こししてください。
+
+・話者は2人です。最初に話す人を A、もう一人を B とし、発言ごとに改行して行頭に「A: 」「B: 」を付けてください。
+・「ああ」「ええ」「うん」「はい」「なるほど」などの相槌・感嘆・言いよどみも、省略せずに聞こえたとおり書いてください。
+・相手の発言の途中に入った短い相槌も、その位置で1行として書いてください。
+・要約・言い換え・言い間違いの訂正はしないでください。数字は話したとおりに書いてください（算用数字で構いません）。
+・句読点を付けてください。
+・前置き・説明・見出しは不要です。文字起こしの本文だけを出力してください。`;
+$('btn-gcopy').onclick=async()=>{await navigator.clipboard.writeText(G_PROMPT);$('st-g').textContent='コピーしました';};
+$('btn-galign').onclick=()=>{try{alignGemini($('gtext').value);}catch(e){$('st-g').innerHTML=`<span class="err">${esc(e.message)}</span>`;}};
+
+// 正確な文章（Gemini）の各文字に、Whisper の文字の時刻を移す。
+// 両者の文字列を帯つきの最長共通部分列で対応づけ、対応しなかった文字（落ちたフィラー等）は前後の時刻で按分する。
+function alignGemini(text){
+  if(!S.wchars||!S.wchars.length)throw new Error('先に文字起こし（1.）を実行してください');
+  const labels=[],items=[];let cur='';
+  for(const raw of text.split(/\r?\n/)){
+    const line=raw.trim();if(!line)continue;
+    const m=line.match(/^(?:\*\*)?([^:：\s*]{1,8})(?:\*\*)?\s*[:：]\s*(.*)$/);
+    let body=line;if(m){cur=m[1];body=m[2];}
+    if(cur&&!labels.includes(cur))labels.push(cur);
+    for(const p of (body.match(/[^。？！?!]+[。？！?!]*/g)||[]))if(norm(p))items.push({text:p.trim(),sp:cur?labels.indexOf(cur)+1:0});
+  }
+  if(!items.length)throw new Error('文字起こしが空です');
+  const G=[];items.forEach((it,k)=>{it.nt=norm(it.text);it.g0=G.length;for(const ch of it.nt)G.push(ch);it.g1=G.length-1;});
+  const W=S.wchars,n=G.length,m=W.length,ratio=m/n,B=Math.max(300,Math.round(Math.abs(m-n)*1.2)+150),w=2*B+1;
+  const lo=i=>Math.max(0,Math.round(i*ratio)-B);
+  const dp=new Int32Array((n+1)*w).fill(-1);
+  const get=(i,j)=>{if(i===0||j===0)return 0;const k=j-lo(i);return k<0||k>=w||j>m?-1e9:dp[i*w+k];};
+  for(let i=1;i<=n;i++){const l=lo(i),h=Math.min(m,l+w-1);for(let j=Math.max(1,l);j<=h;j++){
+    let v=Math.max(get(i-1,j),get(i,j-1));if(G[i-1]===W[j-1].c)v=Math.max(v,get(i-1,j-1)+1);dp[i*w+j-l]=v;}}
+  const match=new Int32Array(n).fill(-1);let i=n,j=m,hit=0;
+  while(i>0&&j>0){
+    if(G[i-1]===W[j-1].c&&get(i,j)===get(i-1,j-1)+1){match[i-1]=j-1;hit++;i--;j--;}
+    else if(get(i-1,j)>=get(i,j-1))i--;else j--;
+  }
+  const chars=G.map(c=>({c,s:0,e:0}));let p=-1;
+  for(let k=0;k<=n;k++){
+    if(k<n&&match[k]<0)continue;
+    const tp=p<0?0:W[match[p]].e,tq=k<n?W[match[k]].s:S.dur,gap=k-p-1;
+    for(let q=p+1;q<k;q++){const f0=(q-p-1)/gap,f1=(q-p)/gap;chars[q].s=tp+(tq-tp)*f0;chars[q].e=tp+(tq-tp)*f1;}
+    if(k<n){chars[k].s=W[match[k]].s;chars[k].e=W[match[k]].e;}
+    p=k;
+  }
+  S.chars=chars;
+  S.sents=items.map(it=>({text:it.text,nt:it.nt,ci0:it.g0,ci1:it.g1,s:chars[it.g0].s,e:chars[it.g1].e,sp:it.sp}));
+  S.cuts=[];render();
+  const rate=Math.round(hit/n*100);
+  $('st-g').innerHTML=`✅ ${S.sents.length}文・話者 ${labels.join('/')||'なし'}・一致率 ${rate}%`+(rate<70?' <span class="warn">（低い：別の音声の文字起こしでないか確認）</span>':'');
+}
+window.alignGemini=alignGemini;
+
 
 // ---------- 話者の推定（声の高さで2つに分ける。AIなし） ----------
 function f0At(center){
@@ -166,21 +227,46 @@ function labelSpeakers(){
   const first=lab.find(x=>x);S.sents.forEach((s,i)=>{s.sp=!lab[i]?0:(lab[i]===first?1:2);});
 }
 
-// ---------- カットの時刻（切り口は近くの無音の谷に合わせる） ----------
-function snap(t){
-  const c=Math.round(t/HOP),r=15;let bi=c,bv=Infinity;
-  for(let i=Math.max(0,c-r);i<=Math.min(S.env.length-3,c+r);i++){const v=(S.env[i]+S.env[i+1]+S.env[i+2])/3;if(v<bv){bv=v;bi=i+1;}}
-  return{t:bi*HOP,quiet:bv<0.012};
+// ---------- カットの時刻（ナレスラの trCalcCutRange / snapToSoundOnset と同じ考え方） ----------
+// 削る範囲＝「削る部分の声の立ち上がり」〜「次に残す部分の声の立ち上がり」。語の終わりの時刻は使わない。
+//  → 前の発言の語尾・余韻・間はそのまま残り、削った発声の尻尾も残らない。
+// 立ち上がり＝近くの無音帯の終わり。無音＝10msの窓の全サンプルが「ピークの5%（0.02〜0.10）」未満。
+// ナレスラとの違い：60ms未満の途切れは無音帯とみなさない。Whisper の語の時刻が0.3秒前後ずれることがあるため、探索は前後0.50秒・許容0.40秒に広げた。
+function calcSilence(){
+  let peak=0;const step=Math.max(1,Math.floor(S.mono.length/5000));
+  for(let i=0;i<S.mono.length;i+=step)peak=Math.max(peak,Math.abs(S.mono[i]));
+  const thr=Math.min(0.10,Math.max(0.02,peak*0.05)),hop=Math.round(S.sr*HOP),n=Math.floor(S.mono.length/hop);
+  S.sil=new Uint8Array(n);
+  for(let i=0;i<n;i++){let m=0;for(let j=0;j<hop;j++){const x=Math.abs(S.mono[i*hop+j]);if(x>m)m=x;}S.sil[i]=m<thr?1:0;}
+}
+function findSilenceNear(t,radius){
+  // 60ms 未満の途切れ（語の途中の息継ぎ未満）は無音帯として扱わない
+  const c=Math.round(t/HOP),r=Math.round(radius/HOP),n=S.sil.length,minLen=6;
+  for(let d=0;d<=r;d++){
+    for(const i of d?[c-d,c+d]:[c]){
+      if(i<0||i>=n||!S.sil[i])continue;
+      let a=i,b=i;while(a>0&&S.sil[a-1])a--;while(b<n-1&&S.sil[b+1])b++;
+      if(b-a+1<minLen)continue;
+      return{s:a*HOP,e:(b+1)*HOP};
+    }
+  }
+  return null;
+}
+function snapOnset(t){
+  const g=findSilenceNear(t,0.50);
+  if(!g||t<g.s-0.40||t>g.e+0.40)return{t,ok:false};
+  return{t:g.e,ok:true};
 }
 function cutRange(c){
   const s=S.sents[c.n-1];if(!s)return null;
   let a=s.ci0,b=s.ci1;
   if(c.part){const np=norm(c.part),k=s.nt.indexOf(np);if(k<0||!np)return null;a=s.ci0+k;b=a+np.length-1;}
   const next=S.chars[b+1];
-  const st=snap(S.chars[a].s),en=snap(next?next.s:S.chars[b].e);
+  const st=snapOnset(S.chars[a].s),en=next?snapOnset(next.s):{t:S.dur,ok:true};
   if(en.t-st.t<0.05)return null;
-  return{start:st.t,end:en.t,quiet:st.quiet&&en.quiet};
+  return{start:st.t,end:en.t,quiet:st.ok&&en.ok,adjS:0,adjE:0};
 }
+const cStart=c=>c.start+c.adjS,cEnd=c=>c.end+c.adjE;
 function setCuts(list){
   S.cuts=[];
   for(const c of list){
@@ -195,14 +281,14 @@ function setCuts(list){
 function autoSelect(){
   const target=(+$('target').value||8)*60;let cur=S.dur;
   S.cuts.forEach(c=>c.on=false);
-  for(const c of [...S.cuts].sort((x,y)=>x.pri-y.pri||x.start-y.start)){
+  for(const c of [...S.cuts].sort((x,y)=>x.pri-y.pri||cStart(x)-cStart(y))){
     if(c.pri>1&&cur<=target)break;
-    c.on=true;cur-=c.end-c.start;
+    c.on=true;cur-=cEnd(c)-cStart(c);
   }
   render();
 }
 function mergedCuts(){
-  const a=S.cuts.filter(c=>c.on).map(c=>({start:c.start,end:c.end})).sort((x,y)=>x.start-y.start),out=[];
+  const a=S.cuts.filter(c=>c.on).map(c=>({start:cStart(c),end:cEnd(c)})).sort((x,y)=>x.start-y.start),out=[];
   for(const c of a){const l=out[out.length-1];if(l&&c.start<=l.end+0.02)l.end=Math.max(l.end,c.end);else out.push({...c});}
   return out;
 }
@@ -213,10 +299,11 @@ function render(){
   $('list').innerHTML=S.sents.map((s,i)=>{
     const ids=by[i+1]||[];let tx=esc(s.text),whole=false;
     ids.forEach(k=>{const c=S.cuts[k];if(!c.on)return;if(!c.part)whole=true;else tx=tx.replace(esc(c.part),`<del>${esc(c.part)}</del>`);});
-    const ctl=ids.map(k=>{const c=S.cuts[k];return `<label title="${esc(c.reason)}"><input type="checkbox" data-k="${k}" ${c.on?'checked':''}> <span class="pri">${c.pri}</span> ${esc(c.reason.slice(0,14))}${c.quiet?'':' <span class="warn">⚠</span>'}</label><button class="sec" data-play="${k}" style="padding:2px 8px;">▶</button>`;}).join('');
+    const ctl=ids.map(k=>{const c=S.cuts[k];return `<label title="${esc(c.reason)}"><input type="checkbox" data-k="${k}" ${c.on?'checked':''}> <span class="pri">${c.pri}</span> ${esc(c.reason.slice(0,14))}${c.quiet?'':' <span class="warn">⚠</span>'}</label><span title="切り始め・切り終わり（0.05秒ずつ調整）"><button class="sec nd" data-nd="${k},s,-1">◀</button>${tc(cStart(c))}<button class="sec nd" data-nd="${k},s,1">▶</button>〜<button class="sec nd" data-nd="${k},e,-1">◀</button>${tc(cEnd(c))}<button class="sec nd" data-nd="${k},e,1">▶</button></span><button data-play="${k}" style="padding:2px 8px;">試聴</button>`;}).join('');
     return `<div class="ln${whole?' cut':''}"><span class="no">${i+1}</span><span class="tc">${tc(s.s)}</span><span class="sp sp${s.sp}">${s.sp||''}</span><span class="tx">${tx}</span><span class="ctl">${ctl}</span></div>`;
   }).join('');
   $('list').querySelectorAll('input[data-k]').forEach(el=>el.onchange=()=>{S.cuts[+el.dataset.k].on=el.checked;render();});
+  $('list').querySelectorAll('button[data-nd]').forEach(el=>el.onclick=()=>{const [k,w,d]=el.dataset.nd.split(',');const c=S.cuts[+k];if(w==='s')c.adjS+=0.05*d;else c.adjE+=0.05*d;const y=$('list').scrollTop;render();$('list').scrollTop=y;audition(c);});
   $('list').querySelectorAll('button[data-play]').forEach(el=>el.onclick=()=>audition(S.cuts[+el.dataset.play]));
   const m=mergedCuts(),cutSec=m.reduce((a,c)=>a+c.end-c.start,0);
   $('sum').textContent=S.sents.length?`元 ${tc(S.dur)} → カット後 ${tc(S.dur-cutSec)}（${m.length}か所・${tc(cutSec)}を削除）`:'-';
@@ -227,9 +314,9 @@ let actx=null,playing=[];
 function audition(c){
   playing.forEach(p=>{try{p.stop();}catch(e){}});playing=[];
   actx=actx||new (window.AudioContext||window.webkitAudioContext)();
-  const pre=Math.min(3,c.start),t0=actx.currentTime+0.05;
-  const a=actx.createBufferSource();a.buffer=S.buf;a.connect(actx.destination);a.start(t0,c.start-pre,pre);
-  const b=actx.createBufferSource();b.buffer=S.buf;b.connect(actx.destination);b.start(t0+pre,c.end,3);
+  const cs=cStart(c),ce=cEnd(c),pre=Math.min(3,cs),t0=actx.currentTime+0.05;
+  const a=actx.createBufferSource();a.buffer=S.buf;a.connect(actx.destination);a.start(t0,cs-pre,pre);
+  const b=actx.createBufferSource();b.buffer=S.buf;b.connect(actx.destination);b.start(t0+pre,ce,3);
   playing=[a,b];
 }
 
@@ -238,7 +325,7 @@ $('btn-render').onclick=async()=>{
   const m=mergedCuts();let keep=[],p=0;
   for(const c of m){keep.push([p,c.start]);p=c.end;}keep.push([p,S.dur]);
   const len=keep.reduce((a,[s,e])=>a+Math.round((e-s)*S.sr),0),out=new Float32Array(len);let o=0;
-  for(const [s,e] of keep){const seg=S.mono.subarray(Math.round(s*S.sr),Math.round(s*S.sr)+Math.round((e-s)*S.sr));out.set(seg,o);o+=seg.length;}
+  for(const [s,e] of keep){const seg=S.mono.subarray(Math.round(s*S.sr),Math.round(s*S.sr)+Math.round((e-s)*S.sr));out.set(seg,o);const f=Math.min(160,seg.length>>1);for(let i=0;i<f;i++){out[o+i]*=i/f;out[o+seg.length-1-i]*=i/f;}o+=seg.length;}
   const ab=new ArrayBuffer(44+out.length*2),v=new DataView(ab),w=(q,str)=>{for(let i=0;i<str.length;i++)v.setUint8(q+i,str.charCodeAt(i));};
   w(0,'RIFF');v.setUint32(4,36+out.length*2,true);w(8,'WAVE');w(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,S.sr,true);v.setUint32(28,S.sr*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,'data');v.setUint32(40,out.length*2,true);
   for(let i=0,q=44;i<out.length;i++,q+=2){const x=Math.max(-1,Math.min(1,out[i]));v.setInt16(q,x<0?x*0x8000:x*0x7FFF,true);}
