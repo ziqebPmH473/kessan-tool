@@ -39,7 +39,7 @@
   </div>
   <div class="st" style="margin:6px 0 4px;"><b>文章の精度を上げる（推奨）</b>：Whisper は「ああ」「ええ」などを落とすので、正確な文章は Gemini（Web版）で起こし、ここで時刻と突き合わせます。<br>
   ① <button id="btn-gcopy" class="sec" style="padding:2px 10px;">文字起こし用プロンプトをコピー</button> → https://gemini.google.com/ で、音声ファイルを添付してプロンプトを貼り、送信<br>
-  ② 返ってきた文字起こしを下に貼り、<button id="btn-galign" class="sec" style="padding:2px 10px;" disabled>時刻と突き合わせる</button> <span id="st-g"></span></div>
+  ② 返ってきた文字起こしを <button id="btn-gpaste" class="sec" style="padding:2px 10px;">📋 貼り付け</button>（下の欄に直接貼っても可）→ <button id="btn-galign" class="sec" style="padding:2px 10px;" disabled>時刻と突き合わせる</button> <span id="st-g"></span></div>
   <textarea id="gtext" rows="4" placeholder="A: …&#10;B: …"></textarea>
 </div>
 
@@ -52,7 +52,7 @@
     <span id="st-ai" class="st"></span>
   </div>
   <textarea id="paste" rows="4" placeholder="コピーしたプロンプトを Gemini / ChatGPT に投げ、返ってきた JSON をここに貼って「貼った結果を反映」"></textarea>
-  <div class="row" style="margin-top:6px;"><button id="btn-paste" class="sec" disabled>貼った結果を反映</button></div>
+  <div class="row" style="margin-top:6px;"><button id="btn-ppaste" class="sec">📋 貼り付けて反映</button><button id="btn-paste" class="sec" disabled>貼った結果を反映</button></div>
 </div>
 
 <div class="box">
@@ -161,6 +161,13 @@ const G_PROMPT=`この音声を文字起こししてください。
 ・コードブロック1つの中に、文字起こしだけを出力する（前置き・説明・見出し・出典は不要）
 ・1行に1発言。行頭に話者を付ける（最初に話す人を「A: 」、もう一人を「B: 」）
 ・「ええ」「はい」などの短い相槌も省略せず、1行として書く`;
+// クリップボードから貼り付け（ブラウザの許可が必要。拒否されたら欄に直接貼ってもらう）
+async function pasteInto(id){
+  try{const s=await navigator.clipboard.readText();if(!s.trim()){alert('クリップボードが空です');return false;}$(id).value=s;return true;}
+  catch(e){alert('クリップボードを読めませんでした。欄に直接貼り付けてください（Ctrl+V）');return false;}
+}
+$('btn-gpaste').onclick=async()=>{if(await pasteInto('gtext')&&S.wchars&&S.wchars.length)$('btn-galign').click();};
+$('btn-ppaste').onclick=async()=>{if(await pasteInto('paste')&&S.sents.length)$('btn-paste').click();};
 $('btn-gcopy').onclick=async()=>{await navigator.clipboard.writeText(G_PROMPT);$('st-g').textContent='コピーしました';};
 $('btn-galign').onclick=()=>{try{alignGemini($('gtext').value);}catch(e){$('st-g').innerHTML=`<span class="err">${esc(e.message)}</span>`;}};
 
@@ -354,14 +361,15 @@ function autoSelect(){
   S.reach=cur<=target+1;
   render();
 }
-// 削った結果、相槌が続いた（「ええ」「ええ」）・同じ人の発言に相槌だけが残った箇所は、その相槌も削る
+// 削った結果、相槌が続いた箇所（「ええ」「ええ」）は後ろの相槌を削る。
+// 同じ人の発言の後に残った相槌（「はい。本当に〜」の「はい」等）は文脈上自然なことが多いので削らない。
 const BACKCHANNEL=/^(ええ|はい|うん|ああ|あ|あー|なるほど|そうですね|そうですよね|確かに|へえ|ほう|ですよね|そうなんです|その通りです)+$/;
 function dropRepeatedBackchannels(whole){
   let prev=null;
   S.sents.forEach((s,i)=>{
     const n=i+1;if(whole.has(n))return;
     const bc=s.nt.length<=10&&BACKCHANNEL.test(s.nt);
-    if(bc&&prev&&(prev.bc||(s.sp&&prev.sp===s.sp))){
+    if(bc&&prev&&prev.bc){
       const c=S.cuts.find(x=>x.n===n&&x.kind==='sent');
       if(c&&!c.manual){c.on=true;c.reason='削除後に続いた相槌';whole.add(n);return;}
     }
