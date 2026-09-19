@@ -7514,7 +7514,9 @@ YouTubeシリーズ「私が知らなかった実力株」の動画資料を作�
 ・URLとページは、実際に確認できたものだけを書く。確認できない場合は「要確認」と書く。
 
 ## 出力形式
-Markdownで、次の見出しをこの順番で出力する。前置き・感想・引用カードは不要。出力はそのままコピーして使う。
+Markdownで、次の見出しをこの順番で出力する。
+・出力全体をコードブロック1つ（\`\`\`markdown 〜 \`\`\`）に入れる。前置き・感想は不要。
+・出典は、本文の［出典1］と末尾の出典一覧だけに書く。リンクのカード・脚注・本文へのURLの貼り付けはしない。
 ## 企画
 - 仮タイトル案：3つ
 - 動画コンセプト：1〜2文
@@ -7680,13 +7682,15 @@ function ytCopy(kind,btn){
     const t=kind==='research'?'@iterative-fact-check-and-revise\n\n'+ytResearchPrompt()
       :kind==='fc'?ytFactCheckPrompt()
       :kind==='recheck'?'修正後内容が正しいか確認して'
-      :kind==='fix'?'指摘箇所を指示の内容に沿って修正し、全文出力してください。\nただし、指摘していない箇所は一切変更しないでください。'
+      :kind==='fix'?'指摘箇所を指示の内容に沿って修正し、全文出力してください。\nただし、指摘していない箇所は一切変更しないでください。\n出力は、最初と同じ見出し構成のMarkdownを、コードブロック1つ（```markdown 〜 ```）に入れてください。出典は本文の［出典n］と末尾の出典一覧だけに書き、リンクのカード・脚注・本文へのURLの貼り付けはしないでください。'
       :kind==='slide'?ytSlidePrompt():kind==='nlm'?ytNotebookPrompt():'';
     copyText(t,btn);ytStatus('');
   }catch(e){ytStatus('❌ '+e.message,'error');}
 }
 async function ytPaste(id,after){
-  try{const s=await navigator.clipboard.readText();if(!s.trim()){alert('クリップボードが空です');return;}ytEl(id).value=s;saveState();if(after)after();}
+  try{let s=await navigator.clipboard.readText();if(!s.trim()){alert('クリップボードが空です');return;}
+    s=s.trim().replace(/^```[^\n]*\n/,'').replace(/\n```\s*$/,'');   // コードブロックの囲みごと貼られた場合は外す
+    ytEl(id).value=s;saveState();if(after)after();}
   catch(e){alert('クリップボードを読めませんでした。欄に直接貼り付けてください（Ctrl+V）');}
 }
 function ytUpdateFreeInfo(){
