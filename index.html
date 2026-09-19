@@ -4259,7 +4259,7 @@ function switchPriceTab(t){
   if(vd) vd.style.display = t==='video' ? '' : 'none';
   // 動画タブでは右側のプレビューも縦スライドに切り替える（戻る時はスライドへ）
   if(typeof setMode==='function'){
-    if(t==='video')setMode(typeof ytOrient==='function'&&ytOrient()==='y'?'yt':'video');
+    if(t==='video'){setMode(typeof ytOrient==='function'&&ytOrient()==='y'?'yt':'video');if(typeof ytUpdateFreeInfo==='function')ytUpdateFreeInfo();}
     else if(document.getElementById('tab-video')?.classList.contains('active')||document.getElementById('tab-yt')?.classList.contains('active'))setMode('slides');
   }
 }
@@ -5366,7 +5366,7 @@ async function pasteClip(){
   catch(e){alert('クリップボードへのアクセスが拒否されました。手動で貼り付けてください。');}
 }
 async function pasteReport(){
-  try{const t=await navigator.clipboard.readText();document.getElementById('ta-report').value=t;}
+  try{const t=await navigator.clipboard.readText();document.getElementById('ta-report').value=t;if(typeof ytUpdateFreeInfo==='function')ytUpdateFreeInfo();}
   catch(e){alert('クリップボードへのアクセスが拒否されました。手動で貼り付けてください。');}
 }
 function copyReport(btn){
@@ -5374,7 +5374,7 @@ function copyReport(btn){
   if(!report){alert('レポートが入力されていません');return;}
   copyText(report,btn);
 }
-function clearReport(){document.getElementById('ta-report').value='';}
+function clearReport(){document.getElementById('ta-report').value='';if(typeof ytUpdateFreeInfo==='function')ytUpdateFreeInfo();}
 function clearData(){document.getElementById('ta-data').value='';document.getElementById('prev-area').innerHTML='';}
 function saOpenKabutan(){const c=getTicker(),m=getMkt();if(!c){alert('コードを入力してください');return;}window.open(m==='jp'?`https://kabutan.jp/stock/chart?code=${c}`:`https://us.kabutan.jp/stocks/${c}/chart`,'_blank');}
 function saOpenIR(){const n=getName()||getTicker();if(!n){alert('銘柄名またはコードを入力してください');return;}window.open(`https://www.google.com/search?q=${encodeURIComponent(n+' IR情報')}`,'_blank');}
@@ -7966,6 +7966,7 @@ function ytSetOrient(o){
   document.getElementById('vd-orient-y').style.display=o==='y'?'':'none';
   document.querySelectorAll('.vd-orient-btn').forEach(b=>b.classList.toggle('active',b.dataset.o===o));
   if(document.getElementById('sa-tab-video')?.style.display!=='none')setMode(o==='y'?'yt':'video');
+  if(o==='y')ytUpdateFreeInfo();
   saveState();
 }
 function ytOrientBar(){
@@ -8001,7 +8002,11 @@ function ytOrientBar(){
   ytRestoreFields();
   if(ytOrient()==='y')ytSetOrient('y');
   ytUpdateFreeInfo();
-  const tr=document.getElementById('ta-report');if(tr)tr.addEventListener('input',()=>ytUpdateFreeInfo());
+  // レポート欄は「📋 貼り付け」や読み込みでJSから値が入ると input イベントが出ないので、
+  // 横動画の調査欄が見えている間は中身の変化を見て「渡す範囲」の表示を更新する
+  const tr=document.getElementById('ta-report');
+  if(tr){tr.addEventListener('input',()=>ytUpdateFreeInfo());
+    let last=tr.value;setInterval(()=>{if(tr.value!==last&&ytEl('pane-research')?.offsetParent){last=tr.value;ytUpdateFreeInfo();}},1000);}
   window.addEventListener('resize',debouncedYtPrev);
 })();
 
