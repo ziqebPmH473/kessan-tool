@@ -23,7 +23,7 @@
   .ln .sp{flex:none;width:18px;font-weight:700;} .sp1{color:#2563eb;} .sp2{color:#db2777;}
   .ln .tx{flex:1;} .ln.cut .tx{color:#94a3b8;text-decoration:line-through;} del{color:#dc2626;background:#fee2e2;}
   .ln .ctl{flex:none;display:flex;flex-direction:column;gap:3px;align-items:flex-end;font-size:11px;color:#64748b;} .ln .ctl span{white-space:nowrap;} button.nd{padding:0 5px;font-size:10px;}
-  .warn{color:#b45309;font-weight:700;} .pri{display:inline-block;min-width:16px;text-align:center;border-radius:8px;background:#e2e8f0;padding:0 4px;}
+  .warn{color:#b45309;font-weight:700;} .sec-h{background:#eff6ff;color:#1e3a8a;font-weight:700;font-size:12px;padding:4px 8px;border-bottom:1px solid #dbeafe;} .pri{display:inline-block;min-width:16px;text-align:center;border-radius:8px;background:#e2e8f0;padding:0 4px;}
 </style>
 </head>
 <body>
@@ -58,12 +58,12 @@
 <div class="box">
   <h2>3. 確認と試聴</h2>
   <div class="row"><b id="sum">-</b>
-    <button id="btn-auto" class="sec" disabled>目標の長さまで優先度順に選び直す</button>
+    <button id="btn-auto" class="sec" disabled>目標の長さで選び直す</button><label class="st"><input type="checkbox" id="use-parts" checked> 文の一部だけのカットも使う</label>
     <button id="btn-render" class="sec" disabled>カット後の全体を再生用に作る</button>
   </div>
   <audio id="edited" controls style="width:100%;height:34px;display:none;"></audio>
   <div id="list"></div>
-  <div class="st" style="margin-top:6px;">優先度：1=必ず削る（投資推奨など）／2=繰り返し・まとめの重複／3=間延び・前置き／4=長すぎる説明／5=単独の感嘆・受けの一言。<span class="warn">⚠</span>＝切り口の近くに無音が無く、声の立ち上がりに合わせられなかった（要試聴・要調整）。◀▶で0.05秒ずつ調整すると、調整後の位置で試聴します。</div>
+  <div class="st" style="margin-top:6px;">点数：🔒=流れに必須（自動では削らない）／4=重要／3=補足／2=繰り返し・脇道／1=不要。点数の低い順に、同じ点数なら残っている割合が大きい章から、目標の長さまで削る。チェックで手動の切り替えも可。<span class="warn">⚠</span>＝切り口の近くに無音が無く、声の立ち上がりに合わせられなかった（要試聴・要調整）。◀▶で0.05秒ずつ調整すると、調整後の位置で試聴します。</div>
 </div>
 
 <div class="box">
@@ -267,24 +267,51 @@ function cutRange(c){
   return{start:st.t,end:en.t,quiet:st.ok&&en.ok,adjS:0,adjE:0};
 }
 const cStart=c=>c.start+c.adjS,cEnd=c=>c.end+c.adjE;
-function setCuts(list){
-  S.cuts=[];
-  for(const c of list){
-    const n=+c.n;if(!n)continue;
-    const cut={n,part:(c.part||c.text||'').trim(),reason:c.reason||'',pri:Math.min(5,Math.max(1,+c.pri||3)),on:false};
-    if(cut.part&&norm(cut.part)===S.sents[n-1]?.nt)cut.part='';
-    const r=cutRange(cut);if(!r)continue;
-    Object.assign(cut,r);S.cuts.push(cut);
-  }
+// ---------- 採点 → 目標の長さまで削る ----------
+// AI は「削る候補」ではなく全文に点数を付ける。ツールが点数の低い順に、目標の長さに届くまで削る。
+//  5＝流れに必須（削らない）／4＝重要な論点・根拠／3＝補足／2＝繰り返し・脇道／1＝不要
+//  must＝必ず削る（投資推奨など）／parts＝文の一部だけ削る（文頭の受けの一言など）
+// 同じ点数の中では、残っている割合が一番大きい章から削る（特定の章だけが痩せないように）。
+const SCORE_LABEL={1:'不要',2:'繰り返し・脇道',3:'補足',4:'重要',5:'流れに必須'};
+function applyPlan(plan){
+  S.sections=(plan.sections||[]).map(x=>({from:+x.from,to:+x.to,title:x.title||''})).filter(x=>x.from&&x.to);
+  const score={};for(const [n,v] of (plan.scores||[]))score[+n]=Math.min(5,Math.max(1,+v||3));
+  const must=new Map((plan.must||[]).map(x=>[+x.n,x.reason||'必ず削る']));
+  S.score=score;S.cuts=[];
+  const add=c=>{if(c.part&&norm(c.part)===S.sents[c.n-1]?.nt)c.part='';const r=cutRange(c);if(r)S.cuts.push(Object.assign(c,r));};
+  S.sents.forEach((s,i)=>{
+    const n=i+1,sc=score[n]||3;
+    if(must.has(n))add({n,part:'',kind:'must',score:0,reason:must.get(n),on:true});
+    else if(sc<5)add({n,part:'',kind:'sent',score:sc,reason:SCORE_LABEL[sc],on:false});
+  });
+  for(const x of (plan.parts||[]))if(+x.n&&(x.part||'').trim())add({n:+x.n,part:x.part.trim(),kind:'part',score:0,reason:x.reason||'文の一部',on:true});
   autoSelect();
+  const unscored=S.sents.length-Object.keys(score).length;
+  return unscored>0?`（点数なし ${unscored}文は3点扱い）`:'';
 }
+const cutLen=c=>Math.max(0,cEnd(c)-cStart(c));
 function autoSelect(){
-  const target=(+$('target').value||8)*60;let cur=S.dur;
-  S.cuts.forEach(c=>c.on=false);
-  for(const c of [...S.cuts].sort((x,y)=>x.pri-y.pri||cStart(x)-cStart(y))){
-    if(c.pri>1&&cur<=target)break;
-    c.on=true;cur-=cEnd(c)-cStart(c);
+  if(!S.cuts.length){render();return;}
+  const target=(+$('target').value||8)*60,useParts=$('use-parts').checked;
+  S.cuts.forEach(c=>{c.on=c.kind==='must'||(c.kind==='part'&&useParts);});
+  const whole=new Set(S.cuts.filter(c=>c.on&&c.kind==='must').map(c=>c.n));
+  const secs=(S.sections&&S.sections.length?S.sections:[{from:1,to:S.sents.length}]).map(x=>({...x,orig:0,cut:0}));
+  const si=n=>{const k=secs.findIndex(x=>n>=x.from&&n<=x.to);return k<0?0:k;};
+  S.sents.forEach((s,i)=>{secs[si(i+1)].orig+=Math.max(0,s.e-s.s);});
+  let cur=S.dur-mergedCuts().reduce((a,c)=>a+c.end-c.start,0);
+  S.cuts.filter(c=>c.on).forEach(c=>{secs[si(c.n)].cut+=cutLen(c);});
+  const pool=S.cuts.filter(c=>c.kind==='sent'&&!whole.has(c.n));
+  while(cur>target&&pool.length){
+    let best=-1,bs=0,br=0;
+    pool.forEach((c,k)=>{
+      const x=secs[si(c.n)],ratio=x.orig?(x.orig-x.cut)/x.orig:0;
+      if(best<0||c.score<bs||(c.score===bs&&ratio>br)){best=k;bs=c.score;br=ratio;}
+    });
+    const c=pool.splice(best,1)[0];c.on=true;whole.add(c.n);
+    S.cuts.forEach(x=>{if(x.kind==='part'&&x.n===c.n)x.on=false;});   // 丸ごと削る文の部分カットは不要
+    secs[si(c.n)].cut+=cutLen(c);cur-=cutLen(c);
   }
+  S.reach=cur<=target+1;
   render();
 }
 function mergedCuts(){
@@ -296,17 +323,30 @@ function mergedCuts(){
 // ---------- 表示 ----------
 function render(){
   const by={};S.cuts.forEach((c,i)=>{(by[c.n]=by[c.n]||[]).push(i);});
+  const secStart={};(S.sections||[]).forEach(x=>{secStart[x.from]=x;});
   $('list').innerHTML=S.sents.map((s,i)=>{
-    const ids=by[i+1]||[];let tx=esc(s.text),whole=false;
+    const n=i+1,ids=by[n]||[];let tx=esc(s.text),whole=false;
     ids.forEach(k=>{const c=S.cuts[k];if(!c.on)return;if(!c.part)whole=true;else tx=tx.replace(esc(c.part),`<del>${esc(c.part)}</del>`);});
-    const ctl=ids.map(k=>{const c=S.cuts[k];return `<label title="${esc(c.reason)}"><input type="checkbox" data-k="${k}" ${c.on?'checked':''}> <span class="pri">${c.pri}</span> ${esc(c.reason.slice(0,14))}${c.quiet?'':' <span class="warn">⚠</span>'}</label><span title="切り始め・切り終わり（0.05秒ずつ調整）"><button class="sec nd" data-nd="${k},s,-1">◀</button>${tc(cStart(c))}<button class="sec nd" data-nd="${k},s,1">▶</button>〜<button class="sec nd" data-nd="${k},e,-1">◀</button>${tc(cEnd(c))}<button class="sec nd" data-nd="${k},e,1">▶</button></span><button data-play="${k}" style="padding:2px 8px;">試聴</button>`;}).join('');
-    return `<div class="ln${whole?' cut':''}"><span class="no">${i+1}</span><span class="tc">${tc(s.s)}</span><span class="sp sp${s.sp}">${s.sp||''}</span><span class="tx">${tx}</span><span class="ctl">${ctl}</span></div>`;
+    const sc=S.score&&S.score[n],badge=sc?`<span class="pri" title="${SCORE_LABEL[sc]}">${sc===5?'🔒':sc}</span>`:'';
+    const ctl=ids.map(k=>{
+      const c=S.cuts[k];
+      const lab=`<label title="${esc(c.reason)}"><input type="checkbox" data-k="${k}" ${c.on?'checked':''}> ${c.kind==='must'?'<span class="warn">必ず削る</span> ':''}${c.kind==='part'?'一部 ':''}${esc(c.reason.slice(0,14))}${c.quiet?'':' <span class="warn">⚠</span>'}</label>`;
+      if(!c.on)return lab;
+      return lab+`<span title="切り始め・切り終わり（0.05秒ずつ調整）"><button class="sec nd" data-nd="${k},s,-1">◀</button>${tc(cStart(c))}<button class="sec nd" data-nd="${k},s,1">▶</button>〜<button class="sec nd" data-nd="${k},e,-1">◀</button>${tc(cEnd(c))}<button class="sec nd" data-nd="${k},e,1">▶</button></span><button data-play="${k}" style="padding:2px 8px;">試聴</button>`;
+    }).join('');
+    const head=secStart[n]?`<div class="sec-h">■ ${esc(secStart[n].title)}（${secStart[n].from}〜${secStart[n].to}）<span id="sec-sum-${n}"></span></div>`:'';
+    return `${head}<div class="ln${whole?' cut':''}"><span class="no">${n}</span><span class="tc">${tc(s.s)}</span><span class="sp sp${s.sp}">${s.sp||''}</span>${badge}<span class="tx">${tx}</span><span class="ctl">${ctl}</span></div>`;
   }).join('');
-  $('list').querySelectorAll('input[data-k]').forEach(el=>el.onchange=()=>{S.cuts[+el.dataset.k].on=el.checked;render();});
+  $('list').querySelectorAll('input[data-k]').forEach(el=>el.onchange=()=>{const y=$('list').scrollTop;S.cuts[+el.dataset.k].on=el.checked;render();$('list').scrollTop=y;});
   $('list').querySelectorAll('button[data-nd]').forEach(el=>el.onclick=()=>{const [k,w,d]=el.dataset.nd.split(',');const c=S.cuts[+k];if(w==='s')c.adjS+=0.05*d;else c.adjE+=0.05*d;const y=$('list').scrollTop;render();$('list').scrollTop=y;audition(c);});
   $('list').querySelectorAll('button[data-play]').forEach(el=>el.onclick=()=>audition(S.cuts[+el.dataset.play]));
+  (S.sections||[]).forEach(x=>{
+    let o=0,c=0;for(let n=x.from;n<=x.to&&n<=S.sents.length;n++){const s=S.sents[n-1];o+=Math.max(0,s.e-s.s);}
+    S.cuts.filter(k=>k.on&&k.n>=x.from&&k.n<=x.to).forEach(k=>{c+=cutLen(k);});
+    const el=$('sec-sum-'+x.from);if(el)el.textContent=` 元 ${tc(o)} → ${tc(Math.max(0,o-c))}`;
+  });
   const m=mergedCuts(),cutSec=m.reduce((a,c)=>a+c.end-c.start,0);
-  $('sum').textContent=S.sents.length?`元 ${tc(S.dur)} → カット後 ${tc(S.dur-cutSec)}（${m.length}か所・${tc(cutSec)}を削除）`:'-';
+  $('sum').innerHTML=S.sents.length?`元 ${tc(S.dur)} → カット後 ${tc(S.dur-cutSec)}（${m.length}か所・${tc(cutSec)}を削除）`+(S.reach===false?' <span class="warn">🔒以外をすべて削っても目標に届きません</span>':''):'-';
 }
 
 // つなぎ目の試聴：カットの3秒前から再生し、カット部分を飛ばして3秒後まで
@@ -321,6 +361,7 @@ function audition(c){
 }
 
 $('btn-auto').onclick=autoSelect;
+$('use-parts').onchange=autoSelect;
 $('btn-render').onclick=async()=>{
   const m=mergedCuts();let keep=[],p=0;
   for(const c of m){keep.push([p,c.start]);p=c.end;}keep.push([p,S.dur]);
@@ -334,46 +375,58 @@ $('btn-render').onclick=async()=>{
 
 // ---------- AI判定 ----------
 function buildPrompt(){
-  const target=+$('target').value||8;
-  const lines=S.sents.map((s,i)=>`[${i+1}] ${tc(s.s)} ${s.sp?'話者'+s.sp:''} ${s.text}`).join('\n');
-  return `あなたは投資系YouTube動画の音声編集者です。2人の会話音声（全体 ${tc(S.dur)}）の文字起こしから、削る箇所を選んでください。目標は約${target}分です。
+  const target=+$('target').value||8,keep=Math.min(100,Math.round(target*60/S.dur*100));
+  const lines=S.sents.map((s,i)=>`[${i+1}] ${s.sp?(s.sp===1?'A':'B')+': ':''}${s.text}`).join('\n');
+  return `あなたは投資系YouTube動画の音声編集者です。2人の会話音声（全体 ${tc(S.dur)}）を約${target}分（元の約${keep}%）に編集します。
+削る文はツールが点数の低い順に選ぶので、あなたは全部の文に点数を付けてください。
 
-【削る対象と優先度 pri】
-1＝必ず削る：視聴者に売買行動を促す発言（買い時・売り時・買うべき・見送るべき等）、視聴者への行動要求（「〜する必要があります」等）、具体的な目標株価・買い水準の提示。
-2＝同じ内容の繰り返し、2回目以降のまとめ、すでに説明した内容の言い直し。
-3＝間延びした前置き、話題に入る前の長い導入、内容のないやり取り。
-4＝長すぎる説明のうち、削っても理解に支障がない部分（細かすぎる数字の羅列、脇道の話）。
-5＝単独の感嘆・相槌・受けの一言（「なるほど」「ええ、そうですね」「はい」等）が多すぎる箇所。全部は削らず、重要な場面のものは残す。
+【手順】
+1. まず全体を読み、話の流れ（導入→各話題→まとめ）を章に分ける。
+2. 約${target}分の完成版として何を残すべきかを決めてから、各文に点数を付ける。
 
-【ルール】
-・文を丸ごと削るときは part を空にする。文の一部だけ削るときは、削る文字列を原文どおり part に入れる（例：「そうですね、緩和的と言えます。」から「そうですね、」だけ削る）。
-・削った後も話がつながること。問いを削るなら、その答えも削るか、答えだけで意味が通るかを確認する。
-・同じ話者の発言が続くのは問題ない（合いの手を削って同じ話者が続いてよい）。
-・同じことを複数回言っている場合は、一番分かりやすい1回だけを残し、他を削る。
-・動画の流れ（導入→本題→結論）と、各話題の中心となる説明は残す。最後の締めの一文は残す。
-・目標の長さより多めに候補を出す（ツールが優先度順に採用する）。
-・文字起こしの誤字は無視する。内容の修正はしない。
+【点数（全文に付ける）】
+5＝流れに必須。削ると話がつながらない文。話題の切り替え、次の話題への問いかけ（「〜を見ていきましょう」「では〜はどうでしょう」等）、各話題の中心の答え・結論、冒頭のテーマ提示、最後の締め。
+4＝重要な論点、判断材料となる事実や数字。
+3＝補足説明、具体例、言い換えによる説明。
+2＝すでに話した内容の繰り返し、脇道、細かすぎる説明。
+1＝不要。間延びしたやり取り、内容のない相槌だけの文、2回目以降のまとめ。
+・5点は全体の長さの${Math.min(60,Math.max(20,keep-15))}%程度までに絞る（多すぎると目標の長さまで削れない）。
+・同じ内容を複数回話している場合は、一番分かりやすい1回を高く、他を低くする。
+・問いとその答えは同じ点数にそろえる（問いだけ残って答えが消える、またはその逆にならないように）。
+・相槌や受けの一言でも、話の切り替えや強調として効いているものは高くしてよい。全部を1点にしない。
 
-【出力】JSON配列だけを出力。説明文やコードフェンスは不要。
-[{"n":文番号,"part":"一部だけ削るときの文字列。丸ごとなら空","reason":"理由を短く","pri":1〜5}]
+【must：点数と関係なく必ず削る文】
+視聴者に売買行動を促す発言（買い時・売り時・買うべき・見送るべき等）、視聴者への行動要求（「〜する必要があります」等）、具体的な目標株価・買い水準の提示。
+
+【parts：文の一部だけ削る】
+文頭の受けの一言や言いよどみ（「ええ、」「そうですね、」「あの、」等）で、残りの部分だけで自然につながるもの。削る文字列を原文どおりに入れる。
+例：「そうですね、緩和的と言えます。」→ part は「そうですね、」
+
+【出力】JSONだけを出力。説明文やコードフェンスは不要。
+{"sections":[{"from":開始の文番号,"to":終了の文番号,"title":"章の短い名前"}],
+ "scores":[[文番号,点数],…（全文）],
+ "must":[{"n":文番号,"reason":"理由"}],
+ "parts":[{"n":文番号,"part":"削る文字列","reason":"理由"}]}
 
 【文字起こし】
 ${lines}`;
 }
 function parseAi(text){
-  const m=text.match(/\[[\s\S]*\]/);if(!m)throw new Error('JSON配列が見つかりません');
-  return JSON.parse(m[0]);
+  const m=text.match(/\{[\s\S]*\}/);if(!m)throw new Error('JSONが見つかりません');
+  const o=JSON.parse(m[0]);if(!Array.isArray(o.scores))throw new Error('scores がありません');
+  return o;
 }
 $('btn-copy').onclick=async()=>{await navigator.clipboard.writeText(buildPrompt());$('st-ai').textContent='コピーしました';};
-$('btn-paste').onclick=()=>{try{setCuts(parseAi($('paste').value));$('st-ai').textContent=`✅ ${S.cuts.length}件の候補`;}catch(e){$('st-ai').innerHTML=`<span class="err">${esc(e.message)}</span>`;}};
+$('btn-paste').onclick=()=>{try{const w=applyPlan(parseAi($('paste').value));$('st-ai').textContent=`✅ ${S.sections.length}章・${Object.keys(S.score).length}文を採点${w}`;}catch(e){$('st-ai').innerHTML=`<span class="err">${esc(e.message)}</span>`;}};
 $('btn-ai').onclick=async()=>{
   $('btn-ai').disabled=true;$('st-ai').textContent='判定中…';
   try{
     const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:buildPrompt(),resources:[],files:[],temperature:0.1,
       models:['gemini-3.8-flash','gemini-3.7-flash','gemini-3.6-flash','gemini-3.5-flash']})});
     const data=await res.json();if(!data.ok)throw new Error(data.error||'不明なエラー');
-    setCuts(parseAi(data.text||''));
-    $('st-ai').textContent=`✅ ${S.cuts.length}件の候補（モデル: ${data.model||'?'}）`;
+    const w=applyPlan(parseAi(data.text||''));
+    const fb=data.fellBack&&data.failures?'・降格：'+data.failures.map(f=>f.model.replace('gemini-','')+' '+(f.status||'通信')+' '+f.sec+'秒').join(' / '):'';
+    $('st-ai').textContent=`✅ ${S.sections.length}章・${Object.keys(S.score).length}文を採点${w}（モデル: ${data.model||'?'}${fb}）`;
   }catch(e){$('st-ai').innerHTML=`<span class="err">❌ ${esc(e.message)}</span>`;}
   finally{$('btn-ai').disabled=false;}
 };
