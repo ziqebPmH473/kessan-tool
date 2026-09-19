@@ -63,7 +63,7 @@
   </div>
   <audio id="edited" controls style="width:100%;height:34px;display:none;"></audio>
   <div id="list"></div>
-  <div class="st" style="margin-top:6px;">点数：🔒=流れに必須（自動では削らない）／4=重要／3=補足／2=繰り返し・脇道／1=不要。点数の低い順に、同じ点数なら残っている割合が大きい章から、目標の長さまで削る。チェックで手動の切り替えも可。<span class="warn">⚠</span>＝切り口の近くに無音が無く、声の立ち上がりに合わせられなかった（要試聴・要調整）。◀▶で0.05秒ずつ調整すると、調整後の位置で試聴します。</div>
+  <div class="st" style="margin-top:6px;">点数：🔒=流れに必須（自動では削らない）／4=重要／3=補足／2=繰り返し・脇道／1=不要。点数の低い順に、同じ点数なら残っている割合が大きい章から、目標の長さまで削る。削った結果続いた相槌も削る。チェックで手動の切り替え（「選び直す」でも保持）、✂一部で文の一部を手動で削れる。要確認＝行動要求の言い回し（自動では削らない）。<span class="warn">⚠</span>＝切り口の近くに無音が無く、声の立ち上がりに合わせられなかった（要試聴・要調整）。◀▶で0.05秒ずつ調整すると、調整後の位置で試聴します。</div>
 </div>
 
 <div class="box">
@@ -155,14 +155,12 @@ function loadTranscript(data){
 }
 window.loadTranscript=loadTranscript;
 
-const G_PROMPT=`添付の音声を、一字一句そのまま文字起こししてください。
+const G_PROMPT=`この音声を文字起こししてください。
 
-・話者は2人です。最初に話す人を A、もう一人を B とし、発言ごとに改行して行頭に「A: 」「B: 」を付けてください。
-・「ああ」「ええ」「うん」「はい」「なるほど」などの相槌・感嘆・言いよどみも、省略せずに聞こえたとおり書いてください。
-・相手の発言の途中に入った短い相槌も、その位置で1行として書いてください。
-・要約・言い換え・言い間違いの訂正はしないでください。数字は話したとおりに書いてください（算用数字で構いません）。
-・句読点を付けてください。
-・前置き・説明・見出しは不要です。文字起こしの本文だけを出力してください。`;
+【出力形式】
+・コードブロック1つの中に、文字起こしだけを出力する（前置き・説明・見出し・出典は不要）
+・1行に1発言。行頭に話者を付ける（最初に話す人を「A: 」、もう一人を「B: 」）
+・「ええ」「はい」などの短い相槌も省略せず、1行として書く`;
 $('btn-gcopy').onclick=async()=>{await navigator.clipboard.writeText(G_PROMPT);$('st-g').textContent='コピーしました';};
 $('btn-galign').onclick=()=>{try{alignGemini($('gtext').value);}catch(e){$('st-g').innerHTML=`<span class="err">${esc(e.message)}</span>`;}};
 
@@ -172,7 +170,7 @@ function alignGemini(text){
   if(!S.wchars||!S.wchars.length)throw new Error('先に文字起こし（1.）を実行してください');
   const labels=[],items=[];let cur='';
   for(const raw of text.split(/\r?\n/)){
-    const line=raw.trim();if(!line)continue;
+    const line=raw.trim();if(!line||/^```/.test(line))continue;
     const m=line.match(/^(?:\*\*)?([^:：\s*]{1,8})(?:\*\*)?\s*[:：]\s*(.*)$/);
     let body=line;if(m){cur=m[1];body=m[2];}
     if(cur&&!labels.includes(cur))labels.push(cur);
@@ -200,10 +198,50 @@ function alignGemini(text){
     p=k;
   }
   S.chars=chars;
-  S.sents=items.map(it=>({text:it.text,nt:it.nt,ci0:it.g0,ci1:it.g1,s:chars[it.g0].s,e:chars[it.g1].e,sp:it.sp}));
+  S.sents=items.map(it=>{let h=0;for(let q=it.g0;q<=it.g1;q++)if(match[q]>=0)h++;return{text:it.text,nt:it.nt,ci0:it.g0,ci1:it.g1,s:chars[it.g0].s,e:chars[it.g1].e,sp:it.sp,hit:h};});
+  fixFillers(match);
   S.cuts=[];render();
   const rate=Math.round(hit/n*100);
   $('st-g').innerHTML=`✅ ${S.sents.length}文・話者 ${labels.join('/')||'なし'}・一致率 ${rate}%`+(rate<70?' <span class="warn">（低い：別の音声の文字起こしでないか確認）</span>':'');
+}
+// Whisper が聞き落とした短い相槌（「ええ」「はい」等）の位置を波形から補正する。
+// Whisper は落とした相槌の時間を次の文の最初の語に含めてしまう（例：「実」1文字に0.88秒）。
+// そのままだと次の文を削ると相槌まで消え、相槌を削ると無音を切ってしまう。
+//  A：次の文の最初の語の中に「短い発声 → 無音 → 声」があれば、短い発声を相槌、その後の立ち上がりを次の文の始まりにする
+//  B：そうでなければ、前の文の後〜次の文の前にある短い発声を相槌とみなす
+function nextSilence(t,limit){   // t 以降で最初に始まる60ms以上の無音帯
+  const n=S.sil.length;let i=Math.max(0,Math.round(t/HOP));const end=Math.min(n-1,Math.round((t+limit)/HOP));
+  while(i<=end){
+    if(S.sil[i]){let b=i;while(b<n-1&&S.sil[b+1])b++;if(b-i+1>=6)return{s:i*HOP,e:(b+1)*HOP};i=b+1;}else i++;
+  }
+  return null;
+}
+function fixFillers(match){
+  const setSpan=(s,a,b)=>{const L=s.ci1-s.ci0+1;for(let q=0;q<L;q++){const c=S.chars[s.ci0+q];c.s=a+(b-a)*q/L;c.e=a+(b-a)*(q+1)/L;}s.s=a;s.e=b;};
+  S.sents.forEach((F,k)=>{
+    if(F.hit>0||F.nt.length>8)return;
+    const N=S.sents[k+1],P=S.sents[k-1];if(!N)return;
+    let q=N.ci0;while(q<=N.ci1&&match[q]<0)q++;if(q>N.ci1)return;
+    const cN=S.chars[q];
+    // A：次の文の最初の語に吸収されている
+    const o1=snapOnset(cN.s);
+    if(o1.ok){
+      const g=nextSilence(o1.t,1.2);
+      if(g&&g.s-o1.t<=1.0&&g.e<=cN.e+0.25){
+        setSpan(F,o1.t,g.s);
+        for(let r=N.ci0;r<=q;r++){S.chars[r].s=g.e;if(S.chars[r].e<g.e)S.chars[r].e=g.e+0.05;}
+        N.s=g.e;F.fixed='A';return;
+      }
+    }
+    // B：前の文と次の文の間にある短い発声
+    if(P){
+      let pq=P.ci1;while(pq>=P.ci0&&match[pq]<0)pq--;
+      const from=pq>=P.ci0?S.chars[pq].s:P.s;
+      const g1=nextSilence(from,1.5);
+      if(g1){const g2=nextSilence(g1.e,1.0);
+        if(g2&&g2.s<=cN.s-0.05&&g2.s-g1.e<=1.0){setSpan(F,g1.e,g2.s);F.fixed='B';}}
+    }
+  });
 }
 window.alignGemini=alignGemini;
 
@@ -279,10 +317,11 @@ function applyPlan(plan){
   const must=new Map((plan.must||[]).map(x=>[+x.n,x.reason||'必ず削る']));
   S.score=score;S.cuts=[];
   const add=c=>{if(c.part&&norm(c.part)===S.sents[c.n-1]?.nt)c.part='';const r=cutRange(c);if(r)S.cuts.push(Object.assign(c,r));};
+  const review=new Map((plan.review||[]).map(x=>[+x.n,x.reason||'要確認']));
   S.sents.forEach((s,i)=>{
     const n=i+1,sc=score[n]||3;
     if(must.has(n))add({n,part:'',kind:'must',score:0,reason:must.get(n),on:true});
-    else if(sc<5)add({n,part:'',kind:'sent',score:sc,reason:SCORE_LABEL[sc],on:false});
+    else add({n,part:'',kind:'sent',score:sc,reason:SCORE_LABEL[sc],review:review.get(n)||'',on:false});   // 🔒も手動では削れる
   });
   for(const x of (plan.parts||[]))if(+x.n&&(x.part||'').trim())add({n:+x.n,part:x.part.trim(),kind:'part',score:0,reason:x.reason||'文の一部',on:true});
   autoSelect();
@@ -293,14 +332,14 @@ const cutLen=c=>Math.max(0,cEnd(c)-cStart(c));
 function autoSelect(){
   if(!S.cuts.length){render();return;}
   const target=(+$('target').value||8)*60,useParts=$('use-parts').checked;
-  S.cuts.forEach(c=>{c.on=c.kind==='must'||(c.kind==='part'&&useParts);});
-  const whole=new Set(S.cuts.filter(c=>c.on&&c.kind==='must').map(c=>c.n));
+  S.cuts.forEach(c=>{c.on=c.manual?c.manualOn:(c.kind==='must'||(c.kind==='part'&&useParts));if(c.reason==='削除後に続いた相槌')c.reason=SCORE_LABEL[c.score]||c.reason;});
+  const whole=new Set(S.cuts.filter(c=>c.on&&!c.part).map(c=>c.n));
   const secs=(S.sections&&S.sections.length?S.sections:[{from:1,to:S.sents.length}]).map(x=>({...x,orig:0,cut:0}));
   const si=n=>{const k=secs.findIndex(x=>n>=x.from&&n<=x.to);return k<0?0:k;};
   S.sents.forEach((s,i)=>{secs[si(i+1)].orig+=Math.max(0,s.e-s.s);});
   let cur=S.dur-mergedCuts().reduce((a,c)=>a+c.end-c.start,0);
   S.cuts.filter(c=>c.on).forEach(c=>{secs[si(c.n)].cut+=cutLen(c);});
-  const pool=S.cuts.filter(c=>c.kind==='sent'&&!whole.has(c.n));
+  const pool=S.cuts.filter(c=>c.kind==='sent'&&c.score<5&&!c.manual&&!whole.has(c.n));
   while(cur>target&&pool.length){
     let best=-1,bs=0,br=0;
     pool.forEach((c,k)=>{
@@ -311,8 +350,23 @@ function autoSelect(){
     S.cuts.forEach(x=>{if(x.kind==='part'&&x.n===c.n)x.on=false;});   // 丸ごと削る文の部分カットは不要
     secs[si(c.n)].cut+=cutLen(c);cur-=cutLen(c);
   }
+  dropRepeatedBackchannels(whole);
   S.reach=cur<=target+1;
   render();
+}
+// 削った結果、相槌が続いた（「ええ」「ええ」）・同じ人の発言に相槌だけが残った箇所は、その相槌も削る
+const BACKCHANNEL=/^(ええ|はい|うん|ああ|あ|あー|なるほど|そうですね|そうですよね|確かに|へえ|ほう|ですよね|そうなんです|その通りです)+$/;
+function dropRepeatedBackchannels(whole){
+  let prev=null;
+  S.sents.forEach((s,i)=>{
+    const n=i+1;if(whole.has(n))return;
+    const bc=s.nt.length<=10&&BACKCHANNEL.test(s.nt);
+    if(bc&&prev&&(prev.bc||(s.sp&&prev.sp===s.sp))){
+      const c=S.cuts.find(x=>x.n===n&&x.kind==='sent');
+      if(c&&!c.manual){c.on=true;c.reason='削除後に続いた相槌';whole.add(n);return;}
+    }
+    prev={bc,sp:s.sp};
+  });
 }
 function mergedCuts(){
   const a=S.cuts.filter(c=>c.on).map(c=>({start:cStart(c),end:cEnd(c)})).sort((x,y)=>x.start-y.start),out=[];
@@ -330,14 +384,16 @@ function render(){
     const sc=S.score&&S.score[n],badge=sc?`<span class="pri" title="${SCORE_LABEL[sc]}">${sc===5?'🔒':sc}</span>`:'';
     const ctl=ids.map(k=>{
       const c=S.cuts[k];
-      const lab=`<label title="${esc(c.reason)}"><input type="checkbox" data-k="${k}" ${c.on?'checked':''}> ${c.kind==='must'?'<span class="warn">必ず削る</span> ':''}${c.kind==='part'?'一部 ':''}${esc(c.reason.slice(0,14))}${c.quiet?'':' <span class="warn">⚠</span>'}</label>`;
+      const lab=`<label title="${esc(c.reason)}"><input type="checkbox" data-k="${k}" ${c.on?'checked':''}> ${c.kind==='must'?'<span class="warn">必ず削る</span> ':''}${c.kind==='part'?'一部 ':''}${c.review?'<span class="warn">要確認</span> ':''}${esc((c.review||c.reason).slice(0,14))}${c.quiet?'':' <span class="warn">⚠</span>'}</label>`;
       if(!c.on)return lab;
       return lab+`<span title="切り始め・切り終わり（0.05秒ずつ調整）"><button class="sec nd" data-nd="${k},s,-1">◀</button>${tc(cStart(c))}<button class="sec nd" data-nd="${k},s,1">▶</button>〜<button class="sec nd" data-nd="${k},e,-1">◀</button>${tc(cEnd(c))}<button class="sec nd" data-nd="${k},e,1">▶</button></span><button data-play="${k}" style="padding:2px 8px;">試聴</button>`;
     }).join('');
+    const partBtn=`<button class="sec nd" data-part="${n}" title="文の一部だけを削る（削る文字列を入力）">✂一部</button>`;
     const head=secStart[n]?`<div class="sec-h">■ ${esc(secStart[n].title)}（${secStart[n].from}〜${secStart[n].to}）<span id="sec-sum-${n}"></span></div>`:'';
-    return `${head}<div class="ln${whole?' cut':''}"><span class="no">${n}</span><span class="tc">${tc(s.s)}</span><span class="sp sp${s.sp}">${s.sp||''}</span>${badge}<span class="tx">${tx}</span><span class="ctl">${ctl}</span></div>`;
+    return `${head}<div class="ln${whole?' cut':''}"><span class="no">${n}</span><span class="tc">${tc(s.s)}</span><span class="sp sp${s.sp}">${s.sp||''}</span>${badge}<span class="tx">${tx}</span><span class="ctl">${ctl}${partBtn}</span></div>`;
   }).join('');
-  $('list').querySelectorAll('input[data-k]').forEach(el=>el.onchange=()=>{const y=$('list').scrollTop;S.cuts[+el.dataset.k].on=el.checked;render();$('list').scrollTop=y;});
+  $('list').querySelectorAll('input[data-k]').forEach(el=>el.onchange=()=>{const y=$('list').scrollTop;const c=S.cuts[+el.dataset.k];c.on=el.checked;c.manual=true;c.manualOn=el.checked;render();$('list').scrollTop=y;});
+  $('list').querySelectorAll('button[data-part]').forEach(el=>el.onclick=()=>addManualPart(+el.dataset.part));
   $('list').querySelectorAll('button[data-nd]').forEach(el=>el.onclick=()=>{const [k,w,d]=el.dataset.nd.split(',');const c=S.cuts[+k];if(w==='s')c.adjS+=0.05*d;else c.adjE+=0.05*d;const y=$('list').scrollTop;render();$('list').scrollTop=y;audition(c);});
   $('list').querySelectorAll('button[data-play]').forEach(el=>el.onclick=()=>audition(S.cuts[+el.dataset.play]));
   (S.sections||[]).forEach(x=>{
@@ -347,6 +403,15 @@ function render(){
   });
   const m=mergedCuts(),cutSec=m.reduce((a,c)=>a+c.end-c.start,0);
   $('sum').innerHTML=S.sents.length?`元 ${tc(S.dur)} → カット後 ${tc(S.dur-cutSec)}（${m.length}か所・${tc(cutSec)}を削除）`+(S.reach===false?' <span class="warn">🔒以外をすべて削っても目標に届きません</span>':''):'-';
+}
+
+// 手動で文の一部を削る
+function addManualPart(n){
+  const s=S.sents[n-1];const part=(prompt(`削る文字列を、文のとおりに入力してください\n\n${s.text}`)||'').trim();if(!part)return;
+  if(norm(s.text).indexOf(norm(part))<0){alert('文の中に見つかりません');return;}
+  const c={n,part,kind:'part',score:0,reason:'手動',on:true,manual:true,manualOn:true};
+  const r=cutRange(c);if(!r){alert('位置を計算できませんでした');return;}
+  S.cuts.push(Object.assign(c,r));const y=$('list').scrollTop;render();$('list').scrollTop=y;audition(c);
 }
 
 // つなぎ目の試聴：カットの3秒前から再生し、カット部分を飛ばして3秒後まで
@@ -396,16 +461,22 @@ function buildPrompt(){
 ・相槌や受けの一言でも、話の切り替えや強調として効いているものは高くしてよい。全部を1点にしない。
 
 【must：点数と関係なく必ず削る文】
-視聴者に売買行動を促す発言（買い時・売り時・買うべき・見送るべき等）、視聴者への行動要求（「〜する必要があります」等）、具体的な目標株価・買い水準の提示。
+特定の銘柄・業種について視聴者に売買を勧める発言（「今が買い時」「買うべき」「売るべき」等）と、目標株価・買い水準の提示だけ。
+・話題の切り替えや問いかけの文（「〜を整理しておきましょう」「〜は買いだと考えていいんでしょうか？」等）は must にしない。
+・見方や注目点の説明、「〜とは言い切れない」のような分析は must にしない。
+
+【review：要確認（自動では削らない）】
+視聴者への行動要求や断定的な指示の言い回し（「〜してはいけません」「〜すべきです」「〜する必要があります」等）。人が聞いて判断する。
 
 【parts：文の一部だけ削る】
 文頭の受けの一言や言いよどみ（「ええ、」「そうですね、」「あの、」等）で、残りの部分だけで自然につながるもの。削る文字列を原文どおりに入れる。
 例：「そうですね、緩和的と言えます。」→ part は「そうですね、」
 
-【出力】JSONだけを出力。説明文やコードフェンスは不要。
+【出力】JSONをコードブロック1つでそのまま出力する。出典・引用・注釈・説明は付けない（出力をそのままツールに貼るため）。
 {"sections":[{"from":開始の文番号,"to":終了の文番号,"title":"章の短い名前"}],
  "scores":[[文番号,点数],…（全文）],
  "must":[{"n":文番号,"reason":"理由"}],
+ "review":[{"n":文番号,"reason":"理由"}],
  "parts":[{"n":文番号,"part":"削る文字列","reason":"理由"}]}
 
 【文字起こし】
