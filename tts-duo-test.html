@@ -94,14 +94,16 @@ function parseTurns(){
   if(!turns.length)throw new Error('台本が空です');
   return turns;
 }
-// 目安文字数に達したら、次に話者が変わる位置で区切る（同じ話者の連続発言の途中では切らない）
+// 目安文字数に達したら、「話者2で終わり、次が話者1で始まる」位置で区切る。
+// 話者2から始まる回は、Gemini が声の割り当てを取り違える（話者2の発言が話者1の声になる）ため。
 function splitChunks(turns,target){
   if(!target)return[turns];
+  const first=$('n1').value.trim();
   const chunks=[];let cur=[],len=0;
   turns.forEach((t,i)=>{
     cur.push(t);len+=t.text.length;
     const next=turns[i+1];
-    if(next&&len>=target&&next.speaker!==t.speaker){chunks.push(cur);cur=[];len=0;}
+    if(next&&len>=target&&next.speaker===first&&t.speaker!==first){chunks.push(cur);cur=[];len=0;}
   });
   if(cur.length)chunks.push(cur);
   return chunks;
