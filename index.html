@@ -427,49 +427,95 @@
 .sl-sig{position:absolute;bottom:10px;right:28px;font-size:13px;color:#cbd5e1;font-weight:700;letter-spacing:.04em;}
 .sl-card{background:#fff;border:1px solid #e2e8f0;border-radius:8px;}
 
-/* ===== YouTube 横スライド（1920×1080、シリーズ「私が知らなかった実力株」） =====
-   各章は 2×2 の区画（848×477＝16:9）。ナレスラで区画へズームすると、区画が画面いっぱいに映る。
-   ズーム時は約2.26倍になるので、全体表示で小さめの文字でもズームすれば読める。
-   右上（x≥1400・y<90）はナレスラのコーナーテロップが重なるので空けておく。 */
-.yslide{width:1920px;height:1080px;overflow:hidden;position:relative;background:#f1f5f9;
-  font-family:'Noto Sans JP','Hiragino Sans','Yu Gothic','Meiryo',Arial,sans-serif;color:#0f172a;}
-.ys-bar{position:absolute;top:0;left:0;right:0;height:8px;background:linear-gradient(90deg,#1d4ed8,#0284c7);}
-.ys-head{position:absolute;left:75px;top:14px;height:72px;width:1300px;display:flex;align-items:center;gap:16px;}
-.ys-no{flex:none;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#1d4ed8,#0284c7);color:#fff;font-size:32px;font-weight:900;display:flex;align-items:center;justify-content:center;}
-.ys-cn{flex:none;font-size:40px;font-weight:900;color:#0b2a5b;letter-spacing:.01em;}
-.ys-title{flex:1;min-width:0;font-size:34px;font-weight:700;color:#475569;white-space:nowrap;overflow:hidden;padding-left:18px;border-left:3px solid #cbd5e1;}
-.ys-z{position:absolute;width:848px;height:477px;box-sizing:border-box;background:#fff;border:3px solid #dbeafe;border-radius:26px;
-  padding:26px 38px 20px;display:flex;flex-direction:column;overflow:hidden;}   /* box-shadow は html2canvas で内側が灰色に塗られるので使わない */
-.ys-z.ys-empty{background:transparent;border:3px dashed #e2e8f0;}
-.ys-zh{flex:none;display:flex;align-items:center;gap:14px;font-size:38px;font-weight:900;color:#0b3d91;line-height:1.25;}
-.ys-zn{flex:none;min-width:46px;height:46px;padding:0 12px;box-sizing:border-box;border-radius:12px;background:#1d4ed8;color:#fff;font-size:24px;font-weight:900;display:flex;align-items:center;justify-content:center;}
-.ys-zt{min-width:0;}
-.ys-big{flex:none;font-size:100px;font-weight:900;line-height:1.05;margin-top:12px;color:#1d4ed8;letter-spacing:-.02em;}
-.ys-big.red{color:#dc2626;} .ys-big.green{color:#059669;}
-.ys-bl{flex:none;font-size:28px;font-weight:700;color:#475569;margin-top:4px;}
-.ys-pts{margin-top:16px;display:flex;flex-direction:column;gap:10px;font-size:30px;line-height:1.45;min-height:0;}
-.ys-pt{display:flex;gap:14px;}
-.ys-pt:before{content:'';flex:none;width:14px;height:14px;border-radius:50%;background:#0284c7;margin-top:.55em;}
-.ys-src{flex:none;margin-top:auto;padding-top:8px;font-size:18px;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.ys-z.risk{border-color:#fed7aa;} .ys-z.risk .ys-zh{color:#c2410c;} .ys-z.risk .ys-zn{background:#ea580c;} .ys-z.risk .ys-pt:before{background:#ea580c;}
-.ys-z.note{background:linear-gradient(135deg,#eff6ff,#fff);border-color:#93c5fd;}
-.ys-note{display:flex;gap:24px;align-items:center;flex:1;min-height:0;}
-.ys-note .ys-pts{flex:1;font-size:28px;}
-.ys-qr{flex:none;width:218px;height:218px;background:#fff;padding:10px;border-radius:12px;border:2px solid #dbeafe;}
-.ys-chart{flex:1;min-height:0;margin-top:10px;position:relative;}
-.ys-chart canvas,.ys-cv-chart canvas{width:100%;height:100%;display:block;}
+/* ===== YouTube 横スライド（シリーズ「私が知らなかった実力株」） =====
+   土台は「スライド作成」タブの6枚（.slide 1280×720・s1〜s6 の部品）。1.5倍で画像化して 1920×1080。
+   話題ごとの大きなまとまり（data-zone）に分け、ナレスラでそのまとまりへズームする。右上はコーナーテロップ用に空ける。 */
+.yt-s .yt-wrap{padding:30px 56px 36px;height:720px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px;}
+.yt-s .yt-head{flex:none;width:900px;}
+.yt-s .yt-ch{font-size:16px;font-weight:700;color:#2563eb;letter-spacing:.04em;}
+.yt-s .yt-title{font-size:34px;font-weight:900;color:#0f172a;white-space:nowrap;overflow:hidden;line-height:1.3;}
+.yt-s .ye{color:#1d4ed8;font-weight:inherit;}
+.yt-s .yt-body{flex:1;min-height:0;display:flex;flex-direction:column;gap:12px;}
+.yt-s .yt-lbl{font-size:13px;font-weight:600;color:#94a3b8;letter-spacing:.06em;margin-bottom:6px;}
+.yt-s .yt-sub{font-size:14px;color:#94a3b8;margin-top:6px;}
+.yt-s .yt-nodata{display:flex;align-items:center;justify-content:center;height:100%;font-size:14px;color:#94a3b8;}
+/* ① */
+.yt-s .yt1-upper{display:flex;gap:12px;height:250px;flex:none;}
+.yt-s .yt1-price{width:250px;}
+.yt-s .yt1-price .s1-price{font-size:46px;} .yt-s .yt1-price .s1-change{font-size:28px;}
+.yt-s .yt1-metrics{width:300px;}
+.yt-s .yt1-metrics .s1-ml{font-size:15px;} .yt-s .yt1-metrics .s1-mv{font-size:20px;}
+.yt-s .yt1-lower{flex:1;min-height:0;display:flex;gap:12px;}
+.yt-s .yt1-lower .s1-factors-card{flex:1.5;min-height:0;}
+.yt-s .yt1-lower .yt-q{flex:1;min-height:0;}
+.yt-s .yt1-lower .s1-ftitle,.yt-s .yt1-lower .s1-sw-title{font-size:20px;}
+.yt-s .yt1-lower .s1-factor,.yt-s .yt-q .s1-sw-item{font-size:18px;line-height:1.55;margin-bottom:8px;}
+.yt-s .yt-q{background:#f8fafc;border-color:#e2e8f0;border-left-color:#64748b;}
+.yt-s .yt-q .s1-sw-title{color:#334155;} .yt-s .yt-q .s1-sw-bullet{color:#2563eb;}
+/* ② */
+.yt-s .yt2-head{flex:none;padding-bottom:10px;border-bottom:1px solid #e2e8f0;}
+.yt-s .yt2-desc{font-size:19px;color:#334155;margin-top:6px;line-height:1.5;}
+.yt-s .yt2-grid{flex:1;min-height:0;display:grid;grid-template-columns:1.35fr 1fr;gap:14px;}
+.yt-s .yt2-grid.nomix{grid-template-columns:1fr;}
+.yt-s .yt2-grid .s4-items{height:100%;min-height:0;}
+.yt-s .yt2-grid .s4-item{flex:1;display:flex;flex-direction:column;justify-content:center;min-height:0;overflow:hidden;}
+.yt-s .yt2-grid .s4-inote{font-size:17px;}
+.yt-s .yt-mix{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:14px 20px;display:flex;flex-direction:column;justify-content:center;gap:14px;min-height:0;overflow:hidden;}
+.yt-s .yt-mix .s4-item-head{margin-bottom:6px;}
+/* ③ */
+.yt-s .s2-scen-rows{min-height:0;}
+.yt-s .yt3-row{grid-template-columns:150px 300px 1fr;min-height:0;overflow:hidden;}
+.yt-s .yt3-h{font-size:20px;font-weight:700;color:#0f172a;line-height:1.4;}
+.yt-s .yt3-sum{flex:none;min-height:0;}
+.yt-s .yt3-sum .s1-factor{font-size:18px;}
+/* ④⑥ */
+.yt-s .yt4-grid{flex:1;min-height:0;display:grid;gap:12px;grid-auto-rows:1fr;}
+.yt-s .yt4-grid.n4{grid-template-columns:1fr 1fr;}
+.yt-s .yt4-grid .s4-item{display:flex;flex-direction:column;justify-content:center;overflow:hidden;min-height:0;}
+.yt-s .yt4-grid .s4-inote{font-size:17px;}
+.yt-s .yt4-grid .s4-dual-pos{font-size:16px;}
+.yt-s .yt-green{border-left-color:#059669;background:#f0fdf4;border-color:#bbf7d0;}
+.yt-s .yt-green .s4-iname{color:#065f46;}
+.yt-s .yt-num{font-size:30px;font-weight:900;color:#059669;white-space:nowrap;line-height:1;}
+.yt-s .yt-num small{font-size:14px;color:#475569;font-weight:600;margin-left:6px;}
+/* ⑤ */
+.yt-s .yt5-grid{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.yt-s .yt5-col{min-height:0;gap:10px;}
+.yt-s .yt5-col .s1-sw-title{font-size:22px;}
+.yt-s .yt5-item{background:rgba(255,255,255,.75);border-radius:6px;padding:10px 14px;flex:1;display:flex;flex-direction:column;justify-content:center;min-height:0;overflow:hidden;}
+.yt-s .yt5-h{font-size:19px;font-weight:700;color:#0f172a;display:flex;gap:8px;align-items:baseline;}
+.yt-s .yt5-t{font-size:16px;color:#334155;line-height:1.5;margin-top:4px;}
+/* ⑦ */
+.yt-s .s6-body{flex:1;}
+.yt-s .yt7-pt{flex-direction:row;align-items:center;justify-content:flex-start;gap:14px;}
+.yt-s .yt7-n{flex:none;width:34px;height:34px;border-radius:50%;background:#2563eb;color:#fff;font-weight:900;display:flex;align-items:center;justify-content:center;font-size:18px;}
+.yt-s .yt7-pt span:last-child{font-size:18px;color:#0f172a;line-height:1.5;}
+.yt-s .yt7-note{flex:1;min-height:0;gap:8px;position:relative;}
+.yt-s .yt7-note .s4-inote{font-size:17px;color:#1e3a5f;margin:0 0 6px;}
+.yt-s .yt7-note .s1-sw-item{font-size:17px;}
+.yt-s .yt7-qr{position:absolute;right:14px;bottom:14px;background:#fff;padding:6px;border-radius:6px;width:120px;height:120px;}
+.yt-s .yt7-qr img,.yt-s .yt7-qr canvas{width:120px !important;height:120px !important;}
 /* 表紙 */
-.ys-cover{background:linear-gradient(135deg,#0b1b33 0%,#0b2a5b 55%,#123e7c 100%);color:#fff;}
-.ys-cv-series{position:absolute;left:110px;top:120px;font-size:40px;font-weight:900;color:#0b1b33;background:#fbbf24;padding:10px 30px;border-radius:40px;letter-spacing:.06em;}
-.ys-cv-name{position:absolute;left:110px;top:230px;width:900px;font-size:120px;font-weight:900;line-height:1.1;letter-spacing:.01em;}
-.ys-cv-code{position:absolute;left:114px;top:500px;font-size:40px;font-weight:700;color:#93c5fd;}
-.ys-cv-catch{position:absolute;left:110px;top:590px;width:1000px;font-size:72px;font-weight:900;line-height:1.25;color:#fde68a;}
-.ys-cv-sub{position:absolute;left:112px;top:790px;width:1000px;font-size:38px;font-weight:700;color:#cbd5e1;line-height:1.4;}
-.ys-cv-badge{position:absolute;left:110px;top:900px;font-size:40px;font-weight:700;background:rgba(220,38,38,.18);border:3px solid #f87171;color:#fecaca;padding:12px 30px;border-radius:16px;}
-.ys-cv-badge b{font-size:56px;color:#fff;margin-left:8px;}
-.ys-cv-badge.up{background:rgba(5,150,105,.18);border-color:#34d399;color:#a7f3d0;}
-.ys-cv-chart{position:absolute;right:90px;top:250px;width:720px;height:520px;background:#fff;border-radius:24px;padding:24px;box-sizing:border-box;}
+.yt-s .yt-series{align-self:flex-start;background:#0f172a;color:#fbbf24;font-weight:900;font-size:20px;padding:6px 18px;border-radius:20px;letter-spacing:.06em;}
+.yt-s .yt-cv-name .s1-name{font-size:60px;}
+.yt-s .yt-cv-name .s1-code{font-size:20px;}
+.yt-s .yt-cv-catch{font-size:30px;font-weight:900;color:#1d4ed8;line-height:1.35;}
+.yt-s .yt-cv-row{flex:1;min-height:0;display:flex;gap:14px;}
+.yt-s .yt-cv-price{width:280px;}
+.yt-s .yt-cv-price .s1-price{font-size:52px;} .yt-s .yt-cv-price .s1-change{font-size:32px;}
 
+/* 文字の大きさ（余白が多かったので大きめに。あふれるときは ytFitText が縮める） */
+.yt-s .yt2-desc{font-size:21px;}
+.yt-s .yt2-grid .s4-iname{font-size:23px;} .yt-s .yt2-grid .s4-inote{font-size:19px;line-height:1.55;}
+.yt-s .yt-mix .s4-iname{font-size:20px;} .yt-s .yt-mix .s4-ivals{font-size:20px;} .yt-s .yt-mix .s4-gauge-bg{height:14px;border-radius:7px;} .yt-s .yt-mix .s4-gauge-fill{border-radius:7px;}
+.yt-s .yt3-row .s2-sr-name{font-size:21px;} .yt-s .yt3-h{font-size:23px;} .yt-s .yt3-row .s2-sr-cond{font-size:19px;line-height:1.55;}
+.yt-s .yt3-sum .s1-ftitle{font-size:20px;} .yt-s .yt3-sum .s1-factor{font-size:20px;}
+.yt-s .yt4-grid .s4-iname{font-size:25px;} .yt-s .yt4-grid .s4-inote{font-size:20px;line-height:1.55;}
+.yt-s .yt-num{font-size:40px;} .yt-s .yt-num small{font-size:16px;}
+.yt-s .yt4-grid .s4-ivals{font-size:19px;} .yt-s .yt4-grid .s4-dual-pos{font-size:19px;padding:6px 14px;}
+.yt-s .yt5-col .s1-sw-title{font-size:25px;} .yt-s .yt5-h{font-size:23px;} .yt-s .yt5-t{font-size:19px;line-height:1.55;}
+.yt-s .s6-clabel{font-size:22px;} .yt-s .yt7-pt span:last-child{font-size:22px;} .yt-s .yt7-n{width:40px;height:40px;font-size:21px;}
+.yt-s .yt7-note .s4-inote{font-size:20px;} .yt-s .yt7-note .s1-sw-item{font-size:20px;}
 /* ===== VERTICAL SLIDES (1080×1920, SNS動画用) =====
    ナレーションの補助資料なので文字量は控えめ（見出し1つ＋「結論＋短い補足」×3）。
    テロップは入れない前提で、スマホ全画面で読める大きさにする。
@@ -1368,7 +1414,7 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
 
   <!-- 横スライド（YouTube用）ビュー -->
   <div id="yt-view" style="display:none;flex-direction:column;gap:6px;flex:1;overflow-y:auto;">
-    <div style="font-size:11px;color:var(--text-sub);">横スライド 1920×1080 プレビュー（点線＝区画。クリックで個別ダウンロード）</div>
+    <div style="font-size:11px;color:var(--text-sub);">横スライド 1920×1080 プレビュー（クリックで個別ダウンロード）</div>
     <div class="prev-wrap" id="yt-prev-area" style="display:flex;flex-wrap:wrap;gap:10px;"></div>
   </div>
 
@@ -7432,10 +7478,8 @@ function earnPrevMode(m){
 // YouTube 横動画（株価分析・シリーズ「私が知らなかった実力株」）  接頭辞 yt
 // 設計：docs/design/2026-09-20_YouTube横動画.md
 // ・ChatGPT に渡すのはレポートの 1〜2章（無料範囲）だけ。3章以降（将来予測・シナリオ・リスク）は渡さない
-// ・スライドは 1920×1080。各章は 2×2 の区画（848×477＝16:9）で、ナレスラで区画へズームすると画面いっぱいになる
+// ・スライドは「スライド作成」タブの6枚を土台に組み直す（1280×720 で組み、1.5倍で 1920×1080 に画像化）
 // ============================================================
-const YS_W=1920,YS_H=1080,YS_ZW=848,YS_ZH=477;
-const YS_ZONES=[[75,96],[997,96],[75,591],[997,591]];   // 左上・右上・左下・右下
 const YT_CHAPTERS=[
   {no:1,name:'なぜ今この銘柄？',tags:['下落','チャート','背景','問い']},
   {no:2,name:'そもそも何の会社？',tags:['事業','製品','顧客','売上']},
@@ -7561,35 +7605,37 @@ ${doc}`;
 function ytSlidePrompt(){
   const up=getDir()==='up';
   const doc=ytVal('doc');if(!doc)throw new Error('先にChatGPTの動画資料（ファクトチェック済み）を貼り付けてください');
-  return `以下の動画資料をもとに、スライド用のデータを作ってください。
+  const D=up?'上昇':'下落';
+  return `以下の動画資料をもとに、YouTube動画のスライドに載せる文言を作ってください。
 
-【スライドの前提】
-・横長スライド8枚（表紙＋第1〜7章）。各章のスライドは画面を4つの区画（2×2）に分け、区画ごとにズームして説明する。区画1つ＝話題1つ。
-・区画の順番：①左上 → ②右上 → ③左下 → ④右下。話す順番と同じにする。
-・情報量は多めでよい（ズームして見せるため）。1区画は「見出し＋要点4つまで」。要点は1つ40字以内の言い切りにする。
-・数字は資料にあるものだけを使う。株価の水準・株価シナリオ・確率・割安水準・売買を促す表現は書かない。
+【前提】
+・スライドは表紙＋第1〜7章の8枚。ナレーションに合わせて、スライドの一部（カード1枚・行1本など）にズームして説明する。
+・動画資料にある事実と数字だけを使う。出典の表記・番号・URLは書かない（別で差し込むため）。
+・株価の水準・株価シナリオ・確率・割安水準・売買を促す表現・視聴者への行動要求は書かない。
+・強調したい語は **語** で囲む（1項目に1か所まで）。
+・字数は目安を守る（スライドに収めるため）。
 
-【章ごとの区画】
-第1章：①${up?'上昇':'下落'}の大きさ（big に${up?'上昇':'下落'}率） ②株価チャート（ツールが描くので head だけ） ③${up?'上昇':'下落'}の背景 ④この動画で調べること（問いかけ）
-第2章：①何をしている会社か ②主要製品・サービス ③主な顧客・市場 ④売上構成（big に主力事業の売上比率など）
-第3章：①〜③${up?'上昇':'下落'}の要因（1区画に1つ） ④整理（${up?'業績の改善／期待の高まり／評価の見直し':'業績の悪化／期待の剥落／評価の修正'}のどれにあたるか）
-第4章：強みを2〜4個（1区画に1つ。余った区画は head を空にする）
-第5章：左側（①③）＝強み、右側（②④）＝その強みが崩れる条件（事業のリスク）
-第6章：確認する指標を4つ（3つなら④の head を空にする）
-第7章：①〜③まとめ ④は空（ツールがnoteへの案内を入れる）
+【章ごとに書く項目】
+第1章 なぜ今この銘柄？：items＝${D}の背景を3つ（head 12字以内／text 40字以内）。questions＝この動画で確かめること3つ（各25字以内）
+第2章 そもそも何の会社？：desc＝何をしている会社かを1〜2文（70字以内）。items＝主要製品・主な顧客・強い市場など3つ（head 10字以内／text 50字以内）。mix＝売上構成（事業名と比率%。資料に無ければ空）
+第3章 なぜ株価が${up?'上がった':'下がった'}？：items＝要因を3つ（tag は「${up?'業績の改善／期待の高まり／評価の見直し':'業績の悪化／期待の剥落／評価の修正'}」のどれか、head 16字以内、text 50字以内）。summary＝整理の1文（45字以内）
+第4章 この会社の強みは何？：items＝強みを3〜4つ（head 14字以内／num＝強みを示す数字や語（任意・8字以内）／numLabel＝その説明（任意・10字以内）／text 55字以内）
+第5章 その強みは本物なのか？：strong＝強い点を3つ、risk＝強みが崩れる条件（事業のリスク）を3つ（各 head 14字以内／text 45字以内）
+第6章 今後どこを見る？：items＝確認する事業の指標を3〜4つ（head 12字以内／now＝直近の値（任意・資料にある場合だけ）／why＝なぜ見るか 40字以内／sign＝強さが続いていると言える状態 30字以内）
+第7章 まとめ：points＝3〜4点（各40字以内）
 
-【出力】JSONをコードブロック1つでそのまま出力する。出典リンクのカード・注釈・説明文は付けない。
+【出力】JSONをコードブロック1つでそのまま出力する。注釈・説明文は付けない。
 {"title":"動画の仮タイトル",
- "cover":{"catch":"表紙のキャッチコピー（18字以内）","sub":"補足の一文（30字以内）"},
- "chapters":[
-  {"no":1,"corner":"右上に出すコーナー名（8字以内）","title":"スライドの見出し（24字以内）",
-   "zones":[
-    {"head":"区画の見出し（14字以内）","big":"大きく見せる数字や語（任意・8字以内）","bigLabel":"その説明（任意・22字以内）","points":["要点（40字以内・最大4つ）"],"src":出典番号の数字（無ければ null）},
-    …区画は必ず4つ
-   ]},
-  …第7章まで7つ
- ],
- "sources":[{"no":1,"name":"資料名","url":"URL","page":"ページ","where":"ページ内の位置","label":"表示用の出典表記"}]}
+ "cover":{"catch":"表紙のキャッチコピー（22字以内）"},
+ "slides":[
+  {"no":1,"corner":"右上に出すコーナー名（8字以内）","title":"スライドの見出し（22字以内）","items":[{"head":"","text":""}],"questions":[""]},
+  {"no":2,"corner":"","title":"","desc":"","items":[{"head":"","text":""}],"mix":[{"name":"","pct":60}]},
+  {"no":3,"corner":"","title":"","items":[{"tag":"","head":"","text":""}],"summary":""},
+  {"no":4,"corner":"","title":"","items":[{"head":"","num":"","numLabel":"","text":""}]},
+  {"no":5,"corner":"","title":"","strong":[{"head":"","text":""}],"risk":[{"head":"","text":""}]},
+  {"no":6,"corner":"","title":"","items":[{"head":"","now":"","why":"","sign":""}]},
+  {"no":7,"corner":"","title":"","points":[""]}
+ ]}
 
 --動画資料--
 ${doc}`;
@@ -7631,7 +7677,7 @@ IFRS：イファース
 ・音声の一番最後は、必ず「本日はここまでです」の１文で終えてください。
 ・１文の直後に2秒程度の無音の間を置いてから終了する（無音の指示自体は読み上げない）`;
 function ytNotebookPrompt(){
-  const up=getDir()==='up',name=getName()||'この会社',min=ytVal('nlm-min')||'12';
+  const up=getDir()==='up',name=getName()||'この会社',min=ytVal('nlm-min')||'8';
   const yomi=ytYomi();
   if(!yomi){ytEl('yomi')?.focus();throw new Error('銘柄名の読みがなを入れてください（NotebookLMは銘柄名を読み間違えやすいため必須）');}
   return `根拠資料をもとに、約${min}分のYouTube解説動画用の音声を作成してください。
@@ -7725,7 +7771,7 @@ function ytParseJson(text){
   const s=String(text||'');const a=s.indexOf('{'),b=s.lastIndexOf('}');
   if(a<0||b<a)throw new Error('JSONが見つかりません');
   let j;try{j=JSON.parse(s.slice(a,b+1));}catch(e){throw new Error('JSONの形式が崩れています：'+e.message);}
-  if(!Array.isArray(j.chapters))throw new Error('chapters がありません');
+  if(!Array.isArray(j.slides||j.chapters))throw new Error('slides がありません（⑤のプロンプトで作り直してください）');
   return j;
 }
 function ytData(){
@@ -7736,22 +7782,35 @@ function ytApplyJson(){
   const d=ytData();
   if(!d){ytStatus('スライド用データを貼り付けてください','error');return;}
   if(d.error){ytStatus('❌ '+d.error,'error');return;}
-  ytStatus(`✅ スライド用データを読み込みました（${d.chapters.length}章・出典${(d.sources||[]).length}件）。右の「🎞 横スライド」で確認できます`,'ok');
+  ytStatus(`✅ スライド用データを読み込みました（${(d.slides||d.chapters).length}章）。右の「🎞 横スライド」で確認できます`,'ok');
   saveState();
   if(document.getElementById('tab-yt')?.classList.contains('active'))renderYtPrev();else setMode('yt');
 }
 
 // ---- スライドの組み立て ----
-function ytCtx(){
-  const up=getDir()==='up';
-  const ch=vdSplitChange(getPeriod());
-  const bp=(document.getElementById('inp-base-price')||{}).value||'',bd=(document.getElementById('inp-base-date')||{}).value||'';
-  const cp=(document.getElementById('inp-cur-price')||{}).value||'',cd=(document.getElementById('inp-cur-date')||{}).value||'';
-  const ym=s=>{const m=String(s).match(/(\d{4})\D+(\d{1,2})/);return m?`${m[1]}年${+m[2]}月`:'';};
+// 土台は「スライド作成」タブの6枚（buildS1〜S6）。同じ 1280×720 の .slide と同じ部品（色付きカード・指標・チャート・
+// 色の点つきの行・指標カード・左右2列）で組み、1.5倍で画像化して 1920×1080 にする。
+// 違いはズームのしやすさ：話題ごとの大きなまとまり（data-zone）に分け、描画後にその位置を測って 16:9 のズーム枠にする。
+// 出典はスライドに書かない（ナレスラで資料の画像と左下の表記として差し込む）。
+const YS_BW=1280,YS_BH=720,YS_OUT=1.5;
+const ytEm=s=>esc(String(s||'')).replace(/\*\*(.+?)\*\*/g,'<b class="ye">$1</b>');
+function ytPriceInfo(){
+  // 「スライド作成」タブの整形データ（[銘柄情報]）を優先し、無ければ株探データと入力欄から
+  let info={};try{const ta=(document.getElementById('ta-data')||{}).value||'';if(ta.trim())info=parseBankyo(parseData(ta));}catch(e){}
   const f=window._fetched||{};
-  return{up,name:getName()||f.name||'',code:getTicker()||f.code||'',pct:ch.pct,from:ym(bd),bp,bd,cp,cd,
-    chart:ytChartLines(),noteUrl:ytVal('note-url')||vdVal('vd','note-url')};
+  return{name:info.name||getName()||f.name||'',code:info.code||getTicker()||f.code||'',desc:info.desc||f.business||'',
+    price:info.price||(document.getElementById('inp-cur-price')||{}).value||'',change:info.change||'',basis:info.basis||'',
+    PER:info['PER']||f.per||'',PBR:info['PBR']||f.pbr||'',配当:info['配当']||f.yield||'',時価総額:info['時価総額']||f.marketCap||'',w52:info['52週']||''};
 }
+function ytCtx(){
+  const up=getDir()==='up',pi=ytPriceInfo();
+  const ch=vdSplitChange(pi.change||getPeriod());
+  const bd=(document.getElementById('inp-base-date')||{}).value||'';
+  const ym=s=>{const m=String(s).match(/(\d{4})\D+(\d{1,2})/);return m?`${m[1]}年${+m[2]}月`:'';};
+  return{up,...pi,pct:ch.pct,from:ym(bd)||String(pi.basis||'').replace(/\s*(最高値|高値|安値|最安値)?比$/,''),
+    chart:ytChartLines(),noteUrl:ytVal('note-url')||vdVal('vd','note-url'),yomi:ytYomiQuiet()};
+}
+function ytYomiQuiet(){const v=ytVal('yomi');return v&&ytVal('yomi-for')===getName()?v:ytYomiFromDoc();}
 function ytChartLines(){
   const rows=saChartRowsFromFetched(window._fetched,ytVal('months')||'12',true);
   if(rows&&rows.length>1)return rows;
@@ -7759,76 +7818,107 @@ function ytChartLines(){
   if(ta.trim()){try{const d=parseData(ta);const c=getSec(d,'チャート');if(c.length>1)return c;}catch(e){}}
   return[];
 }
-const ytPrice=s=>{const n=parseFloat(String(s).replace(/[,，円\s　]/g,''));return isNaN(n)?String(s||''):n.toLocaleString()+'円';};
-function ytZone(z,i,tag,opt){
-  opt=opt||{};z=z||{};
-  const [x,y]=YS_ZONES[i];
-  const pts=(z.points||[]).filter(Boolean).slice(0,4).map(p=>`<div class="ys-pt">${esc(p)}</div>`).join('');
-  const src=opt.srcLabel?`<div class="ys-src">${esc(opt.srcLabel)}</div>`:'';
-  const big=z.big?`<div class="ys-big ${opt.bigCls||''}">${esc(z.big)}</div>${z.bigLabel?`<div class="ys-bl">${esc(z.bigLabel)}</div>`:''}`:'';
-  const body=opt.inner!=null?opt.inner:`${big}<div class="ys-pts">${pts}</div>`;
-  if(!z.head&&opt.inner==null&&!pts&&!z.big)return `<div class="ys-z ys-empty" style="left:${x}px;top:${y}px;"></div>`;
-  return `<div class="ys-z ${opt.cls||''}" style="left:${x}px;top:${y}px;"><div class="ys-zh"><span class="ys-zn">${esc(tag)}</span><span class="ys-zt">${esc(z.head||'')}</span></div>${body}${src}</div>`;
+const ytChart=(ctx,k)=>ctx.chart.length>1?`<canvas class="s1-chart-canvas" data-chart="${esc(ctx.chart.join(';'))}" data-k="${k||1}"></canvas>`:`<div class="yt-nodata">株価データを取得するとチャートを表示</div>`;
+const ytItems=(arr,n)=>(arr||[]).filter(x=>x&&(x.head||x.text)).slice(0,n);
+// 見出し：章名（小）＋スライドの見出し。右上はナレスラのコーナーテロップが重なるので空ける
+function ytFrame(no,s,ctx,body,cls){
+  const def=YT_CHAPTERS[no-1],name=ctx.up&&def.nameUp?def.nameUp:def.name;
+  return `<div class="slide yt-s ${cls||''}"><div class="sl-bar"></div><div class="sl-sig">すみっこマネー大学/@sumikko_money</div>
+<div class="yt-wrap"><div class="yt-head"><div class="yt-ch">${'①②③④⑤⑥⑦'[no-1]} ${esc(name)}</div><div class="yt-title">${ytEm(s.title||name)}</div></div>
+<div class="yt-body">${body}</div></div></div>`;
 }
+const YT_LAYOUT={
+  // ① スライド作成1枚目の上段（株価・指標・チャート）を大きくし、下に「なぜ下落」と「この動画で確かめること」
+  1:(s,ctx)=>{
+    const chg=cleanPct(ctx.change||ctx.pct||'');
+    const m=[['予想PER',ctx.PER],['実績PBR',ctx.PBR],['配当利回り',ctx.配当],['時価総額',ctx.時価総額],['52週レンジ',ctx.w52]].filter(x=>x[1]);
+    const reasons=ytItems(s.items,3).map(x=>`<div class="s1-factor"><span class="s1-fbullet">◆</span><span>${x.head?`<b>${ytEm(x.head)}</b>　`:''}${ytEm(x.text)}</span></div>`).join('');
+    const qs=(s.questions||[]).filter(Boolean).slice(0,3).map(q=>`<div class="s1-sw-item"><span class="s1-sw-bullet">✓</span>${ytEm(q)}</div>`).join('');
+    return `<div class="yt1-upper">
+<div class="s1-price-card yt1-price" data-zone="株価"><div class="yt-lbl">株価</div><div class="s1-price">${esc(fmtPrice(ctx.price,ctx.code))}</div>
+<div class="s1-change" style="color:${ctx.up?'#16a34a':'#dc2626'};">${esc(chg)}</div>${ctx.from?`<div class="yt-sub">${esc(ctx.from)}の高値から</div>`:''}</div>
+${m.length?`<div class="s1-metrics-card yt1-metrics" data-zone="指標">${m.map(x=>`<div class="s1-metric-row"><span class="s1-ml">${esc(x[0])}</span><span class="s1-mv">${esc(addComma(x[1]))}</span></div>`).join('')}</div>`:''}
+<div class="s1-chart-card" data-zone="チャート"><div class="s1-chart-lbl">${esc(chartGranularityLabel(ctx.chart))}チャート（${esc(chartPeriodLabel(ctx.chart))}）</div>${ytChart(ctx,1.2)}</div></div>
+<div class="yt1-lower">
+<div class="s1-factors-card" data-zone="なぜ下落"><div class="s1-ftitle">${ctx.up?'▲ なぜ上昇しているのか？':'▼ なぜ下落しているのか？'}</div>${reasons}</div>
+${qs?`<div class="s1-s-card yt-q" data-zone="確かめること"><div class="s1-sw-title">この動画で確かめること</div>${qs}</div>`:''}</div>`;},
+  // ② 会社名と事業の説明（スライド作成1枚目の見出し）＋ 事業のカード ＋ 売上構成（4枚目のゲージ）
+  2:(s,ctx)=>{
+    const cards=ytItems(s.items,3).map(x=>`<div class="s4-item" data-zone="${esc(x.head)}"><div class="s4-iname">${ytEm(x.head)}</div><div class="s4-inote">${ytEm(x.text)}</div></div>`).join('');
+    const mix=(s.mix||[]).filter(x=>x&&x.name).slice(0,5);
+    const mixHtml=mix.length?`<div class="yt-mix" data-zone="売上構成"><div class="s6-clabel">売上構成</div>${mix.map(x=>{const p=parseFloat(x.pct)||0;return `<div class="yt-mix-row"><div class="s4-item-head"><span class="s4-iname">${esc(x.name)}</span><span class="s4-ivals"><span class="s4-icur">${esc(String(x.pct).replace(/%?$/,'%'))}</span></span></div><div class="s4-gauge-bg"><div class="s4-gauge-fill" style="width:${Math.min(100,p)}%"></div></div></div>`;}).join('')}${s.mixNote?`<div class="s4-inote">${ytEm(s.mixNote)}</div>`:''}</div>`:'';
+    return `<div class="yt2-head" data-zone="何の会社"><span class="s1-name">${esc(ctx.name)}</span><span class="s1-code">（${esc(ctx.code)}）</span><div class="yt2-desc">${ytEm(s.desc||ctx.desc)}</div></div>
+<div class="yt2-grid${mixHtml?'':' nomix'}"><div class="s4-items">${cards}</div>${mixHtml}</div>`;},
+  // ③ スライド作成2枚目の「色の点つきの行」で要因を並べる。左の列は要因の種類
+  3:(s,ctx)=>{
+    const kinds=ctx.up?{'業績の改善':'bull','期待の高まり':'bull','評価の見直し':'base'}:{'業績の悪化':'bear','期待の剥落':'bull','評価の修正':'base'};
+    const rows=ytItems(s.items,3).map((x,i)=>{const k=String(x.tag||'');const cls=Object.entries(kinds).find(([n])=>k&&(k.includes(n)||n.includes(k)));
+      return `<div class="s2-scen-row yt3-row ${cls?cls[1]:'base'}" data-zone="要因${i+1}"><div class="s2-sr-name">${esc(x.tag||`要因${i+1}`)}</div><div class="yt3-h">${ytEm(x.head)}</div><div class="s2-sr-cond">${ytEm(x.text)}</div></div>`;}).join('');
+    return `<div class="s2-scen-rows">${rows}</div>${s.summary?`<div class="s1-factors-card yt3-sum" data-zone="まとめ"><div class="s1-ftitle">整理すると</div><div class="s1-factor">${ytEm(s.summary)}</div></div>`:''}`;},
+  // ④ スライド作成4枚目のカード（名前＋右に数字＋説明）を緑で
+  4:(s,ctx)=>{
+    const it=ytItems(s.items,4);
+    return `<div class="yt4-grid n${it.length}">${it.map((x,i)=>`<div class="s4-item yt-green" data-zone="強み${i+1}"><div class="s4-item-head"><span class="s4-iname">${ytEm(x.head)}</span>${x.num?`<span class="yt-num">${esc(x.num)}${x.numLabel?`<small>${esc(x.numLabel)}</small>`:''}</span>`:''}</div><div class="s4-inote">${ytEm(x.text)}</div></div>`).join('')}</div>`;},
+  // ⑤ スライド作成1枚目の「強み（緑）」と「弱み（赤）」を左右に
+  5:(s,ctx)=>{
+    const col=(arr,cls,title,bul)=>`<div class="${cls} yt5-col"><div class="s1-sw-title">${title}</div>${ytItems(arr,3).map((x,i)=>`<div class="yt5-item" data-zone="${title}${i+1}"><div class="yt5-h"><span class="s1-sw-bullet">${bul}</span>${ytEm(x.head)}</div><div class="yt5-t">${ytEm(x.text)}</div></div>`).join('')}</div>`;
+    return `<div class="yt5-grid">${col(s.strong,'s1-s-card','✓ 強み','✓')}${col(s.risk,'s1-w-card','✗ 強みが崩れる条件','✗')}</div>`;},
+  // ⑥ スライド作成4枚目の指標カード。目安値（株価の水準）は出さず、「なぜ見るか」と「続いているサイン」
+  6:(s,ctx)=>{
+    const it=ytItems(s.items,4);
+    return `<div class="yt4-grid n${it.length}">${it.map((x,i)=>`<div class="s4-item" data-zone="確認${i+1}"><div class="s4-item-head"><span class="s4-iname">${ytEm(x.head)}</span>${x.now?`<span class="s4-ivals">現在 <span class="s4-icur">${esc(x.now)}</span></span>`:''}</div>${x.why?`<div class="s4-inote">${ytEm(x.why)}</div>`:''}${x.sign?`<div class="s4-dual"><div class="s4-dual-pos">✓ ${ytEm(x.sign)}</div></div>`:''}</div>`).join('')}</div>`;},
+  // ⑦ スライド作成6枚目の左右2列：左＝まとめ、右＝noteの案内
+  7:(s,ctx)=>{
+    const pts=(s.points||[]).filter(Boolean).slice(0,4).map((p,i)=>`<div class="s6-mcard yt7-pt" data-zone="まとめ${i+1}"><span class="yt7-n">${i+1}</span><span>${ytEm(p)}</span></div>`).join('');
+    const items=VD_NOTE_ITEMS[ctx.up?'up':'down'].map(n=>`<div class="s1-sw-item"><span class="s1-sw-bullet">◆</span>${esc(n)}</div>`).join('');
+    const qr=ctx.noteUrl?`<div class="yt7-qr" data-qr="${esc(ctx.noteUrl)}"></div>`:'';
+    return `<div class="s6-body"><div class="s6-col"><div class="s6-clabel">まとめ</div><div class="s6-metrics">${pts}</div></div>
+<div class="s6-col"><div class="s6-clabel">株価の分析はnoteで</div><div class="s1-factors-card yt7-note" data-zone="note"><div class="s4-inote">株価の下値や12か月後のシナリオ、バリュエーションはnoteで詳しく分析しています。</div>${items}${qr}</div></div></div>`;},
+};
+// 表紙：スライド作成1枚目の見出し・株価カード・チャートを大きく
 function ytBuildCover(d,ctx){
-  const cv=d.cover||{};
-  const badge=ctx.pct?`<div class="ys-cv-badge ${ctx.up?'up':''}">${esc(ctx.from?ctx.from+'の高値から ':'')}<b>${esc(ctx.pct)}</b></div>`:'';
-  const chart=ctx.chart.length>1?`<div class="ys-cv-chart"><canvas data-chart="${esc(ctx.chart.join(';'))}" data-k="1.5"></canvas></div>`:'';
-  return `<div class="yslide ys-cover">
-<div class="ys-cv-series">私が知らなかった実力株</div>
-<div class="ys-cv-name">${esc(ctx.name)}</div>
-<div class="ys-cv-code">${esc(ctx.code)}</div>
-<div class="ys-cv-catch">${esc(cv.catch||'')}</div>
-<div class="ys-cv-sub">${esc(cv.sub||'')}</div>
-${badge}${chart}
-</div>`;
-}
-function ytBuildChapter(c,d,ctx){
-  const def=YT_CHAPTERS[c.no-1]||YT_CHAPTERS[0];
-  const src=n=>{const s=(d.sources||[]).find(x=>+x.no===+n);return s?(s.label||s.name||''):'';};
-  const zones=[0,1,2,3].map(i=>{
-    const z=(c.zones||[])[i]||{};
-    const opt={srcLabel:z.src!=null?src(z.src):''};
-    if(c.no===1&&i===0){z.big=z.big||ctx.pct;z.bigLabel=z.bigLabel||(ctx.bp&&ctx.cp?`${ytPrice(ctx.bp)} → ${ytPrice(ctx.cp)}`:'');opt.bigCls=ctx.up?'green':'red';}
-    if(c.no===1&&i===1)opt.inner=ctx.chart.length>1?`<div class="ys-chart"><canvas data-chart="${esc(ctx.chart.join(';'))}" data-k="1.5"></canvas></div>`:`<div class="ys-pts"><div class="ys-pt">（株価データを取得するとチャートを表示）</div></div>`;
-    if(c.no===1&&i===1&&!z.head)z.head='株価の推移';
-    if(c.no===5)opt.cls=i%2?'risk':'';
-    if(c.no===7&&i===3){
-      z.head=z.head||'株価の分析はnoteで';
-      const list=VD_NOTE_ITEMS[ctx.up?'up':'down'].map(n=>`<div class="ys-pt">${esc(n)}</div>`).join('');
-      const qr=ctx.noteUrl?`<div class="ys-qr" data-qr="${esc(ctx.noteUrl)}"></div>`:'';
-      opt.inner=`<div class="ys-note"><div class="ys-pts">${list}</div>${qr}</div>`;opt.cls='note';
-    }
-    return ytZone(z,i,def.tags[i],opt);
-  }).join('');
-  const name=ctx.up&&def.nameUp?def.nameUp:def.name;
-  return `<div class="yslide"><div class="ys-bar"></div>
-<div class="ys-head"><span class="ys-no">${c.no}</span><span class="ys-cn">${esc(name)}</span><span class="ys-title">${esc(c.title||'')}</span></div>
-${zones}</div>`;
+  const chg=cleanPct(ctx.change||ctx.pct||'');
+  return `<div class="slide yt-s yt-cover"><div class="sl-bar"></div><div class="sl-sig">すみっこマネー大学/@sumikko_money</div>
+<div class="yt-wrap"><div class="yt-series">私が知らなかった実力株</div>
+<div class="yt-cv-name"><span class="s1-name">${esc(ctx.name)}</span><span class="s1-code">（${esc(ctx.code)}）</span></div>
+<div class="yt-cv-catch">${ytEm((d.cover||{}).catch||'')}</div>
+<div class="yt-cv-row"><div class="s1-price-card yt-cv-price"><div class="yt-lbl">株価</div><div class="s1-price">${esc(fmtPrice(ctx.price,ctx.code))}</div><div class="s1-change" style="color:${ctx.up?'#16a34a':'#dc2626'};">${esc(chg)}</div>${ctx.from?`<div class="yt-sub">${esc(ctx.from)}の高値から</div>`:''}</div>
+<div class="s1-chart-card"><div class="s1-chart-lbl">${esc(chartGranularityLabel(ctx.chart))}チャート（${esc(chartPeriodLabel(ctx.chart))}）</div>${ytChart(ctx,1.2)}</div></div></div></div>`;
 }
 function ytBuildSlides(d,ctx){
-  const code=ctx.code||'code',nm=ctx.name||'name';
+  const code=ctx.code||'code',nm=ctx.name||'name',list=d.slides||d.chapters||[];
   const out=[{html:ytBuildCover(d,ctx),name:`${code}_${nm}_YT00_表紙`,no:0}];
   YT_CHAPTERS.forEach(def=>{
-    const c=(d.chapters||[]).find(x=>+x.no===def.no)||{no:def.no,zones:[]};
-    out.push({html:ytBuildChapter({...c,no:def.no},d,ctx),name:`${code}_${nm}_YT0${def.no}_${def.name.replace(/[？?]/g,'')}`,no:def.no,corner:c.corner||def.name});
+    const s=list.find(x=>+x.no===def.no)||{no:def.no};
+    out.push({html:ytFrame(def.no,s,ctx,YT_LAYOUT[def.no](s,ctx)),name:`${code}_${nm}_YT0${def.no}_${def.name.replace(/[？?]/g,'')}`,no:def.no,corner:s.corner||def.name});
   });
   return out;
 }
-// 区画からはみ出す文字を縮める（プレビュー・画像化の両方で、挿入後に呼ぶ）
+// はみ出す文字を縮める（挿入後に呼ぶ）
 function ytFitText(root){
-  root.querySelectorAll('.ys-z').forEach(z=>{
-    const pts=z.querySelector('.ys-pts');if(!pts||z.classList.contains('note'))return;
-    let fs=30;
-    while(z.scrollHeight>z.clientHeight+1&&fs>20){fs-=1;pts.style.fontSize=fs+'px';}
+  root.querySelectorAll('[data-zone],.yt-body').forEach(box=>{
+    const els=[...box.querySelectorAll('.s1-factor,.s1-sw-item,.s4-inote,.s4-iname,.s2-sr-cond,.yt3-h,.yt5-h,.yt5-t,.yt2-desc,.s4-dual-pos,.yt7-pt span')];
+    let g=0;while(box.scrollHeight>box.clientHeight+1&&g++<30){let ch=false;els.forEach(e=>{const fs=parseFloat(getComputedStyle(e).fontSize);if(fs>12){e.style.fontSize=(fs-0.5)+'px';ch=true;}});if(!ch)break;}
   });
-  root.querySelectorAll('.ys-title').forEach(t=>{let fs=34;while(t.scrollWidth>t.clientWidth+1&&fs>22){fs-=1;t.style.fontSize=fs+'px';}});
+  root.querySelectorAll('.yt-title').forEach(t=>{let fs=parseFloat(getComputedStyle(t).fontSize);while(t.scrollWidth>t.clientWidth+1&&fs>22){fs-=1;t.style.fontSize=fs+'px';}});
 }
 async function ytFill(root){
   const p=vFillDynamic(root);
   await new Promise(r=>setTimeout(r,60));
   ytFitText(root);
   return p;
+}
+// ズームの範囲：data-zone の要素の位置を 0〜1 で測り、16:9 に広げた枠（ナレスラの zoom target は w=h）
+function ytMeasureZones(root){
+  const sl=root.querySelector('.yt-s');if(!sl)return[];
+  const R=sl.getBoundingClientRect(),sc=R.width/YS_BW,pad=12;
+  return [...sl.querySelectorAll('[data-zone]')].map(el=>{
+    const r=el.getBoundingClientRect();
+    const x=(r.left-R.left)/sc,y=(r.top-R.top)/sc,w=r.width/sc,h=r.height/sc;
+    let zw=Math.min(YS_BW,Math.max(w+pad*2,(h+pad*2)*16/9));const zh=zw*9/16;
+    const zx=Math.min(Math.max(0,x+w/2-zw/2),YS_BW-zw),zy=Math.min(Math.max(0,y+h/2-zh/2),YS_BH-zh);
+    return{name:el.dataset.zone,box:{x:x/YS_BW,y:y/YS_BH,w:w/YS_BW,h:h/YS_BH},zoom:{x:zx/YS_BW,y:zy/YS_BH,w:zw/YS_BW,h:zh/YS_BH}};
+  });
 }
 
 // ---- 右ペインのプレビュー ----
@@ -7841,13 +7931,13 @@ function renderYtPrev(){
   try{slides=ytBuildSlides(d,ytCtx());}
   catch(e){area.innerHTML=`<div style="color:#f87171;font-size:12px;padding:8px;font-family:monospace;white-space:pre-wrap;">レンダリングエラー:\n${e.message}</div>`;console.error(e);return;}
   const W=(area.clientWidth||600)-8,cols=W>900?2:1,gap=10;
-  const iW=Math.floor((W-gap*(cols-1))/cols),scale=iW/YS_W,iH=Math.round(YS_H*scale);
+  const iW=Math.floor((W-gap*(cols-1))/cols),scale=iW/YS_BW,iH=Math.round(YS_BH*scale);
   slides.forEach(s=>{
     const wrap=document.createElement('div');
     wrap.className='prev-slide';wrap.style.cssText=`width:${iW}px;height:${iH}px;`;wrap.title=s.name+'（クリックで個別ダウンロード）';
     wrap.addEventListener('click',()=>ytDlSingle(s));
     const inner=document.createElement('div');
-    inner.style.cssText=`position:absolute;top:0;left:0;width:${YS_W}px;height:${YS_H}px;transform:scale(${scale});transform-origin:top left;pointer-events:none;`;
+    inner.style.cssText=`position:absolute;top:0;left:0;width:${YS_BW}px;height:${YS_BH}px;transform:scale(${scale});transform-origin:top left;pointer-events:none;`;
     inner.innerHTML=s.html;wrap.appendChild(inner);area.appendChild(wrap);
     setTimeout(()=>ytFill(inner),60);
   });
@@ -7862,8 +7952,9 @@ async function ytRenderToBlob(slide){
   await new Promise(r=>setTimeout(r,150));
   await ytFill(ct);
   await new Promise(r=>setTimeout(r,250));
-  const el=ct.querySelector('.yslide');
-  const c=await html2canvas(el,{width:YS_W,height:YS_H,scale:1,useCORS:true,allowTaint:true,backgroundColor:'#f1f5f9',logging:false});
+  slide.zones=ytMeasureZones(ct);
+  const el=ct.querySelector('.yt-s');
+  const c=await html2canvas(el,{width:YS_BW,height:YS_BH,scale:YS_OUT,useCORS:true,allowTaint:true,backgroundColor:'#f8fafc',logging:false});
   ct.innerHTML='';
   return new Promise(res=>c.toBlob(res,'image/png'));
 }
@@ -7886,8 +7977,7 @@ async function ytDownloadSlides(btn){
       ytStatus(`スライドを画像化中… ${i+1}/${slides.length}`,'','slide-status');
       zip.file(`slides/slide-${i}.png`,await ytRenderToBlob(slides[i]));
     }
-    const zones=YS_ZONES.map(([x,y])=>({x:x/YS_W,y:y/YS_H,w:YS_ZW/YS_W,h:YS_ZH/YS_H}));
-    zip.file('slides.json',JSON.stringify({version:1,width:YS_W,height:YS_H,zones,slides:slides.map((s,i)=>({file:`slides/slide-${i}.png`,name:s.name,chapter:s.no,corner:s.corner||''})),data:d},null,1));
+    zip.file('slides.json',JSON.stringify({version:2,width:YS_BW*YS_OUT,height:YS_BH*YS_OUT,slides:slides.map((s,i)=>({file:`slides/slide-${i}.png`,name:s.name,chapter:s.no,corner:s.corner||'',zones:s.zones||[]})),data:d},null,1));
     const blob=await zip.generateAsync({type:'blob'});
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${ctx.code||'code'}_${ctx.name||'name'}_YouTubeスライド.zip`;a.click();
     ytStatus(`✅ ${slides.length}枚を出力しました`,'ok','slide-status');
@@ -7942,14 +8032,14 @@ function ytBuildTabHtml(){
   <h2>3. NotebookLM（音声）</h2>
   ${set('銘柄名の読み','<input type="text" id="yt-yomi" placeholder="例：ちゅうがいせいやく（資料を貼ると自動で入ります）" oninput="ytYomiInput()" style="flex:1;min-width:0;font-size:11px;"><input type="hidden" id="yt-yomi-for">')}
   ${row(b('📄 ソース（.md）','ytDownloadSource()','background:#0d9488;color:#fff;'),b('📓 指示',"ytCopy('nlm',this)",G))}
-  <div style="font-size:10px;color:var(--text-sub);">長さは「通常」で長めに作り、「ナレスラ」タブでカットして約8分にする。</div>
+  <div style="font-size:10px;color:var(--text-sub);">指示は約8分。NotebookLMが長く作った場合は「ナレスラ」タブでカットして約8分にする。</div>
 </div>
 </div>
 
 <div id="yt-pane-slides" style="display:none;">
 <div class="sa-card">
   <h2>横スライド（1920×1080）</h2>
-  <div style="font-size:11px;color:var(--text-sub);">表紙＋7章の8枚。各章は4つの区画で、ナレスラで区画にズームすると画面いっぱいに映ります。プレビューは右の「🎞 横スライド」。</div>
+  <div style="font-size:11px;color:var(--text-sub);">表紙＋7章の8枚（スライド作成タブの6枚を土台に組み直したもの）。話題ごとのまとまりの位置をZIP内のslides.jsonに書き出し、ナレスラのズームに使います。プレビューは右の「🎞 横スライド」。</div>
   ${row(`<button class="main-btn download-btn" style="flex:1;font-size:13px;padding:8px 4px;" onclick="ytDownloadSlides(this)">💾 一式（ZIP）</button>`,b('↻ プレビュー',"setMode('yt');renderYtPrev()"))}
   <div id="yt-slide-status" style="display:none;font-size:11px;margin-top:3px;"></div>
 </div>
@@ -7963,7 +8053,7 @@ function ytBuildTabHtml(){
   <h2>設定</h2>
   ${set('QR用URL','<input type="text" id="yt-note-url" placeholder="空なら縦動画の設定を使う" oninput="debouncedYtPrev()" style="flex:1;min-width:0;font-size:11px;">')}
   ${set('チャート期間','<input type="number" id="yt-months" value="12" min="1" max="60" oninput="debouncedYtPrev()" style="width:60px;flex:none;font-size:11px;padding:4px;">','ヶ月')}
-  ${set('NotebookLMの長さ','<input type="number" id="yt-nlm-min" value="12" min="3" max="30" style="width:60px;flex:none;font-size:11px;padding:4px;">','分（指示文に書く目安）')}
+  ${set('NotebookLMの長さ','<input type="number" id="yt-nlm-min" value="8" min="3" max="30" style="width:60px;flex:none;font-size:11px;padding:4px;">','分（指示文に書く目安）')}
 </div>
 </div>`;
 }
@@ -7972,6 +8062,7 @@ function ytRestoreFields(){
   let st=null;try{st=JSON.parse(localStorage.getItem(SA_STORAGE_KEY)||'null');}catch(e){}
   if(!st||!st.fields)return;
   YT_PERSIST_IDS.forEach(id=>{const el=document.getElementById(id);if(el&&st.fields[id]!=null)el.value=st.fields[id];});
+  const nm=ytEl('nlm-min');if(nm&&nm.value==='12')nm.value='8';   // 旧既定値（12分）は長すぎたので8分に
 }
 // 縦（SNS）／横（YouTube）の切り替え
 const ytOrient=()=>((document.getElementById('vd-orient')||{}).value||'v');
