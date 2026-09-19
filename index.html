@@ -528,6 +528,7 @@
 .ya-nd{padding:0 4px;font-size:10px;line-height:16px;border:1px solid #cbd5e1;background:#f1f5f9;border-radius:3px;cursor:pointer;}
 .ya-play{padding:0 6px;font-size:10px;line-height:16px;border:0;background:#2563eb;color:#fff;border-radius:3px;cursor:pointer;}
 .ya-part{display:inline-flex;align-items:center;gap:2px;}
+#ya-selbtn{display:none;position:fixed;z-index:50;transform:translateX(-50%);padding:3px 10px;font-size:12px;font-weight:700;border:0;border-radius:4px;background:#dc2626;color:#fff;cursor:pointer;}
 .ya-go{padding:0 6px;font-size:10px;line-height:16px;border:1px solid #93c5fd;background:#eff6ff;color:#1d4ed8;border-radius:3px;cursor:pointer;}
 .ya-go.on,.ya-play.on{background:#dc2626;color:#fff;border-color:#dc2626;}
 .ya-tag{color:#b45309;font-weight:700;border:1px solid #fcd34d;background:#fffbeb;border-radius:3px;padding:0 3px;} .ya-tag.must{color:#b91c1c;border-color:#fca5a5;background:#fef2f2;}
@@ -1439,10 +1440,11 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
 
   <!-- 横動画の音声カット（NotebookLMの音声） -->
   <div id="ya-view" style="display:none;flex-direction:column;gap:6px;flex:1;overflow-y:auto;">
-    <div style="font-size:11px;color:var(--text-sub);">数字＝AIの点数（🔒＝流れに必須）。チェックで削る／戻す（理由はマウスを重ねると表示）。▶＝その文を前後つきで再生（削る文はつなぎ目。カットは飛ばす、もう一度押すと停止）。◀▶＝切り口を0.05秒ずつ調整、✂＝文の一部を削る。<span class="ya-warn">⚠</span>＝切り口の近くに無音が無い。前後の秒数は「設定」タブ</div>
+    <div style="font-size:11px;color:var(--text-sub);">数字＝AIの点数（🔒＝流れに必須）。チェックで削る／戻す（理由はマウスを重ねると表示）。▶＝その文を前後つきで再生（削る文はつなぎ目。カットは飛ばす、もう一度押すと停止）。◀▶＝切り口を0.05秒ずつ調整、文の一部を削る＝その部分をドラッグで選んで「✂ 選んだ部分を削る」。<span class="ya-warn">⚠</span>＝切り口の近くに無音が無い。前後の秒数は「設定」タブ</div>
     <div id="ya-sum" style="font-size:12px;">-</div>
     <audio id="ya-edited" controls style="display:none;width:100%;height:34px;"></audio>
     <div id="ya-list"></div>
+    <button id="ya-selbtn" onmousedown="event.preventDefault()" onclick="yaAddManualPart(+this.dataset.n)">✂ 選んだ部分を削る</button>
   </div>
 
   <!-- 縦スライド（SNS動画用）ビュー -->
@@ -8316,7 +8318,7 @@ function yaSnapOnset(t){const g=yaFindSilenceNear(t,0.50);if(!g||t<g.s-0.40||t>g
 function yaCutRange(c){
   const s=YA.sents[c.n-1];if(!s)return null;
   let a=s.ci0,b=s.ci1;
-  if(c.part){const np=yaNorm(c.part),k=s.nt.indexOf(np);if(k<0||!np)return null;a=s.ci0+k;b=a+np.length-1;}
+  if(c.part){const np=yaNorm(c.part);let k=(c.pos!=null&&s.nt.substr(c.pos,np.length)===np)?c.pos:s.nt.indexOf(np);if(k<0||!np)return null;a=s.ci0+k;b=a+np.length-1;}
   const next=YA.chars[b+1];
   const st=yaSnapOnset(YA.chars[a].s),en=next?yaSnapOnset(next.s):{t:YA.dur,ok:true};
   if(en.t-st.t<0.05)return null;
@@ -8448,13 +8450,34 @@ async function yaAiJudge(btn){
   finally{if(btn)btn.disabled=false;}
 }
 function yaApplyPasted(){try{yaApplyPlan(yaParsePlan(yaVal('plan')));}catch(e){yaStatus('st-ai','❌ '+esc(e.message),'error');}}
-function yaAddManualPart(n){
-  const s=YA.sents[n-1];const part=(prompt(`削る文字列を、文のとおりに入力してください\n\n${s.text}`)||'').trim();if(!part)return;
-  if(s.nt.indexOf(yaNorm(part))<0){alert('文の中に見つかりません');return;}
-  const c={n,part,kind:'part',score:0,reason:'手動',on:true,manual:true,manualOn:true};
-  const r=yaCutRange(c);if(!r){alert('位置を計算できませんでした');return;}
-  YA.cuts.push(Object.assign(c,r));yaSave();yaRender(true);yaAudition(c);
+// 一覧の文の中でドラッグして選んだ部分を削る（選んだ位置も使う）
+function yaSelectionIn(n){
+  const sel=window.getSelection();if(!sel||sel.isCollapsed||!sel.rangeCount)return null;
+  const r=sel.getRangeAt(0),tx=r.commonAncestorContainer.nodeType===1?r.commonAncestorContainer.closest('.ya-tx'):r.commonAncestorContainer.parentElement&&r.commonAncestorContainer.parentElement.closest('.ya-tx');
+  if(!tx)return null;const row=+tx.dataset.n;if(n!=null&&row!==n)return null;
+  const part=sel.toString().trim();if(!yaNorm(part))return null;
+  const pre=document.createRange();pre.selectNodeContents(tx);pre.setEnd(r.startContainer,r.startOffset);
+  return{n:row,part,pos:yaNorm(pre.toString()).length};
 }
+function yaAddManualPart(n){
+  const g=yaSelectionIn(n);
+  if(!g){alert('削りたい部分を、一覧の文の中でマウスでドラッグして選んでから押してください');return;}
+  const s=YA.sents[g.n-1];
+  if(yaNorm(g.part)===s.nt){yaToggleSentence(g.n,true);window.getSelection().removeAllRanges();yaHideSelBtn();return;}   // 文全体なら文ごと削る
+  const c={n:g.n,part:g.part,pos:g.pos,kind:'part',score:0,reason:'手動',on:true,manual:true,manualOn:true};
+  const r=yaCutRange(c);if(!r){alert('位置を計算できませんでした');return;}
+  YA.cuts.push(Object.assign(c,r));window.getSelection().removeAllRanges();yaHideSelBtn();yaSave();yaRender(true);yaStop();yaAudition(c);
+}
+// 選んだらそのそばに「✂ 選んだ部分を削る」を出す
+function yaHideSelBtn(){const b=document.getElementById('ya-selbtn');if(b)b.style.display='none';}
+function yaOnSelect(){
+  const g=yaSelectionIn(null),b=document.getElementById('ya-selbtn');if(!b)return;
+  if(!g){b.style.display='none';return;}
+  const rc=window.getSelection().getRangeAt(0).getBoundingClientRect();
+  b.style.left=Math.round(rc.left+rc.width/2)+'px';b.style.top=Math.round(rc.bottom+6)+'px';b.style.display='block';b.dataset.n=g.n;
+}
+document.addEventListener('mouseup',()=>setTimeout(yaOnSelect,0));
+document.addEventListener('keyup',e=>{if(e.shiftKey)setTimeout(yaOnSelect,0);});
 // 判定前でも手動で文を削れるように、その文のカットを作る
 function yaToggleSentence(n,on){
   let c=YA.cuts.find(x=>x.n===n&&x.kind!=='part');
@@ -8542,7 +8565,7 @@ function yaRender(keepScroll){
     const box=mc?`<input type="checkbox" data-k="${mk}" ${mc.on?'checked':''} title="${esc(mc.reason||'')}">`:`<input type="checkbox" data-sent="${n}" title="削る">`;
     const parts=ids.filter(k=>YA.cuts[k].kind==='part').map(k=>{const c=YA.cuts[k];return `<label class="ya-part" title="${esc(c.reason||'')}"><input type="checkbox" data-k="${k}" ${c.on?'checked':''}>一部</label>${c.on?adj(k,c):''}`;}).join('');
     const head=secStart[n]?`<div class="ya-sec">■ ${esc(secStart[n].title)}（${secStart[n].from}〜${secStart[n].to}）<span data-secsum="${n}"></span></div>`:'';
-    return `${head}<div class="ya-ln${whole?' cut':''}"><span class="ya-no">${n}</span><span class="ya-tc">${yaTc(s.s)}</span><span class="ya-sp sp${s.sp}">${s.sp?(s.sp===1?'A':'B'):''}</span>${badge}${box}<span class="ya-tx">${tx}</span><span class="ya-ctl">${tags}${mc&&mc.on?adj(mk,mc):''}${parts}<button class="ya-go" data-go="${n}" title="${whole?'つなぎ目を再生':'この文を再生'}（カットは飛ばす）">▶</button><button class="ya-nd" data-part="${n}" title="文の一部だけを削る">✂</button></span></div>`;
+    return `${head}<div class="ya-ln${whole?' cut':''}"><span class="ya-no">${n}</span><span class="ya-tc">${yaTc(s.s)}</span><span class="ya-sp sp${s.sp}">${s.sp?(s.sp===1?'A':'B'):''}</span>${badge}${box}<span class="ya-tx" data-n="${n}">${tx}</span><span class="ya-ctl">${tags}${mc&&mc.on?adj(mk,mc):''}${parts}<button class="ya-go" data-go="${n}" title="${whole?'つなぎ目を再生':'この文を再生'}（カットは飛ばす）">▶</button><button class="ya-nd" data-part="${n}" title="文の中で削りたい部分をドラッグして選んでから押す">✂</button></span></div>`;
   }).join('');
   list.querySelectorAll('input[data-k]').forEach(el=>el.onchange=()=>{const c=YA.cuts[+el.dataset.k];c.on=el.checked;c.manual=true;c.manualOn=el.checked;yaSave();yaRender(true);});
   list.querySelectorAll('input[data-sent]').forEach(el=>el.onchange=()=>yaToggleSentence(+el.dataset.sent,el.checked));
