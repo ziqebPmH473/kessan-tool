@@ -7715,7 +7715,7 @@ IFRS：イファース
 ・音声の一番最後は、必ず「本日はここまでです」の１文で終えてください。
 ・１文の直後に2秒程度の無音の間を置いてから終了する（無音の指示自体は読み上げない）`;
 function ytNotebookPrompt(){
-  const up=getDir()==='up',name=getName()||'この会社',min=ytVal('nlm-min')||'8';
+  const up=getDir()==='up',name=getName()||'この会社',min=ytVal('nlm-min')||'12';
   const yomi=ytYomi();
   if(!yomi){ytEl('yomi')?.focus();throw new Error('銘柄名の読みがなを入れてください（NotebookLMは銘柄名を読み間違えやすいため必須）');}
   return `根拠資料をもとに、約${min}分のYouTube解説動画用の音声を作成してください。
@@ -8075,7 +8075,7 @@ function ytBuildTabHtml(){
   <h2>3. NotebookLM（音声）</h2>
   ${set('銘柄名の読み','<input type="text" id="yt-yomi" placeholder="例：ちゅうがいせいやく（資料を貼ると自動で入ります）" oninput="ytYomiInput()" style="flex:1;min-width:0;font-size:11px;"><input type="hidden" id="yt-yomi-for">')}
   ${row(b('📄 ソース（.md）','ytDownloadSource()','background:#0d9488;color:#fff;'),b('📓 指示',"ytCopy('nlm',this)",G))}
-  <div style="font-size:10px;color:var(--text-sub);">指示は約8分。NotebookLMが長く作った場合は「ナレスラ」タブでカットして約8分にする。</div>
+  <div style="font-size:10px;color:var(--text-sub);">指示は約12分（守られないので、長めに作らせる目安）。NotebookLMの長さ設定は「短い」。</div>
 </div>
 </div>
 
@@ -8097,7 +8097,7 @@ function ytBuildTabHtml(){
   ${set('QR用URL','<input type="text" id="yt-note-url" placeholder="空なら縦動画の設定を使う" oninput="debouncedYtPrev()" style="flex:1;min-width:0;font-size:11px;">')}
   ${set('チャート期間','<input type="number" id="yt-months" value="12" min="1" max="60" oninput="debouncedYtPrev()" style="width:60px;flex:none;font-size:11px;padding:4px;">','ヶ月')}
   ${set('試聴の前後','<input type="number" id="ya-ctx" value="2" min="0" max="10" step="0.5" style="width:60px;flex:none;font-size:11px;padding:4px;">','秒（音声カットの▶・試聴で、前後に足す長さ）')}
-  ${set('NotebookLMの長さ','<input type="number" id="yt-nlm-min" value="8" min="3" max="30" style="width:60px;flex:none;font-size:11px;padding:4px;">','分（指示文に書く目安）')}
+  ${set('NotebookLMの長さ','<input type="number" id="yt-nlm-min" value="12" min="3" max="30" style="width:60px;flex:none;font-size:11px;padding:4px;">','分（指示文に書く目安）')}
 </div>
 </div>`;
 }
@@ -8106,7 +8106,7 @@ function ytRestoreFields(){
   let st=null;try{st=JSON.parse(localStorage.getItem(SA_STORAGE_KEY)||'null');}catch(e){}
   if(!st||!st.fields)return;
   YT_PERSIST_IDS.forEach(id=>{const el=document.getElementById(id);if(!el||st.fields[id]==null)return;if(el.type==='checkbox')el.checked=!!st.fields[id];else el.value=st.fields[id];});
-  const nm=ytEl('nlm-min');if(nm&&nm.value==='12')nm.value='8';   // 旧既定値（12分）は長すぎたので8分に
+  const nm=ytEl('nlm-min');if(nm&&nm.value==='8')nm.value='12';   // NotebookLMは長さを守らないので、長めに作らせる目安として12分（旧既定値8分から）
 }
 // 縦（SNS）／横（YouTube）の切り替え
 const ytOrient=()=>((document.getElementById('vd-orient')||{}).value||'v');
