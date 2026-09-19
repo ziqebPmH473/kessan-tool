@@ -518,16 +518,20 @@
 .yt-s .yt7-note .s4-inote{font-size:20px;} .yt-s .yt7-note .s1-sw-item{font-size:20px;}
 /* ===== 横動画の音声カット一覧（右ペイン） ===== */
 #ya-list{border:1px solid var(--border);border-radius:6px;background:#fff;}
-.ya-ln{display:flex;gap:8px;padding:5px 8px;border-bottom:1px solid #f1f5f9;font-size:13px;align-items:flex-start;color:#1f2937;}
-.ya-no{flex:none;width:34px;color:#94a3b8;text-align:right;} .ya-tc{flex:none;width:52px;color:#94a3b8;}
-.ya-sp{flex:none;width:16px;font-weight:700;} .ya-sp.sp1{color:#2563eb;} .ya-sp.sp2{color:#db2777;}
+.ya-ln{display:flex;gap:6px;padding:2px 8px;border-bottom:1px solid #f1f5f9;font-size:13px;align-items:center;color:#1f2937;line-height:1.45;}
+.ya-ln input[type=checkbox]{flex:none;margin:0;}
+.ya-no{flex:none;width:28px;color:#94a3b8;text-align:right;font-size:11px;} .ya-tc{flex:none;width:44px;color:#94a3b8;font-size:11px;}
+.ya-sp{flex:none;width:12px;font-weight:700;font-size:12px;} .ya-sp.sp1{color:#2563eb;} .ya-sp.sp2{color:#db2777;}
 .ya-tx{flex:1;min-width:0;} .ya-ln.cut .ya-tx{color:#94a3b8;text-decoration:line-through;} .ya-tx del{color:#dc2626;background:#fee2e2;}
-.ya-ctl{flex:none;display:flex;flex-direction:column;gap:3px;align-items:flex-end;font-size:11px;color:#64748b;} .ya-ctl span{white-space:nowrap;}
-.ya-nd{padding:0 5px;font-size:10px;border:1px solid #cbd5e1;background:#f1f5f9;border-radius:4px;cursor:pointer;}
-.ya-play{padding:1px 8px;font-size:11px;border:0;background:#2563eb;color:#fff;border-radius:4px;cursor:pointer;}
+.ya-ctl{flex:none;display:flex;gap:4px;align-items:center;font-size:10px;color:#64748b;white-space:nowrap;}
+.ya-adj{display:inline-flex;align-items:center;gap:1px;}
+.ya-nd{padding:0 4px;font-size:10px;line-height:16px;border:1px solid #cbd5e1;background:#f1f5f9;border-radius:3px;cursor:pointer;}
+.ya-play{padding:0 6px;font-size:10px;line-height:16px;border:0;background:#2563eb;color:#fff;border-radius:3px;cursor:pointer;}
+.ya-part{display:inline-flex;align-items:center;gap:2px;}
+.ya-tag{color:#b45309;font-weight:700;border:1px solid #fcd34d;background:#fffbeb;border-radius:3px;padding:0 3px;} .ya-tag.must{color:#b91c1c;border-color:#fca5a5;background:#fef2f2;}
 .ya-warn{color:#b45309;font-weight:700;}
-.ya-pri{flex:none;display:inline-block;min-width:18px;text-align:center;border-radius:8px;background:#e2e8f0;padding:0 4px;font-size:11px;}
-.ya-sec{background:#eff6ff;color:#1e3a8a;font-weight:700;font-size:12px;padding:4px 8px;border-bottom:1px solid #dbeafe;}
+.ya-pri{flex:none;display:inline-block;width:18px;text-align:center;border-radius:8px;background:#e2e8f0;font-size:10px;}
+.ya-sec{background:#eff6ff;color:#1e3a8a;font-weight:700;font-size:12px;padding:3px 8px;border-bottom:1px solid #dbeafe;position:sticky;top:0;z-index:1;}
 /* ===== VERTICAL SLIDES (1080×1920, SNS動画用) =====
    ナレーションの補助資料なので文字量は控えめ（見出し1つ＋「結論＋短い補足」×3）。
    テロップは入れない前提で、スマホ全画面で読める大きさにする。
@@ -1433,7 +1437,7 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
 
   <!-- 横動画の音声カット（NotebookLMの音声） -->
   <div id="ya-view" style="display:none;flex-direction:column;gap:6px;flex:1;overflow-y:auto;">
-    <div style="font-size:11px;color:var(--text-sub);">音声カット：数字＝AIの点数（🔒＝流れに必須）。チェックで削る／戻す、◀▶で切り口を0.05秒ずつ調整、試聴＝つなぎ目の前後3秒。<span class="ya-warn">⚠</span>＝切り口の近くに無音が無い</div>
+    <div style="font-size:11px;color:var(--text-sub);">数字＝AIの点数（🔒＝流れに必須）。チェックで削る／戻す（理由はマウスを重ねると表示）。◀▶＝切り口を0.05秒ずつ調整、試聴＝つなぎ目の前後3秒、✂＝文の一部を削る。<span class="ya-warn">⚠</span>＝切り口の近くに無音が無い</div>
     <div id="ya-sum" style="font-size:12px;">-</div>
     <audio id="ya-edited" controls style="display:none;width:100%;height:34px;"></audio>
     <div id="ya-list"></div>
@@ -8507,19 +8511,19 @@ function yaRender(keepScroll){
   const by={};YA.cuts.forEach((c,i)=>{(by[c.n]=by[c.n]||[]).push(i);});
   const secStart={};YA.sections.forEach(x=>{secStart[x.from]=x;});
   if(!YA.sents.length){list.innerHTML=`<div style="font-size:12px;color:var(--text-sub);padding:10px;">${YA.mono?'「文字起こし」を押すと、ここに文の一覧が出ます':'左の「音声」タブで NotebookLM の音声を読み込んでください'}</div>`;yaRenderSum();return;}
+  // 1文を1行に：番号・時刻・話者・点数・チェック・文・（削る文だけ）切り口の調整と試聴・一部カット。理由などはマウスを重ねると出る
+  const adj=(k,c)=>`<span class="ya-adj"><button class="ya-nd" data-nd="${k},s,-1">◀</button>${yaTc(yaCS(c))}<button class="ya-nd" data-nd="${k},s,1">▶</button>〜<button class="ya-nd" data-nd="${k},e,-1">◀</button>${yaTc(yaCE(c))}<button class="ya-nd" data-nd="${k},e,1">▶</button></span><button class="ya-play" data-play="${k}">試聴</button>`;
   list.innerHTML=YA.sents.map((s,i)=>{
     const n=i+1,ids=by[n]||[];let tx=esc(s.text),whole=false;
     ids.forEach(k=>{const c=YA.cuts[k];if(!c.on)return;if(!c.part)whole=true;else tx=tx.replace(esc(c.part),`<del>${esc(c.part)}</del>`);});
-    const sc=YA.score&&YA.score[n],badge=sc?`<span class="ya-pri" title="${YA_SCORE_LABEL[sc]}">${sc===5?'🔒':sc}</span>`:'';
-    let ctl=ids.map(k=>{
-      const c=YA.cuts[k];
-      const lab=`<label title="${esc(c.reason)}"><input type="checkbox" data-k="${k}" ${c.on?'checked':''}> ${c.kind==='must'?'<span class="ya-warn">必ず削る</span> ':''}${c.kind==='part'?'一部 ':''}${c.review?'<span class="ya-warn">要確認</span> ':''}${esc((c.review||c.reason||'').slice(0,14))}${c.quiet?'':' <span class="ya-warn" title="切り口の近くに無音が無い（要試聴）">⚠</span>'}</label>`;
-      if(!c.on)return lab;
-      return lab+`<span title="切り始め・切り終わり（0.05秒ずつ調整）"><button class="ya-nd" data-nd="${k},s,-1">◀</button>${yaTc(yaCS(c))}<button class="ya-nd" data-nd="${k},s,1">▶</button>〜<button class="ya-nd" data-nd="${k},e,-1">◀</button>${yaTc(yaCE(c))}<button class="ya-nd" data-nd="${k},e,1">▶</button></span><button class="ya-play" data-play="${k}">試聴</button>`;
-    }).join('');
-    if(!ids.some(k=>YA.cuts[k].kind!=='part'))ctl=`<label><input type="checkbox" data-sent="${n}"> 削る</label>`+ctl;
+    const sc=YA.score&&YA.score[n],badge=`<span class="ya-pri" title="${sc?YA_SCORE_LABEL[sc]:'点数なし'}">${sc?(sc===5?'🔒':sc):''}</span>`;
+    const mk=ids.find(k=>YA.cuts[k].kind!=='part');
+    const mc=mk!=null?YA.cuts[mk]:null;
+    const tags=mc?`${mc.kind==='must'?'<span class="ya-tag must">必ず削る</span>':''}${mc.review?`<span class="ya-tag" title="${esc(mc.review)}">要確認</span>`:''}${mc.on&&!mc.quiet?'<span class="ya-warn" title="切り口の近くに無音が無い（要試聴）">⚠</span>':''}`:'';
+    const box=mc?`<input type="checkbox" data-k="${mk}" ${mc.on?'checked':''} title="${esc(mc.reason||'')}">`:`<input type="checkbox" data-sent="${n}" title="削る">`;
+    const parts=ids.filter(k=>YA.cuts[k].kind==='part').map(k=>{const c=YA.cuts[k];return `<label class="ya-part" title="${esc(c.reason||'')}"><input type="checkbox" data-k="${k}" ${c.on?'checked':''}>一部</label>${c.on?adj(k,c):''}`;}).join('');
     const head=secStart[n]?`<div class="ya-sec">■ ${esc(secStart[n].title)}（${secStart[n].from}〜${secStart[n].to}）<span data-secsum="${n}"></span></div>`:'';
-    return `${head}<div class="ya-ln${whole?' cut':''}"><span class="ya-no">${n}</span><span class="ya-tc">${yaTc(s.s)}</span><span class="ya-sp sp${s.sp}">${s.sp?(s.sp===1?'A':'B'):''}</span>${badge}<span class="ya-tx">${tx}</span><span class="ya-ctl">${ctl}<button class="ya-nd" data-part="${n}" title="文の一部だけを削る">✂一部</button></span></div>`;
+    return `${head}<div class="ya-ln${whole?' cut':''}"><span class="ya-no">${n}</span><span class="ya-tc">${yaTc(s.s)}</span><span class="ya-sp sp${s.sp}">${s.sp?(s.sp===1?'A':'B'):''}</span>${badge}${box}<span class="ya-tx">${tx}</span><span class="ya-ctl">${tags}${mc&&mc.on?adj(mk,mc):''}${parts}<button class="ya-nd" data-part="${n}" title="文の一部だけを削る">✂</button></span></div>`;
   }).join('');
   list.querySelectorAll('input[data-k]').forEach(el=>el.onchange=()=>{const c=YA.cuts[+el.dataset.k];c.on=el.checked;c.manual=true;c.manualOn=el.checked;yaSave();yaRender(true);});
   list.querySelectorAll('input[data-sent]').forEach(el=>el.onchange=()=>yaToggleSentence(+el.dataset.sent,el.checked));
