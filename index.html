@@ -7466,12 +7466,10 @@ function ytFreeReport(){
 }
 
 // ---- ChatGPT：調査・深掘りプロンプト ----
-function ytResearchPrompt(){
+function ytResearchPrompt(){   // 生成時の指示（ファクトチェックにもそのまま入れる）
   const fr=ytFreeReport();if(!fr.ok)throw new Error(fr.why);
   const up=getDir()==='up';
-  return `@iterative-fact-check-and-revise
-
-# 命令書
+  return `# 命令書
 
 ## あなたの役割
 個人投資家向けYouTube番組のリサーチャー兼構成作家です。企業IRや決算説明資料などの一次情報を読み込み、会社の事業と競争力を分かりやすく整理します。
@@ -7540,18 +7538,27 @@ ${vdBasicInfo('vd')}
 【株価分析レポート（1〜2章）】
 ${fr.text}`;
 }
-const YT_FC_PROMPT=`上の動画資料をファクトチェックしてください。
-・数値、固有名詞、日付、シェア、競合名、出典のURLとページを、一次情報で確認する
-・誤っている箇所、確認できない箇所、禁止事項（株価の水準・株価シナリオ・確率・割安水準・売買を促す表現・視聴者への行動要求）に当たる箇所だけを指摘する
-・指摘がある場合は、指摘箇所・指摘内容・修正後内容を書く`;
-const YT_FIX_PROMPT=`指摘箇所を修正し、動画資料を全文出力してください。
-・指摘していない箇所は一切変更しない
-・最初と同じ見出し構成のMarkdownで出力する（出典リンクのカード・注釈・前置きは付けない）`;
+// ファクトチェックは別のチャットで行う（生成したチャットの先入観を持ち込まない）。株価分析レポートの②〜④と同じ運用：
+// 貼り付けた資料＋生成時の指示を渡して指摘させる → 修正版を貼り直す → もう一度②
+function ytFactCheckPrompt(){
+  const doc=ytVal('doc');if(!doc)throw new Error('先にChatGPTの動画資料を貼り付けてください');
+  return `以下の動画資料は、以下の指示でAIが生成したものです。
+動画資料のファクトチェックを行い、誤っている箇所と指示に沿っていない箇所のみを指摘してください。
+特に、数値・固有名詞・日付・シェア・競合名・出典のURLとページ、禁止事項（株価の水準・株価シナリオ・確率・割安水準・売買を促す表現・視聴者への行動要求）を確認してください。
+指摘がある場合には、指摘箇所・指摘内容・修正後内容を記載してください。
+
+--指示--
+${ytResearchPrompt()}
+
+--動画資料--
+${doc}`;
+}
 
 // ---- ChatGPT：スライド用データ化プロンプト（同じチャットで続けて使う） ----
 function ytSlidePrompt(){
   const up=getDir()==='up';
-  return `上の動画資料（最終版）をもとに、スライド用のデータを作ってください。
+  const doc=ytVal('doc');if(!doc)throw new Error('先にChatGPTの動画資料（ファクトチェック済み）を貼り付けてください');
+  return `以下の動画資料をもとに、スライド用のデータを作ってください。
 
 【スライドの前提】
 ・横長スライド8枚（表紙＋第1〜7章）。各章のスライドは画面を4つの区画（2×2）に分け、区画ごとにズームして説明する。区画1つ＝話題1つ。
@@ -7579,7 +7586,10 @@ function ytSlidePrompt(){
    ]},
   …第7章まで7つ
  ],
- "sources":[{"no":1,"name":"資料名","url":"URL","page":"ページ","where":"ページ内の位置","label":"表示用の出典表記"}]}`;
+ "sources":[{"no":1,"name":"資料名","url":"URL","page":"ページ","where":"ページ内の位置","label":"表示用の出典表記"}]}
+
+--動画資料--
+${doc}`;
 }
 
 // ---- NotebookLM：指示文（C:\work\movie の音声ルールを流用） ----
@@ -7667,7 +7677,11 @@ function ytNotebookSource(){
 // ---- 操作 ----
 function ytCopy(kind,btn){
   try{
-    const t=kind==='research'?ytResearchPrompt():kind==='fc'?YT_FC_PROMPT:kind==='recheck'?'修正後内容が正しいか確認して':kind==='fix'?YT_FIX_PROMPT:kind==='slide'?ytSlidePrompt():kind==='nlm'?ytNotebookPrompt():'';
+    const t=kind==='research'?'@iterative-fact-check-and-revise\n\n'+ytResearchPrompt()
+      :kind==='fc'?ytFactCheckPrompt()
+      :kind==='recheck'?'修正後内容が正しいか確認して'
+      :kind==='fix'?'指摘箇所を指示の内容に沿って修正し、全文出力してください。\nただし、指摘していない箇所は一切変更しないでください。'
+      :kind==='slide'?ytSlidePrompt():kind==='nlm'?ytNotebookPrompt():'';
     copyText(t,btn);ytStatus('');
   }catch(e){ytStatus('❌ '+e.message,'error');}
 }
@@ -7675,14 +7689,10 @@ async function ytPaste(id,after){
   try{const s=await navigator.clipboard.readText();if(!s.trim()){alert('クリップボードが空です');return;}ytEl(id).value=s;saveState();if(after)after();}
   catch(e){alert('クリップボードを読めませんでした。欄に直接貼り付けてください（Ctrl+V）');}
 }
-function ytShowFree(){
-  const box=ytEl('free-box'),fr=ytFreeReport();
-  if(box.style.display!=='none'){box.style.display='none';return;}
-  box.style.display='';box.value=fr.ok?fr.text:fr.why;
-}
 function ytUpdateFreeInfo(){
-  const el=ytEl('free-info');if(!el)return;const fr=ytFreeReport();
-  el.innerHTML=fr.ok?`ChatGPTに渡す範囲：レポートの1〜2章（${fr.text.length.toLocaleString()}字）。3章以降（将来予測・シナリオ・リスク）は渡しません。`:`<span style="color:#dc2626;">⚠ ${esc(fr.why)}</span>`;
+  const el=ytEl('free-info'),box=ytEl('free-box');if(!el)return;const fr=ytFreeReport();
+  el.innerHTML=fr.ok?`ChatGPTに渡す範囲：レポートの1〜2章（${fr.text.length.toLocaleString()}字）`:`<span style="color:#dc2626;">⚠ ${esc(fr.why)}</span>`;
+  if(box)box.value=fr.ok?fr.text:'';
 }
 function ytDownloadSource(){
   try{
@@ -7876,70 +7886,66 @@ function ytInnerTab(t){
   if(t==='research')ytUpdateFreeInfo();
 }
 function ytBuildTabHtml(){
-  const step=(n,t)=>`<div style="font-size:12px;font-weight:700;margin:12px 0 4px;">${n} ${t}</div>`;
-  const btn=(label,on,cls)=>`<button class="${cls||'btn btn-secondary'}" style="font-size:11px;padding:5px 10px;" onclick="${on}">${label}</button>`;
+  const G='background:#475569;color:#fff;';   // プロンプトのコピーは既存タブと同じ灰色
+  const b=(label,on,style)=>`<button class="btn-sm" onclick="${on}" style="flex:1;min-width:0;${style||''}">${label}</button>`;
+  const row=(...x)=>`<div class="row" style="flex-wrap:nowrap;">${x.join('')}</div>`;
+  const set=(label,input,note)=>`<div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:4px;"><label style="font-size:11px;color:var(--text-sub);flex:none;">${label}</label>${input}${note?`<span style="font-size:11px;color:var(--text-sub);">${note}</span>`:''}</div>`;
   return `
-<div style="font-size:12px;color:var(--text-sub);margin-bottom:6px;">YouTube用の横動画（16:9・6〜10分）。シリーズ「私が知らなかった実力株」。株価の予想ではなく会社そのものを掘り下げる。</div>
-<div class="sa-subtabs" style="margin-bottom:8px;">
-  <button class="sa-subtab active" id="yt-itab-research" onclick="ytInnerTab('research')">① 調査・資料</button>
-  <button class="sa-subtab" id="yt-itab-slides" onclick="ytInnerTab('slides')">② スライド</button>
-  <button class="sa-subtab" id="yt-itab-audio" onclick="ytInnerTab('audio')">③ 音声</button>
-  <button class="sa-subtab" id="yt-itab-naresla" onclick="ytInnerTab('naresla')">④ ナレスラ</button>
+<div class="sa-subtabs" style="margin-top:6px;">
+  <button class="sa-subtab active" id="yt-itab-research" onclick="ytInnerTab('research')">調査</button>
+  <button class="sa-subtab" id="yt-itab-slides" onclick="ytInnerTab('slides')">スライド</button>
+  <button class="sa-subtab" id="yt-itab-audio" onclick="ytInnerTab('audio')">音声</button>
+  <button class="sa-subtab" id="yt-itab-naresla" onclick="ytInnerTab('naresla')">ナレスラ</button>
   <button class="sa-subtab" id="yt-itab-settings" onclick="ytInnerTab('settings')">設定</button>
 </div>
 <div id="yt-status" style="display:none;font-size:11px;margin:4px 0;"></div>
 
 <div id="yt-pane-research">
-  <div id="yt-free-info" style="font-size:11px;color:var(--text-sub);"></div>
-  <div style="margin-top:4px;">${btn('渡す範囲を表示','ytShowFree()','btn btn-secondary')}</div>
-  <textarea id="yt-free-box" readonly rows="6" style="display:none;width:100%;box-sizing:border-box;font-size:11px;margin-top:4px;"></textarea>
+<div class="sa-card">
+  <h2>1. 調査・動画資料</h2>
+  <details>
+    <summary id="yt-free-info" style="font-size:11px;color:var(--text-sub);cursor:pointer;"></summary>
+    <textarea id="yt-free-box" readonly style="min-height:36px;font-size:11px;margin-top:4px;"></textarea>
+    <div style="font-size:10px;color:var(--text-sub);">3章「将来予測」以降（シナリオ・リスク）は渡しません。</div>
+  </details>
+  <div class="sa-sub">▼ ChatGPT 調査プロンプト</div>
+  ${row(b('💬 ①調査',"ytCopy('research',this)",G),b('✅ ②ファクト',"ytCopy('fc',this)",G),b('🔁 ③再CK',"ytCopy('recheck',this)",G),b('🔧 ④修正',"ytCopy('fix',this)",G))}
+  <textarea id="yt-doc" placeholder="ChatGPTの動画資料をここに貼り付け（②〜④を誤りがなくなるまで繰り返す）" style="min-height:36px;"></textarea>
+  ${row(b('📋 貼り付け',"ytPaste('doc',ytUpdateFreeInfo)"),`<button class="btn-danger" onclick="if(confirm('動画資料を消しますか？')){ytEl('doc').value='';saveState();}" style="flex:1;">✕ クリア</button>`)}
+</div>
 
-  ${step('1.','ChatGPTで調査・深掘り（同じチャットで上から順に）')}
-  <div style="display:flex;flex-wrap:wrap;gap:6px;">
-    ${btn('① 調査プロンプトをコピー',"ytCopy('research',this)",'btn btn-primary')}
-    ${btn('② ファクトチェック',"ytCopy('fc',this)")}
-    ${btn('③ 修正後を確認',"ytCopy('recheck',this)")}
-    ${btn('④ 修正して全文出力',"ytCopy('fix',this)")}
-  </div>
+<div class="sa-card" style="margin-top:8px;">
+  <h2>2. スライド用データ</h2>
+  ${row(b('🧩 ⑤スライド用',"ytCopy('slide',this)",G),b('📋 貼り付け',"ytPaste('json',ytApplyJson)"),b('↻ 反映',"ytApplyJson()"))}
+  <textarea id="yt-json" placeholder="⑤で出力されたJSONを貼り付け（新しいチャットで可）" style="min-height:36px;font-family:monospace;font-size:11px;"></textarea>
+</div>
 
-  ${step('2.','ChatGPTの動画資料（最終版）を貼り付け')}
-  <div style="display:flex;gap:6px;margin-bottom:4px;">${btn('📋 貼り付け',"ytPaste('doc')")}</div>
-  <textarea id="yt-doc" rows="6" placeholder="④で出力された動画資料（Markdown）" style="width:100%;box-sizing:border-box;font-size:11px;"></textarea>
-
-  ${step('3.','スライド用データ（同じチャットで続けて）')}
-  <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px;">
-    ${btn('⑤ スライド用データ化プロンプトをコピー',"ytCopy('slide',this)",'btn btn-primary')}
-    ${btn('📋 貼り付けて反映',"ytPaste('json',ytApplyJson)")}
-    ${btn('反映',"ytApplyJson()")}
-  </div>
-  <textarea id="yt-json" rows="5" placeholder="⑤で出力されたJSON" style="width:100%;box-sizing:border-box;font-size:11px;font-family:monospace;"></textarea>
-
-  ${step('4.','NotebookLMで音声を作る場合')}
-  <div style="display:flex;flex-wrap:wrap;gap:6px;">
-    ${btn('⬇ NotebookLM用のソースを保存（.md）','ytDownloadSource()')}
-    ${btn('NotebookLM用の指示をコピー',"ytCopy('nlm',this)")}
-  </div>
-  <div style="font-size:11px;color:var(--text-sub);margin-top:4px;">ソース＝基本情報＋レポート1〜2章＋動画資料。NotebookLMの長さは「通常」を選び、長めに作ってから「④ ナレスラ」でカットして約8分にする想定です。</div>
+<div class="sa-card" style="margin-top:8px;">
+  <h2>3. NotebookLM（音声）</h2>
+  ${row(b('📄 ソース（.md）','ytDownloadSource()','background:#0d9488;color:#fff;'),b('📓 指示',"ytCopy('nlm',this)",G))}
+  <div style="font-size:10px;color:var(--text-sub);">長さは「通常」で長めに作り、「ナレスラ」タブでカットして約8分にする。</div>
+</div>
 </div>
 
 <div id="yt-pane-slides" style="display:none;">
-  <div style="font-size:11px;color:var(--text-sub);">表紙＋7章の8枚（1920×1080）。各章は4つの区画（2×2）で、ナレスラで区画にズームすると画面いっぱいに映ります。プレビューは右の「🎞 横スライド」。</div>
-  <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">
-    ${btn('⬇ 横スライド一式（ZIP）','ytDownloadSlides(this)','btn btn-primary')}
-    ${btn('プレビューを更新',"setMode('yt');renderYtPrev()")}
-  </div>
-  <div id="yt-slide-status" style="display:none;font-size:11px;margin-top:6px;"></div>
+<div class="sa-card">
+  <h2>横スライド（1920×1080）</h2>
+  <div style="font-size:11px;color:var(--text-sub);">表紙＋7章の8枚。各章は4つの区画で、ナレスラで区画にズームすると画面いっぱいに映ります。プレビューは右の「🎞 横スライド」。</div>
+  ${row(`<button class="main-btn download-btn" style="flex:1;font-size:13px;padding:8px 4px;" onclick="ytDownloadSlides(this)">💾 一式（ZIP）</button>`,b('↻ プレビュー',"setMode('yt');renderYtPrev()"))}
+  <div id="yt-slide-status" style="display:none;font-size:11px;margin-top:3px;"></div>
+</div>
 </div>
 
-<div id="yt-pane-audio" style="display:none;font-size:11px;color:var(--text-sub);">準備中：2人会話TTS（台本→音声）。NotebookLMの音声を使う場合は「④ ナレスラ」で読み込みます。</div>
-<div id="yt-pane-naresla" style="display:none;font-size:11px;color:var(--text-sub);">準備中：音声の文字起こし・カット・演出を割り当てたナレスラ用プロジェクト（.svpz）の出力。検証版は <a href="cut-test" target="_blank">音声カット検証ページ</a>。</div>
+<div id="yt-pane-audio" style="display:none;"><div class="sa-card"><h2>音声</h2><div style="font-size:11px;color:var(--text-sub);">準備中：2人会話TTS（台本→音声）。NotebookLMの音声は「ナレスラ」タブで読み込みます。</div></div></div>
+<div id="yt-pane-naresla" style="display:none;"><div class="sa-card"><h2>ナレスラ</h2><div style="font-size:11px;color:var(--text-sub);">準備中：文字起こし・カット・演出を入れたプロジェクト（.svpz）の出力。検証版は <a href="cut-test" target="_blank">音声カット検証</a>。</div></div></div>
 
 <div id="yt-pane-settings" style="display:none;">
-  <div style="display:flex;flex-direction:column;gap:8px;font-size:11px;">
-    <label>note記事のURL（まとめのQR。空なら縦動画の設定を使う）<input type="text" id="yt-note-url" style="width:100%;box-sizing:border-box;font-size:11px;" oninput="debouncedYtPrev()"></label>
-    <label>チャートの期間（か月）<input type="number" id="yt-months" value="12" min="1" max="60" style="width:80px;font-size:11px;" oninput="debouncedYtPrev()"></label>
-    <label>NotebookLMに指示する長さ（分）<input type="number" id="yt-nlm-min" value="12" min="3" max="30" style="width:80px;font-size:11px;"></label>
-  </div>
+<div class="sa-card">
+  <h2>設定</h2>
+  ${set('QR用URL','<input type="text" id="yt-note-url" placeholder="空なら縦動画の設定を使う" oninput="debouncedYtPrev()" style="flex:1;min-width:0;font-size:11px;">')}
+  ${set('チャート期間','<input type="number" id="yt-months" value="12" min="1" max="60" oninput="debouncedYtPrev()" style="width:60px;flex:none;font-size:11px;padding:4px;">','ヶ月')}
+  ${set('NotebookLMの長さ','<input type="number" id="yt-nlm-min" value="12" min="3" max="30" style="width:60px;flex:none;font-size:11px;padding:4px;">','分（指示文に書く目安）')}
+</div>
 </div>`;
 }
 const YT_PERSIST_IDS=['vd-orient','yt-doc','yt-json','yt-note-url','yt-months','yt-nlm-min'];
@@ -7960,9 +7966,9 @@ function ytSetOrient(o){
 }
 function ytOrientBar(){
   return `<input type="hidden" id="vd-orient" value="v">
-<div class="sa-subtabs" style="margin-bottom:10px;">
-  <button class="sa-subtab vd-orient-btn active" data-o="v" onclick="ytSetOrient('v')">縦（SNS）</button>
-  <button class="sa-subtab vd-orient-btn" data-o="y" onclick="ytSetOrient('y')">横（YouTube）</button>
+<div class="sa-subtabs" style="margin-bottom:6px;">
+  <button class="sa-subtab vd-orient-btn active" data-o="v" onclick="ytSetOrient('v')">📱 縦（SNS）</button>
+  <button class="sa-subtab vd-orient-btn" data-o="y" onclick="ytSetOrient('y')">📺 横（YouTube）</button>
 </div>`;
 }
 
