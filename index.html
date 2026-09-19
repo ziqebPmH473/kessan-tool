@@ -427,6 +427,49 @@
 .sl-sig{position:absolute;bottom:10px;right:28px;font-size:13px;color:#cbd5e1;font-weight:700;letter-spacing:.04em;}
 .sl-card{background:#fff;border:1px solid #e2e8f0;border-radius:8px;}
 
+/* ===== YouTube 横スライド（1920×1080、シリーズ「私が知らなかった実力株」） =====
+   各章は 2×2 の区画（848×477＝16:9）。ナレスラで区画へズームすると、区画が画面いっぱいに映る。
+   ズーム時は約2.26倍になるので、全体表示で小さめの文字でもズームすれば読める。
+   右上（x≥1400・y<90）はナレスラのコーナーテロップが重なるので空けておく。 */
+.yslide{width:1920px;height:1080px;overflow:hidden;position:relative;background:#f1f5f9;
+  font-family:'Noto Sans JP','Hiragino Sans','Yu Gothic','Meiryo',Arial,sans-serif;color:#0f172a;}
+.ys-bar{position:absolute;top:0;left:0;right:0;height:8px;background:linear-gradient(90deg,#1d4ed8,#0284c7);}
+.ys-head{position:absolute;left:75px;top:14px;height:72px;width:1300px;display:flex;align-items:center;gap:16px;}
+.ys-no{flex:none;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#1d4ed8,#0284c7);color:#fff;font-size:32px;font-weight:900;display:flex;align-items:center;justify-content:center;}
+.ys-cn{flex:none;font-size:40px;font-weight:900;color:#0b2a5b;letter-spacing:.01em;}
+.ys-title{flex:1;min-width:0;font-size:34px;font-weight:700;color:#475569;white-space:nowrap;overflow:hidden;padding-left:18px;border-left:3px solid #cbd5e1;}
+.ys-z{position:absolute;width:848px;height:477px;box-sizing:border-box;background:#fff;border:3px solid #dbeafe;border-radius:26px;
+  padding:26px 38px 20px;display:flex;flex-direction:column;overflow:hidden;}   /* box-shadow は html2canvas で内側が灰色に塗られるので使わない */
+.ys-z.ys-empty{background:transparent;border:3px dashed #e2e8f0;}
+.ys-zh{flex:none;display:flex;align-items:center;gap:14px;font-size:38px;font-weight:900;color:#0b3d91;line-height:1.25;}
+.ys-zn{flex:none;min-width:46px;height:46px;padding:0 12px;box-sizing:border-box;border-radius:12px;background:#1d4ed8;color:#fff;font-size:24px;font-weight:900;display:flex;align-items:center;justify-content:center;}
+.ys-zt{min-width:0;}
+.ys-big{flex:none;font-size:100px;font-weight:900;line-height:1.05;margin-top:12px;color:#1d4ed8;letter-spacing:-.02em;}
+.ys-big.red{color:#dc2626;} .ys-big.green{color:#059669;}
+.ys-bl{flex:none;font-size:28px;font-weight:700;color:#475569;margin-top:4px;}
+.ys-pts{margin-top:16px;display:flex;flex-direction:column;gap:10px;font-size:30px;line-height:1.45;min-height:0;}
+.ys-pt{display:flex;gap:14px;}
+.ys-pt:before{content:'';flex:none;width:14px;height:14px;border-radius:50%;background:#0284c7;margin-top:.55em;}
+.ys-src{flex:none;margin-top:auto;padding-top:8px;font-size:18px;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ys-z.risk{border-color:#fed7aa;} .ys-z.risk .ys-zh{color:#c2410c;} .ys-z.risk .ys-zn{background:#ea580c;} .ys-z.risk .ys-pt:before{background:#ea580c;}
+.ys-z.note{background:linear-gradient(135deg,#eff6ff,#fff);border-color:#93c5fd;}
+.ys-note{display:flex;gap:24px;align-items:center;flex:1;min-height:0;}
+.ys-note .ys-pts{flex:1;font-size:28px;}
+.ys-qr{flex:none;width:218px;height:218px;background:#fff;padding:10px;border-radius:12px;border:2px solid #dbeafe;}
+.ys-chart{flex:1;min-height:0;margin-top:10px;position:relative;}
+.ys-chart canvas,.ys-cv-chart canvas{width:100%;height:100%;display:block;}
+/* 表紙 */
+.ys-cover{background:linear-gradient(135deg,#0b1b33 0%,#0b2a5b 55%,#123e7c 100%);color:#fff;}
+.ys-cv-series{position:absolute;left:110px;top:120px;font-size:40px;font-weight:900;color:#0b1b33;background:#fbbf24;padding:10px 30px;border-radius:40px;letter-spacing:.06em;}
+.ys-cv-name{position:absolute;left:110px;top:230px;width:900px;font-size:120px;font-weight:900;line-height:1.1;letter-spacing:.01em;}
+.ys-cv-code{position:absolute;left:114px;top:500px;font-size:40px;font-weight:700;color:#93c5fd;}
+.ys-cv-catch{position:absolute;left:110px;top:590px;width:1000px;font-size:72px;font-weight:900;line-height:1.25;color:#fde68a;}
+.ys-cv-sub{position:absolute;left:112px;top:790px;width:1000px;font-size:38px;font-weight:700;color:#cbd5e1;line-height:1.4;}
+.ys-cv-badge{position:absolute;left:110px;top:900px;font-size:40px;font-weight:700;background:rgba(220,38,38,.18);border:3px solid #f87171;color:#fecaca;padding:12px 30px;border-radius:16px;}
+.ys-cv-badge b{font-size:56px;color:#fff;margin-left:8px;}
+.ys-cv-badge.up{background:rgba(5,150,105,.18);border-color:#34d399;color:#a7f3d0;}
+.ys-cv-chart{position:absolute;right:90px;top:250px;width:720px;height:520px;background:#fff;border-radius:24px;padding:24px;box-sizing:border-box;}
+
 /* ===== VERTICAL SLIDES (1080×1920, SNS動画用) =====
    ナレーションの補助資料なので文字量は控えめ（見出し1つ＋「結論＋短い補足」×3）。
    テロップは入れない前提で、スマホ全画面で読める大きさにする。
@@ -1320,6 +1363,13 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
     <button class="prev-tab active" id="tab-slides" onclick="setMode('slides')">📊 スライド</button>
     <button class="prev-tab" id="tab-thumb" onclick="setMode('thumb')">🖼 サムネイル</button>
     <button class="prev-tab" id="tab-video" onclick="setMode('video')">🎬 縦スライド</button>
+    <button class="prev-tab" id="tab-yt" onclick="setMode('yt')">🎞 横スライド</button>
+  </div>
+
+  <!-- 横スライド（YouTube用）ビュー -->
+  <div id="yt-view" style="display:none;flex-direction:column;gap:6px;flex:1;overflow-y:auto;">
+    <div style="font-size:11px;color:var(--text-sub);">横スライド 1920×1080 プレビュー（点線＝区画。クリックで個別ダウンロード）</div>
+    <div class="prev-wrap" id="yt-prev-area" style="display:flex;flex-wrap:wrap;gap:10px;"></div>
   </div>
 
   <!-- 縦スライド（SNS動画用）ビュー -->
@@ -4209,8 +4259,8 @@ function switchPriceTab(t){
   if(vd) vd.style.display = t==='video' ? '' : 'none';
   // 動画タブでは右側のプレビューも縦スライドに切り替える（戻る時はスライドへ）
   if(typeof setMode==='function'){
-    if(t==='video')setMode('video');
-    else if(document.getElementById('tab-video')?.classList.contains('active'))setMode('slides');
+    if(t==='video')setMode(typeof ytOrient==='function'&&ytOrient()==='y'?'yt':'video');
+    else if(document.getElementById('tab-video')?.classList.contains('active')||document.getElementById('tab-yt')?.classList.contains('active'))setMode('slides');
   }
 }
 // 「2.」の下のボタン：記事タブへ遷移してから生成する（結果が見える状態で走る）
@@ -7378,12 +7428,552 @@ function earnPrevMode(m){
   if(m==='video')renderVideoPrev('ev');
 }
 
+// ============================================================
+// YouTube 横動画（株価分析・シリーズ「私が知らなかった実力株」）  接頭辞 yt
+// 設計：docs/design/2026-09-20_YouTube横動画.md
+// ・ChatGPT に渡すのはレポートの 1〜2章（無料範囲）だけ。3章以降（将来予測・シナリオ・リスク）は渡さない
+// ・スライドは 1920×1080。各章は 2×2 の区画（848×477＝16:9）で、ナレスラで区画へズームすると画面いっぱいになる
+// ============================================================
+const YS_W=1920,YS_H=1080,YS_ZW=848,YS_ZH=477;
+const YS_ZONES=[[75,96],[997,96],[75,591],[997,591]];   // 左上・右上・左下・右下
+const YT_CHAPTERS=[
+  {no:1,name:'なぜ今この銘柄？',tags:['下落','チャート','背景','問い']},
+  {no:2,name:'そもそも何の会社？',tags:['事業','製品','顧客','売上']},
+  {no:3,name:'なぜ株価が下がった？',nameUp:'なぜ株価が上がった？',tags:['要因1','要因2','要因3','整理']},
+  {no:4,name:'この会社の強みは何？',tags:['強み1','強み2','強み3','強み4']},
+  {no:5,name:'その強みは本物なのか？',tags:['強み','崩れる条件','強み','崩れる条件']},
+  {no:6,name:'今後どこを見る？',tags:['確認1','確認2','確認3','確認4']},
+  {no:7,name:'まとめ',tags:['1','2','3','note']},
+];
+const ytEl=id=>document.getElementById('yt-'+id);
+const ytVal=id=>((ytEl(id)||{}).value||'').trim();
+function ytStatus(msg,cls,id){
+  const el=ytEl(id||'status');if(!el)return;
+  el.style.display=msg?'block':'none';el.textContent=msg||'';
+  el.style.color=cls==='error'?'#dc2626':cls==='ok'?'#059669':'var(--text-sub)';
+}
+
+// ---- レポートの無料範囲（1〜2章）を切り出す ----
+// レポートは4章構成（1.企業の基本情報 2.現状分析 3.将来予測 4.シナリオとリスク）。3章の見出しより前だけを使う
+function ytFreeReport(){
+  const r=((document.getElementById('ta-report')||{}).value||'').trim();
+  if(!r)return{text:'',ok:false,why:'株価分析レポートが空です（「作成」タブの貼り付け欄）'};
+  const lines=r.split(/\r?\n/);
+  const isCh3=l=>{const s=l.replace(/[*＊#＃\s　]/g,'');return /^(第)?[3３][\.．、章:：]?.{0,6}将来予測/.test(s)||(/将来予測/.test(s)&&/(コンセンサス|シナリオ|モノサシ)/.test(s)&&s.length<60);};
+  const k=lines.findIndex(isCh3);
+  if(k<=0)return{text:'',ok:false,why:'レポートの「3. 将来予測」の見出しが見つかりません。有料範囲を渡さないため、調査プロンプトは作れません'};
+  return{text:lines.slice(0,k).join('\n').trim(),ok:true};
+}
+
+// ---- ChatGPT：調査・深掘りプロンプト ----
+function ytResearchPrompt(){
+  const fr=ytFreeReport();if(!fr.ok)throw new Error(fr.why);
+  const up=getDir()==='up';
+  return `@iterative-fact-check-and-revise
+
+# 命令書
+
+## あなたの役割
+個人投資家向けYouTube番組のリサーチャー兼構成作家です。企業IRや決算説明資料などの一次情報を読み込み、会社の事業と競争力を分かりやすく整理します。
+
+## 目的
+YouTubeシリーズ「私が知らなかった実力株」の動画資料を作ります。
+株価が大きく${up?'上昇':'下落'}した銘柄を入口に、「この会社は何者なのか」「なぜ強いのか」「その強さは続くのか」「今後何を確認すればよいか」を掘り下げます。株価予想の動画ではありません。
+銘柄を取り上げる理由は「大きく${up?'上昇':'下落'}した銘柄を調べていたところ、事業内容に興味を持った」程度にとどめ、「評価が高いから紹介する」のような説明はしません。
+
+## 入力の使い方
+下に【基本情報】と【株価分析レポート（1〜2章）】を貼ります。
+・レポートに十分書かれている内容は再調査せず、そのまま使うか、動画向けに言い換えて使う。
+・不足している部分だけを追加で調査する。毎回ゼロから企業分析をやり直さない。
+・優先する情報源：企業IR、決算説明資料、有価証券報告書、中期経営計画、企業公式サイト、業界団体・官公庁の一次資料、信頼できる報道。
+・特に追加で調べたいもの：
+  1. 会社の分かりやすい事業説明（製品が実際に何に使われているか、売上構成、顧客の業界）
+  2. 強みの具体的な根拠（シェア、競合名、顧客が乗り換えにくい理由、製造工程の難しさ、研究開発力、利益率が高い理由、数字）
+  3. 競合との比較
+  4. 強みが続く理由と、強みが崩れる条件
+  5. 今後確認する事業の指標
+
+## 章構成と各章で書くこと
+第1章 なぜ今この銘柄？：株価がいつの高値からどれだけ${up?'上昇':'下落'}したか、現在の位置、相場全体との対比、今回この会社を調べる理由。
+第2章 そもそも何の会社？：何を作り、何で稼いでいるか。主要製品・サービス、主な顧客、属する市場、利益の中心の事業、売上構成。この会社を知らない人でも分かるように書く。
+第3章 なぜ株価が${up?'上がった':'下がった'}？：主な要因を3つ程度に整理する。${up?'業績の改善・期待の高まり・評価の見直しのどれにあたるかを分けて書く。':'「業績の悪化」「期待の剥落」「高すぎた評価の修正」のどれにあたるかを分けて書く。下落＝業績悪化と単純化しない。'}
+第4章 この会社の強みは何？：シリーズの中心。「優良企業だから」ではなく「なぜ競争力があるのか」を、根拠と数字で説明する（2〜4項目）。
+第5章 その強みは本物なのか？：第4章の強みを検証する。競合との比較、強みの持続性、代替技術、価格競争、顧客の集中、景気や設備投資のサイクル、海外の競合、新規参入、市場の縮小など。必ず「強い点」と「強さが崩れる条件」の両方を書き、企業礼賛にしない。ここで扱うリスクは事業のリスクだけで、株価のリスクは扱わない。
+第6章 今後どこを見る？：事業が今後も強いかを判断するために確認する指標を3〜5個（売上成長、営業利益率、受注、出荷数量、設備投資、シェア、製品構成、主要市場の需要、顧客の動向、新製品、為替、原材料、会社計画の進捗など）。それぞれ「なぜその指標を見るのか」「どうなっていれば強さが続いていると言えるか」を事業の言葉で書く。株価の水準は書かない。
+第7章 まとめ：3〜4点に絞る（例：株価は大きく${up?'上昇':'下落'}している／事業には〇〇という強みがある／一方で〇〇というリスクがある／今後は〇〇を確認したい）。「だから買い」「ここから上がる」とは書かない。
+
+## 禁止（最重要）
+次の内容は、どの章にも書かない（noteの有料記事で扱うため）。
+・具体的な下値・底値の水準、将来の株価、上昇余地の％
+・弱気／ベース／強気などの株価シナリオと、その確率
+・割安／割高の水準、PER・PBR等を使った株価評価のレンジ、「PER○倍なら割安」のような表現
+・買い水準に近い情報、株価をもとにしたシナリオの転換条件（「○円を超えれば」等）
+・視聴者に売買を促す表現、視聴者への行動要求（「〜すべきです」「〜する必要があります」等）
+
+## 出典
+・重要な事実（シェア、業績、利益率、受注、会社計画、競争力を示す数字、主な${up?'上昇':'下落'}要因）には、本文の該当箇所に［出典1］のように番号を付ける。1本あたり4〜8か所。
+・末尾の出典一覧に、番号・資料名・URL・ページ・ページ内の位置・表示用の出典表記（例：出典：〇〇株式会社「2026年3月期 決算説明資料」p.14）を書く。
+・URLとページは、実際に確認できたものだけを書く。確認できない場合は「要確認」と書く。
+
+## 出力形式
+Markdownで、次の見出しをこの順番で出力する。前置き・感想・引用カードは不要。出力はそのままコピーして使う。
+## 企画
+- 仮タイトル案：3つ
+- 動画コンセプト：1〜2文
+- 視聴者に伝える核心：1文
+## 情報の出どころ
+（表：章｜レポートから使った内容｜追加で調べた内容）
+## 第1章 なぜ今この銘柄？
+## 第2章 そもそも何の会社？
+## 第3章 なぜ株価が${up?'上がった':'下がった'}？
+## 第4章 この会社の強みは何？
+## 第5章 その強みは本物なのか？
+## 第6章 今後どこを見る？
+## 第7章 まとめ
+（各章は、動画のナレーションの元になる文章として、事実と数字を中心に、話の流れが分かるように書く）
+## 出典一覧
+（表：番号｜資料名｜URL｜ページ｜ページ内の位置｜表示用の出典表記）
+
+【基本情報】
+${vdBasicInfo('vd')}
+
+【株価分析レポート（1〜2章）】
+${fr.text}`;
+}
+const YT_FC_PROMPT=`上の動画資料をファクトチェックしてください。
+・数値、固有名詞、日付、シェア、競合名、出典のURLとページを、一次情報で確認する
+・誤っている箇所、確認できない箇所、禁止事項（株価の水準・株価シナリオ・確率・割安水準・売買を促す表現・視聴者への行動要求）に当たる箇所だけを指摘する
+・指摘がある場合は、指摘箇所・指摘内容・修正後内容を書く`;
+const YT_FIX_PROMPT=`指摘箇所を修正し、動画資料を全文出力してください。
+・指摘していない箇所は一切変更しない
+・最初と同じ見出し構成のMarkdownで出力する（出典リンクのカード・注釈・前置きは付けない）`;
+
+// ---- ChatGPT：スライド用データ化プロンプト（同じチャットで続けて使う） ----
+function ytSlidePrompt(){
+  const up=getDir()==='up';
+  return `上の動画資料（最終版）をもとに、スライド用のデータを作ってください。
+
+【スライドの前提】
+・横長スライド8枚（表紙＋第1〜7章）。各章のスライドは画面を4つの区画（2×2）に分け、区画ごとにズームして説明する。区画1つ＝話題1つ。
+・区画の順番：①左上 → ②右上 → ③左下 → ④右下。話す順番と同じにする。
+・情報量は多めでよい（ズームして見せるため）。1区画は「見出し＋要点4つまで」。要点は1つ40字以内の言い切りにする。
+・数字は資料にあるものだけを使う。株価の水準・株価シナリオ・確率・割安水準・売買を促す表現は書かない。
+
+【章ごとの区画】
+第1章：①${up?'上昇':'下落'}の大きさ（big に${up?'上昇':'下落'}率） ②株価チャート（ツールが描くので head だけ） ③${up?'上昇':'下落'}の背景 ④この動画で調べること（問いかけ）
+第2章：①何をしている会社か ②主要製品・サービス ③主な顧客・市場 ④売上構成（big に主力事業の売上比率など）
+第3章：①〜③${up?'上昇':'下落'}の要因（1区画に1つ） ④整理（${up?'業績の改善／期待の高まり／評価の見直し':'業績の悪化／期待の剥落／評価の修正'}のどれにあたるか）
+第4章：強みを2〜4個（1区画に1つ。余った区画は head を空にする）
+第5章：左側（①③）＝強み、右側（②④）＝その強みが崩れる条件（事業のリスク）
+第6章：確認する指標を4つ（3つなら④の head を空にする）
+第7章：①〜③まとめ ④は空（ツールがnoteへの案内を入れる）
+
+【出力】JSONをコードブロック1つでそのまま出力する。出典リンクのカード・注釈・説明文は付けない。
+{"title":"動画の仮タイトル",
+ "cover":{"catch":"表紙のキャッチコピー（18字以内）","sub":"補足の一文（30字以内）"},
+ "chapters":[
+  {"no":1,"corner":"右上に出すコーナー名（8字以内）","title":"スライドの見出し（24字以内）",
+   "zones":[
+    {"head":"区画の見出し（14字以内）","big":"大きく見せる数字や語（任意・8字以内）","bigLabel":"その説明（任意・22字以内）","points":["要点（40字以内・最大4つ）"],"src":出典番号の数字（無ければ null）},
+    …区画は必ず4つ
+   ]},
+  …第7章まで7つ
+ ],
+ "sources":[{"no":1,"name":"資料名","url":"URL","page":"ページ","where":"ページ内の位置","label":"表示用の出典表記"}]}`;
+}
+
+// ---- NotebookLM：指示文（C:\work\movie の音声ルールを流用） ----
+const YT_VOICE_RULES=`【ルールの原則】
+以下の個別ルールを適用するにあたり、下記の3つの原則を応答の最初から最後まで、常に厳守してください。
+1. ルールは静かに適用する:すべてのルールは、会話の裏側で静かに適用してください。ルールの適用過程や、「〇〇というルールに従い、」のような前置きは一切不要です。
+2. 自然な発話（繰り返し厳禁）:特定の単語や数値を不自然に繰り返す癖があります。（例：「上期、上期は」「4500万円。4500万円」）。すべての発言は、自然な人間の会話のように、一度だけ行ってください。
+3. 一貫性と自己チェック:指示されたルールは、応答の途中で忘れることなく、最後まで一貫して適用してください。応答を終える前に、すべての指示が守られているか必ず自己チェックする習慣をつけてください。
+【重要ルール】
+・動画内において、数字はとても重要な情報です。特に、桁の間違いに注意してください。（復唱しての確認などは行わず、すべてのルールは、会話の裏側で静かに適用してください。）
+・以下の単語は、必ず指定された読み方で発音してください。
+(読むときは「上記、かみき」ではなく「かみき」のように、読みがなを一度だけ発音してください)
+上期：かみき
+下期：しもき
+EBITDA：イービットディーエー
+EBITA：イービットエー
+IFRS：イファース
+終値：おわりね
+初値：はつね
+老舗：しにせ
+月次：げつじ
+・業績予想の増減は「上方修正」「下方修正」と言わず、「業績予想を引き上げた」「業績予想を引き下げた」と表現すること。
+・「〇百万円」という表記は、計算・変換後の数値で読むこと（例：「45百万円」→「4500万円」、「5678百万円」→「56億7800万円」）。
+【基本ルール】
+・この音声では、元の資料やソース、レポート、出典などの存在に一切触れず、内容のみを自然な解説としてまとめてください。
+・話し手 と 聞き手 の役割を決め、最初から最後まで役割を入れ替えないこと。
+・日付は「今日」「昨日」と言わず、必ず「8月5日」のように具体的な日付で話してください。特定の日付に続く「前日」などの表現は問題ありません。
+・音声の冒頭で今日の日付を話す必要はありません。
+・無理に1人称を使用しなくても問題ありませんが、使用する場合には1人称は「わたし」にしてください。
+【禁止】
+・「あなたに考えてほしいこと」「いかがでしたか」「コメントで教えて」等の問いかけ系アウトロは禁止
+・まとめ、要約は本文の最後に1回だけ。章末や本編末に追加の要約を作らない（=二重まとめ禁止）
+【比喩・たとえ表現のルール】
+・原則として、比喩やたとえ話は使わないこと。
+・「例えるなら〜のようなもので…」「〜にたとえると…」と前置きして、たとえ話を広げる表現は使わないこと。
+・どうしても比喩が必要な場合のみ、「渋滞のように動きが遅くなる」のような、ごく一般的で短い一言の比喩にとどめること。
+・比喩を使うか迷う場合は、比喩を使わずにストレートに説明することを優先すること。
+【音声の最後のルール】
+・音声の一番最後は、必ず「本日はここまでです」の１文で終えてください。
+・１文の直後に2秒程度の無音の間を置いてから終了する（無音の指示自体は読み上げない）`;
+function ytNotebookPrompt(){
+  const up=getDir()==='up',name=getName()||'この会社',min=ytVal('nlm-min')||'12';
+  return `根拠資料をもとに、約${min}分のYouTube解説動画用の音声を作成してください。
+
+テーマは、
+「${name}は何者なのか。株価は大きく${up?'上昇':'下落'}したが、この会社の事業と競争力を掘り下げる」
+です。シリーズ「私が知らなかった実力株」の1本で、株価予想ではなく会社そのものを主役にします。
+
+話し手はアナリスト（専門家）、聞き手は投資に詳しいMCです。MCは視聴者と同じ目線の質問係ではなく、論点を整理して引き出し、視聴者に投資判断の材料を渡す役です。
+
+大まかな構成は以下です。時間配分は厳密に守る必要はありません。
+1. なぜ今この銘柄？
+   株価がいつの高値からどれだけ${up?'上昇':'下落'}したかを入口に、この会社を調べる理由を提示する。
+2. そもそも何の会社？
+   何を作り、何で稼いでいるのか。主要製品、主な顧客、売上構成を、知らない人にも分かるように説明する。
+3. なぜ株価が${up?'上がった':'下がった'}？
+   主な要因を整理する。${up?'':'業績の悪化なのか、期待の剥落なのか、高すぎた評価の修正なのかを分けて説明し、「下落＝業績悪化」と単純化しない。'}
+4. この会社の強みは何？
+   ここを動画の中心として扱う。「優良企業だから」ではなく、なぜ競争力があるのかを根拠と数字で説明する。
+5. その強みは本物なのか？
+   競合との比較、代替技術、価格競争、顧客の集中、景気のサイクルなどから、強さが崩れる条件も必ず話す。企業礼賛にしない。
+6. 今後どこを見る？
+   事業が今後も強いかを判断するために、次の決算などで確認したい事業の指標を挙げる。株価の水準の話はしない。
+7. まとめ
+   3〜4点に絞る。最後に「今回は会社そのものを中心に見てきました。株価の下値や12か月後のシナリオ、バリュエーションについてはnoteで詳しく分析しています」という趣旨を自然に伝える。
+
+全体として、
+「株価の${up?'上昇':'下落'}」→「何の会社か」→「なぜ${up?'上がった':'下がった'}か」→「なぜ強いか」→「強さは本物か」→「今後何を見るか」
+という流れにしてください。
+
+根拠資料の全項目を均等に紹介する必要はありません。
+細かな数字の羅列や各論の説明に偏らず、動画全体の流れと分かりやすさを優先してください。
+視聴者は個人投資家です。技術面ではなく、投資に関する内容をメインにしてください。
+【株価について話さないこと（最重要）】
+株価の下値・底値、将来の株価、上昇余地、株価シナリオとその確率、割安・割高の水準、PER等による株価評価、売買を促す表現、視聴者への行動要求（「〜すべき」「〜する必要があります」）は話さない。
+${YT_VOICE_RULES}`;
+}
+// NotebookLM に読ませるソース（基本情報＋レポート1〜2章＋ChatGPTの動画資料）
+function ytNotebookSource(){
+  const fr=ytFreeReport();if(!fr.ok)throw new Error(fr.why);
+  const doc=ytVal('doc');if(!doc)throw new Error('ChatGPTの動画資料（最終版）を貼り付けてください');
+  return `# ${getName()||''}（${getTicker()||''}）動画資料\n\n## 基本情報\n${vdBasicInfo('vd')}\n\n## 株価分析レポート（1〜2章）\n${fr.text}\n\n## 動画資料（調査・深掘り）\n${doc}\n`;
+}
+
+// ---- 操作 ----
+function ytCopy(kind,btn){
+  try{
+    const t=kind==='research'?ytResearchPrompt():kind==='fc'?YT_FC_PROMPT:kind==='recheck'?'修正後内容が正しいか確認して':kind==='fix'?YT_FIX_PROMPT:kind==='slide'?ytSlidePrompt():kind==='nlm'?ytNotebookPrompt():'';
+    copyText(t,btn);ytStatus('');
+  }catch(e){ytStatus('❌ '+e.message,'error');}
+}
+async function ytPaste(id,after){
+  try{const s=await navigator.clipboard.readText();if(!s.trim()){alert('クリップボードが空です');return;}ytEl(id).value=s;saveState();if(after)after();}
+  catch(e){alert('クリップボードを読めませんでした。欄に直接貼り付けてください（Ctrl+V）');}
+}
+function ytShowFree(){
+  const box=ytEl('free-box'),fr=ytFreeReport();
+  if(box.style.display!=='none'){box.style.display='none';return;}
+  box.style.display='';box.value=fr.ok?fr.text:fr.why;
+}
+function ytUpdateFreeInfo(){
+  const el=ytEl('free-info');if(!el)return;const fr=ytFreeReport();
+  el.innerHTML=fr.ok?`ChatGPTに渡す範囲：レポートの1〜2章（${fr.text.length.toLocaleString()}字）。3章以降（将来予測・シナリオ・リスク）は渡しません。`:`<span style="color:#dc2626;">⚠ ${esc(fr.why)}</span>`;
+}
+function ytDownloadSource(){
+  try{
+    const blob=new Blob([ytNotebookSource()],{type:'text/markdown'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${getTicker()||'code'}_${getName()||'name'}_YouTube資料.md`;a.click();
+    ytStatus('✅ NotebookLM用のソースを保存しました','ok');
+  }catch(e){ytStatus('❌ '+e.message,'error');}
+}
+
+// ---- スライド用データ（JSON）----
+function ytParseJson(text){
+  const s=String(text||'');const a=s.indexOf('{'),b=s.lastIndexOf('}');
+  if(a<0||b<a)throw new Error('JSONが見つかりません');
+  let j;try{j=JSON.parse(s.slice(a,b+1));}catch(e){throw new Error('JSONの形式が崩れています：'+e.message);}
+  if(!Array.isArray(j.chapters))throw new Error('chapters がありません');
+  return j;
+}
+function ytData(){
+  const t=ytVal('json');if(!t)return null;
+  try{return ytParseJson(t);}catch(e){return{error:e.message};}
+}
+function ytApplyJson(){
+  const d=ytData();
+  if(!d){ytStatus('スライド用データを貼り付けてください','error');return;}
+  if(d.error){ytStatus('❌ '+d.error,'error');return;}
+  ytStatus(`✅ スライド用データを読み込みました（${d.chapters.length}章・出典${(d.sources||[]).length}件）。右の「🎞 横スライド」で確認できます`,'ok');
+  saveState();
+  if(document.getElementById('tab-yt')?.classList.contains('active'))renderYtPrev();else setMode('yt');
+}
+
+// ---- スライドの組み立て ----
+function ytCtx(){
+  const up=getDir()==='up';
+  const ch=vdSplitChange(getPeriod());
+  const bp=(document.getElementById('inp-base-price')||{}).value||'',bd=(document.getElementById('inp-base-date')||{}).value||'';
+  const cp=(document.getElementById('inp-cur-price')||{}).value||'',cd=(document.getElementById('inp-cur-date')||{}).value||'';
+  const ym=s=>{const m=String(s).match(/(\d{4})\D+(\d{1,2})/);return m?`${m[1]}年${+m[2]}月`:'';};
+  const f=window._fetched||{};
+  return{up,name:getName()||f.name||'',code:getTicker()||f.code||'',pct:ch.pct,from:ym(bd),bp,bd,cp,cd,
+    chart:ytChartLines(),noteUrl:ytVal('note-url')||vdVal('vd','note-url')};
+}
+function ytChartLines(){
+  const rows=saChartRowsFromFetched(window._fetched,ytVal('months')||'12',true);
+  if(rows&&rows.length>1)return rows;
+  const ta=(document.getElementById('ta-data')||{}).value||'';
+  if(ta.trim()){try{const d=parseData(ta);const c=getSec(d,'チャート');if(c.length>1)return c;}catch(e){}}
+  return[];
+}
+const ytPrice=s=>{const n=parseFloat(String(s).replace(/[,，円\s　]/g,''));return isNaN(n)?String(s||''):n.toLocaleString()+'円';};
+function ytZone(z,i,tag,opt){
+  opt=opt||{};z=z||{};
+  const [x,y]=YS_ZONES[i];
+  const pts=(z.points||[]).filter(Boolean).slice(0,4).map(p=>`<div class="ys-pt">${esc(p)}</div>`).join('');
+  const src=opt.srcLabel?`<div class="ys-src">${esc(opt.srcLabel)}</div>`:'';
+  const big=z.big?`<div class="ys-big ${opt.bigCls||''}">${esc(z.big)}</div>${z.bigLabel?`<div class="ys-bl">${esc(z.bigLabel)}</div>`:''}`:'';
+  const body=opt.inner!=null?opt.inner:`${big}<div class="ys-pts">${pts}</div>`;
+  if(!z.head&&opt.inner==null&&!pts&&!z.big)return `<div class="ys-z ys-empty" style="left:${x}px;top:${y}px;"></div>`;
+  return `<div class="ys-z ${opt.cls||''}" style="left:${x}px;top:${y}px;"><div class="ys-zh"><span class="ys-zn">${esc(tag)}</span><span class="ys-zt">${esc(z.head||'')}</span></div>${body}${src}</div>`;
+}
+function ytBuildCover(d,ctx){
+  const cv=d.cover||{};
+  const badge=ctx.pct?`<div class="ys-cv-badge ${ctx.up?'up':''}">${esc(ctx.from?ctx.from+'の高値から ':'')}<b>${esc(ctx.pct)}</b></div>`:'';
+  const chart=ctx.chart.length>1?`<div class="ys-cv-chart"><canvas data-chart="${esc(ctx.chart.join(';'))}" data-k="1.5"></canvas></div>`:'';
+  return `<div class="yslide ys-cover">
+<div class="ys-cv-series">私が知らなかった実力株</div>
+<div class="ys-cv-name">${esc(ctx.name)}</div>
+<div class="ys-cv-code">${esc(ctx.code)}</div>
+<div class="ys-cv-catch">${esc(cv.catch||'')}</div>
+<div class="ys-cv-sub">${esc(cv.sub||'')}</div>
+${badge}${chart}
+</div>`;
+}
+function ytBuildChapter(c,d,ctx){
+  const def=YT_CHAPTERS[c.no-1]||YT_CHAPTERS[0];
+  const src=n=>{const s=(d.sources||[]).find(x=>+x.no===+n);return s?(s.label||s.name||''):'';};
+  const zones=[0,1,2,3].map(i=>{
+    const z=(c.zones||[])[i]||{};
+    const opt={srcLabel:z.src!=null?src(z.src):''};
+    if(c.no===1&&i===0){z.big=z.big||ctx.pct;z.bigLabel=z.bigLabel||(ctx.bp&&ctx.cp?`${ytPrice(ctx.bp)} → ${ytPrice(ctx.cp)}`:'');opt.bigCls=ctx.up?'green':'red';}
+    if(c.no===1&&i===1)opt.inner=ctx.chart.length>1?`<div class="ys-chart"><canvas data-chart="${esc(ctx.chart.join(';'))}" data-k="1.5"></canvas></div>`:`<div class="ys-pts"><div class="ys-pt">（株価データを取得するとチャートを表示）</div></div>`;
+    if(c.no===1&&i===1&&!z.head)z.head='株価の推移';
+    if(c.no===5)opt.cls=i%2?'risk':'';
+    if(c.no===7&&i===3){
+      z.head=z.head||'株価の分析はnoteで';
+      const list=VD_NOTE_ITEMS[ctx.up?'up':'down'].map(n=>`<div class="ys-pt">${esc(n)}</div>`).join('');
+      const qr=ctx.noteUrl?`<div class="ys-qr" data-qr="${esc(ctx.noteUrl)}"></div>`:'';
+      opt.inner=`<div class="ys-note"><div class="ys-pts">${list}</div>${qr}</div>`;opt.cls='note';
+    }
+    return ytZone(z,i,def.tags[i],opt);
+  }).join('');
+  const name=ctx.up&&def.nameUp?def.nameUp:def.name;
+  return `<div class="yslide"><div class="ys-bar"></div>
+<div class="ys-head"><span class="ys-no">${c.no}</span><span class="ys-cn">${esc(name)}</span><span class="ys-title">${esc(c.title||'')}</span></div>
+${zones}</div>`;
+}
+function ytBuildSlides(d,ctx){
+  const code=ctx.code||'code',nm=ctx.name||'name';
+  const out=[{html:ytBuildCover(d,ctx),name:`${code}_${nm}_YT00_表紙`,no:0}];
+  YT_CHAPTERS.forEach(def=>{
+    const c=(d.chapters||[]).find(x=>+x.no===def.no)||{no:def.no,zones:[]};
+    out.push({html:ytBuildChapter({...c,no:def.no},d,ctx),name:`${code}_${nm}_YT0${def.no}_${def.name.replace(/[？?]/g,'')}`,no:def.no,corner:c.corner||def.name});
+  });
+  return out;
+}
+// 区画からはみ出す文字を縮める（プレビュー・画像化の両方で、挿入後に呼ぶ）
+function ytFitText(root){
+  root.querySelectorAll('.ys-z').forEach(z=>{
+    const pts=z.querySelector('.ys-pts');if(!pts||z.classList.contains('note'))return;
+    let fs=30;
+    while(z.scrollHeight>z.clientHeight+1&&fs>20){fs-=1;pts.style.fontSize=fs+'px';}
+  });
+  root.querySelectorAll('.ys-title').forEach(t=>{let fs=34;while(t.scrollWidth>t.clientWidth+1&&fs>22){fs-=1;t.style.fontSize=fs+'px';}});
+}
+async function ytFill(root){
+  const p=vFillDynamic(root);
+  await new Promise(r=>setTimeout(r,60));
+  ytFitText(root);
+  return p;
+}
+
+// ---- 右ペインのプレビュー ----
+function renderYtPrev(){
+  const area=document.getElementById('yt-prev-area');if(!area)return;
+  area.innerHTML='';
+  const d=ytData();
+  if(!d||d.error){area.innerHTML=`<div style="font-size:11px;color:var(--text-sub);padding:8px;">${d&&d.error?'⚠ '+esc(d.error):'「① 調査・資料」でスライド用データを貼り付けると、ここにプレビューが出ます'}</div>`;return;}
+  let slides;
+  try{slides=ytBuildSlides(d,ytCtx());}
+  catch(e){area.innerHTML=`<div style="color:#f87171;font-size:12px;padding:8px;font-family:monospace;white-space:pre-wrap;">レンダリングエラー:\n${e.message}</div>`;console.error(e);return;}
+  const W=(area.clientWidth||600)-8,cols=W>900?2:1,gap=10;
+  const iW=Math.floor((W-gap*(cols-1))/cols),scale=iW/YS_W,iH=Math.round(YS_H*scale);
+  slides.forEach(s=>{
+    const wrap=document.createElement('div');
+    wrap.className='prev-slide';wrap.style.cssText=`width:${iW}px;height:${iH}px;`;wrap.title=s.name+'（クリックで個別ダウンロード）';
+    wrap.addEventListener('click',()=>ytDlSingle(s));
+    const inner=document.createElement('div');
+    inner.style.cssText=`position:absolute;top:0;left:0;width:${YS_W}px;height:${YS_H}px;transform:scale(${scale});transform-origin:top left;pointer-events:none;`;
+    inner.innerHTML=s.html;wrap.appendChild(inner);area.appendChild(wrap);
+    setTimeout(()=>ytFill(inner),60);
+  });
+}
+let _ytPrevTimer=null;
+function debouncedYtPrev(){clearTimeout(_ytPrevTimer);_ytPrevTimer=setTimeout(()=>{if(document.getElementById('tab-yt')?.classList.contains('active'))renderYtPrev();},600);}
+
+// ---- 画像化・ダウンロード ----
+async function ytRenderToBlob(slide){
+  const ct=document.getElementById('render-target');
+  ct.innerHTML=slide.html;
+  await new Promise(r=>setTimeout(r,150));
+  await ytFill(ct);
+  await new Promise(r=>setTimeout(r,250));
+  const el=ct.querySelector('.yslide');
+  const c=await html2canvas(el,{width:YS_W,height:YS_H,scale:1,useCORS:true,allowTaint:true,backgroundColor:'#f1f5f9',logging:false});
+  ct.innerHTML='';
+  return new Promise(res=>c.toBlob(res,'image/png'));
+}
+async function ytDlSingle(slide){
+  setStatus(`${slide.name} をレンダリング中...`);
+  try{
+    const blob=await ytRenderToBlob(slide);
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=slide.name+'.png';a.click();
+    setStatus(`✓ ${slide.name}.png をダウンロードしました`,3000);
+  }catch(e){setStatus('エラー: '+e.message);}
+}
+// スライド8枚（PNG）＋スライドデータ（区画の位置つき。ナレスラ用の出力で使う）をZIPで
+async function ytDownloadSlides(btn){
+  const d=ytData();
+  if(!d||d.error){alert(d&&d.error?d.error:'先にスライド用データを貼り付けてください');return;}
+  if(btn)btn.disabled=true;
+  try{
+    const ctx=ytCtx(),slides=ytBuildSlides(d,ctx),zip=new JSZip();
+    for(let i=0;i<slides.length;i++){
+      ytStatus(`スライドを画像化中… ${i+1}/${slides.length}`,'','slide-status');
+      zip.file(`slides/slide-${i}.png`,await ytRenderToBlob(slides[i]));
+    }
+    const zones=YS_ZONES.map(([x,y])=>({x:x/YS_W,y:y/YS_H,w:YS_ZW/YS_W,h:YS_ZH/YS_H}));
+    zip.file('slides.json',JSON.stringify({version:1,width:YS_W,height:YS_H,zones,slides:slides.map((s,i)=>({file:`slides/slide-${i}.png`,name:s.name,chapter:s.no,corner:s.corner||''})),data:d},null,1));
+    const blob=await zip.generateAsync({type:'blob'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${ctx.code||'code'}_${ctx.name||'name'}_YouTubeスライド.zip`;a.click();
+    ytStatus(`✅ ${slides.length}枚を出力しました`,'ok','slide-status');
+  }catch(e){ytStatus('❌ '+e.message,'error','slide-status');}
+  finally{if(btn)btn.disabled=false;}
+}
+
+// ---- タブのHTML ----
+function ytInnerTab(t){
+  ['research','slides','audio','naresla','settings'].forEach(k=>{
+    const b=ytEl('itab-'+k),p=ytEl('pane-'+k);
+    if(b)b.classList.toggle('active',k===t);if(p)p.style.display=k===t?'':'none';
+  });
+  if(t==='research')ytUpdateFreeInfo();
+}
+function ytBuildTabHtml(){
+  const step=(n,t)=>`<div style="font-size:12px;font-weight:700;margin:12px 0 4px;">${n} ${t}</div>`;
+  const btn=(label,on,cls)=>`<button class="${cls||'btn btn-secondary'}" style="font-size:11px;padding:5px 10px;" onclick="${on}">${label}</button>`;
+  return `
+<div style="font-size:12px;color:var(--text-sub);margin-bottom:6px;">YouTube用の横動画（16:9・6〜10分）。シリーズ「私が知らなかった実力株」。株価の予想ではなく会社そのものを掘り下げる。</div>
+<div class="sa-subtabs" style="margin-bottom:8px;">
+  <button class="sa-subtab active" id="yt-itab-research" onclick="ytInnerTab('research')">① 調査・資料</button>
+  <button class="sa-subtab" id="yt-itab-slides" onclick="ytInnerTab('slides')">② スライド</button>
+  <button class="sa-subtab" id="yt-itab-audio" onclick="ytInnerTab('audio')">③ 音声</button>
+  <button class="sa-subtab" id="yt-itab-naresla" onclick="ytInnerTab('naresla')">④ ナレスラ</button>
+  <button class="sa-subtab" id="yt-itab-settings" onclick="ytInnerTab('settings')">設定</button>
+</div>
+<div id="yt-status" style="display:none;font-size:11px;margin:4px 0;"></div>
+
+<div id="yt-pane-research">
+  <div id="yt-free-info" style="font-size:11px;color:var(--text-sub);"></div>
+  <div style="margin-top:4px;">${btn('渡す範囲を表示','ytShowFree()','btn btn-secondary')}</div>
+  <textarea id="yt-free-box" readonly rows="6" style="display:none;width:100%;box-sizing:border-box;font-size:11px;margin-top:4px;"></textarea>
+
+  ${step('1.','ChatGPTで調査・深掘り（同じチャットで上から順に）')}
+  <div style="display:flex;flex-wrap:wrap;gap:6px;">
+    ${btn('① 調査プロンプトをコピー',"ytCopy('research',this)",'btn btn-primary')}
+    ${btn('② ファクトチェック',"ytCopy('fc',this)")}
+    ${btn('③ 修正後を確認',"ytCopy('recheck',this)")}
+    ${btn('④ 修正して全文出力',"ytCopy('fix',this)")}
+  </div>
+
+  ${step('2.','ChatGPTの動画資料（最終版）を貼り付け')}
+  <div style="display:flex;gap:6px;margin-bottom:4px;">${btn('📋 貼り付け',"ytPaste('doc')")}</div>
+  <textarea id="yt-doc" rows="6" placeholder="④で出力された動画資料（Markdown）" style="width:100%;box-sizing:border-box;font-size:11px;"></textarea>
+
+  ${step('3.','スライド用データ（同じチャットで続けて）')}
+  <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px;">
+    ${btn('⑤ スライド用データ化プロンプトをコピー',"ytCopy('slide',this)",'btn btn-primary')}
+    ${btn('📋 貼り付けて反映',"ytPaste('json',ytApplyJson)")}
+    ${btn('反映',"ytApplyJson()")}
+  </div>
+  <textarea id="yt-json" rows="5" placeholder="⑤で出力されたJSON" style="width:100%;box-sizing:border-box;font-size:11px;font-family:monospace;"></textarea>
+
+  ${step('4.','NotebookLMで音声を作る場合')}
+  <div style="display:flex;flex-wrap:wrap;gap:6px;">
+    ${btn('⬇ NotebookLM用のソースを保存（.md）','ytDownloadSource()')}
+    ${btn('NotebookLM用の指示をコピー',"ytCopy('nlm',this)")}
+  </div>
+  <div style="font-size:11px;color:var(--text-sub);margin-top:4px;">ソース＝基本情報＋レポート1〜2章＋動画資料。NotebookLMの長さは「通常」を選び、長めに作ってから「④ ナレスラ」でカットして約8分にする想定です。</div>
+</div>
+
+<div id="yt-pane-slides" style="display:none;">
+  <div style="font-size:11px;color:var(--text-sub);">表紙＋7章の8枚（1920×1080）。各章は4つの区画（2×2）で、ナレスラで区画にズームすると画面いっぱいに映ります。プレビューは右の「🎞 横スライド」。</div>
+  <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">
+    ${btn('⬇ 横スライド一式（ZIP）','ytDownloadSlides(this)','btn btn-primary')}
+    ${btn('プレビューを更新',"setMode('yt');renderYtPrev()")}
+  </div>
+  <div id="yt-slide-status" style="display:none;font-size:11px;margin-top:6px;"></div>
+</div>
+
+<div id="yt-pane-audio" style="display:none;font-size:11px;color:var(--text-sub);">準備中：2人会話TTS（台本→音声）。NotebookLMの音声を使う場合は「④ ナレスラ」で読み込みます。</div>
+<div id="yt-pane-naresla" style="display:none;font-size:11px;color:var(--text-sub);">準備中：音声の文字起こし・カット・演出を割り当てたナレスラ用プロジェクト（.svpz）の出力。検証版は <a href="cut-test" target="_blank">音声カット検証ページ</a>。</div>
+
+<div id="yt-pane-settings" style="display:none;">
+  <div style="display:flex;flex-direction:column;gap:8px;font-size:11px;">
+    <label>note記事のURL（まとめのQR。空なら縦動画の設定を使う）<input type="text" id="yt-note-url" style="width:100%;box-sizing:border-box;font-size:11px;" oninput="debouncedYtPrev()"></label>
+    <label>チャートの期間（か月）<input type="number" id="yt-months" value="12" min="1" max="60" style="width:80px;font-size:11px;" oninput="debouncedYtPrev()"></label>
+    <label>NotebookLMに指示する長さ（分）<input type="number" id="yt-nlm-min" value="12" min="3" max="30" style="width:80px;font-size:11px;"></label>
+  </div>
+</div>`;
+}
+const YT_PERSIST_IDS=['vd-orient','yt-doc','yt-json','yt-note-url','yt-months','yt-nlm-min'];
+function ytRestoreFields(){
+  let st=null;try{st=JSON.parse(localStorage.getItem(SA_STORAGE_KEY)||'null');}catch(e){}
+  if(!st||!st.fields)return;
+  YT_PERSIST_IDS.forEach(id=>{const el=document.getElementById(id);if(el&&st.fields[id]!=null)el.value=st.fields[id];});
+}
+// 縦（SNS）／横（YouTube）の切り替え
+const ytOrient=()=>((document.getElementById('vd-orient')||{}).value||'v');
+function ytSetOrient(o){
+  const el=document.getElementById('vd-orient');if(el)el.value=o;
+  document.getElementById('vd-orient-v').style.display=o==='y'?'none':'';
+  document.getElementById('vd-orient-y').style.display=o==='y'?'':'none';
+  document.querySelectorAll('.vd-orient-btn').forEach(b=>b.classList.toggle('active',b.dataset.o===o));
+  if(document.getElementById('sa-tab-video')?.style.display!=='none')setMode(o==='y'?'yt':'video');
+  saveState();
+}
+function ytOrientBar(){
+  return `<input type="hidden" id="vd-orient" value="v">
+<div class="sa-subtabs" style="margin-bottom:10px;">
+  <button class="sa-subtab vd-orient-btn active" data-o="v" onclick="ytSetOrient('v')">縦（SNS）</button>
+  <button class="sa-subtab vd-orient-btn" data-o="y" onclick="ytSetOrient('y')">横（YouTube）</button>
+</div>`;
+}
+
 // ---- 初期化：両タブのHTMLを組み立て、保存値を復元し、保存済み音声を戻す ----
 (function vdInit(){
   ['vd','ev'].forEach(P=>{
     const host=document.getElementById(P==='vd'?'sa-tab-video':'earn-tab-video');
     if(!host)return;
-    host.innerHTML=vdBuildTabHtml(P);
+    host.innerHTML=P==='vd'
+      ?ytOrientBar()+`<div id="vd-orient-v">${vdBuildTabHtml(P)}</div><div id="vd-orient-y" style="display:none;">${ytBuildTabHtml()}</div>`
+      :vdBuildTabHtml(P);
     vdBuildScriptBoxes(P,true);
     PERSIST_IDS.push(...vdPersistIds(P));
     vdRestoreFields(P);
@@ -7396,6 +7986,13 @@ function earnPrevMode(m){
   const thi=document.getElementById('th-input');if(thi)thi.addEventListener('input',()=>debouncedVideoPrev('vd'));
   [['vd','gem-months'],['ev','gem-earn-months']].forEach(([P,src])=>{const m=vdEl(P,'months'),s=document.getElementById(src);if(m&&s&&!m.value&&s.value)m.value=s.value;});
   vdRestoreTts();
+  // 横動画（YouTube）
+  PERSIST_IDS.push(...YT_PERSIST_IDS);
+  ytRestoreFields();
+  if(ytOrient()==='y')ytSetOrient('y');
+  ytUpdateFreeInfo();
+  const tr=document.getElementById('ta-report');if(tr)tr.addEventListener('input',()=>ytUpdateFreeInfo());
+  window.addEventListener('resize',debouncedYtPrev);
 })();
 
 // ============================================================
@@ -7623,15 +8220,18 @@ checkMob();window.addEventListener('resize',checkMob);
 // MODE SWITCH (スライド / サムネイル)
 // ============================================================
 function setMode(mode){
-  const isThumb=mode==='thumb',isVideo=mode==='video';
-  document.getElementById('slides-view').style.display=(!isThumb&&!isVideo)?'flex':'none';
+  const isThumb=mode==='thumb',isVideo=mode==='video',isYt=mode==='yt';
+  document.getElementById('slides-view').style.display=(!isThumb&&!isVideo&&!isYt)?'flex':'none';
+  document.getElementById('yt-view').style.display=isYt?'flex':'none';
+  document.getElementById('tab-yt').classList.toggle('active',isYt);
   document.getElementById('thumb-view').style.display=isThumb?'flex':'none';
   document.getElementById('video-view').style.display=isVideo?'flex':'none';
-  document.getElementById('tab-slides').classList.toggle('active',!isThumb&&!isVideo);
+  document.getElementById('tab-slides').classList.toggle('active',!isThumb&&!isVideo&&!isYt);
   document.getElementById('tab-thumb').classList.toggle('active',isThumb);
   document.getElementById('tab-video').classList.toggle('active',isVideo);
   if(isThumb)renderThumbPreview();
   if(isVideo)renderVideoPrev('vd');   // 非表示中に描くと幅0で崩れるため、表示後に描く
+  if(isYt)renderYtPrev();
 }
 
 // ============================================================
