@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>2人会話TTS つなぎ目検証</title>
+<style>
+  body{font-family:system-ui,"Yu Gothic UI",sans-serif;max-width:920px;margin:0 auto;padding:16px;color:#1f2937;background:#f8fafc;font-size:14px;}
+  h1{font-size:18px;margin:0 0 4px;} .sub{color:#64748b;font-size:12px;margin-bottom:14px;}
+  .box{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin-bottom:12px;}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px;}
+  label{font-size:12px;color:#475569;display:flex;flex-direction:column;gap:3px;}
+  input,select,textarea{font:inherit;font-size:13px;padding:5px;border:1px solid #cbd5e1;border-radius:5px;}
+  textarea{width:100%;box-sizing:border-box;}
+  button{font:inherit;padding:7px 14px;border:0;border-radius:6px;background:#2563eb;color:#fff;cursor:pointer;}
+  button.sec{background:#e2e8f0;color:#1f2937;} button:disabled{opacity:.5;cursor:default;}
+  table{border-collapse:collapse;width:100%;font-size:12px;} td,th{border-bottom:1px solid #e2e8f0;padding:5px;text-align:left;vertical-align:top;}
+  .err{color:#dc2626;} audio{width:100%;height:34px;}
+</style>
+</head>
+<body>
+<h1>2人会話TTS つなぎ目検証</h1>
+<div class="sub">台本を「話者が交代する位置」だけで分割して Gemini TTS（話者2人指定）で生成し、連結します。つなぎ目の違和感を聞き比べるための検証ページです。</div>
+
+<div class="box">
+  <div class="row">
+    <label>話者1の名前<input id="n1" value="A" size="6"></label>
+    <label>話者1の声<select id="v1"></select></label>
+    <label>話者2の名前<input id="n2" value="B" size="6"></label>
+    <label>話者2の声<select id="v2"></select></label>
+    <label>モデル<input id="model" value="gemini-3.1-flash-tts-preview" size="28"></label>
+  </div>
+  <div class="row">
+    <label>1回の生成の目安文字数（0＝分割せず1回で全部）<input id="chunk" type="number" value="200" min="0" step="50" style="width:110px;"></label>
+    <label>つなぎ目の無音(ms)<input id="gap" type="number" value="250" min="0" step="50" style="width:90px;"></label>
+    <span style="font-size:12px;color:#64748b;">目安：200字≒30秒、400字≒1分</span>
+  </div>
+  <label>話し方の指示（各回の先頭に付ける。空でも可）
+    <textarea id="style" rows="2">次の会話を、投資系YouTubeの落ち着いた掛け合いとして、自然な日本語で読んでください。全体を通して同じテンポ・同じ声の高さを保ってください。</textarea>
+  </label>
+  <label style="margin-top:8px;">台本（1行＝1発言。「A: 」「B: 」のように話者名＋コロンで始める）
+    <textarea id="script" rows="16"></textarea>
+  </label>
+  <div class="row" style="margin-top:10px;">
+    <button id="go">🔊 生成して連結</button>
+    <button id="preview" class="sec">分割だけ確認</button>
+    <span id="status" style="font-size:12px;"></span>
+  </div>
+</div>
+
+<div class="box" id="result" style="display:none;">
+  <b>連結した音声</b>
+  <audio id="full" controls></audio>
+  <div class="row" style="margin-top:6px;"><a id="dl" download="duo-test.wav"><button class="sec">⬇ WAVを保存</button></a><span id="total" style="font-size:12px;color:#64748b;"></span></div>
+  <table id="tbl"></table>
+</div>
+
+<script>
+const VOICES=["Zephyr","Puck","Charon","Kore","Fenrir","Leda","Orus","Aoede","Callirrhoe","Autonoe","Enceladus","Iapetus","Umbriel","Algieba","Despina","Erinome","Algenib","Rasalgethi","Laomedeia","Achernar","Alnilam","Schedar","Gacrux","Pulcherrima","Achird","Zubenelgenubi","Vindemiatrix","Sadachbita","Sadaltager","Sulafat"];
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const KEYS=['n1','v1','n2','v2','model','chunk','gap','style','script'];
+['v1','v2'].forEach((id,k)=>{$(id).innerHTML=VOICES.map(v=>`<option>${v}</option>`).join('');$(id).value=k?'Charon':'Erinome';});
+$('script').value=`A: 今回は、株価が大きく下がった会社を調べていて気になった銘柄を取り上げます。
+B: 下がっている銘柄をわざわざ見るんですね。どうしてですか？
+A: 株価が下がった理由と、会社そのものの実力は、別の話であることが多いからです。
+B: なるほど。業績が悪くなったから下がった、とは限らないわけですね。
+A: そうなんです。期待が高すぎた反動で下がることもあれば、業界全体の流れに巻き込まれることもあります。
+B: 見分けるには、何を確認すればいいんでしょう。
+A: まずは、その会社が何で稼いでいるのかを知ることです。主力の製品、主な顧客、そして利益の出どころですね。
+B: 意外と、名前は知っていても何の会社か説明できないこと、ありますよね。
+A: ありますね。次に、その強みがなぜ生まれているのかを見ます。シェアなのか、技術なのか、顧客との長い取引なのか。
+B: 強みがあるなら安心、という話でもないんですよね？
+A: はい。その強みが続くのかどうか、崩れるとしたらどんな条件なのかも、あわせて確認します。
+B: いいところだけを見ない、ということですね。
+A: その通りです。最後に、今後の決算でどの数字を見れば事業の調子が分かるのかを整理します。
+B: 株価がいくらになるか、という話ではないんですね。
+A: ええ。この動画では会社そのものを見ていきます。では、さっそく始めましょう。`;
+try{const s=JSON.parse(localStorage.getItem('ttsDuoTest')||'{}');KEYS.forEach(k=>{if(s[k]!=null)$(k).value=s[k];});}catch(e){}
+const save=()=>{try{const o={};KEYS.forEach(k=>o[k]=$(k).value);localStorage.setItem('ttsDuoTest',JSON.stringify(o));}catch(e){}};
+
+// 台本 → 発言の配列。話者名で始まらない行は直前の発言の続きとして扱う
+function parseTurns(){
+  const names=[$('n1').value.trim(),$('n2').value.trim()];
+  const turns=[];
+  for(const raw of $('script').value.split(/\r?\n/)){
+    const line=raw.trim();if(!line)continue;
+    const m=line.match(/^(.+?)\s*[:：]\s*(.+)$/);
+    if(m&&names.includes(m[1]))turns.push({speaker:m[1],text:m[2]});
+    else if(turns.length)turns[turns.length-1].text+=line;
+    else throw new Error('1行目が話者名で始まっていません: '+line.slice(0,20));
+  }
+  if(!turns.length)throw new Error('台本が空です');
+  return turns;
+}
+// 目安文字数に達したら、次に話者が変わる位置で区切る（同じ話者の連続発言の途中では切らない）
+function splitChunks(turns,target){
+  if(!target)return[turns];
+  const chunks=[];let cur=[],len=0;
+  turns.forEach((t,i)=>{
+    cur.push(t);len+=t.text.length;
+    const next=turns[i+1];
+    if(next&&len>=target&&next.speaker!==t.speaker){chunks.push(cur);cur=[];len=0;}
+  });
+  if(cur.length)chunks.push(cur);
+  return chunks;
+}
+function b64ToBuf(b64){const bin=atob(b64);const u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return u.buffer;}
+// index.html の vdConcatWavs と同じ連結（境界の無音を詰めて gapMs を挟む）
+async function concatWavs(b64list,gapMs){
+  const ctx=new (window.AudioContext||window.webkitAudioContext)();
+  const chans=[];let sr=24000;
+  for(const b of b64list){const d=await ctx.decodeAudioData(b64ToBuf(b));chans.push(d.getChannelData(0).slice());sr=d.sampleRate;}
+  ctx.close();
+  const thr=0.006,guard=Math.round(sr*0.03);
+  const trimmed=chans.map((c,idx)=>{
+    let start=0,end=c.length;
+    if(idx>0){while(start<end&&Math.abs(c[start])<thr)start++;start=Math.max(0,start-guard);}
+    if(idx<chans.length-1){while(end>start&&Math.abs(c[end-1])<thr)end--;end=Math.min(c.length,end+guard);}
+    return c.subarray(start,end);
+  });
+  const gap=Math.round(sr*gapMs/1000);
+  const total=trimmed.reduce((a,p)=>a+p.length,0)+gap*Math.max(0,trimmed.length-1);
+  const all=new Float32Array(total);let off=0;const ranges=[];
+  trimmed.forEach((c,i)=>{if(i>0)off+=gap;all.set(c,off);ranges.push({start:off/sr,end:(off+c.length)/sr});off+=c.length;});
+  return{samples:all,sampleRate:sr,ranges};
+}
+function toWav(s,sr){
+  const ab=new ArrayBuffer(44+s.length*2),v=new DataView(ab);
+  const w=(o,str)=>{for(let i=0;i<str.length;i++)v.setUint8(o+i,str.charCodeAt(i));};
+  w(0,'RIFF');v.setUint32(4,36+s.length*2,true);w(8,'WAVE');w(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,sr,true);v.setUint32(28,sr*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,'data');v.setUint32(40,s.length*2,true);
+  for(let i=0,o=44;i<s.length;i++,o+=2){const x=Math.max(-1,Math.min(1,s[i]));v.setInt16(o,x<0?x*0x8000:x*0x7FFF,true);}
+  return new Blob([ab],{type:'audio/wav'});
+}
+const tc=s=>{const m=Math.floor(s/60),r=s-m*60;return `${m}:${(r<10?'0':'')+r.toFixed(1)}`;};
+
+function renderTable(chunks,ranges){
+  $('tbl').innerHTML='<tr><th>#</th><th>開始</th><th>文字数</th><th>内容（先頭）</th><th>つなぎ目</th></tr>'+chunks.map((c,i)=>{
+    const chars=c.reduce((a,t)=>a+t.text.length,0);
+    const st=ranges?tc(ranges[i].start):'-';
+    const joint=ranges&&i>0?`<button class="sec" data-t="${Math.max(0,ranges[i].start-4)}">▶ 4秒前から</button>`:'';
+    return `<tr><td>${i+1}</td><td>${st}</td><td>${chars}</td><td>${esc(c[0].speaker)}: ${esc(c[0].text.slice(0,40))}… <span style="color:#94a3b8;">(${c.length}発言)</span></td><td>${joint}</td></tr>`;
+  }).join('');
+  $('tbl').querySelectorAll('button[data-t]').forEach(b=>b.onclick=()=>{const a=$('full');a.currentTime=+b.dataset.t;a.play();});
+  $('result').style.display='';
+}
+
+$('preview').onclick=()=>{
+  try{save();const chunks=splitChunks(parseTurns(),+$('chunk').value||0);renderTable(chunks,null);$('full').removeAttribute('src');$('total').textContent='';$('status').textContent=`${chunks.length}回に分けて生成します`;}
+  catch(e){$('status').innerHTML=`<span class="err">${esc(e.message)}</span>`;}
+};
+$('go').onclick=async()=>{
+  const btn=$('go');btn.disabled=true;save();
+  try{
+    const chunks=splitChunks(parseTurns(),+$('chunk').value||0);
+    const names=[$('n1').value.trim(),$('n2').value.trim()];
+    const speakers=[{speaker:names[0],voice:$('v1').value},{speaker:names[1],voice:$('v2').value}];
+    const style=$('style').value.trim();
+    const b64=[];
+    for(let i=0;i<chunks.length;i++){
+      $('status').textContent=`生成中… ${i+1}/${chunks.length}`;
+      const c=chunks[i];
+      const both=new Set(c.map(t=>t.speaker)).size===2;
+      // 1人しか話さない回は話者指定が使えないので、その人の声の単独読み上げにする
+      const body=both
+        ?{text:(style?style+'\n\n':'')+c.map(t=>`${t.speaker}: ${t.text}`).join('\n'),speakers,model:$('model').value}
+        :{text:(style?style+'\n\n':'')+c.map(t=>t.text).join('\n'),voice:speakers.find(s=>s.speaker===c[0].speaker).voice,model:$('model').value};
+      const res=await fetch('/api/tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      const data=await res.json();
+      if(!data.ok)throw new Error(`${i+1}回目: ${data.error||'不明なエラー'}`);
+      b64.push(data.audioBase64);
+    }
+    $('status').textContent='連結中…';
+    const cat=await concatWavs(b64,+$('gap').value||0);
+    const url=URL.createObjectURL(toWav(cat.samples,cat.sampleRate));
+    $('full').src=url;$('dl').href=url;
+    $('total').textContent=`全体 ${tc(cat.samples.length/cat.sampleRate)} ／ ${chunks.length}回で生成`;
+    renderTable(chunks,cat.ranges);
+    $('status').textContent='✅ 完了。「▶ 4秒前から」でつなぎ目を確認できます';
+  }catch(e){$('status').innerHTML=`<span class="err">❌ ${esc(e.message)}</span>`;}
+  finally{btn.disabled=false;}
+};
+</script>
+</body>
+</html>

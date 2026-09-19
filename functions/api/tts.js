@@ -73,12 +73,18 @@ export async function onRequestPost(context) {
   const voice = payload.voice || "Erinome";
   const model = payload.model || DEFAULT_MODEL;
 
+  // 2人会話: speakers=[{speaker:"A",voice:"Erinome"},{speaker:"B",voice:"Charon"}]
+  // 台本は「A: …」「B: …」の行形式。Gemini の話者指定は2人まで。
+  const speakers = Array.isArray(payload.speakers)
+    ? payload.speakers.filter((s) => s && s.speaker && s.voice).slice(0, 2) : [];
+  const speechConfig = speakers.length === 2
+    ? { multiSpeakerVoiceConfig: { speakerVoiceConfigs: speakers.map((s) => ({
+        speaker: s.speaker, voiceConfig: { prebuiltVoiceConfig: { voiceName: s.voice } } })) } }
+    : { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } };
+
   const body = {
     contents: [{ parts: [{ text }] }],
-    generationConfig: {
-      responseModalities: ["AUDIO"],
-      speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } },
-    },
+    generationConfig: { responseModalities: ["AUDIO"], speechConfig },
   };
 
   // 混雑(503/high demand)や一時的な空応答はリトライ（最大3回）
