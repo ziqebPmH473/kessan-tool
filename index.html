@@ -528,6 +528,8 @@
 .ya-nd{padding:0 4px;font-size:10px;line-height:16px;border:1px solid #cbd5e1;background:#f1f5f9;border-radius:3px;cursor:pointer;}
 .ya-play{padding:0 6px;font-size:10px;line-height:16px;border:0;background:#2563eb;color:#fff;border-radius:3px;cursor:pointer;}
 .ya-part{display:inline-flex;align-items:center;gap:2px;}
+.ya-go{padding:0 6px;font-size:10px;line-height:16px;border:1px solid #93c5fd;background:#eff6ff;color:#1d4ed8;border-radius:3px;cursor:pointer;}
+.ya-go.on,.ya-play.on{background:#dc2626;color:#fff;border-color:#dc2626;}
 .ya-tag{color:#b45309;font-weight:700;border:1px solid #fcd34d;background:#fffbeb;border-radius:3px;padding:0 3px;} .ya-tag.must{color:#b91c1c;border-color:#fca5a5;background:#fef2f2;}
 .ya-warn{color:#b45309;font-weight:700;}
 .ya-pri{flex:none;display:inline-block;width:18px;text-align:center;border-radius:8px;background:#e2e8f0;font-size:10px;}
@@ -1437,7 +1439,7 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
 
   <!-- 横動画の音声カット（NotebookLMの音声） -->
   <div id="ya-view" style="display:none;flex-direction:column;gap:6px;flex:1;overflow-y:auto;">
-    <div style="font-size:11px;color:var(--text-sub);">数字＝AIの点数（🔒＝流れに必須）。チェックで削る／戻す（理由はマウスを重ねると表示）。◀▶＝切り口を0.05秒ずつ調整、試聴＝つなぎ目の前後3秒、✂＝文の一部を削る。<span class="ya-warn">⚠</span>＝切り口の近くに無音が無い</div>
+    <div style="font-size:11px;color:var(--text-sub);">数字＝AIの点数（🔒＝流れに必須）。チェックで削る／戻す（理由はマウスを重ねると表示）。▶＝その文を前後つきで再生（削る文はつなぎ目。カットは飛ばす、もう一度押すと停止）。◀▶＝切り口を0.05秒ずつ調整、✂＝文の一部を削る。<span class="ya-warn">⚠</span>＝切り口の近くに無音が無い。前後の秒数は「設定」タブ</div>
     <div id="ya-sum" style="font-size:12px;">-</div>
     <audio id="ya-edited" controls style="display:none;width:100%;height:34px;"></audio>
     <div id="ya-list"></div>
@@ -8083,11 +8085,12 @@ function ytBuildTabHtml(){
   <h2>設定</h2>
   ${set('QR用URL','<input type="text" id="yt-note-url" placeholder="空なら縦動画の設定を使う" oninput="debouncedYtPrev()" style="flex:1;min-width:0;font-size:11px;">')}
   ${set('チャート期間','<input type="number" id="yt-months" value="12" min="1" max="60" oninput="debouncedYtPrev()" style="width:60px;flex:none;font-size:11px;padding:4px;">','ヶ月')}
+  ${set('試聴の前後','<input type="number" id="ya-ctx" value="2" min="0" max="10" step="0.5" style="width:60px;flex:none;font-size:11px;padding:4px;">','秒（音声カットの▶・試聴で、前後に足す長さ）')}
   ${set('NotebookLMの長さ','<input type="number" id="yt-nlm-min" value="8" min="3" max="30" style="width:60px;flex:none;font-size:11px;padding:4px;">','分（指示文に書く目安）')}
 </div>
 </div>`;
 }
-const YT_PERSIST_IDS=['vd-orient','yt-doc','yt-json','yt-note-url','yt-months','yt-nlm-min','yt-yomi','yt-yomi-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts'];
+const YT_PERSIST_IDS=['vd-orient','yt-doc','yt-json','yt-note-url','yt-months','yt-nlm-min','yt-yomi','yt-yomi-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx'];
 function ytRestoreFields(){
   let st=null;try{st=JSON.parse(localStorage.getItem(SA_STORAGE_KEY)||'null');}catch(e){}
   if(!st||!st.fields)return;
@@ -8460,16 +8463,32 @@ function yaToggleSentence(n,on){
 }
 
 // ---- 試聴・出力 ----
-let _yaCtx=null,_yaPlaying=[];
-function yaStop(){_yaPlaying.forEach(p=>{try{p.stop();}catch(e){}});_yaPlaying=[];}
-function yaAudition(c){
+let _yaCtx=null,_yaPlaying=[],_yaPlayBtn=null;
+function yaStop(){_yaPlaying.forEach(p=>{try{p.stop();}catch(e){}});_yaPlaying=[];if(_yaPlayBtn){_yaPlayBtn.classList.remove('on');_yaPlayBtn=null;}}
+const yaCtxSec=()=>{const v=parseFloat(yaVal('ctx'));return isNaN(v)?2:Math.max(0,Math.min(10,v));};
+// 残す区間（カットの補集合）
+function yaKeep(){const m=yaMerged(),k=[];let p=0;for(const c of m){if(c.start>p)k.push([p,c.start]);p=Math.max(p,c.end);}if(p<YA.dur)k.push([p,YA.dur]);return k;}
+// 元の時刻 → 編集後の時刻（カットの中なら、そのカットの位置）
+function yaToEdit(t,K){let e=0;for(const [s,f] of K){if(t<=s)return e;if(t<f)return e+(t-s);e+=f-s;}return e;}
+// 元の時刻 a〜b の範囲を、編集後の時間で前後 pre/post 秒広げて、カットを飛ばした再生区間の列にする
+function yaPlayRange(a,b,btn){
   if(!YA.buf){alert('音声が読み込まれていません');return;}
-  yaStop();_yaCtx=_yaCtx||new (window.AudioContext||window.webkitAudioContext)();
-  const cs=yaCS(c),ce=yaCE(c),pre=Math.min(3,cs),t0=_yaCtx.currentTime+0.05;
-  const a=_yaCtx.createBufferSource();a.buffer=YA.buf;a.connect(_yaCtx.destination);a.start(t0,cs-pre,pre);
-  const b=_yaCtx.createBufferSource();b.buffer=YA.buf;b.connect(_yaCtx.destination);b.start(t0+pre,ce,3);
-  _yaPlaying=[a,b];
+  const same=btn&&_yaPlayBtn===btn;yaStop();if(same)return;   // 再生中のボタンをもう一度押したら止める
+  const K=yaKeep(),pre=yaCtxSec(),post=pre;
+  const w0=Math.max(0,yaToEdit(a,K)-pre),w1=yaToEdit(b,K)+post;
+  const segs=[];let e=0;
+  for(const [s,f] of K){const L=f-s,x0=Math.max(w0,e),x1=Math.min(w1,e+L);if(x1>x0)segs.push([s+(x0-e),x1-x0]);e+=L;if(e>=w1)break;}
+  if(!segs.length)return;
+  _yaCtx=_yaCtx||new (window.AudioContext||window.webkitAudioContext)();
+  let t0=_yaCtx.currentTime+0.05;
+  segs.forEach(([off,dur],i)=>{const src=_yaCtx.createBufferSource();src.buffer=YA.buf;src.connect(_yaCtx.destination);src.start(t0,off,dur);t0+=dur;_yaPlaying.push(src);
+    if(i===segs.length-1)src.onended=()=>{if(_yaPlayBtn===btn&&btn){btn.classList.remove('on');_yaPlayBtn=null;}};});
+  if(btn){btn.classList.add('on');_yaPlayBtn=btn;}
 }
+// つなぎ目の試聴（カットの前後）。前後の他のカットも飛ばす
+function yaAudition(c,btn){yaPlayRange(yaCS(c),yaCE(c),btn);}
+// カットしない文の再生（文の中や前後のカットも飛ばす）
+function yaPlaySentence(n,btn){const s=YA.sents[n-1];if(!s)return;const a=yaSnapOnset(s.s).t,nx=YA.sents[n];const b=nx?yaSnapOnset(nx.s).t:YA.dur;yaPlayRange(a,Math.max(a,b),btn);}
 // カット後の音声（元の音質のまま・モノラルにまとめる）。つなぎ目に10msのフェード
 function yaRenderCut(){
   const sr=YA.buf.sampleRate,chs=YA.buf.numberOfChannels,src=[];for(let c=0;c<chs;c++)src.push(YA.buf.getChannelData(c));
@@ -8512,7 +8531,7 @@ function yaRender(keepScroll){
   const secStart={};YA.sections.forEach(x=>{secStart[x.from]=x;});
   if(!YA.sents.length){list.innerHTML=`<div style="font-size:12px;color:var(--text-sub);padding:10px;">${YA.mono?'「文字起こし」を押すと、ここに文の一覧が出ます':'左の「音声」タブで NotebookLM の音声を読み込んでください'}</div>`;yaRenderSum();return;}
   // 1文を1行に：番号・時刻・話者・点数・チェック・文・（削る文だけ）切り口の調整と試聴・一部カット。理由などはマウスを重ねると出る
-  const adj=(k,c)=>`<span class="ya-adj"><button class="ya-nd" data-nd="${k},s,-1">◀</button>${yaTc(yaCS(c))}<button class="ya-nd" data-nd="${k},s,1">▶</button>〜<button class="ya-nd" data-nd="${k},e,-1">◀</button>${yaTc(yaCE(c))}<button class="ya-nd" data-nd="${k},e,1">▶</button></span><button class="ya-play" data-play="${k}">試聴</button>`;
+  const adj=(k,c)=>`<span class="ya-adj"><button class="ya-nd" data-nd="${k},s,-1">◀</button>${yaTc(yaCS(c))}<button class="ya-nd" data-nd="${k},s,1">▶</button>〜<button class="ya-nd" data-nd="${k},e,-1">◀</button>${yaTc(yaCE(c))}<button class="ya-nd" data-nd="${k},e,1">▶</button></span><button class="ya-play" data-play="${k}" title="つなぎ目を再生（カットは飛ばす）">試聴</button>`;
   list.innerHTML=YA.sents.map((s,i)=>{
     const n=i+1,ids=by[n]||[];let tx=esc(s.text),whole=false;
     ids.forEach(k=>{const c=YA.cuts[k];if(!c.on)return;if(!c.part)whole=true;else tx=tx.replace(esc(c.part),`<del>${esc(c.part)}</del>`);});
@@ -8523,13 +8542,14 @@ function yaRender(keepScroll){
     const box=mc?`<input type="checkbox" data-k="${mk}" ${mc.on?'checked':''} title="${esc(mc.reason||'')}">`:`<input type="checkbox" data-sent="${n}" title="削る">`;
     const parts=ids.filter(k=>YA.cuts[k].kind==='part').map(k=>{const c=YA.cuts[k];return `<label class="ya-part" title="${esc(c.reason||'')}"><input type="checkbox" data-k="${k}" ${c.on?'checked':''}>一部</label>${c.on?adj(k,c):''}`;}).join('');
     const head=secStart[n]?`<div class="ya-sec">■ ${esc(secStart[n].title)}（${secStart[n].from}〜${secStart[n].to}）<span data-secsum="${n}"></span></div>`:'';
-    return `${head}<div class="ya-ln${whole?' cut':''}"><span class="ya-no">${n}</span><span class="ya-tc">${yaTc(s.s)}</span><span class="ya-sp sp${s.sp}">${s.sp?(s.sp===1?'A':'B'):''}</span>${badge}${box}<span class="ya-tx">${tx}</span><span class="ya-ctl">${tags}${mc&&mc.on?adj(mk,mc):''}${parts}<button class="ya-nd" data-part="${n}" title="文の一部だけを削る">✂</button></span></div>`;
+    return `${head}<div class="ya-ln${whole?' cut':''}"><span class="ya-no">${n}</span><span class="ya-tc">${yaTc(s.s)}</span><span class="ya-sp sp${s.sp}">${s.sp?(s.sp===1?'A':'B'):''}</span>${badge}${box}<span class="ya-tx">${tx}</span><span class="ya-ctl">${tags}${mc&&mc.on?adj(mk,mc):''}${parts}<button class="ya-go" data-go="${n}" title="${whole?'つなぎ目を再生':'この文を再生'}（カットは飛ばす）">▶</button><button class="ya-nd" data-part="${n}" title="文の一部だけを削る">✂</button></span></div>`;
   }).join('');
   list.querySelectorAll('input[data-k]').forEach(el=>el.onchange=()=>{const c=YA.cuts[+el.dataset.k];c.on=el.checked;c.manual=true;c.manualOn=el.checked;yaSave();yaRender(true);});
   list.querySelectorAll('input[data-sent]').forEach(el=>el.onchange=()=>yaToggleSentence(+el.dataset.sent,el.checked));
   list.querySelectorAll('button[data-part]').forEach(el=>el.onclick=()=>yaAddManualPart(+el.dataset.part));
-  list.querySelectorAll('button[data-nd]').forEach(el=>el.onclick=()=>{const [k,w,d]=el.dataset.nd.split(',');const c=YA.cuts[+k];if(w==='s')c.adjS=(c.adjS||0)+0.05*d;else c.adjE=(c.adjE||0)+0.05*d;yaSave();yaRender(true);yaAudition(c);});
-  list.querySelectorAll('button[data-play]').forEach(el=>el.onclick=()=>yaAudition(YA.cuts[+el.dataset.play]));
+  list.querySelectorAll('button[data-nd]').forEach(el=>el.onclick=()=>{const [k,w,d]=el.dataset.nd.split(',');const c=YA.cuts[+k];if(w==='s')c.adjS=(c.adjS||0)+0.05*d;else c.adjE=(c.adjE||0)+0.05*d;yaSave();yaRender(true);yaStop();yaAudition(c);});
+  list.querySelectorAll('button[data-play]').forEach(el=>el.onclick=()=>yaAudition(YA.cuts[+el.dataset.play],el));
+  list.querySelectorAll('button[data-go]').forEach(el=>el.onclick=()=>{const n=+el.dataset.go,c=YA.cuts.find(x=>x.n===n&&x.kind!=='part'&&x.on);if(c)yaAudition(c,el);else yaPlaySentence(n,el);});
   YA.sections.forEach(x=>{
     let o=0,c=0;for(let n=x.from;n<=x.to&&n<=YA.sents.length;n++){const s=YA.sents[n-1];o+=Math.max(0,s.e-s.s);}
     YA.cuts.filter(k=>k.on&&k.n>=x.from&&k.n<=x.to).forEach(k=>{c+=yaCutLen(k);});
