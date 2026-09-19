@@ -516,6 +516,14 @@
 .yt-s .yt5-col .s1-sw-title{font-size:25px;} .yt-s .yt5-h{font-size:23px;} .yt-s .yt5-t{font-size:19px;line-height:1.55;}
 .yt-s .s6-clabel{font-size:22px;} .yt-s .yt7-pt span:last-child{font-size:22px;} .yt-s .yt7-n{width:40px;height:40px;font-size:21px;}
 .yt-s .yt7-note .s4-inote{font-size:20px;} .yt-s .yt7-note .s1-sw-item{font-size:20px;}
+/* ===== 横動画のナレスラ（右ペイン：スライド画像と読み取った枠） ===== */
+#yn-prev{display:flex;flex-direction:column;gap:10px;}
+.yn-item{border:1px solid var(--border);border-radius:6px;overflow:hidden;background:#fff;}
+.yn-hd{display:flex;gap:6px;align-items:center;font-size:11px;color:var(--text-sub);padding:4px 8px;background:#f8fafc;border-bottom:1px solid var(--border);}
+.yn-hd b{color:#1f2937;} .yn-hd span{margin-left:auto;}
+.yn-img{position:relative;line-height:0;}
+.yn-zone{position:absolute;border:2px solid rgba(37,99,235,.9);background:rgba(37,99,235,.06);}
+.yn-zone span{position:absolute;left:0;top:0;background:rgba(37,99,235,.9);color:#fff;font-size:10px;line-height:1.4;padding:0 4px;}
 /* ===== 横動画の音声カット一覧（右ペイン） ===== */
 #ya-list{border:1px solid var(--border);border-radius:6px;background:#fff;}
 .ya-ln{display:flex;gap:5px;padding:2px 8px;border-bottom:1px solid #f1f5f9;font-size:13px;align-items:center;color:#1f2937;line-height:1.45;}
@@ -1437,12 +1445,19 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
     <button class="prev-tab" id="tab-video" onclick="setMode('video')">🎬 縦スライド</button>
     <button class="prev-tab" id="tab-yt" onclick="setMode('yt')">🎞 横スライド</button>
     <button class="prev-tab" id="tab-ya" onclick="setMode('ytaudio')">🎙 音声カット</button>
+    <button class="prev-tab" id="tab-yn" onclick="setMode('ytnare')">🎬 ナレスラ</button>
   </div>
 
   <!-- 横スライド（YouTube用）ビュー -->
   <div id="yt-view" style="display:none;flex-direction:column;gap:6px;flex:1;overflow-y:auto;">
     <div style="font-size:11px;color:var(--text-sub);">横スライド 1920×1080 プレビュー（クリックで個別ダウンロード）</div>
     <div class="prev-wrap" id="yt-prev-area"></div>
+  </div>
+
+  <!-- 横動画のナレスラ（スライド画像と読み取った位置） -->
+  <div id="yn-view" style="display:none;flex-direction:column;gap:6px;flex:1;overflow-y:auto;">
+    <div style="font-size:11px;color:var(--text-sub);">スライド画像と、Geminiが読み取ったまとまりの位置（枠）。ズーム・四角枠・ハイライトの位置に使います。</div>
+    <div id="yn-prev"></div>
   </div>
 
   <!-- 横動画の音声カット（NotebookLMの音声） -->
@@ -4344,7 +4359,7 @@ function switchPriceTab(t){
   // 動画タブでは右側のプレビューも縦スライドに切り替える（戻る時はスライドへ）
   if(typeof setMode==='function'){
     if(t==='video'){setMode(typeof ytOrient==='function'&&ytOrient()==='y'?ytPaneMode():'video');if(typeof ytUpdateFreeInfo==='function')ytUpdateFreeInfo();}
-    else if(['tab-video','tab-yt','tab-ya'].some(id=>document.getElementById(id)?.classList.contains('active')))setMode('slides');
+    else if(['tab-video','tab-yt','tab-ya','tab-yn'].some(id=>document.getElementById(id)?.classList.contains('active')))setMode('slides');
   }
 }
 // 「2.」の下のボタン：記事タブへ遷移してから生成する（結果が見える状態で走る）
@@ -8347,9 +8362,11 @@ function ytInnerTab(t){
     if(b)b.classList.toggle('active',k===t);if(p)p.style.display=k===t?'':'none';
   });
   if(t==='research')ytUpdateFreeInfo();
-  const ya=document.getElementById('tab-ya')?.classList.contains('active');
-  if(t==='audio'&&!ya)setMode('ytaudio');
-  else if(t!=='audio'&&ya)setMode('yt');
+  const want=t==='audio'?'ytaudio':t==='naresla'?'ytnare':'yt';
+  const cur=document.getElementById('tab-ya')?.classList.contains('active')?'ytaudio'
+    :document.getElementById('tab-yn')?.classList.contains('active')?'ytnare'
+    :document.getElementById('tab-yt')?.classList.contains('active')?'yt':'';
+  if(cur&&cur!==want)setMode(want);
 }
 function ytBuildTabHtml(){
   const G='background:#475569;color:#fff;';   // プロンプトのコピーは既存タブと同じ灰色
@@ -8413,7 +8430,7 @@ function ytBuildTabHtml(){
 </div>
 
 <div id="yt-pane-audio" style="display:none;">${yaBuildPaneHtml()}</div>
-<div id="yt-pane-naresla" style="display:none;"><div class="sa-card"><h2>ナレスラ</h2><div style="font-size:11px;color:var(--text-sub);">準備中：文字起こし・カット・演出を入れたプロジェクト（.svpz）の出力。検証版は <a href="cut-test" target="_blank">音声カット検証</a>。</div></div></div>
+<div id="yt-pane-naresla" style="display:none;">${ynBuildPaneHtml()}</div>
 
 <div id="yt-pane-settings" style="display:none;">
 <div class="sa-card">
@@ -8435,7 +8452,7 @@ function ytRestoreFields(){
 // 縦（SNS）／横（YouTube）の切り替え
 const ytOrient=()=>((document.getElementById('vd-orient')||{}).value||'v');
 // 横のとき右ペインに出すもの：内側の「音声」タブなら音声カット、それ以外は横スライド
-const ytPaneMode=()=>ytEl('itab-audio')?.classList.contains('active')?'ytaudio':'yt';
+const ytPaneMode=()=>ytEl('itab-audio')?.classList.contains('active')?'ytaudio':ytEl('itab-naresla')?.classList.contains('active')?'ytnare':'yt';
 function ytSetOrient(o){
   const el=document.getElementById('vd-orient');if(el)el.value=o;
   document.getElementById('vd-orient-v').style.display=o==='y'?'none':'';
@@ -9022,6 +9039,133 @@ async function yaRestore(){
   yaRender();
 }
 
+// ============================================================
+// 横動画 ④ ナレスラ（接頭辞 yn）
+// ChatGPTで作ったスライド画像 ＋ NotebookLMの音声 → ナレスラのプロジェクト（.svpz）
+//  1. スライド画像を読み込む（並び順＝表示順）
+//  2. Gemini に画像を読ませ、まとまり（カード・見出し・数字）の位置と文字を取る
+//  3. 音声の文字起こし（③のカット後の時刻）と突き合わせ、切り替え・ズーム・強調を割り当てる
+//  4. .svpz を書き出す（元の音声＋カット＋字幕＋演出＋出典の枠）
+// 画像とその読み取り結果は IndexedDB（kessanTool-ytNare）に保存する
+// ============================================================
+const YN={slides:[],plan:null};
+const ynEl=id=>document.getElementById('yn-'+id);
+const ynVal=id=>((ynEl(id)||{}).value||'').trim();
+function ynStatus(msg,cls,id){const el=ynEl(id||'status');if(!el)return;el.style.display=msg?'block':'none';el.innerHTML=msg||'';el.style.color=cls==='error'?'#dc2626':cls==='ok'?'#059669':'var(--text-sub)';}
+
+// ---- 保存 ----
+function ynDb(){return new Promise((res,rej)=>{const r=indexedDB.open('kessanTool-ytNare',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+async function ynPut(k,v){try{const db=await ynDb();await new Promise((res,rej)=>{const tx=db.transaction('kv','readwrite');tx.objectStore('kv').put(v,k);tx.oncomplete=res;tx.onerror=()=>rej(tx.error);});}catch(e){console.warn('[yn] 保存失敗',e);}}
+async function ynGet(k){try{const db=await ynDb();return await new Promise((res,rej)=>{const r=db.transaction('kv').objectStore('kv').get(k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}catch(e){return null;}}
+function ynSave(){ynPut('slides',YN.slides.map(s=>({name:s.name,blob:s.blob,zones:s.zones||null})));}
+
+// ---- スライド画像の読み込み（ファイル名順） ----
+async function ynLoadFiles(files){
+  const list=[...files].filter(f=>/^image\//.test(f.type)).sort((a,b)=>a.name.localeCompare(b.name,'ja',{numeric:true}));
+  if(!list.length){alert('画像ファイルを選んでください');return;}
+  YN.slides=[];
+  for(const f of list)YN.slides.push({name:f.name,blob:f,zones:null});
+  await ynSave();ynRender();
+  ynStatus(`✅ ${YN.slides.length}枚を読み込みました。「まとまりを読み取る」を押してください`,'ok');
+}
+function ynMove(i,d){const j=i+d;if(j<0||j>=YN.slides.length)return;const [s]=YN.slides.splice(i,1);YN.slides.splice(j,0,s);ynSave();ynRender();}
+function ynRemove(i){YN.slides.splice(i,1);ynSave();ynRender();}
+
+// ---- Gemini でまとまりの位置を読み取る ----
+const YN_VISION_PROMPT=`この画像は、YouTube動画で使うスライドです。動画編集ソフトで、話している箇所にズームしたり、四角枠やハイライトを付けたりするため、要素の位置が必要です。
+
+画像の中の「まとまり」を、大きいものから順に列挙してください。
+まとまり＝1つの話題のカード・枠・図・見出し・数字のタイルなど。入れ子（大きなカードの中の小さなカード）も両方挙げてください。
+
+それぞれについて、次を返してください。
+- label: そのまとまりに書かれている見出しや要点（画像の文字のまま。25字以内）
+- text: そのまとまりに書かれている文字をすべて（200字以内）
+- box: [ymin, xmin, ymax, xmax]（画像の左上を0、右下を1000とした値）
+
+【出力】JSONの配列だけを出力する。説明文・コードフェンスの外の文字は不要。
+[{"label":"","text":"","box":[0,0,0,0]}]`;
+async function ynBlobToPart(blob,max){
+  const img=await createImageBitmap(blob);
+  const sc=Math.min(1,max/Math.max(img.width,img.height));
+  const cv=document.createElement('canvas');cv.width=Math.round(img.width*sc);cv.height=Math.round(img.height*sc);
+  cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
+  const b=await new Promise(r=>cv.toBlob(r,'image/jpeg',0.88));
+  const buf=new Uint8Array(await b.arrayBuffer());let bin='';
+  for(let i=0;i<buf.length;i+=0x8000)bin+=String.fromCharCode.apply(null,buf.subarray(i,i+0x8000));
+  return{name:'slide.jpg',mimeType:'image/jpeg',data:btoa(bin),w:img.width,h:img.height};
+}
+async function ynReadZones(btn){
+  if(!YN.slides.length){alert('先にスライド画像を読み込んでください');return;}
+  if(btn)btn.disabled=true;
+  try{
+    for(let i=0;i<YN.slides.length;i++){
+      const s=YN.slides[i];
+      if(s.zones&&s.zones.length){continue;}
+      ynStatus(`まとまりを読み取り中… ${i+1}/${YN.slides.length}`);
+      const part=await ynBlobToPart(s.blob,1024);
+      const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({prompt:YN_VISION_PROMPT,resources:[],temperature:0,files:[{name:part.name,mimeType:part.mimeType,data:part.data}],
+          models:['gemini-3.8-flash','gemini-3.7-flash','gemini-3.6-flash','gemini-3.5-flash']})});
+      const data=await res.json();
+      if(!data.ok)throw new Error(`${i+1}枚目: ${data.error||'不明なエラー'}`);
+      const m=String(data.text||'').match(/\[[\s\S]*\]/);
+      if(!m)throw new Error(`${i+1}枚目: JSONが返りませんでした`);
+      s.zones=JSON.parse(m[0]).filter(z=>Array.isArray(z.box)&&z.box.length===4).map(z=>({label:String(z.label||'').slice(0,40),text:String(z.text||'').slice(0,300),box:z.box.map(Number)}));
+      s.model=data.model;
+      await ynSave();ynRender();
+    }
+    ynStatus(`✅ ${YN.slides.length}枚のまとまりを読み取りました（${YN.slides[0].model||''}）。枠は下のプレビューで確認できます`,'ok');
+  }catch(e){ynStatus('❌ '+e.message,'error');}
+  finally{if(btn)btn.disabled=false;}
+}
+
+// ---- プレビュー（右ペイン）：読み取った枠を画像の上に重ねる ----
+function ynRender(){
+  const area=document.getElementById('yn-prev');if(!area)return;
+  if(!YN.slides.length){area.innerHTML='<div style="font-size:11px;color:var(--text-sub);padding:8px;">「ナレスラ」タブでスライド画像を読み込むと、ここに表示されます</div>';return;}
+  area.innerHTML=YN.slides.map((s,i)=>`<div class="yn-item"><div class="yn-hd"><b>${i+1}</b> ${esc(s.name)} <span>${s.zones?`${s.zones.length}か所`:'未読み取り'}</span>
+<button class="ya-nd" onclick="ynMove(${i},-1)">↑</button><button class="ya-nd" onclick="ynMove(${i},1)">↓</button><button class="ya-nd" onclick="if(confirm('この画像を外しますか？'))ynRemove(${i})">✕</button></div>
+<div class="yn-img" id="yn-img-${i}"></div></div>`).join('');
+  YN.slides.forEach((s,i)=>{
+    const box=document.getElementById('yn-img-'+i);if(!box)return;
+    const url=URL.createObjectURL(s.blob);
+    box.innerHTML=`<img src="${url}" style="width:100%;display:block;">`+
+      (s.zones||[]).map((z,k)=>{const [y0,x0,y1,x1]=z.box.map(v=>v/10);
+        return `<div class="yn-zone" style="left:${x0}%;top:${y0}%;width:${Math.max(0,x1-x0)}%;height:${Math.max(0,y1-y0)}%;" title="${esc(z.label)}"><span>${k+1}</span></div>`;}).join('');
+  });
+}
+
+// ---- タブのHTML ----
+function ynBuildPaneHtml(){
+  const G='background:#475569;color:#fff;';
+  const b=(label,on,style)=>`<button class="btn-sm" onclick="${on}" style="flex:1;min-width:0;${style||''}">${label}</button>`;
+  const row=(...x)=>`<div class="row" style="flex-wrap:nowrap;">${x.join('')}</div>`;
+  return `
+<div class="sa-card">
+  <h2>1. スライド画像</h2>
+  <div style="font-size:11px;color:var(--text-sub);">ChatGPTで作ったスライド画像を、表示する順に読み込みます（ファイル名順に並べます）。</div>
+  <input type="file" id="yn-files" accept="image/*" multiple onchange="ynLoadFiles(this.files)" style="font-size:11px;">
+  ${row(b('🔍 まとまりを読み取る','ynReadZones(this)',G),b('↻ 読み取り直す',"YN.slides.forEach(s=>s.zones=null);ynSave();ynRender();ynReadZones()"))}
+  <div id="yn-status" style="display:none;font-size:11px;"></div>
+  <div style="font-size:10px;color:var(--text-sub);">読み取った位置は、ズーム・四角枠・ハイライトの位置に使います。右の「🎬 ナレスラ」で確認できます。</div>
+</div>
+
+<div class="sa-card" style="margin-top:8px;">
+  <h2>2. 演出の割り当て</h2>
+  <div style="font-size:11px;color:var(--text-sub);">準備中：音声の文字起こし（③でカットした後）とスライドのまとまりを突き合わせ、切り替え・ズーム・強調を決めます。</div>
+</div>
+
+<div class="sa-card" style="margin-top:8px;">
+  <h2>3. 出力</h2>
+  <div style="font-size:11px;color:var(--text-sub);">準備中：ナレスラのプロジェクト（.svpz）。元の音声・カット・字幕・演出・出典の枠を入れます。</div>
+</div>`;
+}
+async function ynRestore(){
+  const a=await ynGet('slides');
+  if(Array.isArray(a)&&a.length)YN.slides=a.map(s=>({name:s.name,blob:s.blob,zones:s.zones||null}));
+  ynRender();
+}
+
 // ---- 初期化：両タブのHTMLを組み立て、保存値を復元し、保存済み音声を戻す ----
 (function vdInit(){
   ['vd','ev'].forEach(P=>{
@@ -9046,6 +9190,7 @@ async function yaRestore(){
   PERSIST_IDS.push(...YT_PERSIST_IDS);
   ytRestoreFields();
   yaRestore();
+  ynRestore();
   if(ytOrient()==='y')ytSetOrient('y');
   ytUpdateFreeInfo();
   // レポート欄は「📋 貼り付け」や読み込みでJSから値が入ると input イベントが出ないので、
@@ -9281,21 +9426,24 @@ checkMob();window.addEventListener('resize',checkMob);
 // MODE SWITCH (スライド / サムネイル)
 // ============================================================
 function setMode(mode){
-  const isThumb=mode==='thumb',isVideo=mode==='video',isYt=mode==='yt',isYa=mode==='ytaudio';
-  document.getElementById('slides-view').style.display=(!isThumb&&!isVideo&&!isYt&&!isYa)?'flex':'none';
+  const isThumb=mode==='thumb',isVideo=mode==='video',isYt=mode==='yt',isYa=mode==='ytaudio',isYn=mode==='ytnare';
+  document.getElementById('slides-view').style.display=(!isThumb&&!isVideo&&!isYt&&!isYa&&!isYn)?'flex':'none';
+  document.getElementById('yn-view').style.display=isYn?'flex':'none';
+  document.getElementById('tab-yn').classList.toggle('active',isYn);
   document.getElementById('ya-view').style.display=isYa?'flex':'none';
   document.getElementById('tab-ya').classList.toggle('active',isYa);
   document.getElementById('yt-view').style.display=isYt?'flex':'none';
   document.getElementById('tab-yt').classList.toggle('active',isYt);
   document.getElementById('thumb-view').style.display=isThumb?'flex':'none';
   document.getElementById('video-view').style.display=isVideo?'flex':'none';
-  document.getElementById('tab-slides').classList.toggle('active',!isThumb&&!isVideo&&!isYt&&!isYa);
+  document.getElementById('tab-slides').classList.toggle('active',!isThumb&&!isVideo&&!isYt&&!isYa&&!isYn);
   document.getElementById('tab-thumb').classList.toggle('active',isThumb);
   document.getElementById('tab-video').classList.toggle('active',isVideo);
   if(isThumb)renderThumbPreview();
   if(isVideo)renderVideoPrev('vd');   // 非表示中に描くと幅0で崩れるため、表示後に描く
   if(isYt)renderYtPrev();
   if(isYa){yaRender();yaFitView();}
+  if(isYn)ynRender();
 }
 
 // ============================================================
