@@ -516,6 +516,18 @@
 .yt-s .yt5-col .s1-sw-title{font-size:25px;} .yt-s .yt5-h{font-size:23px;} .yt-s .yt5-t{font-size:19px;line-height:1.55;}
 .yt-s .s6-clabel{font-size:22px;} .yt-s .yt7-pt span:last-child{font-size:22px;} .yt-s .yt7-n{width:40px;height:40px;font-size:21px;}
 .yt-s .yt7-note .s4-inote{font-size:20px;} .yt-s .yt7-note .s1-sw-item{font-size:20px;}
+/* ===== 横動画の音声カット一覧（右ペイン） ===== */
+#ya-list{border:1px solid var(--border);border-radius:6px;background:#fff;}
+.ya-ln{display:flex;gap:8px;padding:5px 8px;border-bottom:1px solid #f1f5f9;font-size:13px;align-items:flex-start;color:#1f2937;}
+.ya-no{flex:none;width:34px;color:#94a3b8;text-align:right;} .ya-tc{flex:none;width:52px;color:#94a3b8;}
+.ya-sp{flex:none;width:16px;font-weight:700;} .ya-sp.sp1{color:#2563eb;} .ya-sp.sp2{color:#db2777;}
+.ya-tx{flex:1;min-width:0;} .ya-ln.cut .ya-tx{color:#94a3b8;text-decoration:line-through;} .ya-tx del{color:#dc2626;background:#fee2e2;}
+.ya-ctl{flex:none;display:flex;flex-direction:column;gap:3px;align-items:flex-end;font-size:11px;color:#64748b;} .ya-ctl span{white-space:nowrap;}
+.ya-nd{padding:0 5px;font-size:10px;border:1px solid #cbd5e1;background:#f1f5f9;border-radius:4px;cursor:pointer;}
+.ya-play{padding:1px 8px;font-size:11px;border:0;background:#2563eb;color:#fff;border-radius:4px;cursor:pointer;}
+.ya-warn{color:#b45309;font-weight:700;}
+.ya-pri{flex:none;display:inline-block;min-width:18px;text-align:center;border-radius:8px;background:#e2e8f0;padding:0 4px;font-size:11px;}
+.ya-sec{background:#eff6ff;color:#1e3a8a;font-weight:700;font-size:12px;padding:4px 8px;border-bottom:1px solid #dbeafe;}
 /* ===== VERTICAL SLIDES (1080×1920, SNS動画用) =====
    ナレーションの補助資料なので文字量は控えめ（見出し1つ＋「結論＋短い補足」×3）。
    テロップは入れない前提で、スマホ全画面で読める大きさにする。
@@ -1410,12 +1422,21 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
     <button class="prev-tab" id="tab-thumb" onclick="setMode('thumb')">🖼 サムネイル</button>
     <button class="prev-tab" id="tab-video" onclick="setMode('video')">🎬 縦スライド</button>
     <button class="prev-tab" id="tab-yt" onclick="setMode('yt')">🎞 横スライド</button>
+    <button class="prev-tab" id="tab-ya" onclick="setMode('ytaudio')">🎙 音声カット</button>
   </div>
 
   <!-- 横スライド（YouTube用）ビュー -->
   <div id="yt-view" style="display:none;flex-direction:column;gap:6px;flex:1;overflow-y:auto;">
     <div style="font-size:11px;color:var(--text-sub);">横スライド 1920×1080 プレビュー（クリックで個別ダウンロード）</div>
     <div class="prev-wrap" id="yt-prev-area"></div>
+  </div>
+
+  <!-- 横動画の音声カット（NotebookLMの音声） -->
+  <div id="ya-view" style="display:none;flex-direction:column;gap:6px;flex:1;overflow-y:auto;">
+    <div style="font-size:11px;color:var(--text-sub);">音声カット：数字＝AIの点数（🔒＝流れに必須）。チェックで削る／戻す、◀▶で切り口を0.05秒ずつ調整、試聴＝つなぎ目の前後3秒。<span class="ya-warn">⚠</span>＝切り口の近くに無音が無い</div>
+    <div id="ya-sum" style="font-size:12px;">-</div>
+    <audio id="ya-edited" controls style="display:none;width:100%;height:34px;"></audio>
+    <div id="ya-list"></div>
   </div>
 
   <!-- 縦スライド（SNS動画用）ビュー -->
@@ -4305,8 +4326,8 @@ function switchPriceTab(t){
   if(vd) vd.style.display = t==='video' ? '' : 'none';
   // 動画タブでは右側のプレビューも縦スライドに切り替える（戻る時はスライドへ）
   if(typeof setMode==='function'){
-    if(t==='video'){setMode(typeof ytOrient==='function'&&ytOrient()==='y'?'yt':'video');if(typeof ytUpdateFreeInfo==='function')ytUpdateFreeInfo();}
-    else if(document.getElementById('tab-video')?.classList.contains('active')||document.getElementById('tab-yt')?.classList.contains('active'))setMode('slides');
+    if(t==='video'){setMode(typeof ytOrient==='function'&&ytOrient()==='y'?ytPaneMode():'video');if(typeof ytUpdateFreeInfo==='function')ytUpdateFreeInfo();}
+    else if(['tab-video','tab-yt','tab-ya'].some(id=>document.getElementById(id)?.classList.contains('active')))setMode('slides');
   }
 }
 // 「2.」の下のボタン：記事タブへ遷移してから生成する（結果が見える状態で走る）
@@ -7994,6 +8015,9 @@ function ytInnerTab(t){
     if(b)b.classList.toggle('active',k===t);if(p)p.style.display=k===t?'':'none';
   });
   if(t==='research')ytUpdateFreeInfo();
+  const ya=document.getElementById('tab-ya')?.classList.contains('active');
+  if(t==='audio'&&!ya)setMode('ytaudio');
+  else if(t!=='audio'&&ya)setMode('yt');
 }
 function ytBuildTabHtml(){
   const G='background:#475569;color:#fff;';   // プロンプトのコピーは既存タブと同じ灰色
@@ -8047,7 +8071,7 @@ function ytBuildTabHtml(){
 </div>
 </div>
 
-<div id="yt-pane-audio" style="display:none;"><div class="sa-card"><h2>音声</h2><div style="font-size:11px;color:var(--text-sub);">準備中：2人会話TTS（台本→音声）。NotebookLMの音声は「ナレスラ」タブで読み込みます。</div></div></div>
+<div id="yt-pane-audio" style="display:none;">${yaBuildPaneHtml()}</div>
 <div id="yt-pane-naresla" style="display:none;"><div class="sa-card"><h2>ナレスラ</h2><div style="font-size:11px;color:var(--text-sub);">準備中：文字起こし・カット・演出を入れたプロジェクト（.svpz）の出力。検証版は <a href="cut-test" target="_blank">音声カット検証</a>。</div></div></div>
 
 <div id="yt-pane-settings" style="display:none;">
@@ -8059,21 +8083,23 @@ function ytBuildTabHtml(){
 </div>
 </div>`;
 }
-const YT_PERSIST_IDS=['vd-orient','yt-doc','yt-json','yt-note-url','yt-months','yt-nlm-min','yt-yomi','yt-yomi-for'];
+const YT_PERSIST_IDS=['vd-orient','yt-doc','yt-json','yt-note-url','yt-months','yt-nlm-min','yt-yomi','yt-yomi-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts'];
 function ytRestoreFields(){
   let st=null;try{st=JSON.parse(localStorage.getItem(SA_STORAGE_KEY)||'null');}catch(e){}
   if(!st||!st.fields)return;
-  YT_PERSIST_IDS.forEach(id=>{const el=document.getElementById(id);if(el&&st.fields[id]!=null)el.value=st.fields[id];});
+  YT_PERSIST_IDS.forEach(id=>{const el=document.getElementById(id);if(!el||st.fields[id]==null)return;if(el.type==='checkbox')el.checked=!!st.fields[id];else el.value=st.fields[id];});
   const nm=ytEl('nlm-min');if(nm&&nm.value==='12')nm.value='8';   // 旧既定値（12分）は長すぎたので8分に
 }
 // 縦（SNS）／横（YouTube）の切り替え
 const ytOrient=()=>((document.getElementById('vd-orient')||{}).value||'v');
+// 横のとき右ペインに出すもの：内側の「音声」タブなら音声カット、それ以外は横スライド
+const ytPaneMode=()=>ytEl('itab-audio')?.classList.contains('active')?'ytaudio':'yt';
 function ytSetOrient(o){
   const el=document.getElementById('vd-orient');if(el)el.value=o;
   document.getElementById('vd-orient-v').style.display=o==='y'?'none':'';
   document.getElementById('vd-orient-y').style.display=o==='y'?'':'none';
   document.querySelectorAll('.vd-orient-btn').forEach(b=>b.classList.toggle('active',b.dataset.o===o));
-  if(document.getElementById('sa-tab-video')?.style.display!=='none')setMode(o==='y'?'yt':'video');
+  if(document.getElementById('sa-tab-video')?.style.display!=='none')setMode(o==='y'?ytPaneMode():'video');
   if(o==='y')ytUpdateFreeInfo();
   saveState();
 }
@@ -8083,6 +8109,499 @@ function ytOrientBar(){
   <button class="sa-subtab vd-orient-btn active" data-o="v" onclick="ytSetOrient('v')">📱 縦（SNS）</button>
   <button class="sa-subtab vd-orient-btn" data-o="y" onclick="ytSetOrient('y')">📺 横（YouTube）</button>
 </div>`;
+}
+
+// ============================================================
+// 横動画 ③ 音声（NotebookLMの音声を使う場合）  接頭辞 ya
+// 検証ページ cut-test.html の処理を移植：
+//  1. 音声を読み込み、Groq Whisper で文字起こし（語の時刻）→ Gemini（Web版）の正確な文字起こしと突き合わせ
+//  2. AIが全文に点数 → 点数の低い順に目標の長さまで削る（must・要確認・一部カット・手動の切り替え）
+//  3. つなぎ目を試聴・微調整 → カット後の音声／ナレスラ用のカット情報
+// 切り口はナレスラ方式（声の立ち上がりに吸着。削る部分の頭〜次に残す部分の頭）。
+// 音声と作業の状態は IndexedDB（kessanTool-ytAudio）に保存し、開き直しても続きから作業できる。
+// ============================================================
+const YA={file:null,fileName:'',buf:null,mono:null,sr:16000,sil:null,chars:[],wchars:[],sents:[],cuts:[],dur:0,sections:[],score:null,reach:null};
+const YA_HOP=0.01;
+const yaEl=id=>document.getElementById('ya-'+id);
+const yaVal=id=>((yaEl(id)||{}).value||'').trim();
+const yaTc=s=>{s=Math.max(0,s);const m=Math.floor(s/60),r=s-m*60;return `${m}:${(r<10?'0':'')+r.toFixed(1)}`;};
+const YA_PUNCT=/[\s、。，．,.!?！？「」『』（）()・…ー―\-~〜]/g;
+const yaNorm=s=>String(s||'').replace(YA_PUNCT,'');
+const yaYield=()=>new Promise(r=>setTimeout(r));
+function yaStatus(id,msg,cls){const el=yaEl(id);if(!el)return;el.style.display=msg?'block':'none';el.innerHTML=msg||'';el.style.color=cls==='error'?'#dc2626':cls==='ok'?'#059669':'var(--text-sub)';}
+
+// ---- 保存（IndexedDB） ----
+function yaDb(){return new Promise((res,rej)=>{const r=indexedDB.open('kessanTool-ytAudio',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+async function yaPut(k,v){try{const db=await yaDb();await new Promise((res,rej)=>{const tx=db.transaction('kv','readwrite');tx.objectStore('kv').put(v,k);tx.oncomplete=res;tx.onerror=()=>rej(tx.error);});}catch(e){console.warn('[ya] 保存失敗',e);}}
+async function yaGet(k){try{const db=await yaDb();return await new Promise((res,rej)=>{const r=db.transaction('kv').objectStore('kv').get(k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}catch(e){return null;}}
+let _yaSaveTimer=null;
+function yaSave(){clearTimeout(_yaSaveTimer);_yaSaveTimer=setTimeout(()=>yaPut('state',{fileName:YA.fileName,dur:YA.dur,chars:YA.chars,wchars:YA.wchars,sents:YA.sents,cuts:YA.cuts,sections:YA.sections,score:YA.score,reach:YA.reach,stock:getName()}),400);}
+
+// ---- 音声の読み込み ----
+async function yaLoadFile(file,restoring){
+  if(!file)return;
+  YA.file=file;YA.fileName=file.name||'narration';
+  yaStatus('st-tr','音声を読み込み中…');
+  try{
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    YA.buf=await ctx.decodeAudioData(await file.arrayBuffer());ctx.close();
+    YA.dur=YA.buf.duration;
+    const off=new OfflineAudioContext(1,Math.ceil(YA.dur*YA.sr),YA.sr);   // 文字起こし送信・波形解析用に 16kHz モノラル
+    const src=off.createBufferSource();src.buffer=YA.buf;src.connect(off.destination);src.start();
+    YA.mono=(await off.startRendering()).getChannelData(0);
+    yaCalcSilence();
+    if(!restoring){
+      Object.assign(YA,{chars:[],wchars:[],sents:[],cuts:[],sections:[],score:null,reach:null});
+      await yaPut('audio',{blob:file,name:YA.fileName});yaSave();yaRender();
+    }
+    yaStatus('st-tr',`${esc(YA.fileName)}（${yaTc(YA.dur)}）${YA.sents.length?`・${YA.sents.length}文`:'。「文字起こし」を押してください'}`,'ok');
+  }catch(e){yaStatus('st-tr','❌ 音声を読み込めませんでした: '+esc(e.message),'error');}
+}
+async function yaEncodeMp3(){
+  const enc=new lamejs.Mp3Encoder(1,YA.sr,32),out=[],blk=1152*20;
+  const i16=new Int16Array(YA.mono.length);
+  for(let i=0;i<i16.length;i++){const x=Math.max(-1,Math.min(1,YA.mono[i]));i16[i]=x<0?x*0x8000:x*0x7FFF;}
+  for(let i=0;i<i16.length;i+=blk){const b=enc.encodeBuffer(i16.subarray(i,i+blk));if(b.length)out.push(new Int8Array(b));if((i/blk)%20===0){yaStatus('st-tr',`送信用に変換中… ${Math.round(i/i16.length*100)}%`);await yaYield();}}
+  const end=enc.flush();if(end.length)out.push(new Int8Array(end));
+  return new Blob(out,{type:'audio/mpeg'});
+}
+async function yaTranscribe(btn){
+  if(!YA.mono){alert('先に音声を読み込んでください');return;}
+  if(YA.cuts.length&&!confirm('文字起こしをやり直すと、カットの作業内容は消えます。続けますか？'))return;
+  if(btn)btn.disabled=true;
+  try{
+    const mp3=await yaEncodeMp3();
+    yaStatus('st-tr',`文字起こし中…（送信 ${(mp3.size/1048576).toFixed(1)}MB）`);
+    const res=await fetch('/api/transcribe?lang=ja',{method:'POST',headers:{'Content-Type':'audio/mpeg'},body:mp3});
+    const data=await res.json();
+    if(!data.ok)throw new Error(data.error||'不明なエラー');
+    yaLoadTranscript(data);
+  }catch(e){yaStatus('st-tr','❌ '+esc(e.message),'error');}
+  finally{if(btn)btn.disabled=false;}
+}
+// 語の時刻を文字に按分 → 区間の文章を句点で文に割る
+function yaLoadTranscript(data){
+  YA.chars=[];
+  for(const w of data.words){const t=yaNorm(w.w);const n=t.length;for(let i=0;i<n;i++)YA.chars.push({c:t[i],s:w.s+(w.e-w.s)*i/n,e:w.s+(w.e-w.s)*(i+1)/n});}
+  const stream=YA.chars.map(c=>c.c).join('');
+  const texts=[];
+  for(const seg of data.segments)for(const p of (seg.t.match(/[^。？！?!]+[。？！?!]*/g)||[]))if(yaNorm(p))texts.push(p.trim());
+  YA.sents=[];let pos=0;
+  for(const t of texts){
+    const nt=yaNorm(t);let at=pos;
+    const found=stream.indexOf(nt.slice(0,4),Math.max(0,pos-10));
+    if(found>=0&&found-pos<30)at=found;
+    const a=Math.min(at,YA.chars.length-1),b=Math.min(at+nt.length,YA.chars.length)-1;
+    if(b<a)continue;
+    YA.sents.push({text:t,nt,ci0:a,ci1:b,s:YA.chars[a].s,e:YA.chars[b].e,sp:0,hit:nt.length});
+    pos=b+1;
+  }
+  YA.wchars=YA.chars;YA.cuts=[];YA.sections=[];YA.score=null;YA.reach=null;
+  yaStatus('st-tr',`✅ Whisper：${YA.sents.length}文（${yaTc(YA.dur)}）`,'ok');
+  if(yaVal('gtext')){try{yaAlign(yaVal('gtext'));}catch(e){yaStatus('st-g','❌ '+esc(e.message),'error');}}
+  else yaStatus('st-g','次に Gemini の文字起こしを貼り付けてください（相槌や話者を正しく取るため）');
+  yaSave();yaRender();
+}
+
+// ---- Gemini（Web版）の正確な文字起こしと突き合わせ ----
+const YA_G_PROMPT=`この音声を文字起こししてください。
+
+【出力形式】
+・コードブロック1つの中に、文字起こしだけを出力する（前置き・説明・見出し・出典は不要）
+・1行に1発言。行頭に話者を付ける（最初に話す人を「A: 」、もう一人を「B: 」）
+・「ええ」「はい」などの短い相槌も省略せず、1行として書く`;
+// 正確な文章の各文字に、Whisper の文字の時刻を移す（帯つきの最長共通部分列）。対応しない文字は前後の時刻で按分
+function yaAlign(text){
+  if(!YA.wchars.length)throw new Error('先に「文字起こし」を実行してください');
+  if(YA.cuts.some(c=>c.manual)&&!confirm('突き合わせをやり直すと、手動のカットや調整は消えます。続けますか？'))return;
+  const labels=[],items=[];let cur='';
+  for(const raw of text.split(/\r?\n/)){
+    const line=raw.trim();if(!line||/^```/.test(line))continue;
+    const m=line.match(/^(?:\*\*)?([^:：\s*]{1,8})(?:\*\*)?\s*[:：]\s*(.*)$/);
+    let body=line;if(m){cur=m[1];body=m[2];}
+    if(cur&&!labels.includes(cur))labels.push(cur);
+    for(const p of (body.match(/[^。？！?!]+[。？！?!]*/g)||[]))if(yaNorm(p))items.push({text:p.trim(),sp:cur?labels.indexOf(cur)+1:0});
+  }
+  if(!items.length)throw new Error('文字起こしが空です');
+  const G=[];items.forEach(it=>{it.nt=yaNorm(it.text);it.g0=G.length;for(const ch of it.nt)G.push(ch);it.g1=G.length-1;});
+  const W=YA.wchars,n=G.length,m=W.length,ratio=m/n,B=Math.max(300,Math.round(Math.abs(m-n)*1.2)+150),w=2*B+1;
+  const lo=i=>Math.max(0,Math.round(i*ratio)-B);
+  const dp=new Int32Array((n+1)*w).fill(-1);
+  const get=(i,j)=>{if(i===0||j===0)return 0;const k=j-lo(i);return k<0||k>=w||j>m?-1e9:dp[i*w+k];};
+  for(let i=1;i<=n;i++){const l=lo(i),h=Math.min(m,l+w-1);for(let j=Math.max(1,l);j<=h;j++){
+    let v=Math.max(get(i-1,j),get(i,j-1));if(G[i-1]===W[j-1].c)v=Math.max(v,get(i-1,j-1)+1);dp[i*w+j-l]=v;}}
+  const match=new Int32Array(n).fill(-1);let i=n,j=m,hit=0;
+  while(i>0&&j>0){
+    if(G[i-1]===W[j-1].c&&get(i,j)===get(i-1,j-1)+1){match[i-1]=j-1;hit++;i--;j--;}
+    else if(get(i-1,j)>=get(i,j-1))i--;else j--;
+  }
+  const chars=G.map(c=>({c,s:0,e:0}));let p=-1;
+  for(let k=0;k<=n;k++){
+    if(k<n&&match[k]<0)continue;
+    const tp=p<0?0:W[match[p]].e,tq=k<n?W[match[k]].s:YA.dur,gap=k-p-1;
+    for(let q=p+1;q<k;q++){const f0=(q-p-1)/gap,f1=(q-p)/gap;chars[q].s=tp+(tq-tp)*f0;chars[q].e=tp+(tq-tp)*f1;}
+    if(k<n){chars[k].s=W[match[k]].s;chars[k].e=W[match[k]].e;}
+    p=k;
+  }
+  YA.chars=chars;
+  YA.sents=items.map(it=>{let h=0;for(let q=it.g0;q<=it.g1;q++)if(match[q]>=0)h++;return{text:it.text,nt:it.nt,ci0:it.g0,ci1:it.g1,s:chars[it.g0].s,e:chars[it.g1].e,sp:it.sp,hit:h};});
+  yaFixFillers(match);
+  YA.cuts=[];YA.sections=[];YA.score=null;YA.reach=null;
+  const rate=Math.round(hit/n*100);
+  yaStatus('st-g',`✅ ${YA.sents.length}文・話者 ${esc(labels.join('/')||'なし')}・一致率 ${rate}%`+(rate<70?'（低い：別の音声の文字起こしでないか確認）':''),rate<70?'error':'ok');
+  yaSave();yaRender();
+}
+// Whisper が聞き落とした短い相槌の位置を波形から補正（落とした相槌の時間は次の文の最初の語に含まれる）
+//  A：次の文の最初の語の中に「短い発声→無音→声」があれば、短い発声を相槌、その後の立ち上がりを次の文の始まりに
+//  B：そうでなければ、前の文と次の文の間にある短い発声を相槌とみなす
+function yaNextSilence(t,limit){
+  const n=YA.sil.length;let i=Math.max(0,Math.round(t/YA_HOP));const end=Math.min(n-1,Math.round((t+limit)/YA_HOP));
+  while(i<=end){if(YA.sil[i]){let b=i;while(b<n-1&&YA.sil[b+1])b++;if(b-i+1>=6)return{s:i*YA_HOP,e:(b+1)*YA_HOP};i=b+1;}else i++;}
+  return null;
+}
+function yaFixFillers(match){
+  const setSpan=(s,a,b)=>{const L=s.ci1-s.ci0+1;for(let q=0;q<L;q++){const c=YA.chars[s.ci0+q];c.s=a+(b-a)*q/L;c.e=a+(b-a)*(q+1)/L;}s.s=a;s.e=b;};
+  YA.sents.forEach((F,k)=>{
+    if(F.hit>0||F.nt.length>8)return;
+    const N=YA.sents[k+1],P=YA.sents[k-1];if(!N)return;
+    let q=N.ci0;while(q<=N.ci1&&match[q]<0)q++;if(q>N.ci1)return;
+    const cN=YA.chars[q];
+    const o1=yaSnapOnset(cN.s);
+    if(o1.ok){
+      const g=yaNextSilence(o1.t,1.2);
+      if(g&&g.s-o1.t<=1.0&&g.e<=cN.e+0.25){
+        setSpan(F,o1.t,g.s);
+        for(let r=N.ci0;r<=q;r++){YA.chars[r].s=g.e;if(YA.chars[r].e<g.e)YA.chars[r].e=g.e+0.05;}
+        N.s=g.e;return;
+      }
+    }
+    if(P){
+      let pq=P.ci1;while(pq>=P.ci0&&match[pq]<0)pq--;
+      const g1=yaNextSilence(pq>=P.ci0?YA.chars[pq].s:P.s,1.5);
+      if(g1){const g2=yaNextSilence(g1.e,1.0);if(g2&&g2.s<=cN.s-0.05&&g2.s-g1.e<=1.0)setSpan(F,g1.e,g2.s);}
+    }
+  });
+}
+
+// ---- カットの時刻（ナレスラの trCalcCutRange / snapToSoundOnset と同じ考え方） ----
+// 削る範囲＝削る部分の声の立ち上がり〜次に残す部分の声の立ち上がり。語の終わりの時刻は使わない（前の余韻と間は残る）
+// 無音＝10msの窓の最大振幅が「ピークの5%（0.02〜0.10）」未満。60ms未満の途切れは無音帯とみなさない。探索は前後0.5秒・許容0.4秒
+function yaCalcSilence(){
+  let peak=0;const step=Math.max(1,Math.floor(YA.mono.length/5000));
+  for(let i=0;i<YA.mono.length;i+=step)peak=Math.max(peak,Math.abs(YA.mono[i]));
+  const thr=Math.min(0.10,Math.max(0.02,peak*0.05)),hop=Math.round(YA.sr*YA_HOP),n=Math.floor(YA.mono.length/hop);
+  YA.sil=new Uint8Array(n);
+  for(let i=0;i<n;i++){let m=0;for(let j=0;j<hop;j++){const x=Math.abs(YA.mono[i*hop+j]);if(x>m)m=x;}YA.sil[i]=m<thr?1:0;}
+}
+function yaFindSilenceNear(t,radius){
+  const c=Math.round(t/YA_HOP),r=Math.round(radius/YA_HOP),n=YA.sil.length;
+  for(let d=0;d<=r;d++){
+    for(const i of d?[c-d,c+d]:[c]){
+      if(i<0||i>=n||!YA.sil[i])continue;
+      let a=i,b=i;while(a>0&&YA.sil[a-1])a--;while(b<n-1&&YA.sil[b+1])b++;
+      if(b-a+1<6)continue;
+      return{s:a*YA_HOP,e:(b+1)*YA_HOP};
+    }
+  }
+  return null;
+}
+function yaSnapOnset(t){const g=yaFindSilenceNear(t,0.50);if(!g||t<g.s-0.40||t>g.e+0.40)return{t,ok:false};return{t:g.e,ok:true};}
+function yaCutRange(c){
+  const s=YA.sents[c.n-1];if(!s)return null;
+  let a=s.ci0,b=s.ci1;
+  if(c.part){const np=yaNorm(c.part),k=s.nt.indexOf(np);if(k<0||!np)return null;a=s.ci0+k;b=a+np.length-1;}
+  const next=YA.chars[b+1];
+  const st=yaSnapOnset(YA.chars[a].s),en=next?yaSnapOnset(next.s):{t:YA.dur,ok:true};
+  if(en.t-st.t<0.05)return null;
+  return{start:st.t,end:en.t,quiet:st.ok&&en.ok,adjS:0,adjE:0};
+}
+const yaCS=c=>c.start+(c.adjS||0),yaCE=c=>c.end+(c.adjE||0),yaCutLen=c=>Math.max(0,yaCE(c)-yaCS(c));
+
+// ---- 採点 → 目標の長さまで削る ----
+// 5＝流れに必須（自動では削らない）／4＝重要／3＝補足／2＝繰り返し・脇道／1＝不要。must＝必ず削る。parts＝文の一部だけ削る
+// 同じ点数なら残っている割合が大きい章から削る。削った結果、相槌が続いたら後ろの相槌も削る
+const YA_SCORE_LABEL={1:'不要',2:'繰り返し・脇道',3:'補足',4:'重要',5:'流れに必須'};
+function yaTarget(){return (+yaVal('target')||8)*60;}
+function yaPrompt(){
+  if(!YA.sents.length)throw new Error('先に音声の文字起こしをしてください');
+  const target=+yaVal('target')||8,keep=Math.min(100,Math.round(target*60/YA.dur*100));
+  const lines=YA.sents.map((s,i)=>`[${i+1}] ${s.sp?(s.sp===1?'A':'B')+': ':''}${s.text}`).join('\n');
+  return `あなたは投資系YouTube動画の音声編集者です。2人の会話音声（全体 ${yaTc(YA.dur)}）を約${target}分（元の約${keep}%）に編集します。
+削る文はツールが点数の低い順に選ぶので、あなたは全部の文に点数を付けてください。
+
+【手順】
+1. まず全体を読み、話の流れ（導入→各話題→まとめ）を章に分ける。
+2. 約${target}分の完成版として何を残すべきかを決めてから、各文に点数を付ける。
+
+【点数（全文に付ける）】
+5＝流れに必須。削ると話がつながらない文。話題の切り替え、次の話題への問いかけ（「〜を見ていきましょう」「では〜はどうでしょう」等）、各話題の中心の答え・結論、冒頭のテーマ提示、最後の締め。
+4＝重要な論点、判断材料となる事実や数字。
+3＝補足説明、具体例、言い換えによる説明。
+2＝すでに話した内容の繰り返し、脇道、細かすぎる説明。
+1＝不要。間延びしたやり取り、内容のない相槌だけの文、2回目以降のまとめ。
+・5点は全体の長さの${Math.min(60,Math.max(20,keep-15))}%程度までに絞る（多すぎると目標の長さまで削れない）。
+・同じ内容を複数回話している場合は、一番分かりやすい1回を高く、他を低くする。
+・問いとその答えは同じ点数にそろえる（問いだけ残って答えが消える、またはその逆にならないように）。
+・相槌や受けの一言でも、話の切り替えや強調として効いているものは高くしてよい。全部を1点にしない。
+
+【must：点数と関係なく必ず削る文】
+特定の銘柄・業種について視聴者に売買を勧める発言（「今が買い時」「買うべき」「売るべき」等）と、目標株価・買い水準の提示だけ。
+・話題の切り替えや問いかけの文（「〜を整理しておきましょう」「〜は買いだと考えていいんでしょうか？」等）は must にしない。
+・見方や注目点の説明、「〜とは言い切れない」のような分析は must にしない。
+
+【review：要確認（自動では削らない）】
+視聴者への行動要求や断定的な指示の言い回し（「〜してはいけません」「〜すべきです」「〜する必要があります」等）。人が聞いて判断する。
+
+【parts：文の一部だけ削る】
+文頭の受けの一言や言いよどみ（「ええ、」「そうですね、」「あの、」等）で、残りの部分だけで自然につながるもの。削る文字列を原文どおりに入れる。
+例：「そうですね、緩和的と言えます。」→ part は「そうですね、」
+
+【出力】JSONをコードブロック1つでそのまま出力する。出典・引用・注釈・説明は付けない（出力をそのままツールに貼るため）。
+{"sections":[{"from":開始の文番号,"to":終了の文番号,"title":"章の短い名前"}],
+ "scores":[[文番号,点数],…（全文）],
+ "must":[{"n":文番号,"reason":"理由"}],
+ "review":[{"n":文番号,"reason":"理由"}],
+ "parts":[{"n":文番号,"part":"削る文字列","reason":"理由"}]}
+
+【文字起こし】
+${lines}`;
+}
+function yaParsePlan(text){
+  const m=String(text||'').match(/\{[\s\S]*\}/);if(!m)throw new Error('JSONが見つかりません');
+  const o=JSON.parse(m[0]);if(!Array.isArray(o.scores))throw new Error('scores がありません');
+  return o;
+}
+function yaApplyPlan(plan){
+  if(!YA.sents.length)throw new Error('先に音声の文字起こしをしてください');
+  if(YA.cuts.some(c=>c.manual)&&!confirm('判定を反映し直すと、手動のカットや調整は消えます。続けますか？'))return false;
+  YA.sections=(plan.sections||[]).map(x=>({from:+x.from,to:+x.to,title:x.title||''})).filter(x=>x.from&&x.to);
+  const score={};for(const [n,v] of (plan.scores||[]))score[+n]=Math.min(5,Math.max(1,+v||3));
+  const must=new Map((plan.must||[]).map(x=>[+x.n,x.reason||'必ず削る']));
+  const review=new Map((plan.review||[]).map(x=>[+x.n,x.reason||'要確認']));
+  YA.score=score;YA.cuts=[];
+  const add=c=>{if(c.part&&yaNorm(c.part)===YA.sents[c.n-1]?.nt)c.part='';const r=yaCutRange(c);if(r)YA.cuts.push(Object.assign(c,r));};
+  YA.sents.forEach((s,i)=>{
+    const n=i+1,sc=score[n]||3;
+    if(must.has(n))add({n,part:'',kind:'must',score:0,reason:must.get(n),on:true});
+    else add({n,part:'',kind:'sent',score:sc,reason:YA_SCORE_LABEL[sc],review:review.get(n)||'',on:false});
+  });
+  for(const x of (plan.parts||[]))if(+x.n&&(x.part||'').trim())add({n:+x.n,part:x.part.trim(),kind:'part',score:0,reason:x.reason||'文の一部',on:true});
+  yaAutoSelect();
+  const un=YA.sents.length-Object.keys(score).length;
+  yaStatus('st-ai',`✅ ${YA.sections.length}章・${Object.keys(score).length}文を採点${un>0?`（点数なし ${un}文は3点扱い）`:''}`,'ok');
+  return true;
+}
+function yaMerged(){
+  const a=YA.cuts.filter(c=>c.on).map(c=>({start:yaCS(c),end:yaCE(c)})).sort((x,y)=>x.start-y.start),out=[];
+  for(const c of a){const l=out[out.length-1];if(l&&c.start<=l.end+0.02)l.end=Math.max(l.end,c.end);else out.push({...c});}
+  return out;
+}
+const YA_BACKCHANNEL=/^(ええ|はい|うん|ああ|あ|あー|なるほど|そうですね|そうですよね|確かに|へえ|ほう|ですよね|そうなんです|その通りです)+$/;
+function yaAutoSelect(){
+  if(!YA.cuts.length){yaRender();return;}
+  const target=yaTarget(),useParts=(yaEl('use-parts')||{}).checked!==false;
+  YA.cuts.forEach(c=>{c.on=c.manual?c.manualOn:(c.kind==='must'||(c.kind==='part'&&useParts));if(c.reason==='削除後に続いた相槌')c.reason=YA_SCORE_LABEL[c.score]||c.reason;});
+  const whole=new Set(YA.cuts.filter(c=>c.on&&!c.part).map(c=>c.n));
+  const secs=(YA.sections.length?YA.sections:[{from:1,to:YA.sents.length}]).map(x=>({...x,orig:0,cut:0}));
+  const si=n=>{const k=secs.findIndex(x=>n>=x.from&&n<=x.to);return k<0?0:k;};
+  YA.sents.forEach((s,i)=>{secs[si(i+1)].orig+=Math.max(0,s.e-s.s);});
+  let cur=YA.dur-yaMerged().reduce((a,c)=>a+c.end-c.start,0);
+  YA.cuts.filter(c=>c.on).forEach(c=>{secs[si(c.n)].cut+=yaCutLen(c);});
+  const pool=YA.cuts.filter(c=>c.kind==='sent'&&c.score<5&&!c.manual&&!whole.has(c.n));
+  while(cur>target&&pool.length){
+    let best=-1,bs=0,br=0;
+    pool.forEach((c,k)=>{const x=secs[si(c.n)],ratio=x.orig?(x.orig-x.cut)/x.orig:0;if(best<0||c.score<bs||(c.score===bs&&ratio>br)){best=k;bs=c.score;br=ratio;}});
+    const c=pool.splice(best,1)[0];c.on=true;whole.add(c.n);
+    YA.cuts.forEach(x=>{if(x.kind==='part'&&x.n===c.n&&!x.manual)x.on=false;});
+    secs[si(c.n)].cut+=yaCutLen(c);cur-=yaCutLen(c);
+  }
+  // 削った結果、相槌が続いた箇所は後ろを削る（同じ人の発言の後の「はい」などは自然なので残す）
+  let prev=null;
+  YA.sents.forEach((s,i)=>{
+    const n=i+1;if(whole.has(n))return;
+    const bc=s.nt.length<=10&&YA_BACKCHANNEL.test(s.nt);
+    if(bc&&prev&&prev.bc){const c=YA.cuts.find(x=>x.n===n&&x.kind==='sent');if(c&&!c.manual){c.on=true;c.reason='削除後に続いた相槌';whole.add(n);return;}}
+    prev={bc};
+  });
+  YA.reach=cur<=target+1;
+  yaSave();yaRender();
+}
+async function yaAiJudge(btn){
+  let prompt;try{prompt=yaPrompt();}catch(e){yaStatus('st-ai','❌ '+esc(e.message),'error');return;}
+  if(btn)btn.disabled=true;yaStatus('st-ai','判定中…（数十秒かかります）');
+  try{
+    const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,resources:[],files:[],temperature:0.1,models:['gemini-3.8-flash','gemini-3.7-flash','gemini-3.6-flash','gemini-3.5-flash']})});
+    const data=await res.json();if(!data.ok)throw new Error(data.error||'不明なエラー');
+    yaEl('plan').value=data.text||'';saveState();
+    if(yaApplyPlan(yaParsePlan(data.text||''))){
+      const fb=data.fellBack&&data.failures?'・降格：'+data.failures.map(f=>String(f.model).replace('gemini-','')+' '+(f.status||'通信')+' '+f.sec+'秒').join(' / '):'';
+      yaEl('st-ai').innerHTML+=`（モデル: ${esc(data.model||'?')}${esc(fb)}）`;
+    }
+  }catch(e){yaStatus('st-ai','❌ '+esc(e.message),'error');}
+  finally{if(btn)btn.disabled=false;}
+}
+function yaApplyPasted(){try{yaApplyPlan(yaParsePlan(yaVal('plan')));}catch(e){yaStatus('st-ai','❌ '+esc(e.message),'error');}}
+function yaAddManualPart(n){
+  const s=YA.sents[n-1];const part=(prompt(`削る文字列を、文のとおりに入力してください\n\n${s.text}`)||'').trim();if(!part)return;
+  if(s.nt.indexOf(yaNorm(part))<0){alert('文の中に見つかりません');return;}
+  const c={n,part,kind:'part',score:0,reason:'手動',on:true,manual:true,manualOn:true};
+  const r=yaCutRange(c);if(!r){alert('位置を計算できませんでした');return;}
+  YA.cuts.push(Object.assign(c,r));yaSave();yaRender(true);yaAudition(c);
+}
+// 判定前でも手動で文を削れるように、その文のカットを作る
+function yaToggleSentence(n,on){
+  let c=YA.cuts.find(x=>x.n===n&&x.kind!=='part');
+  if(!c){const r=yaCutRange({n,part:''});if(!r){alert('位置を計算できませんでした');return;}c=Object.assign({n,part:'',kind:'sent',score:(YA.score&&YA.score[n])||0,reason:'手動'},r);YA.cuts.push(c);}
+  c.on=on;c.manual=true;c.manualOn=on;yaSave();yaRender(true);
+}
+
+// ---- 試聴・出力 ----
+let _yaCtx=null,_yaPlaying=[];
+function yaStop(){_yaPlaying.forEach(p=>{try{p.stop();}catch(e){}});_yaPlaying=[];}
+function yaAudition(c){
+  if(!YA.buf){alert('音声が読み込まれていません');return;}
+  yaStop();_yaCtx=_yaCtx||new (window.AudioContext||window.webkitAudioContext)();
+  const cs=yaCS(c),ce=yaCE(c),pre=Math.min(3,cs),t0=_yaCtx.currentTime+0.05;
+  const a=_yaCtx.createBufferSource();a.buffer=YA.buf;a.connect(_yaCtx.destination);a.start(t0,cs-pre,pre);
+  const b=_yaCtx.createBufferSource();b.buffer=YA.buf;b.connect(_yaCtx.destination);b.start(t0+pre,ce,3);
+  _yaPlaying=[a,b];
+}
+// カット後の音声（元の音質のまま・モノラルにまとめる）。つなぎ目に10msのフェード
+function yaRenderCut(){
+  const sr=YA.buf.sampleRate,chs=YA.buf.numberOfChannels,src=[];for(let c=0;c<chs;c++)src.push(YA.buf.getChannelData(c));
+  const m=yaMerged();const keep=[];let p=0;for(const c of m){keep.push([p,c.start]);p=c.end;}keep.push([p,YA.dur]);
+  const len=keep.reduce((a,[s,e])=>a+Math.max(0,Math.round((e-s)*sr)),0),out=new Float32Array(len);let o=0;
+  for(const [s,e] of keep){const i0=Math.round(s*sr),L=Math.max(0,Math.round((e-s)*sr));
+    for(let i=0;i<L;i++){let v=0;for(let c=0;c<chs;c++)v+=src[c][i0+i]||0;out[o+i]=v/chs;}
+    const f=Math.min(Math.round(sr*0.01),L>>1);for(let i=0;i<f;i++){out[o+i]*=i/f;out[o+L-1-i]*=i/f;}o+=L;}
+  return{samples:out,sampleRate:sr};
+}
+function yaPlayCut(){
+  if(!YA.buf){alert('音声が読み込まれていません');return;}
+  const r=yaRenderCut();const el=yaEl('edited');
+  vdFloatToWavBuf(r.samples,r.sampleRate).then(ab=>{el.src=URL.createObjectURL(new Blob([ab],{type:'audio/wav'}));el.style.display='';el.play().catch(()=>{});});
+}
+async function yaDownloadCut(btn){
+  if(!YA.buf){alert('音声が読み込まれていません');return;}
+  if(btn)btn.disabled=true;yaStatus('st-out','カット後の音声を作成中…');
+  try{
+    const r=yaRenderCut(),fmt=yaVal('fmt')||'mp3';
+    const out=await vdProcessAudio(r,0,fmt);
+    const a=document.createElement('a');a.href=URL.createObjectURL(out.blob);a.download=`${getTicker()||'code'}_${getName()||'name'}_音声_カット済み.${out.ext}`;a.click();
+    yaStatus('st-out',`✅ カット後の音声を保存しました（${yaTc(r.samples.length/r.sampleRate)}）`,'ok');
+  }catch(e){yaStatus('st-out','❌ '+esc(e.message),'error');}
+  finally{if(btn)btn.disabled=false;}
+}
+// 文字起こし（カット後に残る文）を字幕の時刻つきで保存（確認・台本の見直し用）
+function yaDownloadText(){
+  if(!YA.sents.length){alert('文字起こしがありません');return;}
+  const m=yaMerged();const inCut=(s,e)=>m.some(c=>s>=c.start-0.05&&e<=c.end+0.05);
+  const L=YA.sents.map((s,i)=>`${inCut(s.s,s.e)?'✂ ':''}[${yaTc(s.s)}] ${s.sp?(s.sp===1?'A':'B')+': ':''}${s.text}`);
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([L.join('\n')],{type:'text/plain'}));a.download=`${getTicker()||'code'}_${getName()||'name'}_文字起こし.txt`;a.click();
+}
+
+// ---- 右ペインの一覧 ----
+function yaRender(keepScroll){
+  const list=document.getElementById('ya-list');if(!list)return;
+  const y=keepScroll?list.parentElement.scrollTop:0;
+  const by={};YA.cuts.forEach((c,i)=>{(by[c.n]=by[c.n]||[]).push(i);});
+  const secStart={};YA.sections.forEach(x=>{secStart[x.from]=x;});
+  if(!YA.sents.length){list.innerHTML=`<div style="font-size:12px;color:var(--text-sub);padding:10px;">${YA.mono?'「文字起こし」を押すと、ここに文の一覧が出ます':'左の「音声」タブで NotebookLM の音声を読み込んでください'}</div>`;yaRenderSum();return;}
+  list.innerHTML=YA.sents.map((s,i)=>{
+    const n=i+1,ids=by[n]||[];let tx=esc(s.text),whole=false;
+    ids.forEach(k=>{const c=YA.cuts[k];if(!c.on)return;if(!c.part)whole=true;else tx=tx.replace(esc(c.part),`<del>${esc(c.part)}</del>`);});
+    const sc=YA.score&&YA.score[n],badge=sc?`<span class="ya-pri" title="${YA_SCORE_LABEL[sc]}">${sc===5?'🔒':sc}</span>`:'';
+    let ctl=ids.map(k=>{
+      const c=YA.cuts[k];
+      const lab=`<label title="${esc(c.reason)}"><input type="checkbox" data-k="${k}" ${c.on?'checked':''}> ${c.kind==='must'?'<span class="ya-warn">必ず削る</span> ':''}${c.kind==='part'?'一部 ':''}${c.review?'<span class="ya-warn">要確認</span> ':''}${esc((c.review||c.reason||'').slice(0,14))}${c.quiet?'':' <span class="ya-warn" title="切り口の近くに無音が無い（要試聴）">⚠</span>'}</label>`;
+      if(!c.on)return lab;
+      return lab+`<span title="切り始め・切り終わり（0.05秒ずつ調整）"><button class="ya-nd" data-nd="${k},s,-1">◀</button>${yaTc(yaCS(c))}<button class="ya-nd" data-nd="${k},s,1">▶</button>〜<button class="ya-nd" data-nd="${k},e,-1">◀</button>${yaTc(yaCE(c))}<button class="ya-nd" data-nd="${k},e,1">▶</button></span><button class="ya-play" data-play="${k}">試聴</button>`;
+    }).join('');
+    if(!ids.some(k=>YA.cuts[k].kind!=='part'))ctl=`<label><input type="checkbox" data-sent="${n}"> 削る</label>`+ctl;
+    const head=secStart[n]?`<div class="ya-sec">■ ${esc(secStart[n].title)}（${secStart[n].from}〜${secStart[n].to}）<span data-secsum="${n}"></span></div>`:'';
+    return `${head}<div class="ya-ln${whole?' cut':''}"><span class="ya-no">${n}</span><span class="ya-tc">${yaTc(s.s)}</span><span class="ya-sp sp${s.sp}">${s.sp?(s.sp===1?'A':'B'):''}</span>${badge}<span class="ya-tx">${tx}</span><span class="ya-ctl">${ctl}<button class="ya-nd" data-part="${n}" title="文の一部だけを削る">✂一部</button></span></div>`;
+  }).join('');
+  list.querySelectorAll('input[data-k]').forEach(el=>el.onchange=()=>{const c=YA.cuts[+el.dataset.k];c.on=el.checked;c.manual=true;c.manualOn=el.checked;yaSave();yaRender(true);});
+  list.querySelectorAll('input[data-sent]').forEach(el=>el.onchange=()=>yaToggleSentence(+el.dataset.sent,el.checked));
+  list.querySelectorAll('button[data-part]').forEach(el=>el.onclick=()=>yaAddManualPart(+el.dataset.part));
+  list.querySelectorAll('button[data-nd]').forEach(el=>el.onclick=()=>{const [k,w,d]=el.dataset.nd.split(',');const c=YA.cuts[+k];if(w==='s')c.adjS=(c.adjS||0)+0.05*d;else c.adjE=(c.adjE||0)+0.05*d;yaSave();yaRender(true);yaAudition(c);});
+  list.querySelectorAll('button[data-play]').forEach(el=>el.onclick=()=>yaAudition(YA.cuts[+el.dataset.play]));
+  YA.sections.forEach(x=>{
+    let o=0,c=0;for(let n=x.from;n<=x.to&&n<=YA.sents.length;n++){const s=YA.sents[n-1];o+=Math.max(0,s.e-s.s);}
+    YA.cuts.filter(k=>k.on&&k.n>=x.from&&k.n<=x.to).forEach(k=>{c+=yaCutLen(k);});
+    const el=list.querySelector(`[data-secsum="${x.from}"]`);if(el)el.textContent=` 元 ${yaTc(o)} → ${yaTc(Math.max(0,o-c))}`;
+  });
+  yaRenderSum();
+  if(keepScroll)list.parentElement.scrollTop=y;
+}
+function yaRenderSum(){
+  const m=yaMerged(),cutSec=m.reduce((a,c)=>a+c.end-c.start,0);
+  const txt=YA.dur?`元 ${yaTc(YA.dur)} → カット後 <b>${yaTc(YA.dur-cutSec)}</b>（${m.length}か所・${yaTc(cutSec)}を削除）`+(YA.reach===false?' <span class="ya-warn">🔒以外をすべて削っても目標に届きません</span>':''):'';
+  ['sum','sum2'].forEach(id=>{const el=yaEl(id);if(el)el.innerHTML=txt||'-';});
+}
+
+// ---- タブのHTML（左の操作欄） ----
+function yaBuildPaneHtml(){
+  const G='background:#475569;color:#fff;';
+  const b=(label,on,style,id)=>`<button class="btn-sm" ${id?`id="${id}"`:''} onclick="${on}" style="flex:1;min-width:0;${style||''}">${label}</button>`;
+  const row=(...x)=>`<div class="row" style="flex-wrap:nowrap;">${x.join('')}</div>`;
+  return `
+<div class="sa-card">
+  <h2>1. 音声の読み込み・文字起こし</h2>
+  <input type="file" id="ya-file" accept="audio/*,.m4a" onchange="yaLoadFile(this.files[0])" style="font-size:11px;">
+  ${row(b('📝 文字起こし','yaTranscribe(this)',G))}
+  <div id="ya-st-tr" style="display:none;font-size:11px;"></div>
+  <div class="sa-sub">▼ Gemini（Web版）の文字起こし</div>
+  <div style="font-size:10px;color:var(--text-sub);">Whisperは相槌を落とし話者も分からないので、Geminiで起こした文章と時刻を突き合わせます。</div>
+  ${row(b('💬 プロンプト',"copyText(YA_G_PROMPT,this)",G),b('📋 貼り付け',"yaPaste('gtext',yaAlignFromBox)"),b('↻ 突き合わせ','yaAlignFromBox()'))}
+  <textarea id="ya-gtext" placeholder="A: …&#10;B: …（Geminiの文字起こし）" style="min-height:36px;font-size:11px;"></textarea>
+  <div id="ya-st-g" style="display:none;font-size:11px;"></div>
+</div>
+
+<div class="sa-card" style="margin-top:8px;">
+  <h2>2. カット</h2>
+  <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;">
+    <label style="font-size:11px;color:var(--text-sub);flex:none;">目標の長さ</label>
+    <input type="number" id="ya-target" value="8" min="1" step="0.5" style="width:60px;flex:none;font-size:11px;padding:4px;"><span style="font-size:11px;color:var(--text-sub);">分</span>
+    <label style="font-size:11px;color:var(--text-sub);margin-left:auto;"><input type="checkbox" id="ya-use-parts" checked onchange="yaAutoSelect()"> 文の一部も削る</label>
+  </div>
+  ${row(b('💬 判定',"try{copyText(yaPrompt(),this)}catch(e){alert(e.message)}",G),b('📋 貼り付け',"yaPaste('plan',yaApplyPasted)"),b('↻ 反映','yaApplyPasted()'))}
+  <textarea id="ya-plan" placeholder="Gemini／ChatGPTに判定プロンプトを投げ、返ってきたJSONを貼り付け" style="min-height:36px;font-size:11px;font-family:monospace;"></textarea>
+  ${row(b('🤖 Gemini APIで判定','yaAiJudge(this)','background:#4f46e5;color:#fff;'),b('🎯 選び直す','yaAutoSelect()'))}
+  <div id="ya-st-ai" style="display:none;font-size:11px;"></div>
+  <div style="font-size:11px;" id="ya-sum2">-</div>
+  <div style="font-size:10px;color:var(--text-sub);">文の一覧と試聴は右の「🎙 音声カット」。点数の低い順に、同じ点数なら残りの割合が大きい章から削る。🔒は自動では削らない（手動なら可）。</div>
+</div>
+
+<div class="sa-card" style="margin-top:8px;">
+  <h2>3. 出力</h2>
+  <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;">
+    <label style="font-size:11px;color:var(--text-sub);flex:none;">形式</label>
+    <select id="ya-fmt" style="flex:none;font-size:11px;padding:4px;"><option value="mp3">MP3</option><option value="wav">WAV</option></select>
+  </div>
+  ${row(b('▶ 通しで聴く','yaPlayCut()'),b('💾 音声','yaDownloadCut(this)','background:#0d9488;color:#fff;'),b('📄 文字起こし','yaDownloadText()'))}
+  <div id="ya-st-out" style="display:none;font-size:11px;"></div>
+  <div style="font-size:10px;color:var(--text-sub);">ナレスラ用のプロジェクトでは、元の音声とカットの位置をそのまま渡します（ナレスラで調整できるように）。</div>
+</div>`;
+}
+function yaAlignFromBox(){try{yaAlign(yaVal('gtext'));}catch(e){yaStatus('st-g','❌ '+esc(e.message),'error');}}
+async function yaPaste(id,after){
+  try{let s=await navigator.clipboard.readText();if(!s.trim()){alert('クリップボードが空です');return;}
+    s=s.trim().replace(/^```[^\n]*\n/,'').replace(/\n```\s*$/,'');
+    yaEl(id).value=s;saveState();if(after)after();}
+  catch(e){alert('クリップボードを読めませんでした。欄に直接貼り付けてください（Ctrl+V）');}
+}
+
+// ---- 起動時の復元 ----
+async function yaRestore(){
+  const a=await yaGet('audio');const st=await yaGet('state');
+  if(st&&st.sents){Object.assign(YA,{fileName:st.fileName||'',dur:st.dur||0,chars:st.chars||[],wchars:st.wchars||[],sents:st.sents||[],cuts:st.cuts||[],sections:st.sections||[],score:st.score||null,reach:st.reach==null?null:st.reach});}
+  if(a&&a.blob){
+    let f=a.blob;try{f=new File([a.blob],a.name||'narration',{type:a.blob.type});}catch(e){}
+    await yaLoadFile(f,true);
+    if(st&&st.stock&&st.stock!==getName())yaStatus('st-tr',`⚠ 保存されている音声は「${esc(st.stock)}」のものです（${esc(YA.fileName)}）。別の銘柄なら読み込み直してください`,'error');
+  }
+  yaRender();
 }
 
 // ---- 初期化：両タブのHTMLを組み立て、保存値を復元し、保存済み音声を戻す ----
@@ -8108,6 +8627,7 @@ function ytOrientBar(){
   // 横動画（YouTube）
   PERSIST_IDS.push(...YT_PERSIST_IDS);
   ytRestoreFields();
+  yaRestore();
   if(ytOrient()==='y')ytSetOrient('y');
   ytUpdateFreeInfo();
   // レポート欄は「📋 貼り付け」や読み込みでJSから値が入ると input イベントが出ないので、
@@ -8343,18 +8863,21 @@ checkMob();window.addEventListener('resize',checkMob);
 // MODE SWITCH (スライド / サムネイル)
 // ============================================================
 function setMode(mode){
-  const isThumb=mode==='thumb',isVideo=mode==='video',isYt=mode==='yt';
-  document.getElementById('slides-view').style.display=(!isThumb&&!isVideo&&!isYt)?'flex':'none';
+  const isThumb=mode==='thumb',isVideo=mode==='video',isYt=mode==='yt',isYa=mode==='ytaudio';
+  document.getElementById('slides-view').style.display=(!isThumb&&!isVideo&&!isYt&&!isYa)?'flex':'none';
+  document.getElementById('ya-view').style.display=isYa?'flex':'none';
+  document.getElementById('tab-ya').classList.toggle('active',isYa);
   document.getElementById('yt-view').style.display=isYt?'flex':'none';
   document.getElementById('tab-yt').classList.toggle('active',isYt);
   document.getElementById('thumb-view').style.display=isThumb?'flex':'none';
   document.getElementById('video-view').style.display=isVideo?'flex':'none';
-  document.getElementById('tab-slides').classList.toggle('active',!isThumb&&!isVideo&&!isYt);
+  document.getElementById('tab-slides').classList.toggle('active',!isThumb&&!isVideo&&!isYt&&!isYa);
   document.getElementById('tab-thumb').classList.toggle('active',isThumb);
   document.getElementById('tab-video').classList.toggle('active',isVideo);
   if(isThumb)renderThumbPreview();
   if(isVideo)renderVideoPrev('vd');   // 非表示中に描くと幅0で崩れるため、表示後に描く
   if(isYt)renderYtPrev();
+  if(isYa)yaRender();
 }
 
 // ============================================================
