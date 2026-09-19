@@ -7824,7 +7824,7 @@ const ytItems=(arr,n)=>(arr||[]).filter(x=>x&&(x.head||x.text)).slice(0,n);
 function ytFrame(no,s,ctx,body,cls){
   const def=YT_CHAPTERS[no-1],name=ctx.up&&def.nameUp?def.nameUp:def.name;
   return `<div class="slide yt-s ${cls||''}"><div class="sl-bar"></div><div class="sl-sig">すみっこマネー大学/@sumikko_money</div>
-<div class="yt-wrap"><div class="yt-head"><div class="yt-ch">${'①②③④⑤⑥⑦'[no-1]} ${esc(name)}</div><div class="yt-title">${ytEm(s.title||name)}</div></div>
+<div class="yt-wrap"><div class="yt-head"><div class="yt-title">${ytEm(s.title||name)}</div></div>
 <div class="yt-body">${body}</div></div></div>`;
 }
 const YT_LAYOUT={
