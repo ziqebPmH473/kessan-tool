@@ -74,36 +74,46 @@ export async function onRequestPost(context) {
   const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
   let lastErr = "";
+  // 降格した理由（モデル・HTTPステータス・所要秒・エラー文の先頭）。画面に出して原因を特定できるようにする
+  const failures = [];
+  const note = (m, status, t0, msg) =>
+    failures.push({ model: m, status, sec: Math.round((Date.now() - t0) / 100) / 10, error: String(msg || "").slice(0, 160) });
   for (let i = 0; i < models.length; i++) {
     const m = models[i];
     for (let attempt = 0; attempt < 2; attempt++) {   // 各モデル最大2回（一時エラー時に1回リトライ）
+      const t0 = Date.now();
       try {
         const res = await fetch(ENDPOINT(m, key), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
-        const data = await res.json();
+        const raw0 = await res.text();
+        let data;
+        try { data = JSON.parse(raw0); }
+        catch { throw new Error(`HTTP ${res.status} 応答がJSONではありません: ${raw0.slice(0, 80)}`); }
         if (res.ok) {
           const text =
             (data.candidates && data.candidates[0] && data.candidates[0].content &&
              data.candidates[0].content.parts || [])
               .map((p) => p.text || "").join("").trim();
-          return json({ ok: true, text, usage: data.usageMetadata || null, model: m, fellBack: i > 0 });
+          return json({ ok: true, text, usage: data.usageMetadata || null, model: m, fellBack: i > 0, failures });
         }
         const raw = data && data.error && data.error.message ? data.error.message : `HTTP ${res.status}`;
         lastErr = raw;
+        note(m, res.status, t0, raw);
         // 一時エラー以外（認証ミス等）は即中断
-        if (!isTransient(res.status, raw)) return json({ ok: false, error: "Gemini API エラー: " + raw, model: m }, 502);
+        if (!isTransient(res.status, raw)) return json({ ok: false, error: "Gemini API エラー: " + raw, model: m, failures }, 502);
         if (attempt === 0) { await delay(800); continue; }  // 同モデルで1回リトライ
       } catch (e) {
         lastErr = (e && e.message) ? e.message : String(e);
+        note(m, 0, t0, lastErr);
         if (attempt === 0) { await delay(800); continue; }
       }
       break;   // このモデルは諦めて次モデルへ
     }
   }
-  return json({ ok: false, error: "全モデルが混雑/上限のようです。少し待って再試行してください（最後のエラー: " + lastErr + "）", triedModels: models }, 502);
+  return json({ ok: false, error: "全モデルが混雑/上限のようです。少し待って再試行してください（最後のエラー: " + lastErr + "）", triedModels: models, failures }, 502);
 }
 
 export async function onRequestGet() {

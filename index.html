@@ -1847,6 +1847,13 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
                 : ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3-flash-preview', 'gemini-2.5-flash-lite', 'gemini-2.5-flash'];
         }
 
+        // 降格した理由の表示（例：・降格［3.8: 503 高負荷 41.2秒］）。原因の特定用
+        function fallNote(r) {
+            if (!r || !r.fellBack) return '';
+            const f = (r.failures || []).map(x => `${String(x.model).replace('gemini-', '')}: ${x.status || '通信'} ${x.error.replace(/\s+/g, ' ').slice(0, 40)} ${x.sec}秒`);
+            return '・降格' + (f.length ? '［' + f.join(' ／ ') + '］' : '');
+        }
+
         // ステータス表示（ボタン下の小さな注記）。elId が無ければ何もしない。
         function setGemStatus(elId, msg, kind) {
             const el = document.getElementById(elId);
@@ -1887,7 +1894,7 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
                 if (!res.ok || !data.ok) {
                     return { ok: false, error: (data && data.error) || `HTTP ${res.status}` };
                 }
-                return { ok: true, text: data.text || '', model: data.model, fellBack: data.fellBack, usage: data.usage || null };
+                return { ok: true, text: data.text || '', model: data.model, fellBack: data.fellBack, failures: data.failures || [], usage: data.usage || null };
             } catch (e) {
                 return { ok: false, error: (e && e.message) ? e.message : String(e) };
             }
@@ -2027,7 +2034,7 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
             if (window._earnFetched) complementEarnData(); else renderImage();
             // 整形と同時に動画素材（サムネ・台本・縦スライド・投稿文）も作る（決算分析の動画セクションのチェックで切替）
             if ((document.getElementById('ev-auto') || {}).checked) { try { await geminiVideo('ev'); } catch (e) { console.warn('video gen', e); } }
-            setGemStatus('gem-earn-status', `整形完了（${r.model || 'gemini'}${r.fellBack ? '・降格' : ''}${tokenNote(r.usage)}）`, 'ok');
+            setGemStatus('gem-earn-status', `整形完了（${r.model || 'gemini'}${fallNote(r)}${tokenNote(r.usage)}）`, 'ok');
             // 処理の最後にタブ内容（裏データ含む）をJSONで書き出す（手動の📤エクスポートと同じ）
             try { exportTabData('earnings'); } catch (e) { console.warn('export', e); }
         }
@@ -2055,7 +2062,7 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
             if (!r.ok) { setGemStatus('gem-sa-status', 'エラー: ' + r.error, 'error'); return; }
             document.getElementById('sa-input-data').value = r.text;
             renderImageStock();
-            setGemStatus('gem-sa-status', `整形完了（${r.model || 'gemini'}${r.fellBack ? '・降格' : ''}${tokenNote(r.usage)}）`, 'ok');
+            setGemStatus('gem-sa-status', `整形完了（${r.model || 'gemini'}${fallNote(r)}${tokenNote(r.usage)}）`, 'ok');
         }
 
         function formatDateJP(dateRaw) {
@@ -4554,7 +4561,7 @@ async function saCallGeminiAnalyze(prompt,resources,opts){
       body:JSON.stringify({prompt,resources:resources||[],temperature:typeof opts.temperature==='number'?opts.temperature:0.2,models:saAutoModelChain(opts.cls||'low',opts.modelOverride||'')})});
     const data=await res.json();
     if(!res.ok||!data.ok)return{ok:false,error:(data&&data.error)||`HTTP ${res.status}`};
-    return{ok:true,text:data.text||'',model:data.model,fellBack:data.fellBack,usage:data.usage||null};
+    return{ok:true,text:data.text||'',model:data.model,fellBack:data.fellBack,failures:data.failures||[],usage:data.usage||null};
   }catch(e){return{ok:false,error:(e&&e.message)?e.message:String(e)};}
 }
 // 株価分析：Geminiで整形 → #ta-data に投入して描画（NotebookLM出力の代わり）
@@ -4590,7 +4597,7 @@ async function geminiFormatStock(btnEl){
   if(!r.ok){saSetGemStatus('エラー: '+r.error,'error');return;}
   document.getElementById('ta-data').value=r.text;
   renderPrev();
-  saSetGemStatus(`整形完了（${r.model||'gemini'}${r.fellBack?'・降格':''}${saTokenNote(r.usage)}）`,'ok');
+  saSetGemStatus(`整形完了（${r.model||'gemini'}${fallNote(r)}${saTokenNote(r.usage)}）`,'ok');
 }
 
 // ============================================================
@@ -5059,7 +5066,7 @@ async function geminiArticle(btnEl){
   // 値をJSで入れた場合は input イベントが飛ばず保存されないため、明示的に保存する
   if(typeof saveState==='function')saveState();
   const missing=[!p.title&&'タイトル',!p.body&&'本文',!p.xpost&&'X投稿文',!p.sectool&&'証券管理データ'].filter(Boolean);
-  const genMsg=`生成完了（${r.model||'gemini'}${r.fellBack?'・降格':''}${saTokenNote(r.usage)}）${missing.length?' ※'+missing.join('・')+'は全文から確認':''}`;
+  const genMsg=`生成完了（${r.model||'gemini'}${fallNote(r)}${saTokenNote(r.usage)}）${missing.length?' ※'+missing.join('・')+'は全文から確認':''}`;
   // 売買行動を促す表現のチェック（違反箇所だけを書き換える）。失敗しても記事はそのまま残す
   document.getElementById('art-check').value='';
   setArtStatus(genMsg+' → 売買表現チェック中…','info');
@@ -6708,7 +6715,7 @@ async function geminiVideo(P,btnEl){
   vdUpdateScriptStats(P);
   if(typeof saveState==='function')saveState();
   const missing=[!(p.s1&&p['s'+n])&&'台本',!p.slides&&'縦スライド',!p.x&&'X',!p.insta&&'Instagram',!p.tiktok&&'TikTok'].filter(Boolean);
-  vdStatus(P,`生成完了（${r.model||'gemini'}${r.fellBack?'・降格':''}${saTokenNote(r.usage)}）${missing.length?' ※'+missing.join('・')+'は全文から確認':''}`,missing.length?'info':'ok');
+  vdStatus(P,`生成完了（${r.model||'gemini'}${fallNote(r)}${saTokenNote(r.usage)}）${missing.length?' ※'+missing.join('・')+'は全文から確認':''}`,missing.length?'info':'ok');
   vdShowPreview(P);
   return true;
 }
