@@ -7941,7 +7941,7 @@ function ytStripSources(s){
   if(m)x=x.slice(0,m.index);
   return x.trim();
 }
-function ytSlideDesignerPrompt(){
+function ytSlideParts(){
   const up=getDir()==='up';
   const doc=ytStripSources(ytVal('doc'));
   const tr=((document.getElementById('ya-gtext')||{}).value||'').trim();
@@ -7949,31 +7949,49 @@ function ytSlideDesignerPrompt(){
   if(!tr)throw new Error('「音声」タブに Gemini の文字起こしを貼り付けてください');
   const fr=ytFreeReport();
   const ch=YT_CHAPTERS.map(c=>`第${c.no}章 ${up&&c.nameUp?c.nameUp:c.name}`).join('\n');
-  return `${YT_SLIDE_DESIGNER}
-
----
-【入力1｜動画全体の企画・大まかな章構成】
-シリーズ「私が知らなかった実力株」
+  const plan=`シリーズ「私が知らなかった実力株」
 株価が大きく${up?'上昇':'下落'}した銘柄を取り上げ、会社の事業と競争力を掘り下げる解説動画（約8分）。
 株価の予想をする動画ではなく、会社そのものを主役にする。
 
 ${ch}
 
-銘柄：${getName()||''}（${getTicker()||''}）
+銘柄：${getName()||''}（${getTicker()||''}）`;
+  const report=`${vdBasicInfo('vd')}\n\n${doc}${fr.ok?`\n\n${fr.text}`:''}`;
+  return{plan,tr,report};
+}
+// プロンプトはコピーして使う。入力2・3は添付ファイル（ZIPの中身）を見てもらう
+function ytSlideDesignerPrompt(){
+  const{plan}=ytSlideParts();
+  return `${YT_SLIDE_DESIGNER}
+
+---
+【入力1｜動画全体の企画・大まかな章構成】
+${plan}
 
 ---
 【入力2｜音声の文字起こし】
-${tr}
+添付ファイル「02_音声の文字起こし.txt」を使ってください。
 
 ---
 【入力3｜株価分析レポート・動画資料】
-${vdBasicInfo('vd')}
-
-${doc}${fr.ok?`\n\n${fr.text}`:''}
+添付ファイル「03_レポート・動画資料.txt」を使ってください。
 
 ---
 【入力4｜既存のnote用スライド】
 別途、画像を添付します。`;
+}
+async function ytDownloadSlideZip(btn){
+  let parts;try{parts=ytSlideParts();}catch(e){alert(e.message);return;}
+  if(btn)btn.disabled=true;
+  try{
+    const zip=new JSZip();
+    zip.file('02_音声の文字起こし.txt',parts.tr);
+    zip.file('03_レポート・動画資料.txt',parts.report);
+    const blob=await zip.generateAsync({type:'blob'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${getTicker()||'code'}_${getName()||'name'}_スライド作成一式.zip`;a.click();
+    ytStatus('✅ ZIPを保存しました（音声の文字起こし・レポート）。ChatGPTには、この2つと既存のnote用スライドの画像を添付し、プロンプトを貼り付けてください','ok','slide-status2');
+  }catch(e){ytStatus('❌ '+e.message,'error','slide-status2');}
+  finally{if(btn)btn.disabled=false;}
 }
 
 // ---- NotebookLM：指示文（C:\work\movie の音声ルールを流用） ----
@@ -8380,8 +8398,9 @@ function ytBuildTabHtml(){
 <div class="sa-card">
   <h2>スライド（ChatGPTで作る）</h2>
   <div style="font-size:11px;color:var(--text-sub);">音声を先に作り、その文字起こしに合わせてスライドを作ります。プロンプトには、章構成・音声の文字起こし・レポート・動画資料（出典は除く）が入ります。既存のnote用スライドの画像は、ChatGPTに手で添付してください。</div>
-  ${row(b('💬 スライド作成プロンプト',"try{copyText(ytSlideDesignerPrompt(),this)}catch(e){alert(e.message)}",G))}
-  <div style="font-size:10px;color:var(--text-sub);">株価チャートは TradingView の画像をナレスラで差し込むので、スライドには描かせません。QRコードは、できた画像の上からツールで重ねます。</div>
+  ${row(b('💬 プロンプトをコピー',"try{copyText(ytSlideDesignerPrompt(),this)}catch(e){alert(e.message)}",G),`<button class="btn-sm" onclick="ytDownloadSlideZip(this)" style="flex:1;min-width:0;background:#0d9488;color:#fff;">💾 添付ファイル（ZIP）</button>`)}
+  <div id="yt-slide-status2" style="display:none;font-size:11px;"></div>
+  <div style="font-size:10px;color:var(--text-sub);">ChatGPTには、プロンプトを貼り付け、ZIPの中の2ファイル（音声の文字起こし／レポート・動画資料）と既存のnote用スライドの画像を添付してください。株価チャートはナレスラで差し込むので、スライドには描かせません（TradingViewの画像はロゴが入っていれば出典の表記は不要）。QRコードは、できた画像の上からツールで重ねます。</div>
 </div>
 <details style="margin-top:8px;">
   <summary style="font-size:11px;color:var(--text-sub);cursor:pointer;">旧：ツールのHTMLでスライドを作る（いまは使わない）</summary>
