@@ -1415,7 +1415,7 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
   <!-- 横スライド（YouTube用）ビュー -->
   <div id="yt-view" style="display:none;flex-direction:column;gap:6px;flex:1;overflow-y:auto;">
     <div style="font-size:11px;color:var(--text-sub);">横スライド 1920×1080 プレビュー（クリックで個別ダウンロード）</div>
-    <div class="prev-wrap" id="yt-prev-area" style="display:flex;flex-wrap:wrap;gap:10px;"></div>
+    <div class="prev-wrap" id="yt-prev-area"></div>
   </div>
 
   <!-- 縦スライド（SNS動画用）ビュー -->
@@ -7930,8 +7930,10 @@ function renderYtPrev(){
   let slides;
   try{slides=ytBuildSlides(d,ytCtx());}
   catch(e){area.innerHTML=`<div style="color:#f87171;font-size:12px;padding:8px;font-family:monospace;white-space:pre-wrap;">レンダリングエラー:\n${e.message}</div>`;console.error(e);return;}
-  const W=(area.clientWidth||600)-8,cols=W>900?2:1,gap=10;
-  const iW=Math.floor((W-gap*(cols-1))/cols),scale=iW/YS_BW,iH=Math.round(YS_BH*scale);
+  // 「スライド」タブ（renderPrev）と同じ並べ方：2列（スマホ幅だけ1列）
+  const ctrlW=document.querySelector('.ctrl')?.offsetWidth||Math.min(440,Math.max(300,window.innerWidth*0.3));
+  const W=(area.clientWidth||(window.innerWidth-ctrlW-42))-28,gap=10,cols=window.innerWidth<768?1:2;
+  const iW=Math.floor((W-gap*(cols-1))/cols*(cols>1?0.82:0.96)),scale=iW/YS_BW,iH=Math.round(YS_BH*scale);
   slides.forEach(s=>{
     const wrap=document.createElement('div');
     wrap.className='prev-slide';wrap.style.cssText=`width:${iW}px;height:${iH}px;`;wrap.title=s.name+'（クリックで個別ダウンロード）';
