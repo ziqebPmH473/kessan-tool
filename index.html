@@ -7518,6 +7518,7 @@ Markdownで、次の見出しをこの順番で出力する。
 ・出力全体をコードブロック1つ（\`\`\`markdown 〜 \`\`\`）に入れる。前置き・感想は不要。
 ・出典は、本文の［出典1］と末尾の出典一覧だけに書く。リンクのカード・脚注・本文へのURLの貼り付けはしない。
 ## 企画
+- 銘柄名の読み：（会社の公式の読み方を、ひらがなで。例：ちゅうがいせいやく）
 - 仮タイトル案：3つ
 - 動画コンセプト：1〜2文
 - 視聴者に伝える核心：1文
@@ -7604,14 +7605,11 @@ const YT_VOICE_RULES=`【ルールの原則】
 ・動画内において、数字はとても重要な情報です。特に、桁の間違いに注意してください。（復唱しての確認などは行わず、すべてのルールは、会話の裏側で静かに適用してください。）
 ・以下の単語は、必ず指定された読み方で発音してください。
 (読むときは「上記、かみき」ではなく「かみき」のように、読みがなを一度だけ発音してください)
-上期：かみき
+{{NAME_YOMI}}上期：かみき
 下期：しもき
 EBITDA：イービットディーエー
-EBITA：イービットエー
 IFRS：イファース
 終値：おわりね
-初値：はつね
-老舗：しにせ
 月次：げつじ
 ・業績予想の増減は「上方修正」「下方修正」と言わず、「業績予想を引き上げた」「業績予想を引き下げた」と表現すること。
 ・「〇百万円」という表記は、計算・変換後の数値で読むこと（例：「45百万円」→「4500万円」、「5678百万円」→「56億7800万円」）。
@@ -7634,6 +7632,8 @@ IFRS：イファース
 ・１文の直後に2秒程度の無音の間を置いてから終了する（無音の指示自体は読み上げない）`;
 function ytNotebookPrompt(){
   const up=getDir()==='up',name=getName()||'この会社',min=ytVal('nlm-min')||'12';
+  const yomi=ytYomi();
+  if(!yomi){ytEl('yomi')?.focus();throw new Error('銘柄名の読みがなを入れてください（NotebookLMは銘柄名を読み間違えやすいため必須）');}
   return `根拠資料をもとに、約${min}分のYouTube解説動画用の音声を作成してください。
 
 テーマは、
@@ -7667,7 +7667,7 @@ function ytNotebookPrompt(){
 視聴者は個人投資家です。技術面ではなく、投資に関する内容をメインにしてください。
 【株価について話さないこと（最重要）】
 株価の下値・底値、将来の株価、上昇余地、株価シナリオとその確率、割安・割高の水準、PER等による株価評価、売買を促す表現、視聴者への行動要求（「〜すべき」「〜する必要があります」）は話さない。
-${YT_VOICE_RULES}`;
+${YT_VOICE_RULES.replace('{{NAME_YOMI}}',`${name}：${yomi}\n`)}`;
 }
 // NotebookLM に読ませるソース（基本情報＋レポート1〜2章＋ChatGPTの動画資料）
 function ytNotebookSource(){
@@ -7675,6 +7675,20 @@ function ytNotebookSource(){
   const doc=ytVal('doc');if(!doc)throw new Error('ChatGPTの動画資料（最終版）を貼り付けてください');
   return `# ${getName()||''}（${getTicker()||''}）動画資料\n\n## 基本情報\n${vdBasicInfo('vd')}\n\n## 株価分析レポート（1〜2章）\n${fr.text}\n\n## 動画資料（調査・深掘り）\n${doc}\n`;
 }
+
+// 銘柄名の読みがな。欄の値は、入れたときの銘柄名と今の銘柄名が同じときだけ使う（別銘柄の読みを使わない）
+function ytYomiFromDoc(){
+  const m=ytVal('doc').match(/銘柄名の読み\s*[:：]\s*[（(]?\s*([ぁ-ゖー・\s]+)/);
+  return m?m[1].replace(/\s/g,''):'';
+}
+function ytYomi(){
+  const v=ytVal('yomi');
+  if(v&&ytVal('yomi-for')===getName())return v;
+  const d=ytYomiFromDoc();
+  if(d){ytEl('yomi').value=d;ytEl('yomi-for').value=getName();saveState();}
+  return d;
+}
+function ytYomiInput(){ytEl('yomi-for').value=getName();}
 
 // ---- 操作 ----
 function ytCopy(kind,btn){
@@ -7915,7 +7929,7 @@ function ytBuildTabHtml(){
   <div class="sa-sub">▼ ChatGPT 調査プロンプト</div>
   ${row(b('💬 ①調査',"ytCopy('research',this)",G),b('✅ ②ファクト',"ytCopy('fc',this)",G),b('🔁 ③再CK',"ytCopy('recheck',this)",G),b('🔧 ④修正',"ytCopy('fix',this)",G))}
   <textarea id="yt-doc" placeholder="ChatGPTの動画資料をここに貼り付け（②〜④を誤りがなくなるまで繰り返す）" style="min-height:36px;"></textarea>
-  ${row(b('📋 貼り付け',"ytPaste('doc',ytUpdateFreeInfo)"),`<button class="btn-danger" onclick="if(confirm('動画資料を消しますか？')){ytEl('doc').value='';saveState();}" style="flex:1;">✕ クリア</button>`)}
+  ${row(b('📋 貼り付け',"ytPaste('doc',()=>{ytUpdateFreeInfo();ytYomi();})"),`<button class="btn-danger" onclick="if(confirm('動画資料を消しますか？')){ytEl('doc').value='';saveState();}" style="flex:1;">✕ クリア</button>`)}
 </div>
 
 <div class="sa-card" style="margin-top:8px;">
@@ -7926,6 +7940,7 @@ function ytBuildTabHtml(){
 
 <div class="sa-card" style="margin-top:8px;">
   <h2>3. NotebookLM（音声）</h2>
+  ${set('銘柄名の読み','<input type="text" id="yt-yomi" placeholder="例：ちゅうがいせいやく（資料を貼ると自動で入ります）" oninput="ytYomiInput()" style="flex:1;min-width:0;font-size:11px;"><input type="hidden" id="yt-yomi-for">')}
   ${row(b('📄 ソース（.md）','ytDownloadSource()','background:#0d9488;color:#fff;'),b('📓 指示',"ytCopy('nlm',this)",G))}
   <div style="font-size:10px;color:var(--text-sub);">長さは「通常」で長めに作り、「ナレスラ」タブでカットして約8分にする。</div>
 </div>
@@ -7952,7 +7967,7 @@ function ytBuildTabHtml(){
 </div>
 </div>`;
 }
-const YT_PERSIST_IDS=['vd-orient','yt-doc','yt-json','yt-note-url','yt-months','yt-nlm-min'];
+const YT_PERSIST_IDS=['vd-orient','yt-doc','yt-json','yt-note-url','yt-months','yt-nlm-min','yt-yomi','yt-yomi-for'];
 function ytRestoreFields(){
   let st=null;try{st=JSON.parse(localStorage.getItem(SA_STORAGE_KEY)||'null');}catch(e){}
   if(!st||!st.fields)return;
