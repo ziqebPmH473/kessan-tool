@@ -1485,6 +1485,9 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
             <label style="font-size:11px;cursor:pointer;display:flex;align-items:center;gap:3px;"><input type="radio" name="th-preset" value="note" checked onchange="applyThumbPreset('note')"> note</label>
             <label style="font-size:11px;cursor:pointer;display:flex;align-items:center;gap:3px;"><input type="radio" name="th-preset" value="youtube" onchange="applyThumbPreset('youtube')"> YouTube</label>
           </div>
+          <div id="th-ctx-label" style="font-size:11px;font-weight:700;color:#0d9488;"></div>
+          <input type="hidden" id="th-ctx" value="note"><input type="hidden" id="th-note-text"><input type="hidden" id="th-note-preset" value="note">
+          <input type="hidden" id="yt-th-text"><input type="hidden" id="yt-th-preset" value="youtube">
           <textarea id="th-input" oninput="debouncedThumb()" style="height:52px;min-height:52px;">最高値から*40％下落*：ユニチカ：#底値#と%５つの反転サイン%</textarea>
         </div>
       </div>
@@ -5217,7 +5220,7 @@ async function geminiArticle(btnEl){
   if(btnEl){btnEl.disabled=false;btnEl.textContent=o;}
   setArtStatus(genMsg+' ／ '+ck.summary+(rel?' ／ '+rel:''),(missing.length||!ck.clean)?'info':'ok');
   // 処理の最後にタブ内容（裏データ含む）をJSONで書き出す（手動の📤エクスポートと同じ）
-  try{exportTabData('price');}catch(e){console.warn('export',e);}
+  try{exportTabData('price',{light:true});}catch(e){console.warn('export',e);}   // 自動の分は、横動画の重いデータを入れない
 }
 
 // ============================================================
@@ -8779,7 +8782,7 @@ ${yaBuildPaneHtml()}</div>
 </div>
 </div>`;
 }
-const YT_PERSIST_IDS=['vd-orient','yt-doc','yt-theme','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-t1','yt-p-t2','yt-p-t3','yt-p-s1','yt-p-s2','yt-p-s3','yt-p-body','yt-p-xbody','yt-p-yturl','yt-p-tags','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-yomi','yt-yomi-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan'];
+const YT_PERSIST_IDS=['vd-orient','th-ctx','th-note-text','th-note-preset','yt-th-text','yt-th-preset','yt-doc','yt-theme','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-t1','yt-p-t2','yt-p-t3','yt-p-s1','yt-p-s2','yt-p-s3','yt-p-body','yt-p-xbody','yt-p-yturl','yt-p-tags','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-yomi','yt-yomi-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan'];
 function ytRestoreFields(){
   let st=null;try{st=JSON.parse(localStorage.getItem(SA_STORAGE_KEY)||'null');}catch(e){}
   if(!st||!st.fields)return;
@@ -8791,10 +8794,32 @@ function ytRestoreFields(){
 const ytOrient=()=>((document.getElementById('vd-orient')||{}).value||'v');
 // 横のとき右ペインに出すもの：前に選んだ表示（既定は並べて表示）
 const ytPaneMode=()=>{let m='';try{m=sessionStorage.getItem('yt-pane')||'';}catch(e){}return['ytaudio','ytnare','ytboth'].includes(m)?m:'ytboth';};
+// サムネイルの文言と型（note／YouTube）は、note用と YouTube用（横動画）で別に持つ。
+// 画面の欄は1つなので、場面が変わるときに中身を入れ替える（片方を直しても、もう片方は変わらない）
+function thCtxSync(yt){
+  const g=id=>document.getElementById(id),ta=g('th-input'),ctx=g('th-ctx');if(!ta||!ctx)return;
+  const want=yt?'yt':'note',cur=ctx.value==='yt'?'yt':'note';
+  const lab=g('th-ctx-label');if(lab)lab.textContent=yt?'YouTube用のサムネイル（note用とは別に保存されます）':'';
+  if(want===cur||!window._thCtxReady)return;   // 保存した内容を読み戻す前には入れ替えない（空で上書きしないため）
+  const preset=()=>((document.querySelector('input[name="th-preset"]:checked')||{}).value||'note');
+  // いまの中身を、いままでの場面の側にしまう
+  g(cur==='yt'?'yt-th-text':'th-note-text').value=ta.value;
+  g(cur==='yt'?'yt-th-preset':'th-note-preset').value=preset();
+  // 次の場面の中身を出す（YouTube用がまだ無いときは、note用を出発点にする）
+  const nextText=g(want==='yt'?'yt-th-text':'th-note-text').value;
+  if(nextText||want==='note')ta.value=nextText;
+  const np=g(want==='yt'?'yt-th-preset':'th-note-preset').value||(want==='yt'?'youtube':'note');
+  const r=document.querySelector(`input[name="th-preset"][value="${np}"]`);
+  if(r&&!r.checked){r.checked=true;if(typeof applyThumbPreset==='function')try{applyThumbPreset(np);}catch(e){}}
+  ctx.value=want;
+  if(typeof saveState==='function')saveState();
+  if(document.getElementById('tab-thumb')?.classList.contains('active')&&typeof renderThumbPreview==='function')try{renderThumbPreview();}catch(e){}
+}
 // 横動画を作っているとき（株価分析＞動画＞横）だけ、音声カット・ナレスラのタブを出す。そのときスライド系のタブは隠す
 function ytSyncTabs(){
   const vd=document.getElementById('sa-tab-video');
   const yt=!!vd&&vd.style.display!=='none'&&ytOrient()==='y';
+  thCtxSync(yt);
   [['tab-slides',!yt],['tab-video',!yt],['tab-ya',yt],['tab-yn',yt],['tab-yb',yt]]   // サムネイルはどちらでも使うので残す
     .forEach(([id,on])=>{const b=document.getElementById(id);if(b)b.style.display=on?'':'none';});
 }
@@ -10578,6 +10603,7 @@ async function ynRestore(){
   // 横動画（YouTube）
   PERSIST_IDS.push(...YT_PERSIST_IDS);
   ytRestoreFields();
+  window._thCtxReady=true;ytSyncTabs();
   yaRestore();
   ynRestore();ysRestore();
   if(ytOrient()==='y')ytSetOrient('y');
@@ -10652,6 +10678,42 @@ function tabIoHidden(tab){
     thumb:{bgOpacity:THUMB.bgOpacity,bgScale:THUMB.bgScale,offsetTop:THUMB.offsetTop,offsetMid:THUMB.offsetMid,offsetBot:THUMB.offsetBot},
   };
 }
+// ---- 横動画のデータ（IndexedDB にあるもの）を、エクスポートに入れる／インポートで戻す ----
+const ioBlobToUrl=b=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(r.error);r.readAsDataURL(b);});
+const ioUrlToBlob=async(u,name)=>{const b=await (await fetch(u)).blob();if(name){try{return new File([b],name,{type:b.type});}catch(e){}}return b;};
+async function tabIoYtCollect(){
+  const enc=async b=>(b instanceof Blob)?{__blob:await ioBlobToUrl(b),name:b.name||''}:null;
+  const tpl=await ynGet('tpl');
+  const audioBlob=YA.file||((await yaGet('audio'))||{}).blob||null;
+  return{v:1,
+    audio:audioBlob?{name:YA.fileName||audioBlob.name||'narration',blob:await enc(audioBlob)}:null,
+    state:(YA.sents&&YA.sents.length)||YA.dur?{fileName:YA.fileName,dur:YA.dur,chars:YA.chars,wchars:YA.wchars,sents:YA.sents,cuts:YA.cuts,sections:YA.sections,score:YA.score,reach:YA.reach,stock:getName()}:null,
+    slides:await Promise.all((YN.slides||[]).map(async s=>({name:s.name,zones:s.zones||null,qrRect:s.qrRect||null,blob:await enc(s.blob),qrOrig:s.qrOrig?await enc(s.qrOrig):null}))),
+    plan:YN.plan||null,
+    tpl:tpl&&tpl.blob?{name:tpl.name,blob:await enc(tpl.blob)}:null,
+    srcimg:Object.fromEntries(await Promise.all(Object.entries(YS.imgs||{}).map(async([k,g])=>[k,{rect:g.rect||null,w:g.w||0,h:g.h||0,name:g.name||'',blob:await enc(g.blob),orig:g.orig?await enc(g.orig):null}]))),
+    srcedit:YS.edit||{},
+    links:(typeof YL!=='undefined'&&YL.res)||null};
+}
+async function tabIoYtRestore(y){
+  if(!y||typeof y!=='object')return;
+  const dec=async o=>o&&o.__blob?await ioUrlToBlob(o.__blob,o.name):null;
+  // 保存先（IndexedDB）を書き換える
+  await yaPut('audio',y.audio&&y.audio.blob?{blob:await dec(y.audio.blob),name:y.audio.name||'narration'}:null);
+  await yaPut('state',y.state||null);
+  await ynPut('slides',await Promise.all((y.slides||[]).map(async s=>({name:s.name,zones:s.zones||null,qrRect:s.qrRect||null,blob:await dec(s.blob),qrOrig:s.qrOrig?await dec(s.qrOrig):null}))));
+  await ynPut('plan',y.plan||null);
+  await ynPut('tpl',y.tpl&&y.tpl.blob?{name:y.tpl.name,blob:await dec(y.tpl.blob)}:null);
+  const si={};for(const[k,g]of Object.entries(y.srcimg||{}))si[k]={rect:g.rect||null,w:g.w||0,h:g.h||0,name:g.name||'',blob:await dec(g.blob),orig:g.orig?await dec(g.orig):null};
+  await ynPut('srcimg',si);
+  await ynPut('srcedit',y.srcedit||{});
+  // いま画面にある分を空にしてから、保存先から読み直す
+  Object.assign(YA,{file:null,fileName:'',buf:null,mono:null,sil:null,chars:[],wchars:[],sents:[],cuts:[],dur:0,sections:[],score:null,reach:null});
+  YN.slides=[];YN.plan=null;YN.cur=0;YS.imgs={};YS.edit={};YS.sel=null;
+  if(typeof YL!=='undefined'){YL.res=y.links||null;if(typeof ytRenderLinks==='function')ytRenderLinks();}
+  const tn=document.getElementById('yn-tpl-name');if(tn)tn.textContent='';
+  await yaRestore();await ynRestore();await ysRestore();
+}
 function tabIoFileName(tab){
   const cfg=TAB_IO[tab];
   const code=((document.getElementById(cfg.codeId)||{}).value||'').trim().replace(/[\\\/:*?"<>|\s]/g,'')||'銘柄';
@@ -10660,12 +10722,18 @@ function tabIoFileName(tab){
   const stamp=`${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
   return `${stamp}_${cfg.label}_${code}${name?'_'+name:''}.json`;
 }
-function exportTabData(tab){
+// opt.light＝横動画の重いデータ（音声・スライド画像など）を入れない（記事生成後の自動エクスポート用）
+async function exportTabData(tab,opt){
   const cfg=TAB_IO[tab];if(!cfg)return;
   try{
     if(typeof saveStateNow==='function')saveStateNow();
     const {fields,radios}=tabIoCollectFields(tab);
-    const data={app:'kessan-tool',format:TAB_IO_FORMAT,tab,label:cfg.label,exportedAt:new Date().toISOString(),fields,radios,hidden:tabIoHidden(tab)};
+    const hidden=tabIoHidden(tab);
+    if(tab==='price'&&!(opt&&opt.light)){
+      try{hidden.yt=await tabIoYtCollect();}
+      catch(e){console.error(e);if(!confirm('横動画のデータ（音声・スライドなど）を書き出せませんでした：'+((e&&e.message)||e)+'\nそれ以外だけを書き出しますか？'))return;}
+    }
+    const data={app:'kessan-tool',format:TAB_IO_FORMAT,tab,label:cfg.label,exportedAt:new Date().toISOString(),fields,radios,hidden};
     const blob=new Blob([JSON.stringify(data)],{type:'application/json'});
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');a.href=url;a.download=tabIoFileName(tab);
@@ -10770,6 +10838,8 @@ async function importTabData(tab,data){
     tabIoSetThBg(hidden.thumbBg);
     persistThBg(hidden.thumbBg);
     renderPriceFetchInfo();
+    if(hidden.yt)await tabIoYtRestore(hidden.yt);
+    if(typeof ytRestoreFields==='function'){ytSetOrient(ytOrient());if(typeof ytUpdateFreeInfo==='function')ytUpdateFreeInfo();}
   }
 
   // 3) リロード保持（localStorage）へも書き出し、動画タブの表示ラベル類を同期
