@@ -439,14 +439,15 @@
 .yn-zone span{position:absolute;left:0;top:0;background:rgba(37,99,235,.9);color:#fff;font-size:10px;line-height:1.4;padding:0 4px;}
 .yn-plan{font-size:11px;color:#334155;padding:4px 8px;border-top:1px solid var(--border);background:#f8fafc;}
 /* 出典（根拠資料）の画像 */
-.ys-row{display:flex;gap:6px;align-items:center;padding:4px 0;border-bottom:1px solid var(--border);}
+.ys-row{display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--border);}
+.ys-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ys-th{width:64px;height:40px;flex:none;object-fit:cover;border:1px solid var(--border);border-radius:3px;background:#fff;}
 .ys-none{display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--text-sub);background:#f1f5f9;}
 .ys-info{flex:1;min-width:0;font-size:11px;line-height:1.4;}
 .ys-url{font-size:10px;color:var(--text-sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ys-url a{color:#2563eb;}
 .ys-when{font-size:10px;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.ys-btns{flex:none;display:flex;gap:3px;}
+.ys-btns{display:flex;gap:3px;margin-top:3px;}
 /* スライドの直し：チェックの並び */
 .yt-fixes{display:flex;flex-wrap:wrap;gap:2px 10px;margin:4px 0;}
 .yt-fixes label{flex:0 0 calc(50% - 5px);display:flex;align-items:center;gap:4px;font-size:11px;line-height:1.7;cursor:pointer;}
@@ -8737,6 +8738,7 @@ function yaAlign(text){
   YA.sents=items.map(it=>{let h=0;for(let q=it.g0;q<=it.g1;q++)if(match[q]>=0)h++;return{text:it.text,nt:it.nt,ci0:it.g0,ci1:it.g1,s:chars[it.g0].s,e:chars[it.g1].e,sp:it.sp,hit:h};});
   yaFixFillers(match);
   YA.cuts=[];YA.sections=[];YA.score=null;YA.reach=null;
+  yaCutClosing();
   const rate=Math.round(hit/n*100);
   yaStatus('st-g',`✅ ${YA.sents.length}文・話者 ${esc(labels.join('/')||'なし')}・一致率 ${rate}%`+(rate<70?'（低い：別の音声の文字起こしでないか確認）':''),rate<70?'error':'ok');
   yaSave();yaRender();
@@ -8808,6 +8810,19 @@ function yaFindNear(nt,np){
   }
   return bs>=0.6?bi:-1;
 }
+// 音声の最後の定型文（NotebookLM に入れさせている「本日はここまでです」）を、手を入れなくても削る
+function yaCutClosing(){
+  let made=0;
+  YA.sents.forEach((s,i)=>{
+    const n=i+1;
+    if(i<YA.sents.length-3||!/本日はここまで/.test(s.nt))return;   // 末尾の3文だけを見る
+    let c=YA.cuts.find(x=>x.n===n&&x.kind!=='part');
+    if(c){if(c.manual)return;c.on=true;c.kind='must';c.reason='締めの定型文';made++;return;}
+    const r=yaCutRange({n,part:''});if(!r)return;
+    YA.cuts.push(Object.assign({n,part:'',kind:'must',score:0,reason:'締めの定型文',on:true},r));made++;
+  });
+  return made;
+}
 function yaCutRange(c){
   const s=YA.sents[c.n-1];if(!s)return null;
   let a=s.ci0,b=s.ci1;
@@ -8852,7 +8867,8 @@ function yaPrompt(){
 2. 約${target}分の完成版として何を残すべきかを決めてから、各文に点数を付ける。
 
 【点数（全文に付ける）】
-5＝流れに必須。削ると話がつながらない文。話題の切り替え、次の話題への問いかけ（「〜を見ていきましょう」「では〜はどうでしょう」等）、各話題の中心の答え・結論、冒頭のテーマ提示、最後の締め。
+5＝流れに必須。削ると話がつながらない文。話題の切り替え、次の話題への問いかけ（「〜を見ていきましょう」「では〜はどうでしょう」等）、各話題の中心の答え・結論、冒頭のテーマ提示、最後のまとめ。
+　（一番最後の「本日はここまでです」は定型の挨拶で、ツールが自動で削るので 1 点でよい）
 4＝重要な論点、判断材料となる事実や数字。
 3＝補足説明、具体例、言い換えによる説明。
 2＝すでに話した内容の繰り返し、脇道、細かすぎる説明。
@@ -8919,6 +8935,7 @@ function yaApplyPlan(plan){
     r=yaCutRange(ap);
     if(r){YA.cuts.push(Object.assign(ap,r));approx++;}
   }
+  yaCutClosing();
   yaAutoSelect();
   const un=YA.sents.length-Object.keys(score).length;
   yaStatus('st-ai',`✅ ${YA.sections.length}章・${Object.keys(score).length}文を採点${un>0?`（点数なし ${un}文は3点扱い）`:''}${approx>0?`／一部カット ${approx}件は位置がおおよそ（一覧の「一部≈」）`:''}`,'ok');
@@ -9598,9 +9615,9 @@ function ysRender(){
     const pdf=/\.pdf(\?|#|$)/i.test(s.url||'');
     const w=ysWhere(s.no);
     return `<div class="ys-row">${th}
-<div class="ys-info"><div><b>${esc(s.no)}</b> ${esc(s.name)}${s.page?` <span style="color:var(--text-sub);">${esc(s.page)}</span>`:''}${YS.edit[s.no]?' <span style="color:#0d9488;">直し済み</span>':''}</div>
-<div class="ys-url">${s.url?`<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.url)}</a>`:'URLなし'}</div>
-<div class="ys-when">${w?`差し込み ${yaTc(w.s)}〜${yaTc(w.e)}${w.text?`：${esc(w.text.slice(0,40))}`:''}`:'差し込み位置は未定（先に「1. 演出の割り当て」）'}</div></div>
+<div class="ys-info"><div class="ys-name" title="${esc(s.name)}"><b>${esc(s.no)}</b> ${esc(s.name)}${s.page?` <span style="color:var(--text-sub);">${esc(s.page)}</span>`:''}${YS.edit[s.no]?' <span style="color:#0d9488;">直し済み</span>':''}</div>
+<div class="ys-url">${s.url?`<a href="${esc(s.url)}" target="_blank" rel="noopener" title="${esc(s.url)}">${esc(s.url)}</a>`:'URLなし'}</div>
+<div class="ys-when" title="${w?esc(w.text):''}">${w?`差し込み ${yaTc(w.s)}〜${yaTc(w.e)}${w.text?`：${esc(w.text.slice(0,40))}`:''}`:'差し込み位置は未定（先に「1. 演出の割り当て」）'}</div>
 <div class="ys-btns">
 ${s.url?`<button class="ya-nd" onclick="ysGrab(${i},this)" title="${pdf?ysPageNo(s.page)+'ページを取り直す':'URLから取り直す'}">⬇ 取得</button>`:''}
 <button class="ya-nd" onclick="ysEdit(${i})" title="資料名・URL・ページ・表記を直す">✎</button>
@@ -9608,7 +9625,7 @@ ${s.url?`<button class="ya-nd" onclick="ysGrab(${i},this)" title="${pdf?ysPageNo
 <button class="ya-nd" onclick="ysPasteImg(${i})" title="クリップボードの画像を貼り付け">📋</button>
 ${g&&g.orig?`<button class="ya-nd" onclick="ysReCrop(${i})" title="範囲を選び直す">✂</button>`:''}
 ${g?`<button class="ya-nd" onclick="ysDrop(${i})" title="消す">✕</button>`:''}
-</div></div>`;
+</div></div></div>`;
   }).join('');
 }
 
