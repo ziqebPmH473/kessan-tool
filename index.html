@@ -477,6 +477,12 @@ select.yn-sel option{color:#0f172a;background:#fff;font-weight:400;}
 .yl-no,.yl-ty{flex:none;color:var(--text-sub);}
 .ys-when{font-size:10px;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ys-unused{opacity:.45;}
+.ys-need{background:#fef2f2;box-shadow:inset 3px 0 0 #dc2626;}
+.ys-need .ys-none{background:#fee2e2;color:#b91c1c;border-color:#fca5a5;font-weight:700;line-height:1.2;text-align:center;}
+.ys-has{box-shadow:inset 3px 0 0 #16a34a;}
+.ys-tag.ok{background:#16a34a;} .ys-tag.ng{background:#dc2626;}
+.ys-sum{font-size:11px;padding:3px 8px;border-radius:4px;margin:4px 0;}
+.ys-sum.ok{background:#dcfce7;color:#166534;} .ys-sum.ng{background:#fee2e2;color:#991b1b;}
 .ys-row{cursor:pointer;} .ys-row.ys-sel{background:#eff6ff;box-shadow:inset 3px 0 0 #2563eb;}
 .ys-paste{background:#0d9488!important;color:#fff!important;border-color:#0d9488!important;}
 .ys-tv{font-size:11px;color:#92400e;background:#fef3c7;border-radius:4px;padding:1px 6px;margin:2px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -10126,16 +10132,20 @@ function ysRender(){
   YS.urls.forEach(u=>URL.revokeObjectURL(u));YS.urls=[];
   const list=ysRows();
   if(!list.length){box.innerHTML='<div style="font-size:11px;color:var(--text-sub);">「調査」タブの動画資料に出典一覧がありません。</div>';return;}
-  box.innerHTML=list.map((s,i)=>{
-    const g=YS.imgs[s.no];let th='<div class="ys-th ys-none">未</div>';
+  const st=list.map(s=>{const u=!!YN.plan&&!ysWhere(s.no);return u?'off':(YS.imgs[s.no]&&YS.imgs[s.no].blob)?'ok':'ng';});
+  const nOk=st.filter(x=>x==='ok').length,nNg=st.filter(x=>x==='ng').length,nOff=st.filter(x=>x==='off').length;
+  const sum=`<div class="ys-sum ${nNg?'ng':'ok'}">${YN.plan?'使う出典':'出典'} ${nOk+nNg}件：画像あり ${nOk}／<b>画像なし ${nNg}</b>${nOff?`（未使用 ${nOff}件は不要）`:''}${YN.plan?'':'　※割り当て前なので、使う・使わないはまだ分かりません'}</div>`;
+  box.innerHTML=sum+list.map((s,i)=>{
+    const g=YS.imgs[s.no];let th='<div class="ys-th ys-none">画像<br>なし</div>';
     if(g&&g.blob){const u=URL.createObjectURL(g.blob);YS.urls.push(u);th=`<img class="ys-th" src="${u}">`;}
     const pdf=/\.pdf(\?|#|$)/i.test(s.url||'');
     const w=ysWhere(s.no);
     const unused=!!YN.plan&&!w;                       // 割り当て済みなのに、どこにも差し込まれていない
+    const has=!!(g&&g.blob),need=!unused&&!has;       // 使うのに、まだ画像が無い
     const chart=s.isChart||s.kind==='chart';
     const link=chart&&s.tv?s.tv:s.url;
-    return `<div class="ys-row${unused?' ys-unused':''}${YS.sel===i?' ys-sel':''}" onclick="ysSelect(${i},event)">${th}
-<div class="ys-info"><div class="ys-name" title="${esc(s.name)}${s.note?'／'+esc(s.note):''}">${s.isChart?'':`<b>${esc(s.no)}</b> `}${esc(s.name)}${s.page&&!chart?` <span style="color:var(--text-sub);">${esc(s.page)}</span>`:''}${chart?' <span class="ys-tag chart">チャート</span>':''}${unused?' <span class="ys-tag off">未使用</span>':''}</div>
+    return `<div class="ys-row${unused?' ys-unused':''}${need?' ys-need':''}${has?' ys-has':''}${YS.sel===i?' ys-sel':''}" onclick="ysSelect(${i},event)">${th}
+<div class="ys-info"><div class="ys-name" title="${esc(s.name)}${s.note?'／'+esc(s.note):''}">${s.isChart?'':`<b>${esc(s.no)}</b> `}${esc(s.name)}${s.page&&!chart?` <span style="color:var(--text-sub);">${esc(s.page)}</span>`:''}${chart?' <span class="ys-tag chart">チャート</span>':''}${unused?' <span class="ys-tag off">未使用</span>':has?' <span class="ys-tag ok">画像あり</span>':' <span class="ys-tag ng">画像なし</span>'}</div>
 ${chart||!(s.urls&&s.urls.length>1)
   ?`<div class="ys-url">${link?`<a href="${esc(link)}" target="_blank" rel="noopener" title="${esc(link)}">${chart?'TradingView で開く：':''}${esc(link)}</a>${!chart&&s.urls&&s.urls[0]?` <span class="ys-ty">${s.urls[0].pdf?'PDF':'ページ'}</span>`:''}`:'URLなし'}</div>`
   :s.urls.map((q,k)=>`<div class="ys-url${k===s.use?' on':''}"><button class="ya-nd" onclick="ysUse(${i},${k})" title="このURLを使う">${k===s.use?'●':'○'}</button> <span class="ys-ty">${q.pdf?'PDF':'ページ'}</span> <a href="${esc(q.url)}" target="_blank" rel="noopener" title="${esc(q.url)}">${esc(q.url)}</a>${q.page?` <span style="color:var(--text-sub);">${esc(q.page)}</span>`:''}</div>`).join('')}
