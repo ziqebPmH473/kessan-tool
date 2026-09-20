@@ -477,6 +477,7 @@ select.yn-sel option{color:#0f172a;background:#fff;font-weight:400;}
 .yl-no,.yl-ty{flex:none;color:var(--text-sub);}
 .ys-when{font-size:10px;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ys-unused{opacity:.45;}
+.ys-pos{font-size:11px;line-height:1.45;color:#1e3a8a;background:#eff6ff;border-radius:4px;padding:2px 6px;margin:2px 0;white-space:normal;word-break:break-all;}
 .ys-need{background:#fef2f2;box-shadow:inset 3px 0 0 #dc2626;}
 .ys-need .ys-none{background:#fee2e2;color:#b91c1c;border-color:#fca5a5;font-weight:700;line-height:1.2;text-align:center;}
 .ys-has{box-shadow:inset 3px 0 0 #16a34a;}
@@ -10023,7 +10024,7 @@ function ytParseSources(){
   return doc.slice(m.index).split('\n').slice(1).map(l=>l.trim()).filter(l=>/^\|/.test(l)&&!/^\|[\s\-:|]+\|$/.test(l))
     .map(l=>l.split('|').map(x=>x.trim()).filter(Boolean)).filter(c=>c.length>=2)
     .filter(c=>/[0-9０-９]/.test(c[0])&&!/^\s*番号/.test(c[0]))   // 表の見出し行（番号｜資料名…）は除く
-    .map(c=>({no:(c[0].match(/[0-9０-９]+/)||[c[0]])[0],name:c[1],url:c[2]||'',page:c[3]||'',label:c[c.length-1]}));
+    .map(c=>({no:(c[0].match(/[0-9０-９]+/)||[c[0]])[0],name:c[1],url:c[2]||'',page:c[3]||'',pos:c.length>=6?c[4]:'',label:c[c.length-1]}));
 }
 
 // 表示するスライドを送る（右ペイン）
@@ -10063,11 +10064,13 @@ function ytSources(){
     const x=Object.assign({},s,YS.edit[s.no]||{});
     // 1つの欄に複数のURLがあるときは全部持つ。使うのは、手で選んだもの → PDF → 先頭 の順
     const us=ytUrlsIn(x.url),pgs=String(x.page||'').split(/[／\/]/).map(v=>v.trim());
-    x.urls=us.map((u,k)=>({url:u,page:pgs[k]||pgs[0]||'',pdf:ysIsPdf(u)}));
+    const pss=String(x.pos||'').split('／').map(v=>v.trim());
+    const posOf=k=>us.length>1&&pss.length===us.length?pss[k]:String(x.pos||'');
+    x.urls=us.map((u,k)=>({url:u,page:pgs[k]||pgs[0]||'',pos:posOf(k),pdf:ysIsPdf(u)}));
     if(us.length){
       let k=+x.use;if(!(k>=0&&k<us.length)){k=x.urls.findIndex(q=>q.pdf);if(k<0)k=0;}
-      x.use=k;x.url=x.urls[k].url;x.page=x.urls[k].page;
-    }
+      x.use=k;x.url=x.urls[k].url;x.page=x.urls[k].page;x.posUse=x.urls[k].pos;
+    }else x.posUse=String(x.pos||'');
     // 種類：手で決めていなければ、資料名から判定（株価・指数の値動きはチャート）
     if(x.kind!=='chart'&&x.kind!=='doc')x.kind=/株価|時系列|チャート|日経平均|TOPIX|指数|TradingView/i.test(x.name||'')?'chart':'doc';
     if(x.kind==='chart'){
@@ -10103,7 +10106,7 @@ document.addEventListener('paste',ev=>{
   ev.preventDefault();
   if(YS.sel==null||!ysItem(YS.sel)){ynStatus('貼り付ける出典の行を、先に押して選んでください（選んだ行が青くなります）','error','src-status');return;}
   const blob=it.getAsFile();if(!blob)return;
-  ysOpenCrop(YS.sel,blob,(ysItem(YS.sel)||{}).name||'');
+  ysOpenCrop(YS.sel,blob,ysCropTitle(ysItem(YS.sel)||{}));
 });
 // PDFかどうか：リンク確認の結果があればそれを使い、無ければURLの形から見る
 function ysIsPdf(u){
@@ -10149,6 +10152,7 @@ function ysRender(){
 ${chart||!(s.urls&&s.urls.length>1)
   ?`<div class="ys-url">${link?`<a href="${esc(link)}" target="_blank" rel="noopener" title="${esc(link)}">${chart?'TradingView で開く：':''}${esc(link)}</a>${!chart&&s.urls&&s.urls[0]?` <span class="ys-ty">${s.urls[0].pdf?'PDF':'ページ'}</span>`:''}`:'URLなし'}</div>`
   :s.urls.map((q,k)=>`<div class="ys-url${k===s.use?' on':''}"><button class="ya-nd" onclick="ysUse(${i},${k})" title="このURLを使う">${k===s.use?'●':'○'}</button> <span class="ys-ty">${q.pdf?'PDF':'ページ'}</span> <a href="${esc(q.url)}" target="_blank" rel="noopener" title="${esc(q.url)}">${esc(q.url)}</a>${q.page?` <span style="color:var(--text-sub);">${esc(q.page)}</span>`:''}</div>`).join('')}
+${!chart&&(s.page||s.posUse)?`<div class="ys-pos"><b>撮る場所</b>　${s.page?`${esc(s.page)}`:''}${s.page&&s.posUse?'／':''}${esc(s.posUse||'')}</div>`:''}
 ${chart&&s.tvSpec?`<div class="ys-tv">TradingView：<b>${esc(s.tvSpec.ticker)}</b>／${s.tvSpec.interval?`<b>${esc(s.tvSpec.interval)}</b>`:'足は未定'}／${s.tvSpec.start||s.tvSpec.end?`<b>${esc(s.tvSpec.start)}〜${esc(s.tvSpec.end)}</b>`:'期間は未定（割り当てで決まります）'}</div>`:''}
 <div class="ys-when" title="${w?`カット後 ${yaTc(yaToEdit(w.s,yaKeep()))}〜${yaTc(yaToEdit(w.e,yaKeep()))}／${esc(w.text)}`:''}"${w&&w.from!=null?` style="cursor:pointer;" onclick="yaJumpTo(${w.from})"`:''}>${w?`差し込み 文${w.from!=null?`${w.from}〜${w.to}`:'?'}${w.text?`：${esc(w.text.slice(0,40))}`:''}`:'差し込み位置は未定（先に「1. 演出の割り当て」）'}</div>
 <div class="ys-btns">
@@ -10240,28 +10244,29 @@ async function ysGrab(i,btn){
   try{
     ynStatus(`取得中… ${s.name}`,'','src-status');
     const img=await ysFetch(s);
-    ysOpenCrop(i,img,s.name);
+    ysOpenCrop(i,img,ysCropTitle(s));
     ynStatus('','','src-status');
   }catch(e){ynStatus('❌ '+e.message,'error','src-status');}
   finally{if(btn)btn.disabled=false;}
 }
+function ysCropTitle(s){return `${s.name||''}${s.page||s.posUse?`【${[s.page,s.posUse].filter(Boolean).join('／')}】`:''}`;}
 function ysPick(i){
   const inp=document.createElement('input');inp.type='file';inp.accept='image/*';
-  inp.onchange=()=>{const f=inp.files[0];if(f)ysOpenCrop(i,f,(ysItem(i)||{}).name||'');};
+  inp.onchange=()=>{const f=inp.files[0];if(f)ysOpenCrop(i,f,ysCropTitle(ysItem(i)||{}));};
   inp.click();
 }
 async function ysPasteImg(i){
   try{
     const items=await navigator.clipboard.read();
     for(const it of items)for(const t of it.types)if(t.startsWith('image/')){
-      ysOpenCrop(i,await it.getType(t),(ysItem(i)||{}).name||'');return;
+      ysOpenCrop(i,await it.getType(t),ysCropTitle(ysItem(i)||{}));return;
     }
     alert('クリップボードに画像がありません');
   }catch(e){alert('クリップボードを読めませんでした。「📁」で画像ファイルを選んでください');}
 }
 function ysReCrop(i){
   const s=ysItem(i),g=s&&YS.imgs[s.no];if(!g||!g.orig)return;
-  ysOpenCrop(i,g.orig,s.name,g.rect);
+  ysOpenCrop(i,g.orig,ysCropTitle(s),g.rect);
 }
 function ysDrop(i){
   const s=ysItem(i);if(!s||!YS.imgs[s.no])return;
