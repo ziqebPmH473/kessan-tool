@@ -8416,7 +8416,7 @@ function ytInnerTab(t){
   });
   if(t==='research')ytUpdateFreeInfo();
   if(t==='naresla')ysRender();
-  const want=t==='naresla'?'ytnare':(t==='audio'||t==='cut')?'ytaudio':'';
+  const want=(t==='slides'||t==='naresla')?'ytnare':(t==='audio'||t==='cut')?'ytaudio':'';
   const cur=document.getElementById('tab-ya')?.classList.contains('active')?'ytaudio'
     :document.getElementById('tab-yn')?.classList.contains('active')?'ytnare':'';
   if(want&&cur&&cur!==want)setMode(want);
@@ -8456,7 +8456,7 @@ function ytBuildTabHtml(){
 
 <div id="yt-pane-slides" style="display:none;">
 <div class="sa-card">
-  <h2>スライド（ChatGPTで作る）</h2>
+  <h2>1. スライド（ChatGPTで作る）</h2>
   <div style="font-size:11px;color:var(--text-sub);">音声を先に作り、その文字起こしに合わせてスライドを作ります。プロンプトには、章構成・音声の文字起こし・レポート・動画資料（出典は除く）が入ります。参考画像は添付しません（中身を引っ張られるため）。</div>
   ${row(b('💬 プロンプトをコピー',"try{copyText(ytSlideDesignerPrompt(),this)}catch(e){alert(e.message)}",G),`<button class="btn-sm" onclick="ytDownloadSlideZip(this)" style="flex:1;min-width:0;background:#0d9488;color:#fff;">💾 添付ファイル（ZIP）</button>`)}
   <div id="yt-slide-status2" style="display:none;font-size:11px;"></div>
@@ -8464,11 +8464,24 @@ function ytBuildTabHtml(){
 </div>
 
 <div class="sa-card" style="margin-top:8px;">
-  <h2>直してもらう</h2>
+  <h2>2. 直してもらう</h2>
   <div style="font-size:11px;color:var(--text-sub);">できたスライドの直しを頼む文です。よくある直しはチェックで選び、そのほかは下の欄に1行ずつ書いてください。</div>
   <div class="yt-fixes">${YT_FIX_ITEMS.map(x=>`<label><input type="checkbox" id="yt-fix-${x[0]}" onchange="saveState()"> ${esc(x[1])}</label>`).join('')}</div>
   <textarea id="yt-fix-note" placeholder="そのほかの直し（1行に1つ）&#10;例：4枚目の右下のアイコンを消す&#10;例：2枚目の売上構成を円グラフではなく帯にする" oninput="saveState()" style="min-height:52px;font-size:11px;"></textarea>
   ${row(b('💬 直しの依頼をコピー',"try{copyText(ytFixPrompt(),this)}catch(e){alert(e.message)}",G),b('✕ 選び直す','ytFixClear()'))}
+</div>
+
+<div class="sa-card" style="margin-top:8px;">
+  <h2>3. できたスライドを取り込む</h2>
+  <div style="font-size:11px;color:var(--text-sub);">ChatGPTで作ったスライド画像を、表示する順に読み込みます（ファイル名順に並べます）。</div>
+  <input type="file" id="yn-files" accept="image/*" multiple onchange="ynLoadFiles(this.files)" style="font-size:11px;">
+  ${row(b('🔍 まとまりを読み取る','ynReadZones(this)',G),b('↻ 読み取り直す',"YN.slides.forEach(s=>s.zones=null);ynSave();ynRender();ynReadZones()"))}
+  <div id="yn-status" style="display:none;font-size:11px;"></div>
+  <div style="font-size:10px;color:var(--text-sub);">読み取った位置は、ズーム・四角枠・ハイライトの位置に使います。右の「🎬 ナレスラ」で確認できます。</div>
+  <div class="sa-sub">▼ まとめスライドのQR</div>
+  ${row(b('🔳 QRを貼る','yqStart(this)',G),b('↩ 貼る前に戻す','yqUndo()'))}
+  <div id="yn-qr-status" style="display:none;font-size:11px;"></div>
+  <div style="font-size:10px;color:var(--text-sub);">最後の1枚に空けてあるQR用の正方形を読み取り、その中にQRのドットだけを貼ります（地の色と濃い色は画像から拾います）。位置はドラッグで直せます。URLは設定タブの「QR用URL」。</div>
 </div>
 </div>
 
@@ -8539,8 +8552,8 @@ function ytRestoreFields(){
 }
 // 縦（SNS）／横（YouTube）の切り替え
 const ytOrient=()=>((document.getElementById('vd-orient')||{}).value||'v');
-// 横のとき右ペインに出すもの：内側の「ナレスラ」タブならナレスラ、それ以外は音声カット
-const ytPaneMode=()=>ytEl('itab-naresla')?.classList.contains('active')?'ytnare':'ytaudio';
+// 横のとき右ペインに出すもの：内側の「スライド」「ナレスラ」タブならナレスラ、それ以外は音声カット
+const ytPaneMode=()=>(ytEl('itab-slides')?.classList.contains('active')||ytEl('itab-naresla')?.classList.contains('active'))?'ytnare':'ytaudio';
 function ytSetOrient(o){
   const el=document.getElementById('vd-orient');if(el)el.value=o;
   document.getElementById('vd-orient-v').style.display=o==='y'?'none':'';
@@ -9769,20 +9782,7 @@ function ynBuildPaneHtml(){
   const row=(...x)=>`<div class="row" style="flex-wrap:nowrap;">${x.join('')}</div>`;
   return `
 <div class="sa-card">
-  <h2>1. スライド画像</h2>
-  <div style="font-size:11px;color:var(--text-sub);">ChatGPTで作ったスライド画像を、表示する順に読み込みます（ファイル名順に並べます）。</div>
-  <input type="file" id="yn-files" accept="image/*" multiple onchange="ynLoadFiles(this.files)" style="font-size:11px;">
-  ${row(b('🔍 まとまりを読み取る','ynReadZones(this)',G),b('↻ 読み取り直す',"YN.slides.forEach(s=>s.zones=null);ynSave();ynRender();ynReadZones()"))}
-  <div id="yn-status" style="display:none;font-size:11px;"></div>
-  <div style="font-size:10px;color:var(--text-sub);">読み取った位置は、ズーム・四角枠・ハイライトの位置に使います。右の「🎬 ナレスラ」で確認できます。</div>
-  <div class="sa-sub">▼ まとめスライドのQR</div>
-  ${row(b('🔳 QRを貼る','yqStart(this)',G),b('↩ 貼る前に戻す','yqUndo()'))}
-  <div id="yn-qr-status" style="display:none;font-size:11px;"></div>
-  <div style="font-size:10px;color:var(--text-sub);">最後の1枚に空けてあるQR用の正方形を読み取り、その中にQRのドットだけを貼ります（地の色と濃い色は画像から拾います）。位置はドラッグで直せます。URLは設定タブの「QR用URL」。</div>
-</div>
-
-<div class="sa-card" style="margin-top:8px;">
-  <h2>2. 出典の画像</h2>
+  <h2>1. 出典の画像</h2>
   <div style="font-size:11px;color:var(--text-sub);">動画資料の出典一覧の行ごとに、画面へ一時的に差し込む画像を用意します。PDFは「⬇ 取得」でそのページを取ってきて、使う範囲をドラッグで囲みます。ふつうのページは写せないので、画面を撮った画像を「📁」で選ぶか「📋」で貼り付けてください。</div>
   ${row(b('↻ 出典一覧を読み直す','ysRender()'))}
   <div id="yn-src-list"></div>
@@ -9791,7 +9791,7 @@ function ynBuildPaneHtml(){
 </div>
 
 <div class="sa-card" style="margin-top:8px;">
-  <h2>3. 演出の割り当て</h2>
+  <h2>2. 演出の割り当て</h2>
   <div style="font-size:11px;color:var(--text-sub);">音声（③でカットした後に残る文）とスライドのまとまりを突き合わせ、切り替え・ズーム・強調・根拠資料の差し込みを決めます。</div>
   ${row(b('💬 プロンプト',"try{copyText(ynPlanPrompt(),this)}catch(e){alert(e.message)}",G),b('📋 貼り付け',"ynPaste('plan',ynApplyPasted)"),b('↻ 反映','ynApplyPasted()'))}
   <textarea id="yn-plan" placeholder="Gemini／ChatGPTに投げて、返ってきたJSONを貼り付け" style="min-height:36px;font-size:11px;font-family:monospace;"></textarea>
@@ -9800,7 +9800,7 @@ function ynBuildPaneHtml(){
 </div>
 
 <div class="sa-card" style="margin-top:8px;">
-  <h2>4. ナレスラのプロジェクト</h2>
+  <h2>3. ナレスラのプロジェクト</h2>
   <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;">
     <label style="font-size:11px;color:var(--text-sub);flex:none;">ひな形</label>
     <input type="file" id="yn-tpl" accept=".svpz" onchange="ynLoadTpl(this.files[0])" style="flex:1;min-width:0;font-size:11px;">
