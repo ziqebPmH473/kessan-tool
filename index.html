@@ -8001,8 +8001,17 @@ function ytCopy(kind,btn){
 async function ytPaste(id,after){
   try{let s=await navigator.clipboard.readText();if(!s.trim()){alert('クリップボードが空です');return;}
     s=s.trim().replace(/^```[^\n]*\n/,'').replace(/\n```\s*$/,'');   // コードブロックの囲みごと貼られた場合は外す
-    ytEl(id).value=s;saveState();if(after)after();}
-  catch(e){alert('クリップボードを読めませんでした。欄に直接貼り付けてください（Ctrl+V）');}
+    ytEl(id).value=s;saveState();if(after)after();return true;}
+  catch(e){alert('クリップボードを読めませんでした。欄に直接貼り付けてください（Ctrl+V）');return false;}
+}
+// 動画資料を貼ったら、そのまま②ファクトチェックのプロンプトをコピーしておく
+// （①→貼る→②→修正を貼る→②… と繰り返すので、貼るたびにボタンを押し直さなくてよいように）
+async function ytPasteDoc(btn){
+  if(!await ytPaste('doc',()=>{ytUpdateFreeInfo();ytYomi();}))return;
+  try{
+    copyText(ytFactCheckPrompt(),btn);
+    ytStatus('✅ 貼り付けました。ファクトチェックのプロンプトをコピーしました（そのままAIに貼り付けてください）','ok');
+  }catch(e){ytStatus('❌ '+e.message,'error');}
 }
 function ytUpdateFreeInfo(){
   const el=ytEl('free-info'),box=ytEl('free-box');if(!el)return;const fr=ytFreeReport();
@@ -8175,7 +8184,7 @@ function ytBuildTabHtml(){
   <div class="sa-sub">▼ ChatGPT 調査プロンプト</div>
   ${row(b('💬 ①調査',"ytCopy('research',this)",G),b('✅ ②ファクト',"ytCopy('fc',this)",G),b('🔁 ③再CK',"ytCopy('recheck',this)",G),b('🔧 ④修正',"ytCopy('fix',this)",G))}
   <textarea id="yt-doc" placeholder="ChatGPTの動画資料をここに貼り付け（②〜④を誤りがなくなるまで繰り返す）" style="min-height:36px;"></textarea>
-  ${row(b('📋 貼り付け',"ytPaste('doc',()=>{ytUpdateFreeInfo();ytYomi();})"),`<button class="btn-danger" onclick="if(confirm('動画資料を消しますか？')){ytEl('doc').value='';saveState();}" style="flex:1;">✕ クリア</button>`)}
+  ${row(b('📋 貼り付け',"ytPasteDoc(this)"),`<button class="btn-danger" onclick="if(confirm('動画資料を消しますか？')){ytEl('doc').value='';saveState();}" style="flex:1;">✕ クリア</button>`)}
 </div>
 
 </div>
