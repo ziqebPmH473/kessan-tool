@@ -459,9 +459,11 @@
 .yl-no,.yl-ty{flex:none;color:var(--text-sub);}
 .ys-when{font-size:10px;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ys-unused{opacity:.45;}
+.ys-url.on a{font-weight:700;}
+.ys-ty{display:inline-block;font-size:9px;line-height:13px;padding:0 5px;border-radius:6px;background:#e2e8f0;color:#334155;}
 .ys-tag{display:inline-block;font-size:9px;line-height:14px;padding:0 6px;border-radius:7px;color:#fff;vertical-align:1px;}
 .ys-tag.chart{background:#d97706;} .ys-tag.off{background:#64748b;}
-.ys-btns{display:flex;gap:3px;margin-top:3px;}
+.ys-btns{display:flex;flex-wrap:wrap;gap:3px;margin-top:3px;}
 /* スライドの直し：チェックの並び */
 .yt-fixes{display:flex;flex-wrap:wrap;gap:2px 10px;margin:4px 0;}
 .yt-fixes label{flex:0 0 calc(50% - 5px);display:flex;align-items:center;gap:4px;font-size:11px;line-height:1.7;cursor:pointer;}
@@ -9780,7 +9782,13 @@ function ysPageNo(s){const m=String(s||'').match(/\d+/);return m?Math.max(1,pars
 function ytSources(){
   return ytParseSources().map(s=>{
     const x=Object.assign({},s,YS.edit[s.no]||{});
-    const us=ytUrlsIn(x.url);x.urls=us;if(us.length)x.url=us[0];   // 1つの欄に複数あるときは先頭を使う
+    // 1つの欄に複数のURLがあるときは全部持つ。使うのは、手で選んだもの → PDF → 先頭 の順
+    const us=ytUrlsIn(x.url),pgs=String(x.page||'').split(/[／\/]/).map(v=>v.trim());
+    x.urls=us.map((u,k)=>({url:u,page:pgs[k]||pgs[0]||'',pdf:ysIsPdf(u)}));
+    if(us.length){
+      let k=+x.use;if(!(k>=0&&k<us.length)){k=x.urls.findIndex(q=>q.pdf);if(k<0)k=0;}
+      x.use=k;x.url=x.urls[k].url;x.page=x.urls[k].page;
+    }
     // 種類：手で決めていなければ、資料名から判定（株価・指数の値動きはチャート）
     if(x.kind!=='chart'&&x.kind!=='doc')x.kind=/株価|時系列|チャート|日経平均|TOPIX|指数|TradingView/i.test(x.name||'')?'chart':'doc';
     if(x.kind==='chart')x.tv=`https://jp.tradingview.com/chart/?symbol=${encodeURIComponent(/日経平均|日経225/.test(x.name||'')?'TVC:NI225':/TOPIX/i.test(x.name||'')?'TSE:TOPIX':ynTicker())}`;
@@ -9795,6 +9803,16 @@ function ysRows(){
   return rows;
 }
 function ysItem(i){const a=ysRows();return a[i]||null;}
+// PDFかどうか：リンク確認の結果があればそれを使い、無ければURLの形から見る
+function ysIsPdf(u){
+  const r=(typeof YL!=='undefined'&&YL.res||[]).find(q=>q.url===u);
+  if(r&&r.ok)return r.type==='application/pdf';
+  return /\.pdf(\?|#|$)|cont_file_dl|drugsatfda_docs|\/pdf\//i.test(u);
+}
+function ysUse(i,k){
+  const s=ysItem(i);if(!s||s.isChart)return;
+  const d=Object.assign({},YS.edit[s.no]||{});d.use=k;YS.edit[s.no]=d;ysSaveEdit();ysRender();
+}
 // 割り当て済みなら、その出典をどこで差し込むか（時間と、その時間に話している文）
 function ysWhere(no){
   const sp=((YN.plan||{}).sources||[]).find(x=>String(x.no)===String(no))||((YN.plan||{}).charts||[]).find(x=>x.id===no);
@@ -9819,7 +9837,9 @@ function ysRender(){
     const link=chart&&s.tv?s.tv:s.url;
     return `<div class="ys-row${unused?' ys-unused':''}">${th}
 <div class="ys-info"><div class="ys-name" title="${esc(s.name)}${s.note?'／'+esc(s.note):''}">${s.isChart?'':`<b>${esc(s.no)}</b> `}${esc(s.name)}${s.page&&!chart?` <span style="color:var(--text-sub);">${esc(s.page)}</span>`:''}${chart?' <span class="ys-tag chart">チャート</span>':''}${unused?' <span class="ys-tag off">未使用</span>':''}</div>
-<div class="ys-url">${link?`<a href="${esc(link)}" target="_blank" rel="noopener" title="${esc(link)}">${chart?'TradingView で開く：':''}${esc(link)}</a>`:'URLなし'}</div>
+${chart||!(s.urls&&s.urls.length>1)
+  ?`<div class="ys-url">${link?`<a href="${esc(link)}" target="_blank" rel="noopener" title="${esc(link)}">${chart?'TradingView で開く：':''}${esc(link)}</a>${!chart&&s.urls&&s.urls[0]?` <span class="ys-ty">${s.urls[0].pdf?'PDF':'ページ'}</span>`:''}`:'URLなし'}</div>`
+  :s.urls.map((q,k)=>`<div class="ys-url${k===s.use?' on':''}"><button class="ya-nd" onclick="ysUse(${i},${k})" title="このURLを使う">${k===s.use?'●':'○'}</button> <span class="ys-ty">${q.pdf?'PDF':'ページ'}</span> <a href="${esc(q.url)}" target="_blank" rel="noopener" title="${esc(q.url)}">${esc(q.url)}</a>${q.page?` <span style="color:var(--text-sub);">${esc(q.page)}</span>`:''}</div>`).join('')}
 <div class="ys-when" title="${w?esc(w.text):''}">${w?`差し込み ${yaTc(yaToEdit(w.s,yaKeep()))}〜${yaTc(yaToEdit(w.e,yaKeep()))}（カット後）${w.text?`：${esc(w.text.slice(0,40))}`:''}`:'差し込み位置は未定（先に「1. 演出の割り当て」）'}</div>
 <div class="ys-btns">
 ${s.url&&!chart&&!unused?`<button class="ya-nd" onclick="ysGrab(${i},this)" title="${pdf?ysPageNo(s.page)+'ページを取り直す':'URLから取り直す'}">⬇ 取得</button>`:''}
@@ -9860,6 +9880,7 @@ function ysEditOk(i){
   const base=ytParseSources().find(x=>String(x.no)===String(s.no))||{};
   const d={};['name','url','page','label'].forEach(k=>{if(v(k)!==(base[k]||''))d[k]=v(k);});
   const kind=(YS.edit[s.no]||{}).kind;if(kind)d.kind=kind;
+  const use=(YS.edit[s.no]||{}).use;if(use!=null&&d.url==null)d.use=use;
   if(Object.keys(d).length)YS.edit[s.no]=d;else delete YS.edit[s.no];
   ysSaveEdit();ysEditClose();ysRender();
 }
