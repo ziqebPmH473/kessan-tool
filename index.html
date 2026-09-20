@@ -8148,6 +8148,12 @@ IFRS：イファース
 【音声の最後のルール】
 ・音声の一番最後は、必ず「本日はここまでです」の１文で終えてください。
 ・１文の直後に2秒程度の無音の間を置いてから終了する（無音の指示自体は読み上げない）`;
+// note の URL。横の設定が空なら、記事タブの記事URL、それも空なら縦動画の設定を使う
+function ytNoteUrl(){
+  return ytVal('note-url')
+    ||((document.getElementById('art-url')||{}).value||'').trim()
+    ||vdVal('vd','note-url')||'';
+}
 // 今回のテーマ（音声タブで直せる）。空欄なら、テーマの言い方を入れない
 function ytThemeDefault(){return `株価が大きく${getDir()==='up'?'上昇':'下落'}した銘柄`;}
 function ytTheme(){return ((document.getElementById('yt-theme')||{}).value||'').trim();}
@@ -8397,7 +8403,7 @@ async function ytPostAi(btn){
 // 概要欄＝AIの本文＋noteの案内＋定型文（使用ツール・AIの注意書き）
 function ytPostDesc(){
   const body=ytVal('p-desc');if(!body)throw new Error('先に概要欄を作ってください');
-  const url=ytVal('note-url')||vdVal('vd','note-url');
+  const url=ytNoteUrl();
   const fixed=ytVal('p-fixed');
   return [body,url?`▼ さらに詳しい分析はこちら（note）\n${url}`:'',fixed].filter(Boolean).join('\n\n');
 }
@@ -8533,7 +8539,7 @@ ${yaBuildPaneHtml()}</div>
 <div id="yt-pane-settings" style="display:none;">
 <div class="sa-card">
   <h2>設定</h2>
-  ${set('QR用URL','<input type="text" id="yt-note-url" placeholder="空なら縦動画の設定を使う" style="flex:1;min-width:0;font-size:11px;">')}
+  ${set('QR用URL','<input type="text" id="yt-note-url" placeholder="空なら「記事」タブの記事URL→縦動画の設定の順に使う" style="flex:1;min-width:0;font-size:11px;">')}
   ${set('チャート期間','<input type="number" id="yt-months" value="12" min="1" max="60" style="width:60px;flex:none;font-size:11px;padding:4px;">','ヶ月')}
   ${set('試聴の前後','<input type="number" id="ya-ctx" value="2" min="0" max="10" step="0.5" style="width:60px;flex:none;font-size:11px;padding:4px;">','秒（音声カットの▶・試聴で、前後に足す長さ）')}
   ${set('NotebookLMの長さ','<input type="number" id="yt-nlm-min" value="12" min="3" max="30" style="width:60px;flex:none;font-size:11px;padding:4px;">','分（指示文に書く目安）')}
@@ -9642,11 +9648,11 @@ const YQ_PROMPT=`この画像は、YouTube動画で使うスライドです。
 値は、画像の左上を0、右下を1000とした数値です。
 見つからない場合は {"box":null} を返してください。`;
 
-function yqNoteUrl(){return ytVal('note-url')||vdVal('vd','note-url')||'';}
+function yqNoteUrl(){return ytNoteUrl();}
 
 async function yqStart(btn){
   if(!YN.slides.length){alert('先にスライド画像を読み込んでください');return;}
-  if(!yqNoteUrl()){alert('設定タブの「QR用URL」を入れてください（空なら縦動画の設定を使います）');return;}
+  if(!yqNoteUrl()){alert('QRの飛び先がありません。「記事」タブの記事URLを入れるか、設定タブの「QR用URL」を入れてください');return;}
   const i=YN.slides.length-1;   // まとめ＝最後の1枚
   if(btn)btn.disabled=true;
   try{
