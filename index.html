@@ -432,7 +432,9 @@
 .yn-item{border:1px solid var(--border);border-radius:6px;overflow:hidden;background:#fff;}
 .yn-hd{display:flex;gap:6px;align-items:center;font-size:11px;color:var(--text-sub);padding:4px 8px;background:#f8fafc;border-bottom:1px solid var(--border);}
 .yn-hd b{color:#1f2937;} .yn-hd span{margin-left:auto;}
-.yn-img{position:relative;line-height:0;}
+.yn-img{display:flex;justify-content:center;line-height:0;background:#f1f5f9;}
+.yn-fit{position:relative;line-height:0;max-width:100%;}
+.yn-fit img{display:block;max-width:100%;max-height:calc(100vh - 190px);width:auto;}
 .yn-zone{position:absolute;border:2px solid rgba(37,99,235,.9);background:rgba(37,99,235,.06);}
 .yn-zone span{position:absolute;left:0;top:0;background:rgba(37,99,235,.9);color:#fff;font-size:10px;line-height:1.4;padding:0 4px;}
 .yn-plan{font-size:11px;color:#334155;padding:4px 8px;border-top:1px solid var(--border);background:#f8fafc;}
@@ -1381,6 +1383,11 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
   <!-- 横動画のナレスラ（スライド画像と読み取った位置） -->
   <div id="yn-view" style="display:none;flex-direction:column;gap:6px;flex:1;overflow-y:auto;">
     <div style="font-size:11px;color:var(--text-sub);">スライド画像と、Geminiが読み取ったまとまりの位置（枠）。ズーム・四角枠・ハイライトの位置に使います。</div>
+    <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;">
+      <button class="btn-sm" onclick="ynGo(-1)" style="flex:none;">◀ 前</button>
+      <span id="yn-pos" style="font-size:11px;color:var(--text-sub);">-</span>
+      <button class="btn-sm" onclick="ynGo(1)" style="flex:none;">次 ▶</button>
+    </div>
     <div id="yn-prev"></div>
   </div>
 
@@ -8148,6 +8155,14 @@ IFRS：イファース
 【音声の最後のルール】
 ・音声の一番最後は、必ず「本日はここまでです」の１文で終えてください。
 ・１文の直後に2秒程度の無音の間を置いてから終了する（無音の指示自体は読み上げない）`;
+// いま使われる note の URL を設定タブに出す
+function ytNoteInfo(){
+  const el=ytEl('note-info');if(!el)return;
+  const u=ytNoteUrl();
+  const from=ytVal('note-url')?'この欄':((document.getElementById('art-url')||{}).value||'').trim()?'「記事」タブの記事URL':vdVal('vd','note-url')?'縦動画の設定':'';
+  el.textContent=u?`いま使うURL：${u}（${from}）`:'いま使うURL：なし（記事タブの記事URLか、この欄を入れてください）';
+  el.style.color=u?'var(--text-sub)':'#dc2626';
+}
 // note の URL。横の設定が空なら、記事タブの記事URL、それも空なら縦動画の設定を使う
 function ytNoteUrl(){
   return ytVal('note-url')
@@ -8421,6 +8436,7 @@ function ytInnerTab(t){
     if(b)b.classList.toggle('active',k===t);if(p)p.style.display=k===t?'':'none';
   });
   if(t==='research')ytUpdateFreeInfo();
+  if(t==='settings')ytNoteInfo();
   if(t==='naresla')ysRender();
   const want=(t==='slides'||t==='naresla')?'ytnare':(t==='audio'||t==='cut')?'ytaudio':'';
   const cur=document.getElementById('tab-ya')?.classList.contains('active')?'ytaudio'
@@ -8463,15 +8479,14 @@ function ytBuildTabHtml(){
 <div id="yt-pane-slides" style="display:none;">
 <div class="sa-card">
   <h2>1. スライド（ChatGPTで作る）</h2>
-  <div style="font-size:11px;color:var(--text-sub);">音声を先に作り、その文字起こしに合わせてスライドを作ります。プロンプトには、章構成・音声の文字起こし・レポート・動画資料（出典は除く）が入ります。参考画像は添付しません（中身を引っ張られるため）。</div>
+  <div style="font-size:11px;color:var(--text-sub);">音声の文字起こしに合わせて作ります。ChatGPTにプロンプトを貼り、ZIPの2ファイルを添付してください。</div>
   ${row(b('💬 プロンプトをコピー',"try{copyText(ytSlideDesignerPrompt(),this)}catch(e){alert(e.message)}",G),`<button class="btn-sm" onclick="ytDownloadSlideZip(this)" style="flex:1;min-width:0;background:#0d9488;color:#fff;">💾 添付ファイル（ZIP）</button>`)}
   <div id="yt-slide-status2" style="display:none;font-size:11px;"></div>
-  <div style="font-size:10px;color:var(--text-sub);">ChatGPTには、プロンプトを貼り付け、ZIPの中の2ファイル（音声の文字起こし／レポート・動画資料）を添付してください。株価チャートはナレスラで差し込むので、スライドには描かせません（TradingViewの画像はロゴが入っていれば出典の表記は不要）。QRコードは、できた画像の上からツールで重ねます。</div>
 </div>
 
 <div class="sa-card" style="margin-top:8px;">
   <h2>2. 直してもらう</h2>
-  <div style="font-size:11px;color:var(--text-sub);">できたスライドの直しを頼む文です。よくある直しはチェックで選び、そのほかは下の欄に1行ずつ書いてください。</div>
+  <div style="font-size:11px;color:var(--text-sub);">チェックで選び、そのほかは下の欄に1行ずつ。</div>
   <div class="yt-fixes">${YT_FIX_ITEMS.map(x=>`<label><input type="checkbox" id="yt-fix-${x[0]}" onchange="saveState()"> ${esc(x[1])}</label>`).join('')}</div>
   <textarea id="yt-fix-note" placeholder="そのほかの直し（1行に1つ）&#10;例：4枚目の右下のアイコンを消す&#10;例：2枚目の売上構成を円グラフではなく帯にする" oninput="saveState()" style="min-height:52px;font-size:11px;"></textarea>
   ${row(b('💬 直しの依頼をコピー',"try{copyText(ytFixPrompt(),this)}catch(e){alert(e.message)}",G),b('✕ 選び直す','ytFixClear()'))}
@@ -8479,15 +8494,14 @@ function ytBuildTabHtml(){
 
 <div class="sa-card" style="margin-top:8px;">
   <h2>3. できたスライドを取り込む</h2>
-  <div style="font-size:11px;color:var(--text-sub);">ChatGPTで作ったスライド画像を、表示する順に読み込みます（ファイル名順に並べます）。</div>
+  <div style="font-size:11px;color:var(--text-sub);">できた画像を読み込みます（ファイル名順）。</div>
   <input type="file" id="yn-files" accept="image/*" multiple onchange="ynLoadFiles(this.files)" style="font-size:11px;">
   ${row(b('🔍 まとまりを読み取る','ynReadZones(this)',G),b('↻ 読み取り直す',"YN.slides.forEach(s=>s.zones=null);ynSave();ynRender();ynReadZones()"))}
   <div id="yn-status" style="display:none;font-size:11px;"></div>
-  <div style="font-size:10px;color:var(--text-sub);">読み取った位置は、ズーム・四角枠・ハイライトの位置に使います。右の「🎬 ナレスラ」で確認できます。</div>
   <div class="sa-sub">▼ まとめスライドのQR</div>
   ${row(b('🔳 QRを貼る','yqStart(this)',G),b('↩ 貼る前に戻す','yqUndo()'))}
   <div id="yn-qr-status" style="display:none;font-size:11px;"></div>
-  <div style="font-size:10px;color:var(--text-sub);">最後の1枚に空けてあるQR用の正方形を読み取り、その中にQRのドットだけを貼ります（地の色と濃い色は画像から拾います）。位置はドラッグで直せます。URLは設定タブの「QR用URL」。</div>
+  <div style="font-size:10px;color:var(--text-sub);">最後の1枚のQR用の空きに、QRのドットだけを貼ります（位置はドラッグで直せます）。</div>
 </div>
 </div>
 
@@ -8539,7 +8553,8 @@ ${yaBuildPaneHtml()}</div>
 <div id="yt-pane-settings" style="display:none;">
 <div class="sa-card">
   <h2>設定</h2>
-  ${set('QR用URL','<input type="text" id="yt-note-url" placeholder="空なら「記事」タブの記事URL→縦動画の設定の順に使う" style="flex:1;min-width:0;font-size:11px;">')}
+  ${set('QR用URL','<input type="text" id="yt-note-url" placeholder="空なら「記事」タブの記事URL→縦動画の設定の順に使う" oninput="ytNoteInfo()" style="flex:1;min-width:0;font-size:11px;">')}
+  <div id="yt-note-info" style="font-size:10px;color:var(--text-sub);"></div>
   ${set('チャート期間','<input type="number" id="yt-months" value="12" min="1" max="60" style="width:60px;flex:none;font-size:11px;padding:4px;">','ヶ月')}
   ${set('試聴の前後','<input type="number" id="ya-ctx" value="2" min="0" max="10" step="0.5" style="width:60px;flex:none;font-size:11px;padding:4px;">','秒（音声カットの▶・試聴で、前後に足す長さ）')}
   ${set('NotebookLMの長さ','<input type="number" id="yt-nlm-min" value="12" min="3" max="30" style="width:60px;flex:none;font-size:11px;padding:4px;">','分（指示文に書く目安）')}
@@ -9162,7 +9177,7 @@ async function yaRestore(){
 //  4. .svpz を書き出す（元の音声＋カット＋字幕＋演出＋出典の枠）
 // 画像とその読み取り結果は IndexedDB（kessanTool-ytNare）に保存する
 // ============================================================
-const YN={slides:[],plan:null};
+const YN={slides:[],plan:null,cur:0};
 const ynEl=id=>document.getElementById('yn-'+id);
 const ynVal=id=>((ynEl(id)||{}).value||'').trim();
 function ynStatus(msg,cls,id){const el=ynEl(id||'status');if(!el)return;el.style.display=msg?'block':'none';el.innerHTML=msg||'';el.style.color=cls==='error'?'#dc2626':cls==='ok'?'#059669':'var(--text-sub)';}
@@ -9229,6 +9244,7 @@ async function ynReadZones(btn){
       await ynSave();ynRender();
     }
     ynStatus(`✅ ${YN.slides.length}枚のまとまりを読み取りました（${YN.slides[0].model||''}）。枠は下のプレビューで確認できます`,'ok');
+    if(!ytNoteUrl())ynStatus('⚠ QRの飛び先がありません。「記事」タブの記事URL、または設定タブの「QR用URL」を入れてください','error','qr-status');
   }catch(e){ynStatus('❌ '+e.message,'error');}
   finally{if(btn)btn.disabled=false;}
 }
@@ -9253,12 +9269,13 @@ ${mk.map(z=>`<div>✏ ${yaTc(z.s)}〜${yaTc(z.e)} ${z.type==='rect'?'四角枠':
 ${sr.map(z=>`<div>📄 ${yaTc(z.s)}〜${yaTc(z.e)} 出典${esc(String(z.no))}：${esc(z.name||'')}</div>`).join('')}</div>`);
     });
   }
+  ynPos();
   YN.slides.forEach((s,i)=>{
     const box=document.getElementById('yn-img-'+i);if(!box)return;
     const url=URL.createObjectURL(s.blob);
-    box.innerHTML=`<img src="${url}" style="width:100%;display:block;">`+
+    box.innerHTML=`<div class="yn-fit"><img src="${url}">`+
       (s.zones||[]).map((z,k)=>{const [y0,x0,y1,x1]=z.box.map(v=>v/10);
-        return `<div class="yn-zone" style="left:${x0}%;top:${y0}%;width:${Math.max(0,x1-x0)}%;height:${Math.max(0,y1-y0)}%;" title="${esc(z.label)}"><span>${k+1}</span></div>`;}).join('');
+        return `<div class="yn-zone" style="left:${x0}%;top:${y0}%;width:${Math.max(0,x1-x0)}%;height:${Math.max(0,y1-y0)}%;" title="${esc(z.label)}"><span>${k+1}</span></div>`;}).join('')+`</div>`;
   });
 }
 
@@ -9467,6 +9484,19 @@ function ytParseSources(){
     .map(l=>l.split('|').map(x=>x.trim()).filter(Boolean)).filter(c=>c.length>=2)
     .filter(c=>/^[0-9０-９]/.test(c[0]))   // 表の見出し行（番号｜資料名…）は除く
     .map(c=>({no:c[0],name:c[1],url:c[2]||'',page:c[3]||'',label:c[c.length-1]}));
+}
+
+// 表示するスライドを送る（右ペイン）
+function ynGo(d){
+  if(!YN.slides.length)return;
+  YN.cur=Math.min(YN.slides.length-1,Math.max(0,(YN.cur||0)+d));
+  const el=document.getElementById('yn-img-'+YN.cur);
+  if(el&&el.parentElement)el.parentElement.scrollIntoView({behavior:'smooth',block:'start'});
+  ynPos();
+}
+function ynPos(){
+  const el=document.getElementById('yn-pos');if(!el)return;
+  el.textContent=YN.slides.length?`${Math.min((YN.cur||0)+1,YN.slides.length)} / ${YN.slides.length}`:'-';
 }
 
 // ============================================================
