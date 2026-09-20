@@ -9636,7 +9636,8 @@ function ynPlanPrompt(){
 ${secs.length?`・話題の切れ目：次の文から新しい話題が始まる。${secs.join('、')}。スライドの切り替えは、できるだけこの切れ目に合わせる。
 `:''}・スライドの範囲：連続した文の範囲を割り当てる。1枚目（表紙）は必ず最初の文から始める。基本はスライドの番号順だが、音声の話の順番がスライドの並びと違うときは、音声の順に合わせてスライドの順番を入れ替えてよい（その内容を話している箇所に、その内容のスライドを出す）。スライドが余る場合は最後のスライドに残りを割り当てる。
 ・ズーム：その話題を話している文の範囲に、対応するまとまりを割り当てる。3秒未満になる範囲には付けない。1枚につき2〜5個まで。
-　隣り合う複数のまとまりを一緒に見せたいときは、zones に番号を複数入れる（例：[2,3]）。1つだけなら [2]。同じまとまりを連続で割り当てない。
+　隣り合う複数のまとまりを一緒に見せたいときは、zones に番号を複数入れる（例：[2,3]）。1つだけなら [2]。
+　まとまりが入れ子（大きな枠の中に小さな枠）のときは、外側の番号だけを書く（中の番号を並べない）。同じまとまりを連続で割り当てない。
 ・強調：数字や結論など、特に注目させたい箇所に付ける。種類は rect（四角枠）、highlight（ハイライト）、underline（下線）。1枚につき0〜3個。ズームと同じ範囲に重ねてよい。
 ・コーナー名：そのスライドの内容を表す8字以内の短い言葉（動画の右上に出す）。
 ・根拠資料：その資料が裏づけている事実を話している文の範囲に割り当てる。1件は5〜8秒。
@@ -9700,7 +9701,7 @@ function ynApplyPlan(plan){
   const zn=(s,k)=>YN.slides[s-1]&&YN.slides[s-1].zones&&YN.slides[s-1].zones[k-1];
   const zooms=(plan.zooms||[]).map(z=>{
     const g=rng(z);if(!g)return null;
-    const zs=(Array.isArray(z.zones)?z.zones:[z.zone]).map(Number).filter(k=>zn(+z.slide,k));
+    const zs=ynTrimNested((Array.isArray(z.zones)?z.zones:[z.zone]).map(Number).filter(k=>zn(+z.slide,k)),+z.slide);
     return zs.length?{slide:+z.slide,zones:zs,...g}:null;
   }).filter(z=>z&&ynEditLen(z.s,z.e)>=3);          // 長さはカット後で見る
   const marks=(plan.marks||[]).map(z=>{
@@ -9720,6 +9721,7 @@ function ynApplyPlan(plan){
 // 音声の話の順番がスライドの番号順と違うことがある（例：強み→急落の真相 の順で話している）
 function ynPlanNorm(){
   const P=YN.plan;if(!P||!P.slides||!P.slides.length)return;
+  ['zooms','marks'].forEach(k=>(P[k]||[]).forEach(it=>{if(it.zones&&it.zones.length>1)it.zones=ynTrimNested(it.zones,it.slide);}));
   P.slides.sort((a,b)=>(a.from-b.from)||(a.no-b.no));
   P.slides=P.slides.filter((x,i,a)=>a.findIndex(y=>y.no===x.no)===i);   // 同じスライドが2回出てきたら、最初の1回だけにする（ナレスラは1枚1区間）
   const ns=ynKeptSents().map(x=>x.n);if(!ns.length)return;
@@ -9735,10 +9737,18 @@ function ynPlanDel(kind,i){
   if(!YN.plan||!YN.plan[kind])return;
   YN.plan[kind].splice(i,1);ynPut('plan',YN.plan);ynRender();if(typeof ysRender==='function')ysRender();
 }
+// 選んだ枠の中に、別の選んだ枠がすっぽり入っているときは、内側を外す（結果は同じで、見やすくなる。強調に変えても枠が増えない）
+function ynTrimNested(zs,slide){
+  const Z=((YN.slides[slide-1]||{}).zones)||[];
+  const bx=k=>{const z=Z[k-1];return z?ynBox(z):null;},tol=0.015;
+  const inside=(a,b)=>a&&b&&a.x0>=b.x0-tol&&a.y0>=b.y0-tol&&a.x1<=b.x1+tol&&a.y1<=b.y1+tol;
+  const area=b=>(b.x1-b.x0)*(b.y1-b.y0);
+  return zs.filter(k=>!zs.some(j=>j!==k&&inside(bx(k),bx(j))&&(area(bx(j))>area(bx(k))||j<k)));
+}
 // 枠の番号の書き方（2+3、2,3、2 3）を配列にする。そのスライドに無い番号は捨てる
 function ynParseZones(v,slide){
   const max=(((YN.slides[slide-1]||{}).zones)||[]).length;
-  return [...new Set(String(v||'').split(/[^0-9]+/).map(Number).filter(k=>k>=1&&k<=max))];
+  return ynTrimNested([...new Set(String(v||'').split(/[^0-9]+/).map(Number).filter(k=>k>=1&&k<=max))],slide);
 }
 // 枠・始まりの文・終わりの文を直す
 function ynFxSet(kind,i,field,v){
@@ -10067,8 +10077,11 @@ function ysUse(i,k){
 function ysWhere(no){
   const sp=((YN.plan||{}).sources||[]).find(x=>String(x.no)===String(no))||((YN.plan||{}).charts||[]).find(x=>x.id===no);
   if(!sp)return null;
-  const sent=(typeof YA!=='undefined'&&YA.sents||[]).find(x=>x.e>sp.s&&x.s<sp.e);
-  return{s:sp.s,e:sp.e,text:sent?sent.text:''};
+  const all=(typeof YA!=='undefined'&&YA.sents)||[];
+  let from=sp.from,to=sp.to;
+  if(from==null){const hit=all.map((x,i)=>({n:i+1,x})).filter(q=>q.x.e>sp.s+0.3&&q.x.s<sp.e-0.3);if(hit.length){from=hit[0].n;to=hit[hit.length-1].n;}}   // 古い割り当て（文番号なし）
+  const sent=from!=null?all[from-1]:null;
+  return{s:sp.s,e:sp.e,from,to,text:sent?sent.text:''};
 }
 
 // ---- 一覧 ----
@@ -10091,7 +10104,7 @@ ${chart||!(s.urls&&s.urls.length>1)
   ?`<div class="ys-url">${link?`<a href="${esc(link)}" target="_blank" rel="noopener" title="${esc(link)}">${chart?'TradingView で開く：':''}${esc(link)}</a>${!chart&&s.urls&&s.urls[0]?` <span class="ys-ty">${s.urls[0].pdf?'PDF':'ページ'}</span>`:''}`:'URLなし'}</div>`
   :s.urls.map((q,k)=>`<div class="ys-url${k===s.use?' on':''}"><button class="ya-nd" onclick="ysUse(${i},${k})" title="このURLを使う">${k===s.use?'●':'○'}</button> <span class="ys-ty">${q.pdf?'PDF':'ページ'}</span> <a href="${esc(q.url)}" target="_blank" rel="noopener" title="${esc(q.url)}">${esc(q.url)}</a>${q.page?` <span style="color:var(--text-sub);">${esc(q.page)}</span>`:''}</div>`).join('')}
 ${chart&&s.tvSpec?`<div class="ys-tv">TradingView：<b>${esc(s.tvSpec.ticker)}</b>／${s.tvSpec.interval?`<b>${esc(s.tvSpec.interval)}</b>`:'足は未定'}／${s.tvSpec.start||s.tvSpec.end?`<b>${esc(s.tvSpec.start)}〜${esc(s.tvSpec.end)}</b>`:'期間は未定（割り当てで決まります）'}</div>`:''}
-<div class="ys-when" title="${w?esc(w.text):''}">${w?`差し込み ${yaTc(yaToEdit(w.s,yaKeep()))}〜${yaTc(yaToEdit(w.e,yaKeep()))}（カット後）${w.text?`：${esc(w.text.slice(0,40))}`:''}`:'差し込み位置は未定（先に「1. 演出の割り当て」）'}</div>
+<div class="ys-when" title="${w?`カット後 ${yaTc(yaToEdit(w.s,yaKeep()))}〜${yaTc(yaToEdit(w.e,yaKeep()))}／${esc(w.text)}`:''}"${w&&w.from!=null?` style="cursor:pointer;" onclick="yaJumpTo(${w.from})"`:''}>${w?`差し込み 文${w.from!=null?`${w.from}〜${w.to}`:'?'}${w.text?`：${esc(w.text.slice(0,40))}`:''}`:'差し込み位置は未定（先に「1. 演出の割り当て」）'}</div>
 <div class="ys-btns">
 ${s.url&&!chart&&!unused?`<button class="ya-nd" onclick="ysGrab(${i},this)" title="${pdf?ysPageNo(s.page)+'ページを取り直す':'URLから取り直す'}">⬇ 取得</button>`:''}
 ${s.isChart?'':`<button class="ya-nd" onclick="ysKind(${i})" title="種類を切り替える（資料 ⇄ チャート）">${chart?'資料にする':'チャートにする'}</button>`}
