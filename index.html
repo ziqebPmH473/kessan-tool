@@ -438,6 +438,12 @@
 .yn-zone{position:absolute;border:2px solid rgba(37,99,235,.9);background:rgba(37,99,235,.06);}
 .yn-zone span{position:absolute;left:0;top:0;background:rgba(37,99,235,.9);color:#fff;font-size:10px;line-height:1.4;padding:0 4px;}
 .yn-plan{font-size:11px;color:#334155;padding:4px 8px;border-top:1px solid var(--border);background:#f8fafc;}
+.yn-hd2{font-weight:700;margin-bottom:2px;}
+.yn-it{display:flex;gap:6px;align-items:center;line-height:1.8;white-space:nowrap;}
+.yn-k{flex:none;width:52px;text-align:center;border-radius:8px;font-size:10px;color:#fff;}
+.yn-k.k-zooms{background:#2563eb;} .yn-k.k-marks{background:#db2777;} .yn-k.k-sources{background:#0d9488;} .yn-k.k-charts{background:#d97706;}
+.yn-tm{flex:none;color:#475569;} .yn-wh{flex:none;max-width:34%;overflow:hidden;text-overflow:ellipsis;}
+.yn-sd{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;color:#64748b;} .yn-ed{flex:none;display:flex;gap:2px;}
 /* 出典（根拠資料）の画像 */
 .ys-row{display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--border);}
 .ys-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -9399,17 +9405,27 @@ function ynRender(){
   area.innerHTML=YN.slides.map((s,i)=>`<div class="yn-item"><div class="yn-hd"><b>${i+1}</b> ${esc(s.name)} <span>${s.zones?`${s.zones.length}か所`:'未読み取り'}</span>
 <button class="ya-nd" onclick="ynMove(${i},-1)">↑</button><button class="ya-nd" onclick="ynMove(${i},1)">↓</button><button class="ya-nd" onclick="if(confirm('この画像を外しますか？'))ynRemove(${i})">✕</button></div>
 <div class="yn-img" id="yn-img-${i}"></div></div>`).join('');
-  // 割り当て済みなら、スライドごとの表示時間・ズーム・強調・出典を下に出す
+  // 割り当て済みなら、スライドごとの表示時間・ズーム・強調・出典・チャートを下に出す（時刻はカット後）
   if(YN.plan){
+    const K=yaKeep(),te=v=>yaToEdit(v,K),sents=ynKeptSents();
+    const said=z=>{const a=sents.filter(x=>x.n>=z.from&&x.n<=z.to).map(x=>x.text).join(' ');return a.length>46?a.slice(0,46)+'…':a;};
+    const line=(kind,i,z,what)=>`<div class="yn-it"><span class="yn-k k-${kind}">${ynKinds[kind]}</span>
+<span class="yn-tm" title="元の音声では ${yaTc(z.s)}〜${yaTc(z.e)}">${yaTc(te(z.s))}〜${yaTc(te(z.e))}（${ynEditLen(z.s,z.e).toFixed(1)}秒）</span>
+<span class="yn-wh">${what}</span><span class="yn-sd" title="${esc(sents.filter(x=>x.n>=z.from&&x.n<=z.to).map(x=>x.text).join(' '))}">「${esc(said(z))}」</span>
+<span class="yn-ed"><button class="ya-nd" title="始まりを1文前へ" onclick="ynPlanShift('${kind}',${i},'s',-1)">◀</button><button class="ya-nd" title="始まりを1文後へ" onclick="ynPlanShift('${kind}',${i},'s',1)">▶</button>
+<button class="ya-nd" title="終わりを1文前へ" onclick="ynPlanShift('${kind}',${i},'e',-1)">◀</button><button class="ya-nd" title="終わりを1文後へ" onclick="ynPlanShift('${kind}',${i},'e',1)">▶</button>
+<button class="ya-nd" title="消す" onclick="ynPlanDel('${kind}',${i})">✕</button></span></div>`;
     YN.plan.slides.forEach(x=>{
       const el=document.getElementById('yn-img-'+(x.no-1));if(!el||!el.parentElement)return;
-      const zo=YN.plan.zooms.filter(z=>z.slide===x.no),mk=YN.plan.marks.filter(z=>z.slide===x.no);
-      const sr=(YN.plan.sources||[]).filter(z=>z.s>=x.s-0.01&&z.s<=x.e+0.01);
       const zn=k=>((((YN.slides[x.no-1]||{}).zones||[])[k-1]||{}).label||('まとまり'+k));
-      el.insertAdjacentHTML('afterend',`<div class="yn-plan">表示 ${yaTc(x.s)}〜${yaTc(x.e)}${x.corner?`／テロップ「${esc(x.corner)}」`:''}
-${zo.map(z=>`<div>🔍 ${yaTc(z.s)}〜${yaTc(z.e)} ${esc(zn(z.zone))}</div>`).join('')}
-${mk.map(z=>`<div>✏ ${yaTc(z.s)}〜${yaTc(z.e)} ${z.type==='rect'?'四角枠':z.type==='highlight'?'ハイライト':'下線'}：${esc(zn(z.zone))}</div>`).join('')}
-${sr.map(z=>`<div>📄 ${yaTc(z.s)}〜${yaTc(z.e)} 出典${esc(String(z.no))}：${esc(z.name||'')}</div>`).join('')}</div>`);
+      const inS=z=>z.s>=x.s-0.01&&z.s<=x.e+0.01;
+      const rows=[];
+      YN.plan.zooms.forEach((z,i)=>{if(z.slide===x.no)rows.push([z.s,line('zooms',i,z,esc((z.zones||[z.zone]).map(zn).join(' ＋ ')))]);});
+      YN.plan.marks.forEach((z,i)=>{if(z.slide===x.no)rows.push([z.s,line('marks',i,z,`${z.type==='rect'?'四角枠':z.type==='highlight'?'ハイライト':'下線'}：${esc(zn(z.zone))}`)]);});
+      (YN.plan.sources||[]).forEach((z,i)=>{if(inS(z))rows.push([z.s,line('sources',i,z,`出典${esc(String(z.no))}：${esc(z.name||'')}`)]);});
+      (YN.plan.charts||[]).forEach((z,i)=>{if(inS(z))rows.push([z.s,line('charts',i,z,`${esc(z.ticker)} ${esc(z.interval)} ${esc(z.start)}〜${esc(z.end)}${z.note?`（${esc(z.note)}）`:''}`)]);});
+      rows.sort((a,b)=>a[0]-b[0]);
+      el.insertAdjacentHTML('afterend',`<div class="yn-plan"><div class="yn-hd2">表示 ${yaTc(te(x.s))}〜${yaTc(te(x.e))}（${ynEditLen(x.s,x.e).toFixed(1)}秒・カット後）${x.corner?`／テロップ「${esc(x.corner)}」`:''}</div>${rows.map(r=>r[1]).join('')}</div>`);
     });
   }
   ynPos();
@@ -9437,7 +9453,11 @@ function ynPlanPrompt(){
   const sents=ynKeptSents();
   if(!sents.length)throw new Error('「音声」タブで文字起こしを済ませてください');
   const slides=YN.slides.map((s,i)=>`【スライド${i+1}】${s.name}\n`+s.zones.map((z,k)=>`  ${k+1}. ${z.label}${z.text?`（${z.text.slice(0,60)}）`:''}`).join('\n')).join('\n\n');
-  const lines=sents.map(x=>`[${x.n}] ${yaTc(x.s)} ${x.sp?(x.sp===1?'A':'B')+': ':''}${x.text}`).join('\n');
+  const K=yaKeep(),te=v=>yaToEdit(v,K);
+  // 時刻と長さは「カット後」のもの（視聴者が見る時間）。文の一部を削っている分も引いてある
+  const lines=sents.map(x=>`[${x.n}] ${yaTc(te(x.s))}（${Math.max(0,te(x.e)-te(x.s)).toFixed(1)}秒） ${x.sp?(x.sp===1?'A':'B')+': ':''}${x.text}`).join('\n');
+  const total=te(YA.dur),mins=total/60,nSrc=Math.min(10,Math.max(1,Math.round(mins*0.8)));
+  const tick=ynTicker();
   const srcs=ytSources();
   const srcBlock=srcs.length?`\n\n【根拠資料（動画で一時的に画面へ差し込む）】\n${srcs.map(s=>`  ${s.no}. ${s.name}${s.page?`（${s.page}）`:''}`).join('\n')}`:'';
   return `あなたは動画編集者です。完成した音声（2人の会話）に、スライドの表示とズーム・強調を割り当ててください。
@@ -9449,16 +9469,24 @@ function ynPlanPrompt(){
 
 【割り当てのルール】
 ・スライドの範囲：1枚目から順に、連続した文の範囲を割り当てる。飛ばしたり前後させたりしない。スライドが余る場合は最後のスライドに残りを割り当てる。
-・ズーム：その話題を話している文の範囲に、対応するまとまりを割り当てる。3秒未満になる範囲には付けない。1枚につき2〜5個まで。同じまとまりを連続で割り当てない。
+・ズーム：その話題を話している文の範囲に、対応するまとまりを割り当てる。3秒未満になる範囲には付けない。1枚につき2〜5個まで。
+　隣り合う複数のまとまりを一緒に見せたいときは、zones に番号を複数入れる（例：[2,3]）。1つだけなら [2]。同じまとまりを連続で割り当てない。
 ・強調：数字や結論など、特に注目させたい箇所に付ける。種類は rect（四角枠）、highlight（ハイライト）、underline（下線）。1枚につき0〜3個。ズームと同じ範囲に重ねてよい。
 ・コーナー名：そのスライドの内容を表す8字以内の短い言葉（動画の右上に出す）。
-・根拠資料：その資料が裏づけている事実を話している文の範囲に割り当てる（4〜8秒程度）。当てはまるものが無ければ空でよい。
+・根拠資料：その資料が裏づけている事実を話している文の範囲に割り当てる。1件は5〜8秒。
+　この動画はカット後で約${mins.toFixed(1)}分なので、根拠資料の差し込みは${nSrc}件前後にする（多すぎると画面が落ち着かない。少なすぎると根拠が見えない）。
+　画面で見せる価値があるもの（数字の出どころ、会社の発表、公的な資料）を優先し、続けて出さない（間を20秒以上あける）。
+・チャート：株価の値動き（いつの高値からどれだけ上がった・下がった、決算後の急落など）を話している箇所には、株価チャートを差し込む。
+　チャートは TradingView で用意するので、どの足で・いつからいつまでを映すかを指定する。ティッカーは ${tick}。1件は5〜8秒、全体で1〜3件。
+・根拠資料やチャートを出している間は、スライドが隠れるので、ズームと強調は付けない。
+・時刻と秒数は、どれもカット後（視聴者が見る時間）のもの。
 
 【出力】JSONをコードブロック1つでそのまま出力する。説明文は不要。
 {"slides":[{"no":1,"from":文番号,"to":文番号,"corner":"コーナー名"}],
- "zooms":[{"slide":1,"zone":まとまりの番号,"from":文番号,"to":文番号}],
+ "zooms":[{"slide":1,"zones":[まとまりの番号],"from":文番号,"to":文番号}],
  "marks":[{"slide":1,"zone":まとまりの番号,"type":"rect","from":文番号,"to":文番号}],
- "sources":[{"no":資料の番号,"from":文番号,"to":文番号}]}
+ "sources":[{"no":資料の番号,"from":文番号,"to":文番号}],
+ "charts":[{"from":文番号,"to":文番号,"interval":"日足","start":"2026-01-01","end":"2026-09-18","note":"何を見せるか（例：2/25の高値から9/18まで）"}]}
 
 【スライドとまとまり】
 ${slides}${srcBlock}
@@ -9471,21 +9499,53 @@ function ynParsePlan(text){
   const o=JSON.parse(m[0]);if(!Array.isArray(o.slides))throw new Error('slides がありません');
   return o;
 }
+// TradingView のティッカー（国内は TSE:4519 の形）
+function ynTicker(){const c=(getTicker()||'').trim();return /^[0-9][0-9A-Z]{3}$/i.test(c)?`TSE:${c.toUpperCase()}`:c;}
+const ynKinds={zooms:'ズーム',marks:'強調',sources:'出典',charts:'チャート'};
+// 文番号（from〜to）から、元の音声の時刻を出す
+function ynSeg(f,t){
+  const sents=ynKeptSents(),at=n=>sents.find(x=>x.n===+n)||null;
+  const a=at(f),b=at(t)||a;return a?{s:a.s,e:Math.max(a.e,(b||a).e)}:null;
+}
+// カット後の長さ（秒）
+function ynEditLen(s,e){const K=yaKeep();return Math.max(0,yaToEdit(e,K)-yaToEdit(s,K));}
 function ynApplyPlan(plan){
   const sents=ynKeptSents();if(!sents.length)throw new Error('文字起こしがありません');
   const at=n=>sents.find(x=>x.n===+n)||null;
   const sl=plan.slides.map(x=>({no:+x.no,from:+x.from,to:+x.to,corner:String(x.corner||'').slice(0,12)}))
     .filter(x=>x.no>=1&&x.no<=YN.slides.length&&at(x.from)).sort((a,b)=>a.no-b.no);
   if(!sl.length)throw new Error('スライドの範囲が読み取れません');
-  const seg=(f,t)=>{const a=at(f),b=at(t)||at(f);return a?{s:a.s,e:(b||a).e}:null;};
-  const zooms=(plan.zooms||[]).map(z=>({slide:+z.slide,zone:+z.zone,...(seg(z.from,z.to)||{})})).filter(z=>z.s!=null&&YN.slides[z.slide-1]&&YN.slides[z.slide-1].zones[z.zone-1]&&z.e-z.s>=3);
-  const marks=(plan.marks||[]).map(z=>({slide:+z.slide,zone:+z.zone,type:['rect','highlight','underline'].includes(z.type)?z.type:'rect',...(seg(z.from,z.to)||{})})).filter(z=>z.s!=null&&YN.slides[z.slide-1]&&YN.slides[z.slide-1].zones[z.zone-1]&&z.e-z.s>=1);
+  const rng=x=>{const g=ynSeg(x.from,x.to);return g?{from:+x.from,to:+(x.to||x.from),...g}:null;};
+  const zn=(s,k)=>YN.slides[s-1]&&YN.slides[s-1].zones&&YN.slides[s-1].zones[k-1];
+  const zooms=(plan.zooms||[]).map(z=>{
+    const g=rng(z);if(!g)return null;
+    const zs=(Array.isArray(z.zones)?z.zones:[z.zone]).map(Number).filter(k=>zn(+z.slide,k));
+    return zs.length?{slide:+z.slide,zones:zs,...g}:null;
+  }).filter(z=>z&&ynEditLen(z.s,z.e)>=3);          // 長さはカット後で見る
+  const marks=(plan.marks||[]).map(z=>{
+    const g=rng(z);if(!g||!zn(+z.slide,+z.zone))return null;
+    return{slide:+z.slide,zone:+z.zone,type:['rect','highlight','underline'].includes(z.type)?z.type:'rect',...g};
+  }).filter(Boolean);
   const srcAll=ytSources();
-  const sources=(plan.sources||[]).map(x=>{const s=srcAll.find(y=>String(y.no)===String(x.no));const g=seg(x.from,x.to);return s&&g?{no:x.no,label:s.label||s.name,name:s.name,...g}:null;}).filter(Boolean);
-  YN.plan={slides:sl.map(x=>({...x,...(seg(x.from,x.to)||{})})),zooms,marks,sources};
+  const sources=(plan.sources||[]).map(x=>{const s=srcAll.find(y=>String(y.no)===String(x.no));const g=rng(x);return s&&g?{no:String(s.no),label:s.label||s.name,name:s.name,...g}:null;}).filter(Boolean);
+  const charts=(plan.charts||[]).map((x,i)=>{const g=rng(x);return g?{id:'c'+(i+1),ticker:ynTicker(),interval:String(x.interval||'日足'),start:String(x.start||''),end:String(x.end||''),note:String(x.note||''),...g}:null;}).filter(Boolean);
+  YN.plan={slides:sl.map(x=>({...x,...(ynSeg(x.from,x.to)||{})})),zooms,marks,sources,charts};
   ynPut('plan',YN.plan);ynRender();
-  ynStatus(`✅ 割り当てました（スライド${sl.length}枚・ズーム${zooms.length}・強調${marks.length}・出典${sources.length}）`,'ok','status2');
+  ynStatus(`✅ 割り当てました（スライド${sl.length}枚・ズーム${zooms.length}・強調${marks.length}・出典${sources.length}・チャート${charts.length}）`,'ok','status2');
   if(typeof ysRender==='function')ysRender();
+}
+// ---- 割り当ての手直し（消す／始まり・終わりを1文ずつ動かす）----
+function ynPlanDel(kind,i){
+  if(!YN.plan||!YN.plan[kind])return;
+  YN.plan[kind].splice(i,1);ynPut('plan',YN.plan);ynRender();if(typeof ysRender==='function')ysRender();
+}
+function ynPlanShift(kind,i,edge,d){
+  const it=YN.plan&&YN.plan[kind]&&YN.plan[kind][i];if(!it)return;
+  const ns=ynKeptSents().map(x=>x.n);
+  let a=ns.indexOf(it.from),b=ns.indexOf(it.to);if(a<0||b<0)return;
+  if(edge==='s')a=Math.min(b,Math.max(0,a+d));else b=Math.max(a,Math.min(ns.length-1,b+d));
+  it.from=ns[a];it.to=ns[b];Object.assign(it,ynSeg(it.from,it.to)||{});
+  ynPut('plan',YN.plan);ynRender();if(typeof ysRender==='function')ysRender();
 }
 async function ynAiPlan(btn){
   let prompt;try{prompt=ynPlanPrompt();}catch(e){ynStatus('❌ '+e.message,'error','status2');return;}
@@ -9544,7 +9604,10 @@ async function ynExport(btn){
     }
     // ズーム（原音時刻）
     for(const z of YN.plan.zooms){
-      const sl=slides[z.slide-1],zone=(((YN.slides[z.slide-1]||{}).zones)||[])[z.zone-1];if(!sl||!zone)continue;   // まとまりが無い＝読み取り前や番号違いは飛ばす
+      const sl=slides[z.slide-1],zs=(z.zones||[z.zone]).map(k=>(((YN.slides[z.slide-1]||{}).zones)||[])[k-1]).filter(Boolean);
+      if(!sl||!zs.length)continue;   // まとまりが無い＝読み取り前や番号違いは飛ばす
+      // 複数のまとまりは、全部を囲む枠にする
+      const zone={box:[Math.min(...zs.map(q=>Math.min(q.box[0],q.box[2]))),Math.min(...zs.map(q=>Math.min(q.box[1],q.box[3]))),Math.max(...zs.map(q=>Math.max(q.box[0],q.box[2]))),Math.max(...zs.map(q=>Math.max(q.box[1],q.box[3])))]};
       sl.zoomKeyframes.push({id:`zk-yt-${++id}`,startTime:+z.s.toFixed(2),endTime:+z.e.toFixed(2),startSil:null,endSil:null,
         target:ynZoomTarget(zone),enterAnim:{type:'smooth',durationMs:500},exitAnim:{type:'smooth',durationMs:500}});
     }
@@ -9582,16 +9645,39 @@ async function ynExport(btn){
           startTime:+sp.s.toFixed(2),endTime:+sp.e.toFixed(2),startSil:null,endSil:null,opacity:70,lineWidth:3,
           animIn:'none',animOut:'switch',text:String(sp.label||sp.name||'').slice(0,90),textStyle:'simple',align:'left',size:.6});
       }
-      slides.forEach(s=>{s.zoomKeyframes=s.zoomKeyframes.flatMap(k=>{
-        for(const sp of srcPlan){
-          if(k.endTime<=sp.s||k.startTime>=sp.e)continue;
-          const out=[];
-          if(sp.s-k.startTime>=3)out.push({...k,endTime:+sp.s.toFixed(2)});
-          if(k.endTime-sp.e>=3)out.push({...k,id:k.id+'b',startTime:+sp.e.toFixed(2)});
-          return out;
-        }
-        return[k];
-      });});
+    }
+    // チャート（TradingView の画像を差し込む。画像にロゴが入るので、出典の表記は付けない）
+    const chartPlan=YN.plan.charts||[];
+    for(const cp of chartPlan){
+      const got=YS.imgs[cp.id],ref=got&&got.blob?'yt-'+cp.id:'yt-src';
+      if(got&&got.blob){if(!decImages[ref]){zip.file(`描画画像/${ref}.png`,got.blob);decImages[ref]=`描画画像/${ref}.png`;}nGot++;}
+      else if(!decImages['yt-src']){zip.file('描画画像/yt-src.png',await ynPlaceholder());decImages['yt-src']='描画画像/yt-src.png';}
+      decorations.push({id:++id,type:'image',imgX1:.5,imgY1:.5,imgX2:.5,imgY2:.5,color:'#e94560',
+        startTime:+cp.s.toFixed(2),endTime:+cp.e.toFixed(2),startSil:null,endSil:null,opacity:100,animIn:'fade',animOut:'fade',
+        imgRef:ref,imgW:got&&got.w?got.w:1200,imgH:got&&got.h?got.h:700,scale:.9,shadow:false,blur:2,dim:30,
+        imgName:`チャート ${cp.ticker} ${cp.interval} ${cp.start}〜${cp.end}${got?'':'（差し替え）'}`});
+    }
+    // 出典・チャートを出している間は、スライドが隠れるのでズームと強調を外す（前後に3秒以上残る分だけ残す）
+    const blocks=srcPlan.concat(chartPlan);
+    const carve=(k,min)=>{
+      let parts=[k];
+      for(const sp of blocks)parts=parts.flatMap(q=>{
+        if(q.endTime<=sp.s||q.startTime>=sp.e)return[q];
+        const out=[];
+        if(sp.s-q.startTime>=min)out.push({...q,endTime:+sp.s.toFixed(2)});
+        if(q.endTime-sp.e>=min)out.push({...q,id:(typeof q.id==='string'?q.id+'b':++id),startTime:+sp.e.toFixed(2)});
+        return out;
+      });
+      return parts;
+    };
+    if(blocks.length){
+      slides.forEach(s=>{s.zoomKeyframes=s.zoomKeyframes.flatMap(k=>carve(k,3));});
+      const keepDec=[];
+      for(const d of decorations){
+        if(d.type==='image'||d.type==='text'){keepDec.push(d);continue;}
+        keepDec.push(...carve(d,2));
+      }
+      decorations.length=0;decorations.push(...keepDec);
     }
     // 切り替え・テロップ・字幕・カット
     const switchPoints=YN.plan.slides.slice(1).map(x=>+x.s.toFixed(2));
@@ -9613,7 +9699,7 @@ async function ynExport(btn){
     zip.file('narration.'+ext,YA.file);
     const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:3}});
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${getTicker()||'code'}_${getName()||'name'}_ナレスラ.svpz`;a.click();
-    ynStatus(`✅ 書き出しました（スライド${slides.length}枚・ズーム${YN.plan.zooms.length}・強調${decorations.length}・カット${cuts.length}・字幕${subs.length}・出典${srcPlan.length}（画像あり${nGot}））${tpl?`／ひな形：${esc(tpl.name)}`:'／ひな形なし'}`,'ok','status3');
+    ynStatus(`✅ 書き出しました（スライド${slides.length}枚・ズーム${YN.plan.zooms.length}・強調${decorations.filter(d=>d.type!=='image'&&d.type!=='text').length}・チャート${chartPlan.length}・カット${cuts.length}・字幕${subs.length}・出典${srcPlan.length}（画像あり${nGot}））${tpl?`／ひな形：${esc(tpl.name)}`:'／ひな形なし'}`,'ok','status3');
   }catch(e){ynStatus('❌ '+e.message,'error','status3');}
   finally{if(btn)btn.disabled=false;}
 }
@@ -9674,10 +9760,17 @@ function ytSources(){
     return x;
   });
 }
-function ysItem(i){const a=ytSources();return a[i]||null;}
+// 一覧に出す行＝出典＋割り当てで決まったチャート
+function ysRows(){
+  const rows=ytSources();
+  ((YN.plan||{}).charts||[]).forEach((c,i)=>rows.push({no:c.id,isChart:true,name:`チャート${i+1}：${c.ticker} ${c.interval} ${c.start}〜${c.end}`,
+    url:`https://jp.tradingview.com/chart/?symbol=${encodeURIComponent(c.ticker)}`,page:'',label:'',note:c.note}));
+  return rows;
+}
+function ysItem(i){const a=ysRows();return a[i]||null;}
 // 割り当て済みなら、その出典をどこで差し込むか（時間と、その時間に話している文）
 function ysWhere(no){
-  const sp=((YN.plan||{}).sources||[]).find(x=>String(x.no)===String(no));
+  const sp=((YN.plan||{}).sources||[]).find(x=>String(x.no)===String(no))||((YN.plan||{}).charts||[]).find(x=>x.id===no);
   if(!sp)return null;
   const sent=(typeof YA!=='undefined'&&YA.sents||[]).find(x=>x.e>sp.s&&x.s<sp.e);
   return{s:sp.s,e:sp.e,text:sent?sent.text:''};
@@ -9687,7 +9780,7 @@ function ysWhere(no){
 function ysRender(){
   const box=document.getElementById('yn-src-list');if(!box)return;
   YS.urls.forEach(u=>URL.revokeObjectURL(u));YS.urls=[];
-  const list=ytSources();
+  const list=ysRows();
   if(!list.length){box.innerHTML='<div style="font-size:11px;color:var(--text-sub);">「調査」タブの動画資料に出典一覧がありません。</div>';return;}
   box.innerHTML=list.map((s,i)=>{
     const g=YS.imgs[s.no];let th='<div class="ys-th ys-none">未</div>';
@@ -9695,12 +9788,12 @@ function ysRender(){
     const pdf=/\.pdf(\?|#|$)/i.test(s.url||'');
     const w=ysWhere(s.no);
     return `<div class="ys-row">${th}
-<div class="ys-info"><div class="ys-name" title="${esc(s.name)}"><b>${esc(s.no)}</b> ${esc(s.name)}${s.page?` <span style="color:var(--text-sub);">${esc(s.page)}</span>`:''}${YS.edit[s.no]?' <span style="color:#0d9488;">直し済み</span>':''}</div>
+<div class="ys-info"><div class="ys-name" title="${esc(s.name)}${s.note?'／'+esc(s.note):''}">${s.isChart?'':`<b>${esc(s.no)}</b> `}${esc(s.name)}${s.page?` <span style="color:var(--text-sub);">${esc(s.page)}</span>`:''}${YS.edit[s.no]?' <span style="color:#0d9488;">直し済み</span>':''}</div>
 <div class="ys-url">${s.url?`<a href="${esc(s.url)}" target="_blank" rel="noopener" title="${esc(s.url)}">${esc(s.url)}</a>`:'URLなし'}</div>
-<div class="ys-when" title="${w?esc(w.text):''}">${w?`差し込み ${yaTc(w.s)}〜${yaTc(w.e)}${w.text?`：${esc(w.text.slice(0,40))}`:''}`:'差し込み位置は未定（先に「1. 演出の割り当て」）'}</div>
+<div class="ys-when" title="${w?esc(w.text):''}">${w?`差し込み ${yaTc(yaToEdit(w.s,yaKeep()))}〜${yaTc(yaToEdit(w.e,yaKeep()))}（カット後）${w.text?`：${esc(w.text.slice(0,40))}`:''}`:'差し込み位置は未定（先に「1. 演出の割り当て」）'}</div>
 <div class="ys-btns">
-${s.url?`<button class="ya-nd" onclick="ysGrab(${i},this)" title="${pdf?ysPageNo(s.page)+'ページを取り直す':'URLから取り直す'}">⬇ 取得</button>`:''}
-<button class="ya-nd" onclick="ysEdit(${i})" title="資料名・URL・ページ・表記を直す">✎</button>
+${s.url&&!s.isChart?`<button class="ya-nd" onclick="ysGrab(${i},this)" title="${pdf?ysPageNo(s.page)+'ページを取り直す':'URLから取り直す'}">⬇ 取得</button>`:''}
+${s.isChart?'':`<button class="ya-nd" onclick="ysEdit(${i})" title="資料名・URL・ページ・表記を直す">✎</button>`}
 <button class="ya-nd" onclick="ysPick(${i})" title="画面を撮った画像を選ぶ">📁</button>
 <button class="ya-nd" onclick="ysPasteImg(${i})" title="クリップボードの画像を貼り付け">📋</button>
 ${g&&g.orig?`<button class="ya-nd" onclick="ysReCrop(${i})" title="範囲を選び直す">✂</button>`:''}
