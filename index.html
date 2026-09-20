@@ -1403,8 +1403,11 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
     <button class="prev-tab" id="tab-video" onclick="setMode('video')">🎬 縦スライド</button>
     <button class="prev-tab" id="tab-ya" onclick="setMode('ytaudio')">🎙 音声カット</button>
     <button class="prev-tab" id="tab-yn" onclick="setMode('ytnare')">🎬 ナレスラ</button>
+    <button class="prev-tab" id="tab-yb" onclick="setMode('ytboth')">↔ 並べて表示</button>
   </div>
 
+  <!-- 横動画：音声カットとナレスラ。並べて表示のときは横並び（左＝音声カット、右＝ナレスラ） -->
+  <div id="yt-duo" style="display:contents;">
   <!-- 横動画のナレスラ（スライド画像と読み取った位置） -->
   <div id="yn-view" style="display:none;flex-direction:column;gap:6px;flex:1;">
     <div style="font-size:11px;color:var(--text-sub);">スライド画像と、Geminiが読み取ったまとまりの位置（枠）。ズーム・四角枠・ハイライトの位置に使います。</div>
@@ -1425,6 +1428,7 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
     </div>
     <div id="ya-list"></div>
     <button id="ya-selbtn" onmousedown="event.preventDefault()" onclick="yaAddManualPart(+this.dataset.n)">✂ 選んだ部分を削る</button>
+  </div>
   </div>
 
   <!-- 縦スライド（SNS動画用）ビュー -->
@@ -4315,7 +4319,8 @@ function switchPriceTab(t){
   // 動画タブでは右側のプレビューも縦スライドに切り替える（戻る時はスライドへ）
   if(typeof setMode==='function'){
     if(t==='video'){setMode(typeof ytOrient==='function'&&ytOrient()==='y'?ytPaneMode():'video');if(typeof ytUpdateFreeInfo==='function')ytUpdateFreeInfo();}
-    else if(['tab-video','tab-ya','tab-yn'].some(id=>document.getElementById(id)?.classList.contains('active')))setMode('slides');
+    else if(['tab-video','tab-ya','tab-yn','tab-yb'].some(id=>document.getElementById(id)?.classList.contains('active')))setMode('slides');
+    if(typeof ytSyncTabs==='function')ytSyncTabs();
   }
 }
 // 「2.」の下のボタン：記事タブへ遷移してから生成する（結果が見える状態で走る）
@@ -8519,9 +8524,10 @@ function ytInnerTab(t){
   if(t==='settings')ytNoteInfo();
   if(t==='naresla')ysRender();
   const want=(t==='slides'||t==='naresla')?'ytnare':(t==='audio'||t==='cut')?'ytaudio':'';
-  const cur=document.getElementById('tab-ya')?.classList.contains('active')?'ytaudio'
+  const cur=document.getElementById('tab-yb')?.classList.contains('active')?'ytboth'
+    :document.getElementById('tab-ya')?.classList.contains('active')?'ytaudio'
     :document.getElementById('tab-yn')?.classList.contains('active')?'ytnare':'';
-  if(want&&cur&&cur!==want)setMode(want);
+  if(want&&cur&&cur!=='ytboth'&&cur!==want)setMode(want);
 }
 function ytBuildTabHtml(){
   const G='background:#475569;color:#fff;';   // プロンプトのコピーは既存タブと同じ灰色
@@ -8656,8 +8662,15 @@ function ytRestoreFields(){
 }
 // 縦（SNS）／横（YouTube）の切り替え
 const ytOrient=()=>((document.getElementById('vd-orient')||{}).value||'v');
-// 横のとき右ペインに出すもの：内側の「スライド」「ナレスラ」タブならナレスラ、それ以外は音声カット
-const ytPaneMode=()=>(ytEl('itab-slides')?.classList.contains('active')||ytEl('itab-naresla')?.classList.contains('active'))?'ytnare':'ytaudio';
+// 横のとき右ペインに出すもの：前に選んだ表示（既定は並べて表示）
+const ytPaneMode=()=>{let m='';try{m=sessionStorage.getItem('yt-pane')||'';}catch(e){}return['ytaudio','ytnare','ytboth'].includes(m)?m:'ytboth';};
+// 横動画を作っているとき（株価分析＞動画＞横）だけ、音声カット・ナレスラのタブを出す。そのときスライド系のタブは隠す
+function ytSyncTabs(){
+  const vd=document.getElementById('sa-tab-video');
+  const yt=!!vd&&vd.style.display!=='none'&&ytOrient()==='y';
+  [['tab-slides',!yt],['tab-video',!yt],['tab-ya',yt],['tab-yn',yt],['tab-yb',yt]]   // サムネイルはどちらでも使うので残す
+    .forEach(([id,on])=>{const b=document.getElementById(id);if(b)b.style.display=on?'':'none';});
+}
 function ytSetOrient(o){
   const el=document.getElementById('vd-orient');if(el)el.value=o;
   document.getElementById('vd-orient-v').style.display=o==='y'?'none':'';
@@ -9174,7 +9187,14 @@ async function yaSeekEdited(sec){
   if(el.readyState>=1)go();else el.addEventListener('loadedmetadata',go,{once:true});
 }
 // 一覧の枠を画面の高さに合わせ、枠の中だけでスクロールさせる（上部のプレーヤーを常に見えるように）
-function yaFitView(){const v=document.getElementById('ya-view');if(!v||v.style.display==='none')return;v.style.height=Math.max(300,window.innerHeight-v.getBoundingClientRect().top-12)+'px';v.style.flex='none';}
+function yaFitView(){
+  const v=document.getElementById('ya-view');if(!v||v.style.display==='none')return;
+  const both=document.getElementById('tab-yb')?.classList.contains('active');
+  const h=Math.max(300,window.innerHeight-v.getBoundingClientRect().top-12)+'px';
+  v.style.height=h;v.style.flex=both?'1.25 1 0':'none';
+  const n=document.getElementById('yn-view');
+  if(n&&both){n.style.height=h;n.style.flex='1 1 0';}
+}
 window.addEventListener('resize',()=>yaFitView());
 // 再生中の文に色を付け、見えていなければ一覧を送る
 function yaTrackPlayback(){
@@ -10515,12 +10535,23 @@ checkMob();window.addEventListener('resize',checkMob);
 // MODE SWITCH (スライド / サムネイル)
 // ============================================================
 function setMode(mode){
-  const isThumb=mode==='thumb',isVideo=mode==='video',isYa=mode==='ytaudio',isYn=mode==='ytnare';
+  const isBoth=mode==='ytboth';
+  const isThumb=mode==='thumb',isVideo=mode==='video',isYa=mode==='ytaudio'||isBoth,isYn=mode==='ytnare'||isBoth;
+  if(mode==='ytaudio'||mode==='ytnare'||isBoth){try{sessionStorage.setItem('yt-pane',mode);}catch(e){}}
+  // 並べて表示：左＝音声カット、右＝ナレスラ。それぞれ別にスクロールする
+  const duo=document.getElementById('yt-duo'),ynv=document.getElementById('yn-view'),yav=document.getElementById('ya-view');
+  if(duo){
+    duo.style.cssText=isBoth?'display:flex;gap:10px;align-items:flex-start;flex:1;min-width:0;':'display:contents;';
+    yav.style.order=isBoth?'1':'';ynv.style.order=isBoth?'2':'';
+    yav.style.minWidth=ynv.style.minWidth=isBoth?'0':'';
+    ynv.style.overflowY=isBoth?'auto':'';if(!isBoth){ynv.style.height='';ynv.style.flex='1';}
+  }
   document.getElementById('slides-view').style.display=(!isThumb&&!isVideo&&!isYa&&!isYn)?'flex':'none';
   document.getElementById('yn-view').style.display=isYn?'flex':'none';
-  document.getElementById('tab-yn').classList.toggle('active',isYn);
+  document.getElementById('tab-yn').classList.toggle('active',isYn&&!isBoth);
+  document.getElementById('tab-yb').classList.toggle('active',isBoth);
   document.getElementById('ya-view').style.display=isYa?'flex':'none';
-  document.getElementById('tab-ya').classList.toggle('active',isYa);
+  document.getElementById('tab-ya').classList.toggle('active',isYa&&!isBoth);
   document.getElementById('thumb-view').style.display=isThumb?'flex':'none';
   document.getElementById('video-view').style.display=isVideo?'flex':'none';
   document.getElementById('tab-slides').classList.toggle('active',!isThumb&&!isVideo&&!isYa&&!isYn);
@@ -10529,6 +10560,7 @@ function setMode(mode){
   if(isThumb)renderThumbPreview();
   if(isVideo)renderVideoPrev('vd');   // 非表示中に描くと幅0で崩れるため、表示後に描く
   if(isYa){yaRender();yaFitView();}
+  if(typeof ytSyncTabs==='function')ytSyncTabs();
   if(isYn)ynRender();
 }
 
