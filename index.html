@@ -507,6 +507,7 @@
 .ya-pri.p4{background:#bfdbfe;color:#1e40af;} .ya-pri.p5{background:#1e3a8a;color:#fff;}
 .ya-sec{background:#eff6ff;color:#1e3a8a;font-weight:700;font-size:12px;padding:3px 8px;border-bottom:1px solid #dbeafe;}
 .ya-sw{background:#fef3c7;color:#92400e;font-weight:700;font-size:11px;padding:2px 8px;border-top:2px solid #f59e0b;}
+.ya-swb{margin-left:10px;display:inline-flex;gap:3px;font-weight:400;}
 /* ===== VERTICAL SLIDES (1080×1920, SNS動画用) =====
    ナレーションの補助資料なので文字量は控えめ（見出し1つ＋「結論＋短い補足」×3）。
    テロップは入れない前提で、スマホ全画面で読める大きさにする。
@@ -9215,7 +9216,7 @@ function yaRender(keepScroll){
   const secStart={};YA.sections.forEach(x=>{secStart[x.from]=x;});
   // 演出の割り当てが済んでいれば、スライドが切り替わる文の前に目印を出す
   const swStart={};
-  if(typeof YN!=='undefined'&&YN.plan&&YN.plan.slides)YN.plan.slides.forEach(x=>{swStart[x.from]=x;});
+  if(typeof YN!=='undefined'&&YN.plan&&YN.plan.slides)YN.plan.slides.forEach((x,k)=>{swStart[k===0?1:x.from]=Object.assign({k},x);});   // 1枚目は必ず先頭から
   if(!YA.sents.length){list.innerHTML=`<div style="font-size:12px;color:var(--text-sub);padding:10px;">${YA.mono?'「文字起こし」を押すと、ここに文の一覧が出ます':'左の「音声」タブで NotebookLM の音声を読み込んでください'}</div>`;yaRenderSum();return;}
   // 1文を1行に。左から 番号・修正後の時刻・話者・点数・チェック・▶・✂・調整（幅を固定して、文の開始位置をそろえる）・文
   // 時刻はカット後の時間（元の時刻はマウスを重ねると出る）。▶＝残す文はその文、削る文はつなぎ目を再生（カットは飛ばす）
@@ -9231,12 +9232,13 @@ function yaRender(keepScroll){
     const box=mc?`<input type="checkbox" data-k="${mk}" ${mc.on?'checked':''} title="${esc(mc.reason||'')}">`:`<input type="checkbox" data-sent="${n}" title="削る">`;
     const parts=ids.filter(k=>YA.cuts[k].kind==='part').map(k=>{const c=YA.cuts[k];return `<label class="ya-part" title="${esc(c.reason||'')}"><input type="checkbox" data-k="${k}" ${c.on?'checked':''}>一部${c.approx?'≈':''}</label>${c.on?adj(k,c):''}`;}).join('');
     const es=yaToEdit(s.s,K);
-    const sw=swStart[n]?`<div class="ya-sw">▼ ここからスライド${swStart[n].no}${YN.slides[swStart[n].no-1]?`（${esc(YN.slides[swStart[n].no-1].name)}）`:''}${swStart[n].corner?`／テロップ「${esc(swStart[n].corner)}」`:''}</div>`:'';
+    const sw=swStart[n]?`<div class="ya-sw">▼ ここからスライド${swStart[n].no}${YN.slides[swStart[n].no-1]?`（${esc(YN.slides[swStart[n].no-1].name)}）`:''}${swStart[n].corner?`／テロップ「${esc(swStart[n].corner)}」`:''}${swStart[n].k>0?`<span class="ya-swb"><button class="ya-nd" data-sw="${swStart[n].k},-1" title="切り替えを1文前へ">▲ 前の文へ</button><button class="ya-nd" data-sw="${swStart[n].k},1" title="切り替えを1文後へ">▼ 後の文へ</button></span>`:''}</div>`:'';
     const head=(secStart[n]?`<div class="ya-sec">■ ${esc(secStart[n].title)}（${secStart[n].from}〜${secStart[n].to}）<span data-secsum="${n}"></span></div>`:'')+sw;
     return `${head}<div class="ya-ln${whole?' cut':''}" data-es="${whole?'':es.toFixed(2)}"><span class="ya-no">${n}</span><span class="ya-tc" data-seek="${es.toFixed(2)}" title="元の時刻 ${yaTc(s.s)}${whole?'':'（押すとカット後の音声をここから再生）'}">${whole?'—':yaTc(es)}</span><span class="ya-sp sp${s.sp}">${s.sp?(s.sp===1?'A':'B'):''}</span>${badge}${box}<button class="ya-go" data-go="${n}" title="${whole?'つなぎ目を再生':'この文を再生'}（カットは飛ばす。もう一度押すと停止）">▶</button><span class="ya-ctl">${tags}${mc&&mc.on?adj(mk,mc):''}${parts}</span><span class="ya-tx" data-n="${n}">${tx}</span></div>`;
   }).join('');
   list.querySelectorAll('input[data-k]').forEach(el=>el.onchange=()=>{const c=YA.cuts[+el.dataset.k];c.on=el.checked;c.manual=true;c.manualOn=el.checked;yaSave();yaRender(true);});
   list.querySelectorAll('input[data-sent]').forEach(el=>el.onchange=()=>yaToggleSentence(+el.dataset.sent,el.checked));
+  list.querySelectorAll('button[data-sw]').forEach(el=>el.onclick=()=>{const [k,d]=el.dataset.sw.split(',').map(Number);ynSlideShift(k,d);});
   list.querySelectorAll('button[data-nd]').forEach(el=>el.onclick=()=>{const [k,w,d]=el.dataset.nd.split(',');const c=YA.cuts[+k];if(w==='s')c.adjS=(c.adjS||0)+0.05*d;else c.adjE=(c.adjE||0)+0.05*d;yaSave();yaRender(true);yaStop();yaAudition(c);});
   list.querySelectorAll('[data-seek]').forEach(el=>el.onclick=()=>{if(el.textContent!=='—')yaSeekEdited(+el.dataset.seek);});
   list.querySelectorAll('button[data-go]').forEach(el=>el.onclick=()=>{const n=+el.dataset.go,c=YA.cuts.find(x=>x.n===n&&x.kind!=='part'&&x.on);if(c)yaAudition(c,el);else yaPlaySentence(n,el);});
@@ -9472,6 +9474,7 @@ function ynPlanPrompt(){
   // 時刻と長さは「カット後」のもの（視聴者が見る時間）。文の一部を削っている分も引いてある
   const lines=sents.map(x=>`[${x.n}] ${yaTc(te(x.s))}（${Math.max(0,te(x.e)-te(x.s)).toFixed(1)}秒） ${x.sp?(x.sp===1?'A':'B')+': ':''}${x.text}`).join('\n');
   const total=te(YA.dur),mins=total/60,nSrc=Math.min(10,Math.max(1,Math.round(mins*0.8)));
+  const secs=(YA.sections||[]).map(x=>`[${x.from}]${x.title?`（${x.title}）`:''}`);
   const tick=ynTicker();
   const srcs=ytSources();
   const srcBlock=srcs.length?`\n\n【根拠資料（動画で一時的に画面へ差し込む）】\n${srcs.map(s=>`  ${s.no}. ${s.name}${s.page?`（${s.page}）`:''}`).join('\n')}`:'';
@@ -9483,7 +9486,8 @@ function ynPlanPrompt(){
 ・ずっとズームはしません。スライドに切り替えた直後と、話題の切れ目、スライドの最後は全体表示に戻します。
 
 【割り当てのルール】
-・スライドの範囲：1枚目から順に、連続した文の範囲を割り当てる。飛ばしたり前後させたりしない。スライドが余る場合は最後のスライドに残りを割り当てる。
+${secs.length?`・話題の切れ目：次の文から新しい話題が始まる。${secs.join('、')}。スライドの切り替えは、できるだけこの切れ目に合わせる。
+`:''}・スライドの範囲：1枚目から順に、連続した文の範囲を割り当てる。1枚目は必ず最初の文から始める。飛ばしたり前後させたりしない。スライドが余る場合は最後のスライドに残りを割り当てる。
 ・ズーム：その話題を話している文の範囲に、対応するまとまりを割り当てる。3秒未満になる範囲には付けない。1枚につき2〜5個まで。
 　隣り合う複数のまとまりを一緒に見せたいときは、zones に番号を複数入れる（例：[2,3]）。1つだけなら [2]。同じまとまりを連続で割り当てない。
 ・強調：数字や結論など、特に注目させたい箇所に付ける。種類は rect（四角枠）、highlight（ハイライト）、underline（下線）。1枚につき0〜3個。ズームと同じ範囲に重ねてよい。
@@ -9530,6 +9534,16 @@ function ynApplyPlan(plan){
   const sl=plan.slides.map(x=>({no:+x.no,from:+x.from,to:+x.to,corner:String(x.corner||'').slice(0,12)}))
     .filter(x=>x.no>=1&&x.no<=YN.slides.length&&at(x.from)).sort((a,b)=>a.no-b.no);
   if(!sl.length)throw new Error('スライドの範囲が読み取れません');
+  // 1枚目は最初の文から。2枚目以降は、近くに章の切れ目（青の帯）があればそこへ寄せる（2文以内）
+  const ns=sents.map(q=>q.n),secFrom=(YA.sections||[]).map(x=>+x.from);
+  sl.forEach((x,i)=>{
+    if(i===0){x.from=ns[0];return;}
+    const a=ns.indexOf(x.from);if(a<0)return;
+    let best=-1;
+    for(const f of secFrom){const j=ns.findIndex(n=>n>=f);if(j<0||Math.abs(j-a)>2)continue;if(best<0||Math.abs(j-a)<Math.abs(best-a))best=j;}
+    if(best>=0&&ns[best]>sl[i-1].from&&(i===sl.length-1||ns[best]<sl[i+1].from))x.from=ns[best];
+  });
+  sl.forEach((x,i)=>{if(i<sl.length-1)x.to=ns[Math.max(ns.indexOf(x.from),ns.indexOf(sl[i+1].from)-1)];else x.to=ns[ns.length-1];});
   const rng=x=>{const g=ynSeg(x.from,x.to);return g?{from:+x.from,to:+(x.to||x.from),...g}:null;};
   const zn=(s,k)=>YN.slides[s-1]&&YN.slides[s-1].zones&&YN.slides[s-1].zones[k-1];
   const zooms=(plan.zooms||[]).map(z=>{
@@ -9558,7 +9572,8 @@ function ynSlideShift(i,d){
   const sl=YN.plan&&YN.plan.slides;if(!sl||i<=0||!sl[i])return;
   const ns=ynKeptSents().map(x=>x.n);
   let a=ns.indexOf(sl[i].from);if(a<0)return;
-  const lo=ns.indexOf(sl[i-1].from)+1,hi=ns.indexOf(sl[i].to);
+  if(i===1)sl[0].from=ns[0];
+  const lo=Math.max(1,ns.indexOf(sl[i-1].from)+1),hi=ns.indexOf(sl[i].to)<0?ns.length-1:ns.indexOf(sl[i].to);
   a=Math.min(hi,Math.max(lo,a+d));
   sl[i].from=ns[a];sl[i-1].to=ns[a-1];
   Object.assign(sl[i],ynSeg(sl[i].from,sl[i].to)||{});Object.assign(sl[i-1],ynSeg(sl[i-1].from,sl[i-1].to)||{});
