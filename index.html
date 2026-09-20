@@ -444,6 +444,8 @@
 .ys-none{display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--text-sub);background:#f1f5f9;}
 .ys-info{flex:1;min-width:0;font-size:11px;line-height:1.4;}
 .ys-url{font-size:10px;color:var(--text-sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ys-url a{color:#2563eb;}
+.ys-when{font-size:10px;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ys-btns{flex:none;display:flex;gap:3px;}
 /* スライドの直し：チェックの並び */
 .yt-fixes{display:flex;flex-wrap:wrap;gap:2px 10px;margin:4px 0;}
@@ -7549,6 +7551,8 @@ YouTubeシリーズ「私が知らなかった実力株」の動画資料を作�
 ・重要な事実（シェア、業績、利益率、受注、会社計画、競争力を示す数字、主な${up?'上昇':'下落'}要因）には、本文の該当箇所に［出典1］のように番号を付ける。1本あたり4〜8か所。
 ・末尾の出典一覧に、番号・資料名・URL・ページ・ページ内の位置・表示用の出典表記（例：出典：〇〇株式会社「2026年3月期 決算説明資料」p.14）を書く。
 ・URLとページは、実際に確認できたものだけを書く。確認できない場合は「要確認」と書く。
+・決算短信・決算説明資料・有価証券報告書・中期経営計画など、元がPDFの資料は、そのPDFのURLと、根拠が載っているページ番号を書く。
+　会社サイトの案内ページ（HTML）で代用しない。「Webページ」と書くのは、元がHTMLのページしか無い場合だけにする。
 
 ## 出力形式
 Markdownで、次の見出しをこの順番で出力する。
@@ -8431,6 +8435,7 @@ const YT_POST_FIXED=`■使用ツール
 
 // ---- タブのHTML ----
 function ytInnerTab(t){
+  try{sessionStorage.setItem('yt-itab',t);}catch(e){}   // リロードで戻すため（新しく開いたタブには引き継がない）
   ['research','audio','slides','cut','naresla','post','settings'].forEach(k=>{
     const b=ytEl('itab-'+k),p=ytEl('pane-'+k);
     if(b)b.classList.toggle('active',k===t);if(p)p.style.display=k===t?'':'none';
@@ -8812,8 +8817,15 @@ function yaCutRange(c){
     if(b<a)return null;
   }
   const next=YA.chars[b+1];
-  const st=yaSnapOnset(YA.chars[a].s),en=next?yaSnapOnset(next.s):{t:YA.dur,ok:true};
-  if(en.t-st.t<0.05)return null;
+  let st=yaSnapOnset(YA.chars[a].s),en=next?yaSnapOnset(next.s):{t:YA.dur,ok:true};
+  if(en.t-st.t<0.05){
+    // 短い相槌などは、前後の吸着先が同じ無音になって長さが潰れる。そのときは吸着なしの時刻を使い、
+    // それも潰れていれば文の時刻を使う（おおよその位置。試聴して ◀▶ で調整する）
+    const rs=YA.chars[a].s,re=next?next.s:(YA.chars[b].e||YA.dur);
+    if(re-rs>=0.05){st={t:rs,ok:false};en={t:re,ok:false};}
+    else if(!c.part&&s.e-s.s>=0.05){st={t:s.s,ok:false};en={t:s.e,ok:false};}
+    else{const m=YA.chars[a].s;st={t:Math.max(0,m-0.15),ok:false};en={t:Math.min(YA.dur,m+0.35),ok:false};}
+  }
   return{start:st.t,end:en.t,quiet:st.ok&&en.ok,adjS:0,adjE:0};
 }
 const yaCS=c=>c.start+(c.adjS||0),yaCE=c=>c.end+(c.adjE||0),yaCutLen=c=>Math.max(0,yaCE(c)-yaCS(c));
@@ -9336,7 +9348,7 @@ function ynPlanPrompt(){
   if(!sents.length)throw new Error('「音声」タブで文字起こしを済ませてください');
   const slides=YN.slides.map((s,i)=>`【スライド${i+1}】${s.name}\n`+s.zones.map((z,k)=>`  ${k+1}. ${z.label}${z.text?`（${z.text.slice(0,60)}）`:''}`).join('\n')).join('\n\n');
   const lines=sents.map(x=>`[${x.n}] ${yaTc(x.s)} ${x.sp?(x.sp===1?'A':'B')+': ':''}${x.text}`).join('\n');
-  const srcs=ytParseSources();
+  const srcs=ytSources();
   const srcBlock=srcs.length?`\n\n【根拠資料（動画で一時的に画面へ差し込む）】\n${srcs.map(s=>`  ${s.no}. ${s.name}${s.page?`（${s.page}）`:''}`).join('\n')}`:'';
   return `あなたは動画編集者です。完成した音声（2人の会話）に、スライドの表示とズーム・強調を割り当ててください。
 
@@ -9378,11 +9390,12 @@ function ynApplyPlan(plan){
   const seg=(f,t)=>{const a=at(f),b=at(t)||at(f);return a?{s:a.s,e:(b||a).e}:null;};
   const zooms=(plan.zooms||[]).map(z=>({slide:+z.slide,zone:+z.zone,...(seg(z.from,z.to)||{})})).filter(z=>z.s!=null&&YN.slides[z.slide-1]&&YN.slides[z.slide-1].zones[z.zone-1]&&z.e-z.s>=3);
   const marks=(plan.marks||[]).map(z=>({slide:+z.slide,zone:+z.zone,type:['rect','highlight','underline'].includes(z.type)?z.type:'rect',...(seg(z.from,z.to)||{})})).filter(z=>z.s!=null&&YN.slides[z.slide-1]&&YN.slides[z.slide-1].zones[z.zone-1]&&z.e-z.s>=1);
-  const srcAll=ytParseSources();
+  const srcAll=ytSources();
   const sources=(plan.sources||[]).map(x=>{const s=srcAll.find(y=>String(y.no)===String(x.no));const g=seg(x.from,x.to);return s&&g?{no:x.no,label:s.label||s.name,name:s.name,...g}:null;}).filter(Boolean);
   YN.plan={slides:sl.map(x=>({...x,...(seg(x.from,x.to)||{})})),zooms,marks,sources};
   ynPut('plan',YN.plan);ynRender();
   ynStatus(`✅ 割り当てました（スライド${sl.length}枚・ズーム${zooms.length}・強調${marks.length}・出典${sources.length}）`,'ok','status2');
+  if(typeof ysRender==='function')ysRender();
 }
 async function ynAiPlan(btn){
   let prompt;try{prompt=ynPlanPrompt();}catch(e){ynStatus('❌ '+e.message,'error','status2');return;}
@@ -9549,27 +9562,44 @@ function ynPos(){
 // 元の画像と選んだ範囲を残すので、範囲だけ後から変えられる。
 // 画像は IndexedDB（kessanTool-ytNare の srcimg）に保存し、.svpz に入れる。
 // ============================================================
-const YS={imgs:{},crop:null,urls:[]};
+const YS={imgs:{},edit:{},crop:null,urls:[]};
 function ysSave(){ynPut('srcimg',YS.imgs);}
-async function ysRestore(){const m=await ynGet('srcimg');YS.imgs=(m&&typeof m==='object')?m:{};ysRender();}
+function ysSaveEdit(){ynPut('srcedit',YS.edit);}
+async function ysRestore(){
+  const m=await ynGet('srcimg');YS.imgs=(m&&typeof m==='object')?m:{};
+  const e=await ynGet('srcedit');YS.edit=(e&&typeof e==='object')?e:{};
+  ysRender();
+}
 function ysPageNo(s){const m=String(s||'').match(/\d+/);return m?Math.max(1,parseInt(m[0],10)):1;}
-function ysItem(i){const a=ytParseSources();return a[i]||null;}
+// 動画資料の出典一覧に、この画面で直した内容を重ねたもの
+function ytSources(){return ytParseSources().map(s=>Object.assign({},s,YS.edit[s.no]||{}));}
+function ysItem(i){const a=ytSources();return a[i]||null;}
+// 割り当て済みなら、その出典をどこで差し込むか（時間と、その時間に話している文）
+function ysWhere(no){
+  const sp=((YN.plan||{}).sources||[]).find(x=>String(x.no)===String(no));
+  if(!sp)return null;
+  const sent=(typeof YA!=='undefined'&&YA.sents||[]).find(x=>x.e>sp.s&&x.s<sp.e);
+  return{s:sp.s,e:sp.e,text:sent?sent.text:''};
+}
 
 // ---- 一覧 ----
 function ysRender(){
   const box=document.getElementById('yn-src-list');if(!box)return;
   YS.urls.forEach(u=>URL.revokeObjectURL(u));YS.urls=[];
-  const list=ytParseSources();
+  const list=ytSources();
   if(!list.length){box.innerHTML='<div style="font-size:11px;color:var(--text-sub);">「調査」タブの動画資料に出典一覧がありません。</div>';return;}
   box.innerHTML=list.map((s,i)=>{
     const g=YS.imgs[s.no];let th='<div class="ys-th ys-none">未</div>';
     if(g&&g.blob){const u=URL.createObjectURL(g.blob);YS.urls.push(u);th=`<img class="ys-th" src="${u}">`;}
     const pdf=/\.pdf(\?|#|$)/i.test(s.url||'');
+    const w=ysWhere(s.no);
     return `<div class="ys-row">${th}
-<div class="ys-info"><div><b>${esc(s.no)}</b> ${esc(s.name)}${s.page?` <span style="color:var(--text-sub);">${esc(s.page)}</span>`:''}</div>
-<div class="ys-url">${s.url?esc(s.url):'URLなし'}</div></div>
+<div class="ys-info"><div><b>${esc(s.no)}</b> ${esc(s.name)}${s.page?` <span style="color:var(--text-sub);">${esc(s.page)}</span>`:''}${YS.edit[s.no]?' <span style="color:#0d9488;">直し済み</span>':''}</div>
+<div class="ys-url">${s.url?`<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.url)}</a>`:'URLなし'}</div>
+<div class="ys-when">${w?`差し込み ${yaTc(w.s)}〜${yaTc(w.e)}${w.text?`：${esc(w.text.slice(0,40))}`:''}`:'差し込み位置は未定（先に「1. 演出の割り当て」）'}</div></div>
 <div class="ys-btns">
-${s.url?`<button class="ya-nd" onclick="ysGrab(${i},this)" title="${pdf?ysPageNo(s.page)+'ページを取ってくる':'URLから取ってくる'}">⬇ 取得</button>`:''}
+${s.url?`<button class="ya-nd" onclick="ysGrab(${i},this)" title="${pdf?ysPageNo(s.page)+'ページを取り直す':'URLから取り直す'}">⬇ 取得</button>`:''}
+<button class="ya-nd" onclick="ysEdit(${i})" title="資料名・URL・ページ・表記を直す">✎</button>
 <button class="ya-nd" onclick="ysPick(${i})" title="画面を撮った画像を選ぶ">📁</button>
 <button class="ya-nd" onclick="ysPasteImg(${i})" title="クリップボードの画像を貼り付け">📋</button>
 ${g&&g.orig?`<button class="ya-nd" onclick="ysReCrop(${i})" title="範囲を選び直す">✂</button>`:''}
@@ -9578,26 +9608,77 @@ ${g?`<button class="ya-nd" onclick="ysDrop(${i})" title="消す">✕</button>`:'
   }).join('');
 }
 
+// ---- 出典の中身を直す（資料が違う・チャートはTradingViewにする等）----
+function ysEdit(i){
+  const s=ysItem(i);if(!s)return;
+  const ov=document.createElement('div');ov.className='ys-ov';
+  const f=(lab,k,v)=>`<label style="display:block;font-size:11px;color:#cbd5e1;margin-bottom:6px;">${lab}<input id="ys-e-${k}" value="${esc(v||'')}" style="width:100%;font-size:12px;padding:4px;margin-top:2px;"></label>`;
+  ov.innerHTML=`<div class="ys-bar"><div class="ys-title">出典${esc(s.no)} を直す</div>
+<button class="btn-sm" style="background:#0d9488;color:#fff;" onclick="ysEditOk(${i})">✓ 保存</button>
+<button class="btn-sm" onclick="ysEditReset(${i})">↩ 元に戻す</button>
+<button class="btn-sm" onclick="ysEditClose()">✕</button></div>
+<div class="ys-stage" style="align-items:flex-start;"><div style="width:min(720px,90vw);background:#0f172a;padding:12px;border-radius:6px;">
+${f('資料名','name',s.name)}${f('URL','url',s.url)}${f('ページ','page',s.page)}${f('画面に出す表記','label',s.label)}
+<div style="font-size:10px;color:#94a3b8;">動画資料の出典一覧は書き換えません。ここでの直しだけを上書きして使います（チャートをTradingViewにする等）。</div>
+</div></div>`;
+  document.body.appendChild(ov);YS.editOv=ov;
+}
+function ysEditClose(){if(YS.editOv){YS.editOv.remove();YS.editOv=null;}}
+function ysEditOk(i){
+  const s=ysItem(i);if(!s)return ysEditClose();
+  const v=k=>{const el=document.getElementById('ys-e-'+k);return el?el.value.trim():'';};
+  const base=ytParseSources().find(x=>String(x.no)===String(s.no))||{};
+  const d={};['name','url','page','label'].forEach(k=>{if(v(k)!==(base[k]||''))d[k]=v(k);});
+  if(Object.keys(d).length)YS.edit[s.no]=d;else delete YS.edit[s.no];
+  ysSaveEdit();ysEditClose();ysRender();
+}
+function ysEditReset(i){
+  const s=ysItem(i);if(s){delete YS.edit[s.no];ysSaveEdit();}
+  ysEditClose();ysRender();
+}
+
+// ---- まとめて取得（まだ画像が無い行だけ。範囲は全体のままなので、あとで ✂ で詰める）----
+async function ysGrabAll(btn){
+  const list=ysSources().filter(s=>s.url&&!YS.imgs[s.no]);
+  if(!list.length){ynStatus('取得するものがありません（URLがあって、まだ画像が無い行が対象です）','','src-status');return;}
+  if(btn)btn.disabled=true;
+  let ok=0,ng=[];
+  try{
+    for(let i=0;i<list.length;i++){
+      const s=list[i];
+      ynStatus(`取得中… ${i+1}/${list.length}　${s.name}`,'','src-status');
+      try{
+        const blob=await ysFetch(s);
+        YS.imgs[s.no]={blob,orig:blob,rect:{x:0,y:0,w:1,h:1},w:0,h:0,name:s.name};
+        const im=await createImageBitmap(blob);
+        YS.imgs[s.no].w=im.width;YS.imgs[s.no].h=im.height;
+        ok++;ysSave();ysRender();
+      }catch(e){ng.push(`${s.no}：${e.message}`);}
+    }
+    ynStatus(`✅ ${ok}件を取得しました（範囲は全体のまま。各行の「✂」で使う範囲を選んでください）${ng.length?`／取れなかったもの ${ng.length}件：${esc(ng.join(' / '))}`:''}`,ng.length?'error':'ok','src-status');
+  }finally{if(btn)btn.disabled=false;}
+}
+// URL から画像を1枚作る（PDFは指定ページ）
+async function ysFetch(s){
+  const res=await fetch('/api/grab?url='+encodeURIComponent(s.url));
+  const type=(res.headers.get('Content-Type')||'').split(';')[0];
+  if(!res.ok||type.startsWith('application/json')){
+    let m='取得できませんでした';try{m=(await res.json()).error||m;}catch(e){}
+    throw new Error(m);
+  }
+  const blob=await res.blob();
+  return type==='application/pdf'?await ysPdfPage(blob,ysPageNo(s.page)):blob;
+}
+const ysSources=()=>ytSources();
+
 // ---- 取得（PDF・画像）----
 async function ysGrab(i,btn){
   const s=ysItem(i);if(!s||!s.url)return;
   if(btn)btn.disabled=true;
   try{
     ynStatus(`取得中… ${s.name}`,'','src-status');
-    const res=await fetch('/api/grab?url='+encodeURIComponent(s.url));
-    const type=(res.headers.get('Content-Type')||'').split(';')[0];
-    if(!res.ok||type.startsWith('application/json')){
-      let m='取得できませんでした';try{m=(await res.json()).error||m;}catch(e){}
-      throw new Error(m);
-    }
-    const blob=await res.blob();
-    if(type==='application/pdf'){
-      ynStatus('PDFを描いています…','','src-status');
-      const img=await ysPdfPage(blob,ysPageNo(s.page));
-      ysOpenCrop(i,img,`${s.name}（${ysPageNo(s.page)}ページ）`);
-    }else{
-      ysOpenCrop(i,blob,s.name);
-    }
+    const img=await ysFetch(s);
+    ysOpenCrop(i,img,s.name);
     ynStatus('','','src-status');
   }catch(e){ynStatus('❌ '+e.message,'error','src-status');}
   finally{if(btn)btn.disabled=false;}
@@ -9859,21 +9940,21 @@ function ynBuildPaneHtml(){
   const row=(...x)=>`<div class="row" style="flex-wrap:nowrap;">${x.join('')}</div>`;
   return `
 <div class="sa-card">
-  <h2>1. 出典の画像</h2>
-  <div style="font-size:11px;color:var(--text-sub);">動画資料の出典一覧の行ごとに、画面へ一時的に差し込む画像を用意します。PDFは「⬇ 取得」でそのページを取ってきて、使う範囲をドラッグで囲みます。ふつうのページは写せないので、画面を撮った画像を「📁」で選ぶか「📋」で貼り付けてください。</div>
-  ${row(b('↻ 出典一覧を読み直す','ysRender()'))}
-  <div id="yn-src-list"></div>
-  <div id="yn-src-status" style="display:none;font-size:11px;"></div>
-  <div style="font-size:10px;color:var(--text-sub);">入れた画像は .svpz に入ります（入れていない出典は仮画像。ナレスラで差し替えてください）。「✂」で範囲だけ選び直せます。</div>
-</div>
-
-<div class="sa-card" style="margin-top:8px;">
-  <h2>2. 演出の割り当て</h2>
+  <h2>1. 演出の割り当て</h2>
   <div style="font-size:11px;color:var(--text-sub);">音声（③でカットした後に残る文）とスライドのまとまりを突き合わせ、切り替え・ズーム・強調・根拠資料の差し込みを決めます。</div>
   ${row(b('💬 プロンプト',"try{copyText(ynPlanPrompt(),this)}catch(e){alert(e.message)}",G),b('📋 貼り付け',"ynPaste('plan',ynApplyPasted)"),b('↻ 反映','ynApplyPasted()'))}
   <textarea id="yn-plan" placeholder="Gemini／ChatGPTに投げて、返ってきたJSONを貼り付け" style="min-height:36px;font-size:11px;font-family:monospace;"></textarea>
   ${row(b('🤖 Gemini APIで割り当て','ynAiPlan(this)','background:#4f46e5;color:#fff;'))}
   <div id="yn-status2" style="display:none;font-size:11px;"></div>
+</div>
+
+<div class="sa-card" style="margin-top:8px;">
+  <h2>2. 出典の画像</h2>
+  <div style="font-size:11px;color:var(--text-sub);">動画資料の出典一覧の行ごとに、画面へ一時的に差し込む画像を用意します。PDFは「⬇ 取得」でそのページを取ってきて、使う範囲をドラッグで囲みます。ふつうのページは写せないので、画面を撮った画像を「📁」で選ぶか「📋」で貼り付けてください。</div>
+  ${row(b('⬇ まとめて取得（未取得だけ）','ysGrabAll(this)',G),b('↻ 出典一覧を読み直す','ysRender()'))}
+  <div id="yn-src-list"></div>
+  <div id="yn-src-status" style="display:none;font-size:11px;"></div>
+  <div style="font-size:10px;color:var(--text-sub);">入れた画像は .svpz に入ります（入れていない出典は仮画像。ナレスラで差し替えてください）。「✂」で範囲だけ選び直せます。</div>
 </div>
 
 <div class="sa-card" style="margin-top:8px;">
@@ -9933,6 +10014,7 @@ async function ynRestore(){
   yaRestore();
   ynRestore();ysRestore();
   if(ytOrient()==='y')ytSetOrient('y');
+  try{const it=sessionStorage.getItem('yt-itab');if(it&&ytEl('itab-'+it))ytInnerTab(it);}catch(e){}
   ytUpdateFreeInfo();
   // レポート欄は「📋 貼り付け」や読み込みでJSから値が入ると input イベントが出ないので、
   // 横動画の調査欄が見えている間は中身の変化を見て「渡す範囲」の表示を更新する
