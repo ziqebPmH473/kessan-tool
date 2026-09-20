@@ -8526,11 +8526,13 @@ const YT_POST_RULES=`あなたはYouTubeチャンネルの成長戦略顧問で�
 　- 例：「なぜここまで*売られた*のか：銘柄名：#強さ#は%本物%なのか」
 ・概要欄は、運用ルールの「1行目 導入文／2行目 キーワード行／3〜5行目 内容要約」までを書く。
 　関連動画・メンバーシップ・使用ツール・AI注意喚起の文は、ツールが後ろに付けるので書かない。
-・X投稿案に動画のURLは書かない。
+・概要欄の最後に付けるハッシュタグを tags に出す。3〜5個。銘柄名と証券コードは必ず入れ、あとは業種やこの動画のテーマにする（「#投資」のような広すぎるものは避ける）。
+・X投稿案の1行目「【#銘柄名（証券コード）】」と、その直下の動画のURLは、ツールが付けるので書かない。本文から書き始める。
+　1行目とURLの分があるので、本文はハッシュタグを含めて全角100字以内にする。
 ・CTR／SEO最適化ポイント、動画管理表は出力しない。
 
 【出力】次の形のJSONだけを出力する。説明文やコードフェンスは不要。
-{"titles":["","",""],"thumbs":["上段：中段：下段","",""],"desc":"","x":""}`;
+{"titles":["","",""],"thumbs":["上段：中段：下段","",""],"desc":"","tags":["#銘柄名","#証券コード",""],"x":""}`;
 
 function ytPostPrompt(){
   const{plan,report}=ytSlidePartsLoose();
@@ -8578,9 +8580,11 @@ function ytPostApply(){
   // サムネは「上段：中段：下段」の形にそろえる（／や半角:で返ってきても直す）
   const thumb=s=>String(s||'').trim().replace(/\s*[\/／]\s*/g,'：').replace(/:/g,'：');
   [1,2,3].forEach(k=>{set('p-t'+k,String((j.titles||[])[k-1]||'').trim());set('p-s'+k,thumb((j.thumbs||[])[k-1]));});
-  set('p-desc',String(j.desc||''));
-  set('p-x',String(j.x||''));
-  saveState();
+  set('p-body',String(j.desc||'').trim());
+  set('p-xbody',String(j.x||'').trim());
+  const tg=Array.isArray(j.tags)?j.tags:String(j.tags||'').split(/\s+/);
+  set('p-tags',tg.map(s=>String(s).trim()).filter(Boolean).map(s=>s.startsWith('#')?s:'#'+s).join(' '));
+  ytPostBuild();
   const d=String(j.desc||''),x=String(j.x||'');
   ytStatus(`✅ 反映しました（タイトル${(j.titles||[]).length}案・サムネ${(j.thumbs||[]).length}案・概要欄${d.length}字・X${x.length}字）`,'ok','post-status');
 }
@@ -8605,11 +8609,19 @@ function ytThumbUse(k){
   if(typeof renderThumbPreview==='function')renderThumbPreview();
 }
 // 概要欄＝AIの本文＋noteの案内＋定型文（使用ツール・AIの注意書き）
-function ytPostDesc(){
-  const body=ytVal('p-desc');if(!body)throw new Error('先に概要欄を作ってください');
-  const url=ytNoteUrl();
-  const fixed=ytVal('p-fixed');
-  return [body,url?`▼ さらに詳しい分析はこちら（note）\n${url}`:'',fixed].filter(Boolean).join('\n\n');
+function ytPostBuild(){
+  const body=ytVal('p-body'),xbody=ytVal('p-xbody');
+  if(body){
+    const url=ytNoteUrl(),fixed=ytVal('p-fixed'),tags=ytVal('p-tags');
+    ytEl('p-desc').value=[body,url?`▼ さらに詳しい分析はこちら（note）\n${url}`:'',fixed,tags].filter(Boolean).join('\n\n');
+  }
+  if(xbody){
+    // 1行目＝【#銘柄名（コード）】、その直下に動画のURL、本文、ハッシュタグ（空行は入れない）
+    const head=`【#${(getName()||'').replace(/\s+/g,'')}（${getTicker()||''}）】`,yt=ytVal('p-yturl');
+    const lines=xbody.split(/\r?\n/).map(s=>s.trim()).filter(Boolean).filter(s=>!/^【\s*#/.test(s)&&!/^https?:/.test(s));
+    ytEl('p-x').value=[head,yt,...lines].filter(Boolean).join('\n');
+  }
+  saveState();
 }
 const YT_POST_FIXED=`■使用ツール
 ・素材・チャート分析：TradingView ▶ https://jp.tradingview.com/?aff_id=162125&source=Youtube
@@ -8732,12 +8744,15 @@ ${yaBuildPaneHtml()}</div>
 
 <div class="sa-card" style="margin-top:8px;">
   <h2>3. 概要欄・X</h2>
-  <div class="sa-sub">▼ 概要欄（本文）</div>
-  <textarea id="yt-p-desc" placeholder="導入文（問いかけ）／キーワード行／内容の要約（200〜250字）" style="min-height:70px;font-size:11px;"></textarea>
-  ${row(b('📋 概要欄をコピー',"try{copyText(ytPostDesc(),this)}catch(e){alert(e.message)}",'background:#0d9488;color:#fff;'))}
-  <div style="font-size:10px;color:var(--text-sub);">コピーすると、本文のあとに note の案内（設定のURL）と定型文（使用ツール・AIの注意書き）が付きます。</div>
-  <div class="sa-sub">▼ X（旧Twitter）</div>
-  <textarea id="yt-p-x" placeholder="120字程度・空行なし・URLは貼り付けるときに足す" style="min-height:52px;font-size:11px;"></textarea>
+  ${set('YouTubeのURL','<input type="text" id="yt-p-yturl" placeholder="動画を上げたあとのURL（Xの投稿文に入ります）" oninput="ytPostBuild();saveState()" style="flex:1;min-width:0;font-size:11px;">')}
+  ${set('ハッシュタグ','<input type="text" id="yt-p-tags" placeholder="#中外製薬 #4519 #株式投資（概要欄の最後に付きます）" oninput="ytPostBuild();saveState()" style="flex:1;min-width:0;font-size:11px;">')}
+  <input type="hidden" id="yt-p-body"><input type="hidden" id="yt-p-xbody">
+  <div class="sa-sub">▼ 概要欄（このまま貼れる全文）</div>
+  <textarea id="yt-p-desc" placeholder="本文／noteの記事リンク／使用ツール／AIの注意書き／ハッシュタグ" oninput="saveState()" style="min-height:150px;font-size:11px;"></textarea>
+  ${row(b('📋 概要欄をコピー',"copyText(ytVal('p-desc'),this)",'background:#0d9488;color:#fff;'),b('↻ 組み立て直す','ytPostBuild()'))}
+  <div style="font-size:10px;color:var(--text-sub);">本文 → noteの記事リンク（記事タブの記事URL）→ 定型文（設定タブ）→ ハッシュタグ の順に組み立てます。URLやタグを変えたら「↻ 組み立て直す」。</div>
+  <div class="sa-sub">▼ X（旧Twitter）（このまま貼れる全文）</div>
+  <textarea id="yt-p-x" placeholder="【#銘柄名（コード）】／YouTubeのURL／本文／ハッシュタグ" oninput="saveState()" style="min-height:90px;font-size:11px;"></textarea>
   ${row(b('📋 Xをコピー',"copyText(ytVal('p-x'),this)"))}
 </div>
 </div>
@@ -8755,7 +8770,7 @@ ${yaBuildPaneHtml()}</div>
 </div>
 </div>`;
 }
-const YT_PERSIST_IDS=['vd-orient','yt-doc','yt-theme','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-t1','yt-p-t2','yt-p-t3','yt-p-s1','yt-p-s2','yt-p-s3','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-yomi','yt-yomi-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan'];
+const YT_PERSIST_IDS=['vd-orient','yt-doc','yt-theme','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-t1','yt-p-t2','yt-p-t3','yt-p-s1','yt-p-s2','yt-p-s3','yt-p-body','yt-p-xbody','yt-p-yturl','yt-p-tags','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-yomi','yt-yomi-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan'];
 function ytRestoreFields(){
   let st=null;try{st=JSON.parse(localStorage.getItem(SA_STORAGE_KEY)||'null');}catch(e){}
   if(!st||!st.fields)return;
