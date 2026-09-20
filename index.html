@@ -8016,9 +8016,125 @@ function ytDownloadSource(){
 }
 
 
+// ---- 投稿文（タイトル・サムネ・概要欄・X）----
+// 土台は docs/prompts/gem-youtube-rules.md（ユーザーが Gem で使っていたルール）。
+// 関連動画のURL・動画管理表・VOICEVOX は使わない。シリーズ名は「私が知らなかった実力株」。
+const YT_POST_RULES=`あなたはYouTubeチャンネルの成長戦略顧問です。次の動画の「タイトル・サムネイル・概要欄・X（旧Twitter）の投稿文」を作ってください。
+
+【チャンネルの方針】
+・視聴者は、投資を始めて間もない人から経験の長い人まで幅広い。
+・話題の単語・とっつきやすい言葉を主役にし、専門用語は脇役にする。
+・「純有利子負債」「D/Eレシオ」「受注高〇〇円」のような財務・会計の専門用語は、タイトルとサムネでは使わない。その言葉が意味する結果（例：借金ゼロ目前、財務が鉄壁に）を、平易で感情に届く言葉で書く。
+・フックは、①その銘柄ならではの事業のギャップ（例：好調な日本と不調な米州、人気ブランドの失速、特定事業の特需）を最優先にする。弱いときだけ②財務のギャップ（例：本業は増益なのに最終赤字）を使う。
+・「増収増益で買われた」「下方修正で売られた」のような順当な結論は禁止（見ただけで答えが分かり、興味が止まるため）。
+・「上方修正なのに株価は下落」のような矛盾（ギャップ）は、結論ではなく「問い」として使ってよい。
+
+【タイトル：3案】
+・その動画を見て得られるもの（何が分かるか）を着地点にする。「〜の裏側とは？」だけのような抽象的な表現は禁止。
+・先頭に【銘柄名（証券コード）】、末尾に「｜私が知らなかった実力株」を付ける。
+・結論・煽り・スペース（空白）・引用符（「」“”）は使わない。（）【】と ！ ？ は使ってよい。
+・株価が動いた結果そのものではなく、その会社・その決算の注目点に焦点を当てる。
+
+【サムネイル：3案】
+・スラッシュ区切りの1行（上段/中段/下段）。ラベルは書かない。
+・上段＝感情・問題提起（全角8〜10字）／中段＝銘柄名または注目点（全角6〜9字）／下段＝抽象的な問いかけ（全角8〜10字）。
+・！ ？ ・数値・株価の方向性（上昇／下落）・シリーズ名・スペース・「AI」などの強調語は使わない。
+
+【概要欄】
+・1行目：導入文。問いかけの形にして、どの視点（決算・事業戦略・国策など）で分析するかの切り口を入れる（30〜50字）。
+・2行目：キーワード行（半角スペース区切り・検索用）。
+・3〜5行目：内容の要約（動画で扱う焦点、変化の向き）。
+・全体は200〜250字。結論は書かない。その銘柄ならではの焦点を必ず入れる。「①〜⑦」のような見出し表記は使わない。
+・使用ツールやAIの注意書きはツール側で付けるので、書かないでください。
+
+【Xの投稿文】
+・動画の核心の問いかけ・注目ポイントを、絵文字を交えて全角120字程度にまとめる。
+・空行は入れない（改行は文の区切りで1回だけ）。ハッシュタグは本文の直後の行に置く。
+・結論・煽り・絵文字の使いすぎは禁止。動画のタイトルをそのまま載せない。動画のURLは書かない（あとで貼り付けるため）。
+
+【出力】次の形のJSONだけを出力する。説明文やコードフェンスは不要。
+{"titles":["","",""],"thumbs":["上段/中段/下段","",""],"desc":"","x":""}`;
+
+function ytPostPrompt(){
+  const{plan,report}=ytSlidePartsLoose();
+  const tr=ytPostTranscript();
+  return `${YT_POST_RULES}
+
+---
+【動画の企画】
+${plan}
+
+---
+【株価分析レポート・動画資料（出典は除いています）】
+${report}${tr?`
+
+---
+【動画で実際に話している内容（音声の文字起こし）】
+${tr}`:''}`;
+}
+// スライド用と同じ材料。ただし文字起こしが無くても作れるようにする
+function ytSlidePartsLoose(){
+  const up=getDir()==='up';
+  const doc=ytStripSources(ytVal('doc'));
+  if(!doc)throw new Error('「調査」タブに ChatGPT の動画資料を貼り付けてください');
+  const fr=ytFreeReport();
+  const plan=`シリーズ「私が知らなかった実力株」
+株価が大きく${up?'上昇':'下落'}した銘柄を取り上げ、会社の事業と競争力を掘り下げる解説動画。
+株価の予想をする動画ではなく、会社そのものを主役にする。
+
+銘柄：${getName()||''}（${getTicker()||''}）`;
+  return{plan,report:`${vdBasicInfo('vd')}\n\n${doc}${fr.ok?`\n\n${fr.text}`:''}`};
+}
+// カット後に残る文（無ければ Gemini の文字起こしをそのまま）
+function ytPostTranscript(){
+  try{
+    const k=(typeof ynKeptSents==='function')?ynKeptSents():[];
+    if(k.length)return k.map(x=>`${x.sp||''} ${x.text}`.trim()).join('\n').slice(0,12000);
+  }catch(e){}
+  return ((document.getElementById('ya-gtext')||{}).value||'').trim().slice(0,12000);
+}
+function ytPostApply(){
+  const t=ytVal('post');if(!t){ytStatus('投稿文のJSONを貼り付けてください','error','post-status');return;}
+  let j;try{const m=t.match(/\{[\s\S]*\}/);j=JSON.parse(m?m[0]:t);}
+  catch(e){ytStatus('❌ JSONの形が崩れています：'+e.message,'error','post-status');return;}
+  const set=(id,v)=>{const el=ytEl(id);if(el)el.value=v;};
+  set('p-titles',(j.titles||[]).filter(Boolean).join('\n'));
+  set('p-thumbs',(j.thumbs||[]).filter(Boolean).join('\n'));
+  set('p-desc',String(j.desc||''));
+  set('p-x',String(j.x||''));
+  saveState();
+  const d=String(j.desc||''),x=String(j.x||'');
+  ytStatus(`✅ 反映しました（タイトル${(j.titles||[]).length}案・サムネ${(j.thumbs||[]).length}案・概要欄${d.length}字・X${x.length}字）`,'ok','post-status');
+}
+async function ytPostAi(btn){
+  let prompt;try{prompt=ytPostPrompt();}catch(e){ytStatus('❌ '+e.message,'error','post-status');return;}
+  if(btn)btn.disabled=true;ytStatus('作成中…（数十秒かかります）','','post-status');
+  try{
+    const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({prompt,resources:[],files:[],temperature:0.6,models:['gemini-3.8-flash','gemini-3.7-flash','gemini-3.6-flash','gemini-3.5-flash']})});
+    const data=await res.json();if(!data.ok)throw new Error(data.error||'不明なエラー');
+    ytEl('post').value=data.text||'';saveState();
+    ytPostApply();
+  }catch(e){ytStatus('❌ '+e.message,'error','post-status');}
+  finally{if(btn)btn.disabled=false;}
+}
+// 概要欄＝AIの本文＋noteの案内＋定型文（使用ツール・AIの注意書き）
+function ytPostDesc(){
+  const body=ytVal('p-desc');if(!body)throw new Error('先に概要欄を作ってください');
+  const url=ytVal('note-url')||vdVal('vd','note-url');
+  const fixed=ytVal('p-fixed');
+  return [body,url?`▼ さらに詳しい分析はこちら（note）\n${url}`:'',fixed].filter(Boolean).join('\n\n');
+}
+const YT_POST_FIXED=`■使用ツール
+・素材・チャート分析：TradingView ▶ https://jp.tradingview.com/?aff_id=162125&source=Youtube
+
+本動画にはAI生成コンテンツが含まれています。
+迅速な解説と可視化（図解・イラスト化）を実現するため、生成AIを活用しています。
+内容の正確性には十分配慮していますが、最終的な判断はご自身でお願いいたします。`;
+
 // ---- タブのHTML ----
 function ytInnerTab(t){
-  ['research','audio','slides','cut','naresla','settings'].forEach(k=>{
+  ['research','audio','slides','cut','naresla','post','settings'].forEach(k=>{
     const b=ytEl('itab-'+k),p=ytEl('pane-'+k);
     if(b)b.classList.toggle('active',k===t);if(p)p.style.display=k===t?'':'none';
   });
@@ -8041,6 +8157,7 @@ function ytBuildTabHtml(){
   <button class="sa-subtab" id="yt-itab-slides" onclick="ytInnerTab('slides')">スライド</button>
   <button class="sa-subtab" id="yt-itab-cut" onclick="ytInnerTab('cut')">カット</button>
   <button class="sa-subtab" id="yt-itab-naresla" onclick="ytInnerTab('naresla')">ナレスラ</button>
+  <button class="sa-subtab" id="yt-itab-post" onclick="ytInnerTab('post')">投稿文</button>
   <button class="sa-subtab" id="yt-itab-settings" onclick="ytInnerTab('settings')">設定</button>
 </div>
 <div id="yt-status" style="display:none;font-size:11px;margin:4px 0;"></div>
@@ -8082,6 +8199,38 @@ ${yaBuildPaneHtml()}</div>
 <div id="yt-pane-cut" style="display:none;">${yaBuildCutHtml()}</div>
 <div id="yt-pane-naresla" style="display:none;">${ynBuildPaneHtml()}</div>
 
+<div id="yt-pane-post" style="display:none;">
+<div class="sa-card">
+  <h2>1. 投稿文を作る</h2>
+  <div style="font-size:11px;color:var(--text-sub);">材料は、動画資料・レポートの無料範囲・音声の文字起こし（カット後に残る文）です。</div>
+  ${row(b('💬 プロンプト',"try{copyText(ytPostPrompt(),this)}catch(e){alert(e.message)}",G),b('📋 貼り付け',"ytPaste('post',ytPostApply)"),b('↻ 反映','ytPostApply()'))}
+  <textarea id="yt-post" placeholder="ChatGPT／Geminiに投げて、返ってきたJSONを貼り付け" style="min-height:36px;font-size:11px;font-family:monospace;"></textarea>
+  ${row(b('🤖 Gemini APIで作る','ytPostAi(this)','background:#4f46e5;color:#fff;'))}
+  <div id="yt-post-status" style="display:none;font-size:11px;"></div>
+</div>
+
+<div class="sa-card" style="margin-top:8px;">
+  <h2>2. タイトル・サムネイル</h2>
+  <div class="sa-sub">▼ タイトル（3案・1行に1案）</div>
+  <textarea id="yt-p-titles" placeholder="【銘柄名（コード）】…｜私が知らなかった実力株" style="min-height:52px;font-size:11px;"></textarea>
+  ${row(b('📋 タイトルをコピー',"copyText(ytVal('p-titles'),this)"))}
+  <div class="sa-sub">▼ サムネイル（3案・上段/中段/下段）</div>
+  <textarea id="yt-p-thumbs" placeholder="上段/中段/下段" style="min-height:52px;font-size:11px;"></textarea>
+  ${row(b('📋 サムネをコピー',"copyText(ytVal('p-thumbs'),this)"))}
+</div>
+
+<div class="sa-card" style="margin-top:8px;">
+  <h2>3. 概要欄・X</h2>
+  <div class="sa-sub">▼ 概要欄（本文）</div>
+  <textarea id="yt-p-desc" placeholder="導入文（問いかけ）／キーワード行／内容の要約（200〜250字）" style="min-height:70px;font-size:11px;"></textarea>
+  ${row(b('📋 概要欄をコピー',"try{copyText(ytPostDesc(),this)}catch(e){alert(e.message)}",'background:#0d9488;color:#fff;'))}
+  <div style="font-size:10px;color:var(--text-sub);">コピーすると、本文のあとに note の案内（設定のURL）と定型文（使用ツール・AIの注意書き）が付きます。</div>
+  <div class="sa-sub">▼ X（旧Twitter）</div>
+  <textarea id="yt-p-x" placeholder="120字程度・空行なし・URLは貼り付けるときに足す" style="min-height:52px;font-size:11px;"></textarea>
+  ${row(b('📋 Xをコピー',"copyText(ytVal('p-x'),this)"))}
+</div>
+</div>
+
 <div id="yt-pane-settings" style="display:none;">
 <div class="sa-card">
   <h2>設定</h2>
@@ -8089,10 +8238,12 @@ ${yaBuildPaneHtml()}</div>
   ${set('チャート期間','<input type="number" id="yt-months" value="12" min="1" max="60" style="width:60px;flex:none;font-size:11px;padding:4px;">','ヶ月')}
   ${set('試聴の前後','<input type="number" id="ya-ctx" value="2" min="0" max="10" step="0.5" style="width:60px;flex:none;font-size:11px;padding:4px;">','秒（音声カットの▶・試聴で、前後に足す長さ）')}
   ${set('NotebookLMの長さ','<input type="number" id="yt-nlm-min" value="12" min="3" max="30" style="width:60px;flex:none;font-size:11px;padding:4px;">','分（指示文に書く目安）')}
+  <div class="sa-sub">▼ 概要欄の定型文（使用ツール・AIの注意書き）</div>
+  <textarea id="yt-p-fixed" style="min-height:90px;font-size:11px;">${esc(YT_POST_FIXED)}</textarea>
 </div>
 </div>`;
 }
-const YT_PERSIST_IDS=['vd-orient','yt-doc','yt-note-url','yt-months','yt-nlm-min','yt-yomi','yt-yomi-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan'];
+const YT_PERSIST_IDS=['vd-orient','yt-doc','yt-post','yt-p-titles','yt-p-thumbs','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-yomi','yt-yomi-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan'];
 function ytRestoreFields(){
   let st=null;try{st=JSON.parse(localStorage.getItem(SA_STORAGE_KEY)||'null');}catch(e){}
   if(!st||!st.fields)return;
