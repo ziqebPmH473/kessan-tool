@@ -1383,7 +1383,7 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
   <!-- 横動画のナレスラ（スライド画像と読み取った位置） -->
   <div id="yn-view" style="display:none;flex-direction:column;gap:6px;flex:1;overflow-y:auto;">
     <div style="font-size:11px;color:var(--text-sub);">スライド画像と、Geminiが読み取ったまとまりの位置（枠）。ズーム・四角枠・ハイライトの位置に使います。</div>
-    <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;">
+    <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;position:sticky;top:0;z-index:5;background:var(--bg,#fff);padding:2px 0;">
       <button class="btn-sm" onclick="ynGo(-1)" style="flex:none;">◀ 前</button>
       <span id="yn-pos" style="font-size:11px;color:var(--text-sub);">-</span>
       <button class="btn-sm" onclick="ynGo(1)" style="flex:none;">次 ▶</button>
@@ -8790,7 +8790,14 @@ function yaSnapOnset(t){const g=yaFindSilenceNear(t,0.50);if(!g||t<g.s-0.40||t>g
 function yaCutRange(c){
   const s=YA.sents[c.n-1];if(!s)return null;
   let a=s.ci0,b=s.ci1;
-  if(c.part){const np=yaNorm(c.part);let k=(c.pos!=null&&s.nt.substr(c.pos,np.length)===np)?c.pos:s.nt.indexOf(np);if(k<0||!np)return null;a=s.ci0+k;b=a+np.length-1;}
+  if(c.part){
+    const np=yaNorm(c.part);if(!np)return null;
+    let k=(c.pos!=null&&s.nt.substr(c.pos,np.length)===np)?c.pos:s.nt.indexOf(np);
+    if(k<0&&c.pos!=null&&c.pos>=0&&c.pos<s.nt.length)k=c.pos;   // 文字が合わなくても、選んだ位置が分かっていればそこを使う
+    if(k<0)return null;
+    a=s.ci0+k;b=Math.min(s.ci1,a+np.length-1);
+    if(b<a)return null;
+  }
   const next=YA.chars[b+1];
   const st=yaSnapOnset(YA.chars[a].s),en=next?yaSnapOnset(next.s):{t:YA.dur,ok:true};
   if(en.t-st.t<0.05)return null;
@@ -8819,11 +8826,12 @@ function yaPrompt(){
 4＝重要な論点、判断材料となる事実や数字。
 3＝補足説明、具体例、言い換えによる説明。
 2＝すでに話した内容の繰り返し、脇道、細かすぎる説明。
-1＝不要。間延びしたやり取り、内容のない相槌だけの文、2回目以降のまとめ。
+1＝不要。間延びしたやり取り、内容のない相槌だけの文（「はい」「ええ」「そうですね」）、感嘆だけの文（「へえ」「なるほど」「すごいですね」）、直前の発言をそのまま言い換えただけの復唱、話の流れを止める合いの手、2回目以降のまとめ。
 ・5点は全体の長さの${Math.min(60,Math.max(20,keep-15))}%程度までに絞る（多すぎると目標の長さまで削れない）。
 ・同じ内容を複数回話している場合は、一番分かりやすい1回を高く、他を低くする。
 ・問いとその答えは同じ点数にそろえる（問いだけ残って答えが消える、またはその逆にならないように）。
 ・相槌や受けの一言でも、話の切り替えや強調として効いているものは高くしてよい。全部を1点にしない。
+・ただし、相槌や感嘆が続く箇所、同じ反応の繰り返し、相手の発言の復唱は、後のものから低くする。
 
 【must：点数と関係なく必ず削る文】
 特定の銘柄・業種について視聴者に売買を勧める発言（「今が買い時」「買うべき」「売るべき」等）と、目標株価・買い水準の提示だけ。
@@ -8834,8 +8842,10 @@ function yaPrompt(){
 視聴者への行動要求や断定的な指示の言い回し（「〜してはいけません」「〜すべきです」「〜する必要があります」等）。人が聞いて判断する。
 
 【parts：文の一部だけ削る】
-文頭の受けの一言や言いよどみ（「ええ、」「そうですね、」「あの、」等）で、残りの部分だけで自然につながるもの。削る文字列を原文どおりに入れる。
+文頭の受けの一言や言いよどみ（「ええ、」「そうですね、」「あの、」等）、文中の感嘆や合いの手（「なるほど、」「へえ、」等）、
+直前の発言をなぞっただけの復唱部分で、残りだけで自然につながるもの。削る文字列を原文どおりに入れる。
 例：「そうですね、緩和的と言えます。」→ part は「そうですね、」
+例：「なるほど、つまり海外で稼いでいるということですね。」→ part は「なるほど、」
 
 【出力】JSONをコードブロック1つでそのまま出力する。出典・引用・注釈・説明は付けない（出力をそのままツールに貼るため）。
 {"sections":[{"from":開始の文番号,"to":終了の文番号,"title":"章の短い名前"}],
@@ -8937,7 +8947,12 @@ function yaAddManualPart(n){
   const s=YA.sents[g.n-1];
   if(yaNorm(g.part)===s.nt){yaToggleSentence(g.n,true);window.getSelection().removeAllRanges();yaHideSelBtn();return;}   // 文全体なら文ごと削る
   const c={n:g.n,part:g.part,pos:g.pos,kind:'part',score:0,reason:'手動',on:true,manual:true,manualOn:true};
-  const r=yaCutRange(c);if(!r){alert('位置を計算できませんでした');return;}
+  const r=yaCutRange(c);
+  if(!r){
+    window.getSelection().removeAllRanges();yaHideSelBtn();
+    if(confirm('選んだ部分の位置を計算できませんでした。この文をまるごと削りますか？'))yaToggleSentence(g.n,true);
+    return;
+  }
   YA.cuts.push(Object.assign(c,r));window.getSelection().removeAllRanges();yaHideSelBtn();yaSave();yaRender(true);yaStop();yaAudition(c);
 }
 // 選んだらそのそばに「✂ 選んだ部分を削る」を出す
