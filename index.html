@@ -458,6 +458,9 @@
 .yl-st.ok{background:#bbf7d0;color:#166534;} .yl-st.ng{background:#fecaca;color:#991b1b;}
 .yl-no,.yl-ty{flex:none;color:var(--text-sub);}
 .ys-when{font-size:10px;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ys-unused{opacity:.45;}
+.ys-tag{display:inline-block;font-size:9px;line-height:14px;padding:0 6px;border-radius:7px;color:#fff;vertical-align:1px;}
+.ys-tag.chart{background:#d97706;} .ys-tag.off{background:#64748b;}
 .ys-btns{display:flex;gap:3px;margin-top:3px;}
 /* スライドの直し：チェックの並び */
 .yt-fixes{display:flex;flex-wrap:wrap;gap:2px 10px;margin:4px 0;}
@@ -9640,7 +9643,8 @@ async function ynExport(btn){
         decorations.push({id:++id,type:'image',imgX1:.5,imgY1:.5,imgX2:.5,imgY2:.5,color:'#e94560',
           startTime:+sp.s.toFixed(2),endTime:+sp.e.toFixed(2),startSil:null,endSil:null,opacity:100,animIn:'fade',animOut:'fade',
           imgRef:ref,imgW:got&&got.w?got.w:1200,imgH:got&&got.h?got.h:700,scale:.9,shadow:false,blur:2,dim:30,
-          imgName:got?`出典${sp.no} ${String(got.name||'').slice(0,30)}`:`出典${sp.no}（差し替え）`});
+          imgName:((ytSources().find(y=>String(y.no)===String(sp.no))||{}).kind==='chart'?'チャート（TradingView）':'')+(got?`出典${sp.no} ${String(got.name||'').slice(0,30)}`:`出典${sp.no}（差し替え）`)});
+        if((ytSources().find(y=>String(y.no)===String(sp.no))||{}).kind==='chart')continue;   // チャートは画像にロゴが入るので表記なし
         decorations.push({id:++id,type:'text',imgX1:.0096,imgY1:.97,imgX2:.0096,imgY2:.97,color:'#ffffff',
           startTime:+sp.s.toFixed(2),endTime:+sp.e.toFixed(2),startSil:null,endSil:null,opacity:70,lineWidth:3,
           animIn:'none',animOut:'switch',text:String(sp.label||sp.name||'').slice(0,90),textStyle:'simple',align:'left',size:.6});
@@ -9757,6 +9761,9 @@ function ytSources(){
   return ytParseSources().map(s=>{
     const x=Object.assign({},s,YS.edit[s.no]||{});
     const us=ytUrlsIn(x.url);x.urls=us;if(us.length)x.url=us[0];   // 1つの欄に複数あるときは先頭を使う
+    // 種類：手で決めていなければ、資料名から判定（株価・指数の値動きはチャート）
+    if(x.kind!=='chart'&&x.kind!=='doc')x.kind=/株価|時系列|チャート|日経平均|TOPIX|指数|TradingView/i.test(x.name||'')?'chart':'doc';
+    if(x.kind==='chart')x.tv=`https://jp.tradingview.com/chart/?symbol=${encodeURIComponent(/日経平均|日経225/.test(x.name||'')?'TVC:NI225':/TOPIX/i.test(x.name||'')?'TSE:TOPIX':ynTicker())}`;
     return x;
   });
 }
@@ -9787,12 +9794,16 @@ function ysRender(){
     if(g&&g.blob){const u=URL.createObjectURL(g.blob);YS.urls.push(u);th=`<img class="ys-th" src="${u}">`;}
     const pdf=/\.pdf(\?|#|$)/i.test(s.url||'');
     const w=ysWhere(s.no);
-    return `<div class="ys-row">${th}
-<div class="ys-info"><div class="ys-name" title="${esc(s.name)}${s.note?'／'+esc(s.note):''}">${s.isChart?'':`<b>${esc(s.no)}</b> `}${esc(s.name)}${s.page?` <span style="color:var(--text-sub);">${esc(s.page)}</span>`:''}${YS.edit[s.no]?' <span style="color:#0d9488;">直し済み</span>':''}</div>
-<div class="ys-url">${s.url?`<a href="${esc(s.url)}" target="_blank" rel="noopener" title="${esc(s.url)}">${esc(s.url)}</a>`:'URLなし'}</div>
+    const unused=!!YN.plan&&!w;                       // 割り当て済みなのに、どこにも差し込まれていない
+    const chart=s.isChart||s.kind==='chart';
+    const link=chart&&s.tv?s.tv:s.url;
+    return `<div class="ys-row${unused?' ys-unused':''}">${th}
+<div class="ys-info"><div class="ys-name" title="${esc(s.name)}${s.note?'／'+esc(s.note):''}">${s.isChart?'':`<b>${esc(s.no)}</b> `}${esc(s.name)}${s.page&&!chart?` <span style="color:var(--text-sub);">${esc(s.page)}</span>`:''}${chart?' <span class="ys-tag chart">チャート</span>':''}${unused?' <span class="ys-tag off">未使用</span>':''}</div>
+<div class="ys-url">${link?`<a href="${esc(link)}" target="_blank" rel="noopener" title="${esc(link)}">${chart?'TradingView で開く：':''}${esc(link)}</a>`:'URLなし'}</div>
 <div class="ys-when" title="${w?esc(w.text):''}">${w?`差し込み ${yaTc(yaToEdit(w.s,yaKeep()))}〜${yaTc(yaToEdit(w.e,yaKeep()))}（カット後）${w.text?`：${esc(w.text.slice(0,40))}`:''}`:'差し込み位置は未定（先に「1. 演出の割り当て」）'}</div>
 <div class="ys-btns">
-${s.url&&!s.isChart?`<button class="ya-nd" onclick="ysGrab(${i},this)" title="${pdf?ysPageNo(s.page)+'ページを取り直す':'URLから取り直す'}">⬇ 取得</button>`:''}
+${s.url&&!chart&&!unused?`<button class="ya-nd" onclick="ysGrab(${i},this)" title="${pdf?ysPageNo(s.page)+'ページを取り直す':'URLから取り直す'}">⬇ 取得</button>`:''}
+${s.isChart?'':`<button class="ya-nd" onclick="ysKind(${i})" title="種類を切り替える（資料 ⇄ チャート）">${chart?'資料にする':'チャートにする'}</button>`}
 ${s.isChart?'':`<button class="ya-nd" onclick="ysEdit(${i})" title="資料名・URL・ページ・表記を直す">✎</button>`}
 <button class="ya-nd" onclick="ysPick(${i})" title="画面を撮った画像を選ぶ">📁</button>
 <button class="ya-nd" onclick="ysPasteImg(${i})" title="クリップボードの画像を貼り付け">📋</button>
@@ -9818,11 +9829,17 @@ ${f('資料名','name',s.name)}${f('URL','url',s.url)}${f('ページ','page',s.p
   document.body.appendChild(ov);YS.editOv=ov;
 }
 function ysEditClose(){if(YS.editOv){YS.editOv.remove();YS.editOv=null;}}
+function ysKind(i){
+  const s=ysItem(i);if(!s||s.isChart)return;
+  const d=Object.assign({},YS.edit[s.no]||{});d.kind=s.kind==='chart'?'doc':'chart';
+  YS.edit[s.no]=d;ysSaveEdit();ysRender();
+}
 function ysEditOk(i){
   const s=ysItem(i);if(!s)return ysEditClose();
   const v=k=>{const el=document.getElementById('ys-e-'+k);return el?el.value.trim():'';};
   const base=ytParseSources().find(x=>String(x.no)===String(s.no))||{};
   const d={};['name','url','page','label'].forEach(k=>{if(v(k)!==(base[k]||''))d[k]=v(k);});
+  const kind=(YS.edit[s.no]||{}).kind;if(kind)d.kind=kind;
   if(Object.keys(d).length)YS.edit[s.no]=d;else delete YS.edit[s.no];
   ysSaveEdit();ysEditClose();ysRender();
 }
@@ -9833,8 +9850,8 @@ function ysEditReset(i){
 
 // ---- まとめて取得（まだ画像が無い行だけ。範囲は全体のままなので、あとで ✂ で詰める）----
 async function ysGrabAll(btn){
-  const list=ysSources().filter(s=>s.url&&!YS.imgs[s.no]);
-  if(!list.length){ynStatus('取得するものがありません（URLがあって、まだ画像が無い行が対象です）','','src-status');return;}
+  const list=ysSources().filter(s=>s.url&&!YS.imgs[s.no]&&s.kind!=='chart'&&(!YN.plan||ysWhere(s.no)));
+  if(!list.length){ynStatus('取得するものがありません（差し込まれている資料で、まだ画像が無い行が対象です。チャートは TradingView で撮って 📁／📋 で入れます）','','src-status');return;}
   if(btn)btn.disabled=true;
   let ok=0,ng=[];
   try{
