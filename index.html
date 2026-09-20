@@ -441,9 +441,9 @@
 .yn-hd2{font-weight:700;margin-bottom:2px;}
 .yn-it{display:flex;gap:6px;align-items:center;line-height:1.8;white-space:nowrap;}
 .yn-k{flex:none;width:52px;text-align:center;border-radius:8px;font-size:10px;color:#fff;}
-.yn-sel{flex:none;width:86px;font-size:11px;padding:0 2px;height:20px;border:1px solid #94a3b8;border-radius:4px;background:#fff;color:#0f172a;}
-.yn-in{width:38px;font-size:11px;height:20px;padding:0 3px;border:1px solid #94a3b8;border-radius:4px;text-align:center;}
-.yn-in.yn-zn{width:48px;} .yn-nn{flex:none;display:inline-flex;align-items:center;gap:3px;}
+.sa select.yn-sel,select.yn-sel{flex:none;width:92px;font-size:11px;line-height:18px;padding:0 2px;height:22px;box-sizing:border-box;border:1px solid #94a3b8;border-radius:4px;background:#fff;color:#0f172a;}
+.sa input.yn-in,input.yn-in{width:40px;font-size:11px;height:22px;box-sizing:border-box;padding:0 3px;border:1px solid #94a3b8;border-radius:4px;text-align:center;}
+.sa input.yn-in.yn-zn,input.yn-in.yn-zn{width:52px;} .yn-nn{flex:none;display:inline-flex;align-items:center;gap:3px;}
 .yn-go{font-size:10px;line-height:16px;padding:0 5px;border:1px solid #94a3b8;border-radius:4px;background:#f1f5f9;cursor:pointer;}
 .yn-add{border-top:1px dashed #cbd5e1;margin-top:3px;padding-top:3px;}
 .ya-flash{background:#fef08a!important;transition:background .3s;}
@@ -458,6 +458,10 @@
 .ys-info{flex:1;min-width:0;font-size:11px;line-height:1.4;}
 .ys-url{font-size:10px;color:var(--text-sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ys-url a{color:#2563eb;}
+.yp-row{display:flex;gap:4px;align-items:flex-start;margin-top:3px;}
+.yp-row textarea{flex:1;min-width:0;min-height:34px;font-size:11px;padding:3px 5px;}
+.yp-no{flex:none;width:16px;text-align:center;font-size:11px;font-weight:700;color:var(--text-sub);line-height:24px;}
+.yp-btns{flex:none;display:flex;flex-direction:column;gap:2px;}
 .yl-row{display:flex;gap:6px;align-items:center;font-size:10px;line-height:1.6;white-space:nowrap;overflow:hidden;}
 .yl-row a{color:#2563eb;overflow:hidden;text-overflow:ellipsis;min-width:0;}
 .yl-st{flex:none;width:44px;text-align:center;border-radius:8px;font-size:10px;}
@@ -8407,41 +8411,118 @@ function ytFixClear(){
 // ---- 投稿文（タイトル・サムネ・概要欄・X）----
 // 土台は docs/prompts/gem-youtube-rules.md（ユーザーが Gem で使っていたルール）。
 // 関連動画のURL・動画管理表・VOICEVOX は使わない。シリーズ名は「私が知らなかった実力株」。
-const YT_POST_RULES=`あなたはYouTubeチャンネルの成長戦略顧問です。次の動画の「タイトル・サムネイル・概要欄・X（旧Twitter）の投稿文」を作ってください。
+const YT_POST_RULES=`あなたはYouTubeチャンネルの成長戦略顧問です。下の【運用ルール】に厳密に従って、この動画の「タイトル案3本・サムネ案3本・概要欄・X投稿案」を作ってください。
 
-【チャンネルの方針】
-・視聴者は、投資を始めて間もない人から経験の長い人まで幅広い。
-・話題の単語・とっつきやすい言葉を主役にし、専門用語は脇役にする。
-・「純有利子負債」「D/Eレシオ」「受注高〇〇円」のような財務・会計の専門用語は、タイトルとサムネでは使わない。その言葉が意味する結果（例：借金ゼロ目前、財務が鉄壁に）を、平易で感情に届く言葉で書く。
-・フックは、①その銘柄ならではの事業のギャップ（例：好調な日本と不調な米州、人気ブランドの失速、特定事業の特需）を最優先にする。弱いときだけ②財務のギャップ（例：本業は増益なのに最終赤字）を使う。
-・「増収増益で買われた」「下方修正で売られた」のような順当な結論は禁止（見ただけで答えが分かり、興味が止まるため）。
-・「上方修正なのに株価は下落」のような矛盾（ギャップ）は、結論ではなく「問い」として使ってよい。
+【運用ルール（原文）】
+0. チャンネル運用戦略（ターゲット＆トーン）
+以下のターゲットとアプローチは、タイトル、サムネイル、概要欄、そして動画構成案のすべてに共通する最上位の指針とする。
 
-【タイトル：3案】
-・その動画を見て得られるもの（何が分かるか）を着地点にする。「〜の裏側とは？」だけのような抽象的な表現は禁止。
-・先頭に【銘柄名（証券コード）】、末尾に「｜私が知らなかった実力株」を付ける。
-・結論・煽り・スペース（空白）・引用符（「」“”）は使わない。（）【】と ！ ？ は使ってよい。
-・株価が動いた結果そのものではなく、その会社・その決算の注目点に焦点を当てる。
+🎯 メインターゲット: 投資経験の深い層から、投資を始めて間もない「初心者に見える層」まで、幅広い投資家層を包摂的にターゲットとする。
 
-【サムネイル：3案】
-・スラッシュ区切りの1行（上段/中段/下段）。ラベルは書かない。
-・上段＝感情・問題提起（全角8〜10字）／中段＝銘柄名または注目点（全角6〜9字）／下段＝抽象的な問いかけ（全角8〜10字）。
-・！ ？ ・数値・株価の方向性（上昇／下落）・シリーズ名・スペース・「AI」などの強調語は使わない。
+💡 アプローチ戦略（共通原則）:
 
-【概要欄】
-・1行目：導入文。問いかけの形にして、どの視点（決算・事業戦略・国策など）で分析するかの切り口を入れる（30〜50字）。
-・2行目：キーワード行（半角スペース区切り・検索用）。
-・3〜5行目：内容の要約（動画で扱う焦点、変化の向き）。
-・全体は200〜250字。結論は書かない。その銘柄ならではの焦点を必ず入れる。「①〜⑦」のような見出し表記は使わない。
-・使用ツールやAIの注意書きはツール側で付けるので、書かないでください。
+「話題の単語を主役とし、専門用語は脇役とする」：タイトルやサムネイルでは、その銘柄やテーマの本質的な特徴を表す「話題の単語」や「とっつきやすい言葉」（例：防衛宇宙、国策銘柄、爆益チャンスなど）を優先的に使用し、視聴者の関心を惹きつけるフックとする。
 
-【Xの投稿文】
-・動画の核心の問いかけ・注目ポイントを、絵文字を交えて全角120字程度にまとめる。
-・空行は入れない（改行は文の区切りで1回だけ）。ハッシュタグは本文の直後の行に置く。
-・結論・煽り・絵文字の使いすぎは禁止。動画のタイトルをそのまま載せない。動画のURLは書かない（あとで貼り付けるため）。
+専門的な数値や細かな用語（例：受注高〇〇円、増益率など）は、補助的な要素として必要最低限の使用に留める。
+
+【重要】「難解な専門用語」の定義: 「純有利子負債」「D/Eレシオ」「GTCC」「受注高〇〇円」のような財務・会計・事業系の専門用語は、それ自体が「難解」であるとみなし、フック（タイトルやサムネの最前線）で使用することを原則禁止する。代わりに、それらが意味する「結果」（例：「借金ゼロ目前」「財務が鉄壁に」「なぜか株が売られる」）を、より平易で感情に訴えかける言葉で表現する。
+
+【優先フックの定義（具体性の担保）】
+フックを選定する際、視聴者の「あ、それそれ！」という「自分ごと感（銘柄固有の関心事）」を最優先で刺激する。
+
+* （最優先フック） 銘柄固有の事業ギャップ:
+    その銘柄ならではの具体的な事業・ブランドの状況（例：「好調な日本 vs 不調な米州」「人気ブランドの失速」「特定事業（防衛宇宙）の特需」）をフックとする。
+
+* （次点フック） 汎用的な財務ギャップ:
+    上記（最優先フック）が弱い、または存在しない場合のみ、「コア利益は増益なのに最終赤字」といった汎用的な財務上の矛盾をフックとして使用する。
+
+これにより、「（資生堂だから）米州事業が気になる」といった、銘柄固有の関心を持つ層のCTRを最大化する。
+
+これにより、初心者層の心理的ハードルを下げつつ、中上級者層にも価値のある情報であることを示唆し、結果としてチャンネル全体のクリック率（CTR）と再生数の最大化を目指す。
+
+🚫 「結論の禁止」と「ギャップ戦略」の定義（最重要ルール）
+ルール2で禁止する「結論」と、ルール0で推奨する「フック」の境界を以下のように明確に定義する。
+
+1. 原則禁止（順当な結論）
+視聴者が「そらそうだろ」と納得し、好奇心が停止してしまう「予測通りの結論」をタイトル・サムネで提示することを厳格に禁止する。
+* （NG例）: 「増収増益最高益でストップ高」「巨額赤字で株価暴落」「下方修正で売られた」
+* （理由）: これらは「答え」であり、視聴者の「なぜ？」という疑問を生まないため。
+
+2. 例外許可（矛盾した結論 ＝ ギャップ戦略）
+視聴者が「え、なんで？」と強く疑問に思う「予測に反する事実の組み合わせ（＝ギャップ）」は、「結論」ではなく「最強のフック（問い）」とみなし、使用を推奨する。
+* （OK例）: 「上方修正なのに株価下落」「好決算（国策銘柄）なのにナゼ売られた？」「大幅減益なのにストップ高（ナゼ買われた）？」
+
+3. 「結論（単語）」の扱い
+「赤字転落」「下方修正」「ストップ高」「株価下落」といった「結論」を示す単語は、上記（1）のように「順当な結論」として単独で提示することは禁止する。
+ただし、上記（2）のように「矛盾したギャップ」を生み出すための構成要素として使用することは許可する。
+* （NG例）: 「【資生堂】最終赤字520億円に転落！」（←単なる「報告」であり、好奇心が停止する）
+* （OK例）: 「【資生堂】コア利益は増益なのに、なぜ最終赤字へ？」（←「ギャップ」であり、好奇心を刺激する）
+
+2. 禁止事項まとめ（全体共通ルール）
+以下の内容は、タイトル・サムネ・概要欄のすべてにおいて厳格に禁止する。
+
+結論の禁止: 動画の結論（株価変動理由、ストップ高要因、上方修正、増配、最高益など、視聴前に答えがわかる事実）の記載。
+
+記号の禁止:
+
+タイトル：スペース（空白）、引用符（「」や“”）※ただし、（）【】は使用して構わない。また、タイトルでは「！」「？」を使用して構わない。
+
+サムネイル：スペース（空白）、引用符（「」（）や“”）、「！」「？」
+
+📝 タイトル案（3本）
+（※以下のルールに基づき3案提示する）
+* **【最重要】提供価値（ベネフィット）の合致:** 「動画内容」に記述された提供価値（＝視聴者が得られる利益。例：「注目銘柄がわかる」「手法が学べる」）を、必ずタイトルの「着地点（結論の手前）」とすること。CTR向上のためにトレンドワード（時事ネタや話題のテーマ）を使用する場合も、**「（トレンド）の状況下で、（提供価値）を知る」**という構造にし、動画の本来の価値が不明瞭になる抽象的な表現（「～の裏側とは？」のみ等）を禁止する。
+* 禁止: 結論、煽り、スペース、引用符。
+* 形式: 末尾に「｜決算分析」「｜銘柄分析」などの動画シリーズ名を自動判定して付ける。ただし、種別が「ショート」（動画内容や依頼文に「2分」「ショート」等の記載がある場合を含む）と判断され、かつカテゴリが「決算分析」の場合、末尾は「｜注目銘柄」とする。 それ以外の「ショート」動画の場合は、シリーズ名の前に「2分で」を付加する（例：「｜2分で銘柄分析」）。「【銘柄名（証券コード）】」がある場合は先頭に付ける。「【〇〇〇〇年〇月〇日東証マーケット振り返り】」の記述がある場合は末尾に付ける。決算分析動画では決算の結果（増益、減益、増配など）は避け、その企業・決算の注目点に焦点を当てたタイトルにする。
+* 内容: （ルール 0. のアプローチ戦略を適用）「どんな視点で分析するか」「何を読み解くか」を表現する。
+
+🎨 サムネ案（3本）（※以下のルールに基づき3案提示する）
+
+形式: スラッシュ区切りの1行表記（※(上段)などのラベルは記載せず、テキストのみを記述する）
+文字数（絶対厳守）: 1行目と3行目は「必ず全角8文字以上（8〜10文字）」で埋めること。（※7文字以下は禁止。短い場合は修飾語や複合語を組み合わせて文字数を満たす。）2行目＝6〜9文字。
+構成: 上段＝感情・問題提起／中段＝銘柄名または注目すべき内容／下段＝抽象的な焦点・問いかけ （ルール 0. のアプローチ戦略を適用）
+禁止: ！、？、数値、株価の方向性（上昇・下落）、シリーズ名（「東証マーケット振り返り」など）の明示、スペース、「AI」などの強調語。
+
+📄 概要欄（コピペ可・正式フォーマット）（※以下のルールに基づき生成する）
+
+* 構成:
+
+1行目：導入文（フック）
+2行目：キーワード行（SEO特化・半角スペース区切り）
+3〜5行目：内容要約（動画で扱う焦点や構造変化の方向性） （ルール 0. のアプローチ戦略を適用）
+*導入文の必須ルール: 「問いかけ」の形式を最優先とする。その際、単なる問いかけだけでなく、動画が「どの視点（決算、事業戦略、国策など）で分析するか」という切り口を（結論や難解な専門用語を避け）簡潔に含めること。これにより、幅広い層の好奇心と「分析プロセスへの期待感」を同時に満たし、クリックを促す強力なフックとする。
+* 導入文の文字数: 30～50文字以内
+* 文字数（全体）: 200〜250文字以内（メンバーシップ文を除く）。
+* 禁止: 結論の記載、汎用的すぎる説明文（必ず対象銘柄固有の焦点を書く）、冒頭の「①〜⑦」などの見出し表記。
+* AI注意喚起: 必ず挿入し、省略不可。
+
+🕊️ X（旧Twitter）投稿案（コピペ可）
+（※以下のルールに基づき生成する）
+目的: YouTube動画へのクリック・再生を促す、Xからのトラフィックを最大化する。
+内容: 概要欄の「フック（問いかけ）」や、タイトル案を作成する際に抽出した「核心的な視点（なぜ？、どうなる？）」を基に、Xの投稿文として独立した、最も関心を惹きつける文章を再構成する。
+文字数: ユーザー様がURL（動画リンク）を貼り付けることを考慮し、URLを除き、ハッシュタグを含めて全角120文字程度に収める。
+禁止:
+結論の記載（例：増益、減益）、煽り表現、過度な絵文字の使用。
+「（ここに動画URLを貼り付け）」という固定文言の挿入。
+動画タイトル（例：【〇〇（XXXX）】...）を、そのまま本文に貼り付けること、または本文に含めること。空行（空白行）の挿入（※段落分けのために2回連続で改行することを禁止する）。
+東証マーケット振り返りでは銘柄名を入れて、視聴者の興味を引くこと。
+構成（出力形式）:
+**動画の核心的な「問いかけ」や「注目ポイント」を、絵文字を交えつつ、「空行なし（詰め）」**で120文字程度にまとめる。**文の区切りで改行する場合は必ず「1回」のみとし、見た目の空白行を作らないこと。**ハッシュタグも本文の直後の行に（空行を挟まず）配置する。
+
+【この動画での読み替え（運用ルールより優先）】
+・シリーズ名は「私が知らなかった実力株」。タイトルの末尾は「｜私が知らなかった実力株」にする（「｜銘柄分析」などは付けない）。先頭は【銘柄名（証券コード）】。
+・サムネ案は、スラッシュ区切りではなく、ツールの記法「上段：中段：下段」（全角コロン区切り）で書く。
+　- 中段は銘柄名をそのまま書く（言い換えない・マーカーも付けない）。
+　- 上段と下段は、運用ルールの役割・文字数・禁止事項のとおりに作る。
+　- 強調したい語を色のマーカーで囲む：*オレンジ*（いちばん目立たせたい語）、#水色#、%黄色%。1案につき2〜3か所。
+　- 例：「なぜここまで*売られた*のか：銘柄名：#強さ#は%本物%なのか」
+・概要欄は、運用ルールの「1行目 導入文／2行目 キーワード行／3〜5行目 内容要約」までを書く。
+　関連動画・メンバーシップ・使用ツール・AI注意喚起の文は、ツールが後ろに付けるので書かない。
+・X投稿案に動画のURLは書かない。
+・CTR／SEO最適化ポイント、動画管理表は出力しない。
 
 【出力】次の形のJSONだけを出力する。説明文やコードフェンスは不要。
-{"titles":["","",""],"thumbs":["上段/中段/下段","",""],"desc":"","x":""}`;
+{"titles":["","",""],"thumbs":["上段：中段：下段","",""],"desc":"","x":""}`;
 
 function ytPostPrompt(){
   const{plan,report}=ytSlidePartsLoose();
@@ -8486,8 +8567,9 @@ function ytPostApply(){
   let j;try{const m=t.match(/\{[\s\S]*\}/);j=JSON.parse(m?m[0]:t);}
   catch(e){ytStatus('❌ JSONの形が崩れています：'+e.message,'error','post-status');return;}
   const set=(id,v)=>{const el=ytEl(id);if(el)el.value=v;};
-  set('p-titles',(j.titles||[]).filter(Boolean).join('\n'));
-  set('p-thumbs',(j.thumbs||[]).filter(Boolean).join('\n'));
+  // サムネは「上段：中段：下段」の形にそろえる（／や半角:で返ってきても直す）
+  const thumb=s=>String(s||'').trim().replace(/\s*[\/／]\s*/g,'：').replace(/:/g,'：');
+  [1,2,3].forEach(k=>{set('p-t'+k,String((j.titles||[])[k-1]||'').trim());set('p-s'+k,thumb((j.thumbs||[])[k-1]));});
   set('p-desc',String(j.desc||''));
   set('p-x',String(j.x||''));
   saveState();
@@ -8505,6 +8587,14 @@ async function ytPostAi(btn){
     ytPostApply();
   }catch(e){ytStatus('❌ '+e.message,'error','post-status');}
   finally{if(btn)btn.disabled=false;}
+}
+// サムネ案を、右のサムネイル（th-input）に入れて表示する
+function ytThumbUse(k){
+  const v=ytVal('p-s'+k);if(!v){alert('サムネ案が空です');return;}
+  const ta=document.getElementById('th-input');if(!ta)return;
+  ta.value=v;saveState();
+  if(typeof setMode==='function')setMode('thumb');
+  if(typeof renderThumbPreview==='function')renderThumbPreview();
 }
 // 概要欄＝AIの本文＋noteの案内＋定型文（使用ツール・AIの注意書き）
 function ytPostDesc(){
@@ -8626,12 +8716,10 @@ ${yaBuildPaneHtml()}</div>
 
 <div class="sa-card" style="margin-top:8px;">
   <h2>2. タイトル・サムネイル</h2>
-  <div class="sa-sub">▼ タイトル（3案・1行に1案）</div>
-  <textarea id="yt-p-titles" placeholder="【銘柄名（コード）】…｜私が知らなかった実力株" style="min-height:52px;font-size:11px;"></textarea>
-  ${row(b('📋 タイトルをコピー',"copyText(ytVal('p-titles'),this)"))}
-  <div class="sa-sub">▼ サムネイル（3案・上段/中段/下段）</div>
-  <textarea id="yt-p-thumbs" placeholder="上段/中段/下段" style="min-height:52px;font-size:11px;"></textarea>
-  ${row(b('📋 サムネをコピー',"copyText(ytVal('p-thumbs'),this)"))}
+  <div class="sa-sub">▼ タイトル（3案）</div>
+  ${[1,2,3].map(k=>`<div class="yp-row"><span class="yp-no">${k}</span><textarea id="yt-p-t${k}" rows="2" placeholder="【銘柄名（コード）】…｜私が知らなかった実力株" oninput="saveState()"></textarea><button class="ya-nd" onclick="copyText(ytVal('p-t${k}'),this)">コピー</button></div>`).join('')}
+  <div class="sa-sub">▼ サムネイル（3案）　上段：中段：下段、*オレンジ* #水色# %黄色%</div>
+  ${[1,2,3].map(k=>`<div class="yp-row"><span class="yp-no">${k}</span><textarea id="yt-p-s${k}" rows="2" placeholder="上段：銘柄名：下段" oninput="saveState()"></textarea><span class="yp-btns"><button class="ya-nd" onclick="copyText(ytVal('p-s${k}'),this)">コピー</button><button class="ya-nd" onclick="ytThumbUse(${k})" title="右のサムネイルに入れて表示する">サムネに入れる</button></span></div>`).join('')}
 </div>
 
 <div class="sa-card" style="margin-top:8px;">
@@ -8659,7 +8747,7 @@ ${yaBuildPaneHtml()}</div>
 </div>
 </div>`;
 }
-const YT_PERSIST_IDS=['vd-orient','yt-doc','yt-theme','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-titles','yt-p-thumbs','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-yomi','yt-yomi-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan'];
+const YT_PERSIST_IDS=['vd-orient','yt-doc','yt-theme','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-t1','yt-p-t2','yt-p-t3','yt-p-s1','yt-p-s2','yt-p-s3','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-yomi','yt-yomi-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan'];
 function ytRestoreFields(){
   let st=null;try{st=JSON.parse(localStorage.getItem(SA_STORAGE_KEY)||'null');}catch(e){}
   if(!st||!st.fields)return;
@@ -9244,6 +9332,7 @@ function yaRender(keepScroll){
   // 演出の割り当てが済んでいれば、スライドが切り替わる文の前に目印を出す
   const swStart={};
   const hasPlan=typeof YN!=='undefined'&&!!(YN.plan&&YN.plan.slides&&YN.plan.slides.length);
+  if(hasPlan)ynPlanNorm();
   if(hasPlan)YN.plan.slides.forEach((x,k)=>{swStart[k===0?1:x.from]=Object.assign({k},x);});   // 1枚目は必ず先頭から
   if(!YA.sents.length){list.innerHTML=`<div style="font-size:12px;color:var(--text-sub);padding:10px;">${YA.mono?'「文字起こし」を押すと、ここに文の一覧が出ます':'左の「音声」タブで NotebookLM の音声を読み込んでください'}</div>`;yaRenderSum();return;}
   // 1文を1行に。左から 番号・修正後の時刻・話者・点数・チェック・▶・✂・調整（幅を固定して、文の開始位置をそろえる）・文
@@ -9260,14 +9349,15 @@ function yaRender(keepScroll){
     const box=mc?`<input type="checkbox" data-k="${mk}" ${mc.on?'checked':''} title="${esc(mc.reason||'')}">`:`<input type="checkbox" data-sent="${n}" title="削る">`;
     const parts=ids.filter(k=>YA.cuts[k].kind==='part').map(k=>{const c=YA.cuts[k];return `<label class="ya-part" title="${esc(c.reason||'')}"><input type="checkbox" data-k="${k}" ${c.on?'checked':''}>一部${c.approx?'≈':''}</label>${c.on?adj(k,c):''}`;}).join('');
     const es=yaToEdit(s.s,K);
-    const sw=swStart[n]?`<div class="ya-sw">■ スライド${swStart[n].no}${YN.slides[swStart[n].no-1]?`（${esc(YN.slides[swStart[n].no-1].name)}）`:''}${swStart[n].corner?`／テロップ「${esc(swStart[n].corner)}」`:''}<span data-swsum="${swStart[n].k}"></span>${swStart[n].k>0?`<span class="ya-swb"><button class="ya-nd" data-sw="${swStart[n].k},-1" title="切り替えを1文前へ">▲ 前の文へ</button><button class="ya-nd" data-sw="${swStart[n].k},1" title="切り替えを1文後へ">▼ 後の文へ</button></span>`:''}</div>`:'';
+    const sw=swStart[n]?`<div class="ya-sw" data-goslide="${swStart[n].no}" title="押すと、左のスライドがこの1枚に移ります" style="cursor:pointer;">■ スライド${swStart[n].no}${YN.slides[swStart[n].no-1]?`（${esc(YN.slides[swStart[n].no-1].name)}）`:''}${swStart[n].corner?`／テロップ「${esc(swStart[n].corner)}」`:''}<span data-swsum="${swStart[n].k}"></span>${swStart[n].k>0?`<span class="ya-swb"><button class="ya-nd" data-sw="${swStart[n].k},-1" title="切り替えを1文前へ">▲ 前の文へ</button><button class="ya-nd" data-sw="${swStart[n].k},1" title="切り替えを1文後へ">▼ 後の文へ</button></span>`:''}</div>`:'';
     // 帯は1種類。割り当てが済んでいればスライドの帯、まだならAIの章分けの帯
     const head=hasPlan?sw:(secStart[n]?`<div class="ya-sec">■ ${esc(secStart[n].title)}（${secStart[n].from}〜${secStart[n].to}）<span data-secsum="${n}"></span></div>`:'');
     return `${head}<div class="ya-ln${whole?' cut':''}" data-es="${whole?'':es.toFixed(2)}"><span class="ya-no">${n}</span><span class="ya-tc" data-seek="${es.toFixed(2)}" title="元の時刻 ${yaTc(s.s)}${whole?'':'（押すとカット後の音声をここから再生）'}">${whole?'—':yaTc(es)}</span><span class="ya-sp sp${s.sp}">${s.sp?(s.sp===1?'A':'B'):''}</span>${badge}${box}<button class="ya-go" data-go="${n}" title="${whole?'つなぎ目を再生':'この文を再生'}（カットは飛ばす。もう一度押すと停止）">▶</button><span class="ya-ctl">${tags}${mc&&mc.on?adj(mk,mc):''}${parts}</span><span class="ya-tx" data-n="${n}">${tx}</span></div>`;
   }).join('');
   list.querySelectorAll('input[data-k]').forEach(el=>el.onchange=()=>{const c=YA.cuts[+el.dataset.k];c.on=el.checked;c.manual=true;c.manualOn=el.checked;yaSave();yaRender(true);});
   list.querySelectorAll('input[data-sent]').forEach(el=>el.onchange=()=>yaToggleSentence(+el.dataset.sent,el.checked));
-  list.querySelectorAll('button[data-sw]').forEach(el=>el.onclick=()=>{const [k,d]=el.dataset.sw.split(',').map(Number);ynSlideShift(k,d);});
+  list.querySelectorAll('button[data-sw]').forEach(el=>el.onclick=ev=>{ev.stopPropagation();const [k,d]=el.dataset.sw.split(',').map(Number);ynSlideShift(k,d);});
+  list.querySelectorAll('[data-goslide]').forEach(el=>el.onclick=()=>{YN.cur=+el.dataset.goslide-1;ynGo(0);});
   list.querySelectorAll('button[data-nd]').forEach(el=>el.onclick=()=>{const [k,w,d]=el.dataset.nd.split(',');const c=YA.cuts[+k];if(w==='s')c.adjS=(c.adjS||0)+0.05*d;else c.adjE=(c.adjE||0)+0.05*d;yaSave();yaRender(true);yaStop();yaAudition(c);});
   list.querySelectorAll('[data-seek]').forEach(el=>el.onclick=()=>{if(el.textContent!=='—')yaSeekEdited(+el.dataset.seek);});
   list.querySelectorAll('button[data-go]').forEach(el=>el.onclick=()=>{const n=+el.dataset.go,c=YA.cuts.find(x=>x.n===n&&x.kind!=='part'&&x.on);if(c)yaAudition(c,el);else yaPlaySentence(n,el);});
@@ -9536,7 +9626,7 @@ function ynPlanPrompt(){
 
 【割り当てのルール】
 ${secs.length?`・話題の切れ目：次の文から新しい話題が始まる。${secs.join('、')}。スライドの切り替えは、できるだけこの切れ目に合わせる。
-`:''}・スライドの範囲：1枚目から順に、連続した文の範囲を割り当てる。1枚目は必ず最初の文から始める。飛ばしたり前後させたりしない。スライドが余る場合は最後のスライドに残りを割り当てる。
+`:''}・スライドの範囲：連続した文の範囲を割り当てる。1枚目（表紙）は必ず最初の文から始める。基本はスライドの番号順だが、音声の話の順番がスライドの並びと違うときは、音声の順に合わせてスライドの順番を入れ替えてよい（その内容を話している箇所に、その内容のスライドを出す）。スライドが余る場合は最後のスライドに残りを割り当てる。
 ・ズーム：その話題を話している文の範囲に、対応するまとまりを割り当てる。3秒未満になる範囲には付けない。1枚につき2〜5個まで。
 　隣り合う複数のまとまりを一緒に見せたいときは、zones に番号を複数入れる（例：[2,3]）。1つだけなら [2]。同じまとまりを連続で割り当てない。
 ・強調：数字や結論など、特に注目させたい箇所に付ける。種類は rect（四角枠）、highlight（ハイライト）、underline（下線）。1枚につき0〜3個。ズームと同じ範囲に重ねてよい。
@@ -9586,7 +9676,7 @@ function ynApplyPlan(plan){
   const sents=ynKeptSents();if(!sents.length)throw new Error('文字起こしがありません');
   const at=n=>sents.find(x=>x.n===+n)||null;
   const sl=plan.slides.map(x=>({no:+x.no,from:+x.from,to:+x.to,corner:String(x.corner||'').slice(0,12)}))
-    .filter(x=>x.no>=1&&x.no<=YN.slides.length&&at(x.from)).sort((a,b)=>a.no-b.no);
+    .filter(x=>x.no>=1&&x.no<=YN.slides.length&&at(x.from)).sort((a,b)=>(a.from-b.from)||(a.no-b.no));   // 音声で出てくる順
   if(!sl.length)throw new Error('スライドの範囲が読み取れません');
   // 1枚目は最初の文から。2枚目以降は、近くに章の切れ目（青の帯）があればそこへ寄せる（2文以内）
   const ns=sents.map(q=>q.n),secFrom=(YA.sections||[]).map(x=>+x.from);
@@ -9613,9 +9703,24 @@ function ynApplyPlan(plan){
   const sources=(plan.sources||[]).map(x=>{const s=srcAll.find(y=>String(y.no)===String(x.no));const g=rng(x);return s&&g?{no:String(s.no),label:s.label||s.name,name:s.name,interval:String(x.interval||''),start:String(x.start||''),end:String(x.end||''),...g}:null;}).filter(Boolean);
   const charts=(plan.charts||[]).map((x,i)=>{const g=rng(x);return g?{id:'c'+(i+1),ticker:ynTicker(),interval:String(x.interval||'日足'),start:String(x.start||''),end:String(x.end||''),note:String(x.note||''),...g}:null;}).filter(Boolean);
   YN.plan={slides:sl.map(x=>({...x,...(ynSeg(x.from,x.to)||{})})),zooms,marks,sources,charts};
+  ynPlanNorm();
   ynPut('plan',YN.plan);ynRender();
   ynStatus(`✅ 割り当てました（スライド${sl.length}枚・ズーム${zooms.length}・強調${marks.length}・出典${sources.length}・チャート${charts.length}）`,'ok','status2');
   if(typeof ysRender==='function')ysRender();
+}
+// スライドの並びを、音声で出てくる順（始まりの文の順）にそろえる。
+// 音声の話の順番がスライドの番号順と違うことがある（例：強み→急落の真相 の順で話している）
+function ynPlanNorm(){
+  const P=YN.plan;if(!P||!P.slides||!P.slides.length)return;
+  P.slides.sort((a,b)=>(a.from-b.from)||(a.no-b.no));
+  P.slides=P.slides.filter((x,i,a)=>a.findIndex(y=>y.no===x.no)===i);   // 同じスライドが2回出てきたら、最初の1回だけにする（ナレスラは1枚1区間）
+  const ns=ynKeptSents().map(x=>x.n);if(!ns.length)return;
+  P.slides.forEach((x,i)=>{
+    const nx=P.slides[i+1];
+    x.to=nx?ns[Math.max(ns.indexOf(x.from),ns.indexOf(nx.from)-1)]||x.from:ns[ns.length-1];
+    if(i===0)x.from=ns[0];
+    Object.assign(x,ynSeg(x.from,x.to)||{});
+  });
 }
 // ---- 割り当ての手直し（消す／始まり・終わりを1文ずつ動かす）----
 function ynPlanDel(kind,i){
@@ -9742,15 +9847,21 @@ async function ynExport(btn){
     if(tpl)for(const [k,v] of Object.entries(tpl.extra))zip.file(k,v);
     let id=(p.decIdCtr||0)+1000;
     // スライド画像
-    const slides=[];
-    for(let i=0;i<YN.slides.length;i++){
-      const s=YN.slides[i],ext=(s.name.match(/\.(\w+)$/)||[,'png'])[1].toLowerCase();
+    ynPlanNorm();
+    const order=YN.plan.slides.map(x=>x.no).filter((n,i,a)=>a.indexOf(n)===i);          // 音声で出てくる順
+    const seq=order.concat(YN.slides.map((_,i)=>i+1).filter(n=>!order.includes(n)));      // 使わないスライドは後ろ
+    const byNo={},posOf=no=>seq.indexOf(no)+1;
+    const outSlides=[];
+    seq.forEach((no,i)=>{
+      const s=YN.slides[no-1],ext=(s.name.match(/\.(\w+)$/)||[,'png'])[1].toLowerCase();
       zip.file(`slides/slide-${i}.${ext}`,s.blob);
-      slides.push({name:s.name,file:`slides/slide-${i}.${ext}`,zoomKeyframes:[],id:++id,kind:'image',narMute:0});
-    }
+      byNo[no]={name:s.name,file:`slides/slide-${i}.${ext}`,zoomKeyframes:[],id:++id,kind:'image',narMute:0};
+      outSlides.push(byNo[no]);
+    });
+    const slides=outSlides;
     // ズーム（原音時刻）
     for(const z of YN.plan.zooms){
-      const sl=slides[z.slide-1],zs=(z.zones||[z.zone]).map(k=>(((YN.slides[z.slide-1]||{}).zones)||[])[k-1]).filter(Boolean);
+      const sl=byNo[z.slide],zs=(z.zones||[z.zone]).map(k=>(((YN.slides[z.slide-1]||{}).zones)||[])[k-1]).filter(Boolean);
       if(!sl||!zs.length)continue;   // まとまりが無い＝読み取り前や番号違いは飛ばす
       // 複数のまとまりは、全部を囲む枠にする
       const zone={box:[Math.min(...zs.map(q=>Math.min(q.box[0],q.box[2]))),Math.min(...zs.map(q=>Math.min(q.box[1],q.box[3]))),Math.max(...zs.map(q=>Math.max(q.box[0],q.box[2]))),Math.max(...zs.map(q=>Math.max(q.box[1],q.box[3])))]};
@@ -9828,7 +9939,7 @@ async function ynExport(btn){
     }
     // 切り替え・テロップ・字幕・カット
     const switchPoints=YN.plan.slides.slice(1).map(x=>+x.s.toFixed(2));
-    const cornerTelops=YN.plan.slides.filter(x=>x.corner).map(x=>({id:++id,text:x.corner,accentColor:'#e91e8c',startSlide:x.no,endSlide:x.no,animIn:.5,animOut:.5,sizeMul:1,posX:73,posY:-85,minChars:8}));
+    const cornerTelops=YN.plan.slides.filter(x=>x.corner).map(x=>({id:++id,text:x.corner,accentColor:'#e91e8c',startSlide:posOf(x.no),endSlide:posOf(x.no),animIn:.5,animOut:.5,sizeMul:1,posX:73,posY:-85,minChars:8}));
     const kept=ynKeptSents().map(x=>({text:x.text,s:x.s,e:x.e})).sort((a,b)=>a.s-b.s);
     kept.forEach((x,i)=>{
       if(x.e<x.s+0.3)x.e=x.s+0.6;                                  // 終わりが始まりより前／短すぎる
@@ -10360,7 +10471,7 @@ async function ynPaste(id,after){
 }
 async function ynRestore(){
   const a=await ynGet('slides');
-  const pl=await ynGet('plan');if(pl&&pl.slides)YN.plan=pl;
+  const pl=await ynGet('plan');if(pl&&pl.slides){YN.plan=pl;try{ynPlanNorm();}catch(e){}}
   const tp=await ynGet('tpl');if(tp&&tp.name){const el=ynEl('tpl-name');if(el)el.textContent=`ひな形：${tp.name}`;}
   if(Array.isArray(a)&&a.length)YN.slides=a.map(s=>({name:s.name,blob:s.blob,zones:s.zones||null,...(s.qrOrig?{qrOrig:s.qrOrig}:{}),...(s.qrRect?{qrRect:s.qrRect}:{})}));
   ynRender();
