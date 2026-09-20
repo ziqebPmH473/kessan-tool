@@ -26,7 +26,20 @@ export async function onRequestGet(context) {
   try {
     res = await fetch(u.toString(), { headers: { "User-Agent": UA, "Accept": "application/pdf,image/*,*/*" }, redirect: "follow" });
   } catch (e) {
+    if (new URL(request.url).searchParams.get("check")) {
+      return new Response(JSON.stringify({ ok: false, status: 0, type: "", error: String(e.message || e) }), {
+        headers: { "Content-Type": "application/json; charset=utf-8", "Access-Control-Allow-Origin": "*", "Cache-Control": "no-store" },
+      });
+    }
     return err("取得できませんでした：" + (e.message || e));
+  }
+  // ?check=1 … リンクが生きているかだけを返す（中身は返さない）
+  if (new URL(request.url).searchParams.get("check")) {
+    const type = (res.headers.get("Content-Type") || "").split(";")[0].trim().toLowerCase();
+    try { await res.body?.cancel(); } catch (e) {}
+    return new Response(JSON.stringify({ ok: res.ok, status: res.status, type, finalUrl: res.url }), {
+      headers: { "Content-Type": "application/json; charset=utf-8", "Access-Control-Allow-Origin": "*", "Cache-Control": "no-store" },
+    });
   }
   if (!res.ok) return err(`取得できませんでした（${res.status}）`, 502);
 

@@ -446,6 +446,11 @@
 .ys-info{flex:1;min-width:0;font-size:11px;line-height:1.4;}
 .ys-url{font-size:10px;color:var(--text-sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ys-url a{color:#2563eb;}
+.yl-row{display:flex;gap:6px;align-items:center;font-size:10px;line-height:1.6;white-space:nowrap;overflow:hidden;}
+.yl-row a{color:#2563eb;overflow:hidden;text-overflow:ellipsis;min-width:0;}
+.yl-st{flex:none;width:44px;text-align:center;border-radius:8px;font-size:10px;}
+.yl-st.ok{background:#bbf7d0;color:#166534;} .yl-st.ng{background:#fecaca;color:#991b1b;}
+.yl-no,.yl-ty{flex:none;color:var(--text-sub);}
 .ys-when{font-size:10px;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ys-btns{display:flex;gap:3px;margin-top:3px;}
 /* スライドの直し：チェックの並び */
@@ -1388,9 +1393,9 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
   </div>
 
   <!-- 横動画のナレスラ（スライド画像と読み取った位置） -->
-  <div id="yn-view" style="display:none;flex-direction:column;gap:6px;flex:1;overflow-y:auto;">
+  <div id="yn-view" style="display:none;flex-direction:column;gap:6px;flex:1;">
     <div style="font-size:11px;color:var(--text-sub);">スライド画像と、Geminiが読み取ったまとまりの位置（枠）。ズーム・四角枠・ハイライトの位置に使います。</div>
-    <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;position:sticky;top:0;z-index:5;background:var(--bg,#fff);padding:2px 0;">
+    <div class="row" id="yn-nav" style="flex-wrap:nowrap;gap:6px;align-items:center;position:fixed;top:8px;right:28px;z-index:60;width:auto;background:#fff;padding:4px 8px;border:1px solid var(--border);border-radius:16px;box-shadow:0 2px 8px rgba(15,23,42,.18);">
       <button class="btn-sm" onclick="ynGo(-1)" style="flex:none;">◀ 前</button>
       <span id="yn-pos" style="font-size:11px;color:var(--text-sub);">-</span>
       <button class="btn-sm" onclick="ynGo(1)" style="flex:none;">次 ▶</button>
@@ -7597,11 +7602,17 @@ function ytFactCheckPrompt(){
 特に、数値・固有名詞・日付・シェア・競合名・出典のURLとページ、禁止事項（株価の水準・株価シナリオ・確率・割安水準・売買を促す表現・視聴者への行動要求）を確認してください。
 指摘がある場合には、指摘箇所・指摘内容・修正後内容を記載してください。
 
+出典一覧のURLは、1件ずつ実際に開いて、次の3点を確認してください（確認せずに「問題なし」としない）。
+・そのURLが開けること（開けない・別のページに飛ぶものは、正しいURLに直す）
+・開いた先が、資料名のとおりの資料であること
+・書かれているページ・位置に、本文の該当の記述の根拠があること
+結果は、出典の番号ごとに「開けた／根拠を確認できた」を表にして最初に示してください。
+
 --指示--
 ${ytResearchPrompt(false)}
 
 --動画資料--
-${doc}`;
+${doc}${ytLinkBlock()}`;
 }
 
 
@@ -8243,6 +8254,52 @@ function ytYomi(){
 }
 function ytYomiInput(){ytEl('yomi-for').value=getName();}
 
+// ---- 出典のリンク確認（AIに任せず、実際に開けるかを機械的に確かめる）----
+const YL={res:null};   // [{no,name,url,ok,status,type,error}]
+const ytUrlsIn=s=>(String(s||'').match(/https?:\/\/[^\s|）)」＞>]+/g)||[]).map(u=>u.replace(/[、。,.]+$/,''));
+async function ytCheckLinks(btn){
+  const src=ytParseSources();
+  if(!src.length){ytStatus('動画資料に出典一覧がありません','error','link-status');return;}
+  const jobs=[];src.forEach(s=>ytUrlsIn(s.url).forEach(u=>jobs.push({no:s.no,name:s.name,url:u})));
+  if(!jobs.length){ytStatus('出典一覧にURLがありません','error','link-status');return;}
+  if(btn)btn.disabled=true;
+  try{
+    const out=[];
+    for(let i=0;i<jobs.length;i++){
+      ytStatus(`リンクを確認中… ${i+1}/${jobs.length}`,'','link-status');
+      const j=jobs[i];
+      try{
+        const r=await fetch('/api/grab?check=1&url='+encodeURIComponent(j.url));
+        const d=await r.json();
+        out.push(Object.assign({},j,{ok:!!d.ok,status:d.status||0,type:d.type||'',error:d.error||''}));
+      }catch(e){out.push(Object.assign({},j,{ok:false,status:0,type:'',error:e.message}));}
+    }
+    YL.res=out;ytRenderLinks();
+    const ng=out.filter(x=>!x.ok).length;
+    ytStatus(ng?`❌ ${out.length}件中 ${ng}件が開けません。「②ファクト」のプロンプトに、この結果が入ります`:`✅ ${out.length}件すべて開けました`,ng?'error':'ok','link-status');
+  }finally{if(btn)btn.disabled=false;}
+}
+function ytRenderLinks(){
+  const box=ytEl('link-list');if(!box)return;
+  if(!YL.res){box.innerHTML='';return;}
+  box.innerHTML=YL.res.map(x=>`<div class="yl-row"><span class="yl-st ${x.ok?'ok':'ng'}">${x.ok?'開ける':(x.status||'エラー')}</span>
+<span class="yl-no">出典${esc(x.no)}</span><a href="${esc(x.url)}" target="_blank" rel="noopener" title="${esc(x.url)}">${esc(x.url)}</a>
+${x.ok&&x.type?`<span class="yl-ty">${x.type==='application/pdf'?'PDF':x.type.startsWith('image/')?'画像':'ページ'}</span>`:''}</div>`).join('');
+}
+// ファクトチェックに入れる、リンク確認の結果
+function ytLinkBlock(){
+  if(!YL.res)return '';
+  const ng=YL.res.filter(x=>!x.ok);
+  const pdfLike=YL.res.filter(x=>x.ok&&x.type!=='application/pdf'&&/決算|短信|説明資料|有価証券|中期経営/.test(x.name));
+  if(!ng.length&&!pdfLike.length)return '';
+  return `
+
+--出典のリンク確認の結果（ツールで実際に開いて確認）--
+${ng.length?`次のURLは開けませんでした。正しいURLを探して、出典一覧を直してください（見つからない場合は、その出典と、それに依拠した本文の記述を削除）。
+${ng.map(x=>`・出典${x.no} ${x.name}\n　${x.url}（${x.status||x.error||'エラー'}）`).join('\n')}`:''}${ng.length&&pdfLike.length?'\n\n':''}${pdfLike.length?`次の出典は、元がPDFの資料のはずですが、URLがページ（HTML）になっています。PDFそのもののURLと、根拠が載っているページ番号に直してください。
+${pdfLike.map(x=>`・出典${x.no} ${x.name}\n　${x.url}`).join('\n')}`:''}`;
+}
+
 // ---- 操作 ----
 function ytCopy(kind,btn){
   try{
@@ -8481,6 +8538,9 @@ function ytBuildTabHtml(){
   <div class="sa-sub">▼ ChatGPT 調査プロンプト</div>
   ${row(b('💬 ①調査',"ytCopy('research',this)",G),b('✅ ②ファクト',"ytCopy('fc',this)",G),b('🔁 ③再CK',"ytCopy('recheck',this)",G),b('🔧 ④修正',"ytCopy('fix',this)",G))}
   <textarea id="yt-doc" placeholder="ChatGPTの動画資料をここに貼り付け（②〜④を誤りがなくなるまで繰り返す）" style="min-height:36px;"></textarea>
+  ${row(b('🔗 出典のリンクを確認','ytCheckLinks(this)'))}
+  <div id="yt-link-status" style="display:none;font-size:11px;"></div>
+  <div id="yt-link-list"></div>
   ${row(b('📋 貼り付け',"ytPasteDoc(this)"),`<button class="btn-danger" onclick="if(confirm('動画資料を消しますか？')){ytEl('doc').value='';saveState();}" style="flex:1;">✕ クリア</button>`)}
 </div>
 
@@ -9593,7 +9653,13 @@ async function ysRestore(){
 }
 function ysPageNo(s){const m=String(s||'').match(/\d+/);return m?Math.max(1,parseInt(m[0],10)):1;}
 // 動画資料の出典一覧に、この画面で直した内容を重ねたもの
-function ytSources(){return ytParseSources().map(s=>Object.assign({},s,YS.edit[s.no]||{}));}
+function ytSources(){
+  return ytParseSources().map(s=>{
+    const x=Object.assign({},s,YS.edit[s.no]||{});
+    const us=ytUrlsIn(x.url);x.urls=us;if(us.length)x.url=us[0];   // 1つの欄に複数あるときは先頭を使う
+    return x;
+  });
+}
 function ysItem(i){const a=ytSources();return a[i]||null;}
 // 割り当て済みなら、その出典をどこで差し込むか（時間と、その時間に話している文）
 function ysWhere(no){
