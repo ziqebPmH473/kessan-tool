@@ -441,6 +441,8 @@
 .yn-hd2{font-weight:700;margin-bottom:2px;}
 .yn-it{display:flex;gap:6px;align-items:center;line-height:1.8;white-space:nowrap;}
 .yn-k{flex:none;width:52px;text-align:center;border-radius:8px;font-size:10px;color:#fff;}
+.yn-sel{flex:none;width:78px;font-size:10px;padding:0 2px;height:18px;border-radius:8px;border:none;color:#fff;}
+.yn-sel.k-zooms{background:#2563eb;} .yn-sel.k-marks{background:#db2777;} .yn-sel option{color:#0f172a;background:#fff;}
 .yn-k.k-zooms{background:#2563eb;} .yn-k.k-marks{background:#db2777;} .yn-k.k-sources{background:#0d9488;} .yn-k.k-charts{background:#d97706;}
 .yn-tm{flex:none;color:#475569;} .yn-wh{flex:none;max-width:34%;overflow:hidden;text-overflow:ellipsis;}
 .yn-sd{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;color:#64748b;} .yn-ed{flex:none;display:flex;gap:2px;align-items:center;} .yn-lb{font-size:10px;color:#64748b;margin-left:4px;}
@@ -9133,7 +9135,7 @@ let _yaCtx=null,_yaPlaying=[],_yaPlayBtn=null;
 function yaStop(){_yaPlaying.forEach(p=>{try{p.stop();}catch(e){}});_yaPlaying=[];if(_yaPlayBtn){_yaPlayBtn.classList.remove('on');_yaPlayBtn=null;}}
 const yaCtxSec=()=>{const v=parseFloat(yaVal('ctx'));return isNaN(v)?2:Math.max(0,Math.min(10,v));};
 // 残す区間（カットの補集合）
-function yaKeep(){const m=yaMerged(),k=[];let p=0;for(const c of m){if(c.start>p)k.push([p,c.start]);p=Math.max(p,c.end);}if(p<YA.dur)k.push([p,YA.dur]);return k;}
+function yaKeep(){const m=yaMerged(),k=[];let p=0;for(const c of m){if(c.start>p)k.push([p,c.start]);p=Math.max(p,c.end);}const end=YA.dur>0?YA.dur:Infinity;if(p<end)k.push([p,end]);return k;}
 // 元の時刻 → 編集後の時刻（カットの中なら、そのカットの位置）
 function yaToEdit(t,K){let e=0;for(const [s,f] of K){if(t<=s)return e;if(t<f)return e+(t-s);e+=f-s;}return e;}
 // 元の時刻 a〜b の範囲を、編集後の時間で前後 pre/post 秒広げて、カットを飛ばした再生区間の列にする
@@ -9353,6 +9355,7 @@ async function yaRestore(){
   if(a&&a.blob){
     let f=a.blob;try{f=new File([a.blob],a.name||'narration',{type:a.blob.type});}catch(e){}
     await yaLoadFile(f,true);
+    if(typeof ynRender==='function')ynRender();if(typeof ysRender==='function')ysRender();
     if(st&&st.stock&&st.stock!==getName())yaStatus('st-tr',`⚠ 保存されている音声は「${esc(st.stock)}」のものです（${esc(YA.fileName)}）。別の銘柄なら読み込み直してください`,'error');
   }
   yaRender();
@@ -9453,7 +9456,8 @@ function ynRender(){
     const fix=z=>{if(z.from!=null&&z.to!=null)return;const hit=sents.filter(x=>x.e>z.s+0.05&&x.s<z.e-0.05);if(hit.length){z.from=hit[0].n;z.to=hit[hit.length-1].n;}};
     ['zooms','marks','sources','charts'].forEach(k=>(YN.plan[k]||[]).forEach(fix));
     const said=z=>{const a=sents.filter(x=>x.n>=z.from&&x.n<=z.to).map(x=>x.text).join(' ');return a.length>46?a.slice(0,46)+'…':a;};
-    const line=(kind,i,z,what)=>`<div class="yn-it"><span class="yn-k k-${kind}">${ynKinds[kind]}</span>
+    const pick=(kind,i,cur)=>`<select class="yn-sel k-${kind}" title="演出の種類を変える" onchange="ynPlanKind('${kind}',${i},this.value)">${[['zoom','ズーム'],['rect','四角枠'],['highlight','ハイライト'],['underline','下線']].map(o=>`<option value="${o[0]}"${o[0]===cur?' selected':''}>${o[1]}</option>`).join('')}</select>`;
+    const line=(kind,i,z,what,cur)=>`<div class="yn-it">${cur?pick(kind,i,cur):`<span class="yn-k k-${kind}">${ynKinds[kind]}</span>`}
 <span class="yn-tm" title="元の音声では ${yaTc(z.s)}〜${yaTc(z.e)}">${yaTc(te(z.s))}〜${yaTc(te(z.e))}（${ynEditLen(z.s,z.e).toFixed(1)}秒）</span>
 <span class="yn-wh">${what}</span><span class="yn-sd" title="${esc(sents.filter(x=>x.n>=z.from&&x.n<=z.to).map(x=>x.text).join(' '))}">${said(z)?`話している文：「${esc(said(z))}」`:''}</span>
 <span class="yn-ed"><span class="yn-lb">始まり</span><button class="ya-nd" title="始まりを1文前へ（早く出す）" onclick="ynPlanShift('${kind}',${i},'s',-1)">◀</button><button class="ya-nd" title="始まりを1文後へ（遅く出す）" onclick="ynPlanShift('${kind}',${i},'s',1)">▶</button>
@@ -9464,8 +9468,9 @@ function ynRender(){
       const zn=k=>((((YN.slides[x.no-1]||{}).zones||[])[k-1]||{}).label||('まとまり'+k));
       const inS=z=>z.s>=x.s-0.01&&z.s<x.e-0.01;   // 境目ちょうどのものは、後ろのスライド側にだけ出す
       const rows=[];
-      YN.plan.zooms.forEach((z,i)=>{if(z.slide===x.no)rows.push([z.s,line('zooms',i,z,esc((z.zones||[z.zone]).map(zn).join(' ＋ ')))]);});
-      YN.plan.marks.forEach((z,i)=>{if(z.slide===x.no)rows.push([z.s,line('marks',i,z,`${z.type==='rect'?'四角枠':z.type==='highlight'?'ハイライト':'下線'}：${esc(zn(z.zone))}`)]);});
+      const nums=a=>`<span title="${esc(a.map(zn).join(' ＋ '))}">枠 ${a.join('＋')}</span>`;
+      YN.plan.zooms.forEach((z,i)=>{if(z.slide===x.no)rows.push([z.s,line('zooms',i,z,nums(z.zones||[z.zone]),'zoom')]);});
+      YN.plan.marks.forEach((z,i)=>{if(z.slide===x.no)rows.push([z.s,line('marks',i,z,nums([z.zone]),z.type)]);});
       (YN.plan.sources||[]).forEach((z,i)=>{if(inS(z))rows.push([z.s,line('sources',i,z,`出典${esc(String(z.no))}：${esc(z.name||'')}`)]);});
       (YN.plan.charts||[]).forEach((z,i)=>{if(inS(z))rows.push([z.s,line('charts',i,z,`${esc(z.ticker)} ${esc(z.interval)} ${esc(z.start)}〜${esc(z.end)}${z.note?`（${esc(z.note)}）`:''}`)]);});
       rows.sort((a,b)=>a[0]-b[0]);
@@ -9604,6 +9609,18 @@ function ynApplyPlan(plan){
 function ynPlanDel(kind,i){
   if(!YN.plan||!YN.plan[kind])return;
   YN.plan[kind].splice(i,1);ynPut('plan',YN.plan);ynRender();if(typeof ysRender==='function')ysRender();
+}
+// 演出の種類を変える（ズーム ⇄ 四角枠・ハイライト・下線）。時間と対象はそのまま
+function ynPlanKind(kind,i,to){
+  const P=YN.plan;if(!P||!P[kind]||!P[kind][i])return;
+  const it=P[kind][i];
+  if(kind==='zooms'&&to!=='zoom'){
+    P.zooms.splice(i,1);
+    (it.zones||[it.zone]).forEach(k=>P.marks.push({slide:it.slide,zone:k,type:to,from:it.from,to:it.to,s:it.s,e:it.e}));   // まとまりごとに1つずつ
+  }else if(kind==='marks'&&to==='zoom'){
+    P.marks.splice(i,1);P.zooms.push({slide:it.slide,zones:[it.zone],from:it.from,to:it.to,s:it.s,e:it.e});
+  }else if(kind==='marks'){it.type=to;}
+  ynPut('plan',P);ynRender();
 }
 function ynSlideShift(i,d){
   const sl=YN.plan&&YN.plan.slides;if(!sl||i<=0||!sl[i])return;
@@ -10560,11 +10577,11 @@ function setMode(mode){
   const isBoth=mode==='ytboth';
   const isThumb=mode==='thumb',isVideo=mode==='video',isYa=mode==='ytaudio'||isBoth,isYn=mode==='ytnare'||isBoth;
   if(mode==='ytaudio'||mode==='ytnare'||isBoth){try{sessionStorage.setItem('yt-pane',mode);}catch(e){}}
-  // 並べて表示：左＝音声カット、右＝ナレスラ。それぞれ別にスクロールする
+  // 並べて表示：左＝ナレスラ、右＝音声カット。それぞれ別にスクロールする
   const duo=document.getElementById('yt-duo'),ynv=document.getElementById('yn-view'),yav=document.getElementById('ya-view');
   if(duo){
     duo.style.cssText=isBoth?'display:flex;gap:10px;align-items:flex-start;flex:1;min-width:0;':'display:contents;';
-    yav.style.order=isBoth?'1':'';ynv.style.order=isBoth?'2':'';
+    yav.style.order=isBoth?'2':'';ynv.style.order=isBoth?'1':'';   // 左＝ナレスラ、右＝音声カット
     yav.style.minWidth=ynv.style.minWidth=isBoth?'0':'';
     ynv.style.overflowY=isBoth?'auto':'';if(!isBoth){ynv.style.height='';ynv.style.flex='1';}
   }
