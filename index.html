@@ -504,6 +504,7 @@
 .ya-pri.p1{background:#fecaca;color:#991b1b;} .ya-pri.p2{background:#fed7aa;color:#9a3412;} .ya-pri.p3{background:#e2e8f0;color:#475569;}
 .ya-pri.p4{background:#bfdbfe;color:#1e40af;} .ya-pri.p5{background:#1e3a8a;color:#fff;}
 .ya-sec{background:#eff6ff;color:#1e3a8a;font-weight:700;font-size:12px;padding:3px 8px;border-bottom:1px solid #dbeafe;}
+.ya-sw{background:#fef3c7;color:#92400e;font-weight:700;font-size:11px;padding:2px 8px;border-top:2px solid #f59e0b;}
 /* ===== VERTICAL SLIDES (1080×1920, SNS動画用) =====
    ナレーションの補助資料なので文字量は控えめ（見出し1つ＋「結論＋短い補足」×3）。
    テロップは入れない前提で、スマホ全画面で読める大きさにする。
@@ -9210,6 +9211,9 @@ function yaRender(keepScroll){
   const y=keepScroll?list.parentElement.scrollTop:0;
   const by={};YA.cuts.forEach((c,i)=>{(by[c.n]=by[c.n]||[]).push(i);});
   const secStart={};YA.sections.forEach(x=>{secStart[x.from]=x;});
+  // 演出の割り当てが済んでいれば、スライドが切り替わる文の前に目印を出す
+  const swStart={};
+  if(typeof YN!=='undefined'&&YN.plan&&YN.plan.slides)YN.plan.slides.forEach(x=>{swStart[x.from]=x;});
   if(!YA.sents.length){list.innerHTML=`<div style="font-size:12px;color:var(--text-sub);padding:10px;">${YA.mono?'「文字起こし」を押すと、ここに文の一覧が出ます':'左の「音声」タブで NotebookLM の音声を読み込んでください'}</div>`;yaRenderSum();return;}
   // 1文を1行に。左から 番号・修正後の時刻・話者・点数・チェック・▶・✂・調整（幅を固定して、文の開始位置をそろえる）・文
   // 時刻はカット後の時間（元の時刻はマウスを重ねると出る）。▶＝残す文はその文、削る文はつなぎ目を再生（カットは飛ばす）
@@ -9225,7 +9229,8 @@ function yaRender(keepScroll){
     const box=mc?`<input type="checkbox" data-k="${mk}" ${mc.on?'checked':''} title="${esc(mc.reason||'')}">`:`<input type="checkbox" data-sent="${n}" title="削る">`;
     const parts=ids.filter(k=>YA.cuts[k].kind==='part').map(k=>{const c=YA.cuts[k];return `<label class="ya-part" title="${esc(c.reason||'')}"><input type="checkbox" data-k="${k}" ${c.on?'checked':''}>一部${c.approx?'≈':''}</label>${c.on?adj(k,c):''}`;}).join('');
     const es=yaToEdit(s.s,K);
-    const head=secStart[n]?`<div class="ya-sec">■ ${esc(secStart[n].title)}（${secStart[n].from}〜${secStart[n].to}）<span data-secsum="${n}"></span></div>`:'';
+    const sw=swStart[n]?`<div class="ya-sw">▼ ここからスライド${swStart[n].no}${YN.slides[swStart[n].no-1]?`（${esc(YN.slides[swStart[n].no-1].name)}）`:''}${swStart[n].corner?`／テロップ「${esc(swStart[n].corner)}」`:''}</div>`:'';
+    const head=(secStart[n]?`<div class="ya-sec">■ ${esc(secStart[n].title)}（${secStart[n].from}〜${secStart[n].to}）<span data-secsum="${n}"></span></div>`:'')+sw;
     return `${head}<div class="ya-ln${whole?' cut':''}" data-es="${whole?'':es.toFixed(2)}"><span class="ya-no">${n}</span><span class="ya-tc" data-seek="${es.toFixed(2)}" title="元の時刻 ${yaTc(s.s)}${whole?'':'（押すとカット後の音声をここから再生）'}">${whole?'—':yaTc(es)}</span><span class="ya-sp sp${s.sp}">${s.sp?(s.sp===1?'A':'B'):''}</span>${badge}${box}<button class="ya-go" data-go="${n}" title="${whole?'つなぎ目を再生':'この文を再生'}（カットは飛ばす。もう一度押すと停止）">▶</button><span class="ya-ctl">${tags}${mc&&mc.on?adj(mk,mc):''}${parts}</span><span class="ya-tx" data-n="${n}">${tx}</span></div>`;
   }).join('');
   list.querySelectorAll('input[data-k]').forEach(el=>el.onchange=()=>{const c=YA.cuts[+el.dataset.k];c.on=el.checked;c.manual=true;c.manualOn=el.checked;yaSave();yaRender(true);});
@@ -9428,7 +9433,12 @@ function ynRender(){
       (YN.plan.sources||[]).forEach((z,i)=>{if(inS(z))rows.push([z.s,line('sources',i,z,`出典${esc(String(z.no))}：${esc(z.name||'')}`)]);});
       (YN.plan.charts||[]).forEach((z,i)=>{if(inS(z))rows.push([z.s,line('charts',i,z,`${esc(z.ticker)} ${esc(z.interval)} ${esc(z.start)}〜${esc(z.end)}${z.note?`（${esc(z.note)}）`:''}`)]);});
       rows.sort((a,b)=>a[0]-b[0]);
-      el.insertAdjacentHTML('afterend',`<div class="yn-plan"><div class="yn-hd2">表示 ${yaTc(te(x.s))}〜${yaTc(te(x.e))}（${ynEditLen(x.s,x.e).toFixed(1)}秒・カット後）${x.corner?`／テロップ「${esc(x.corner)}」`:''}</div>${rows.map(r=>r[1]).join('')}</div>`);
+      const first=(sents.find(q=>q.n===x.from)||{}).text||'';
+      const si=YN.plan.slides.indexOf(x);
+      el.insertAdjacentHTML('afterend',`<div class="yn-plan"><div class="yn-hd2">表示 ${yaTc(te(x.s))}〜${yaTc(te(x.e))}（${ynEditLen(x.s,x.e).toFixed(1)}秒・カット後）${x.corner?`／テロップ「${esc(x.corner)}」`:''}</div>
+<div class="yn-it"><span class="yn-k" style="background:#f59e0b;">切替</span><span class="yn-sd" title="${esc(first)}">ここから：「${esc(first.slice(0,50))}」</span>
+${si>0?`<span class="yn-ed"><button class="ya-nd" title="切り替えを1文前へ" onclick="ynSlideShift(${si},-1)">◀</button><button class="ya-nd" title="切り替えを1文後へ" onclick="ynSlideShift(${si},1)">▶</button></span>`:''}</div>
+${rows.map(r=>r[1]).join('')}</div>`);
     });
   }
   ynPos();
@@ -9541,6 +9551,16 @@ function ynApplyPlan(plan){
 function ynPlanDel(kind,i){
   if(!YN.plan||!YN.plan[kind])return;
   YN.plan[kind].splice(i,1);ynPut('plan',YN.plan);ynRender();if(typeof ysRender==='function')ysRender();
+}
+function ynSlideShift(i,d){
+  const sl=YN.plan&&YN.plan.slides;if(!sl||i<=0||!sl[i])return;
+  const ns=ynKeptSents().map(x=>x.n);
+  let a=ns.indexOf(sl[i].from);if(a<0)return;
+  const lo=ns.indexOf(sl[i-1].from)+1,hi=ns.indexOf(sl[i].to);
+  a=Math.min(hi,Math.max(lo,a+d));
+  sl[i].from=ns[a];sl[i-1].to=ns[a-1];
+  Object.assign(sl[i],ynSeg(sl[i].from,sl[i].to)||{});Object.assign(sl[i-1],ynSeg(sl[i-1].from,sl[i-1].to)||{});
+  ynPut('plan',YN.plan);ynRender();if(typeof yaRender==='function')yaRender(true);
 }
 function ynPlanShift(kind,i,edge,d){
   const it=YN.plan&&YN.plan[kind]&&YN.plan[kind][i];if(!it)return;
