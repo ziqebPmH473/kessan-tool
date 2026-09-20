@@ -524,6 +524,7 @@
 .yn-img{position:relative;line-height:0;}
 .yn-zone{position:absolute;border:2px solid rgba(37,99,235,.9);background:rgba(37,99,235,.06);}
 .yn-zone span{position:absolute;left:0;top:0;background:rgba(37,99,235,.9);color:#fff;font-size:10px;line-height:1.4;padding:0 4px;}
+.yn-plan{font-size:11px;color:#334155;padding:4px 8px;border-top:1px solid var(--border);background:#f8fafc;}
 /* ===== 横動画の音声カット一覧（右ペイン） ===== */
 #ya-list{border:1px solid var(--border);border-radius:6px;background:#fff;}
 .ya-ln{display:flex;gap:5px;padding:2px 8px;border-bottom:1px solid #f1f5f9;font-size:13px;align-items:center;color:#1f2937;line-height:1.45;}
@@ -8442,7 +8443,7 @@ function ytBuildTabHtml(){
 </div>
 </div>`;
 }
-const YT_PERSIST_IDS=['vd-orient','yt-doc','yt-json','yt-note-url','yt-months','yt-nlm-min','yt-yomi','yt-yomi-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx'];
+const YT_PERSIST_IDS=['vd-orient','yt-doc','yt-json','yt-note-url','yt-months','yt-nlm-min','yt-yomi','yt-yomi-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan'];
 function ytRestoreFields(){
   let st=null;try{st=JSON.parse(localStorage.getItem(SA_STORAGE_KEY)||'null');}catch(e){}
   if(!st||!st.fields)return;
@@ -9126,6 +9127,19 @@ function ynRender(){
   area.innerHTML=YN.slides.map((s,i)=>`<div class="yn-item"><div class="yn-hd"><b>${i+1}</b> ${esc(s.name)} <span>${s.zones?`${s.zones.length}か所`:'未読み取り'}</span>
 <button class="ya-nd" onclick="ynMove(${i},-1)">↑</button><button class="ya-nd" onclick="ynMove(${i},1)">↓</button><button class="ya-nd" onclick="if(confirm('この画像を外しますか？'))ynRemove(${i})">✕</button></div>
 <div class="yn-img" id="yn-img-${i}"></div></div>`).join('');
+  // 割り当て済みなら、スライドごとの表示時間・ズーム・強調・出典を下に出す
+  if(YN.plan){
+    YN.plan.slides.forEach(x=>{
+      const el=document.getElementById('yn-img-'+(x.no-1));if(!el||!el.parentElement)return;
+      const zo=YN.plan.zooms.filter(z=>z.slide===x.no),mk=YN.plan.marks.filter(z=>z.slide===x.no);
+      const sr=(YN.plan.sources||[]).filter(z=>z.s>=x.s-0.01&&z.s<=x.e+0.01);
+      const zn=k=>((YN.slides[x.no-1].zones[k-1]||{}).label||('まとまり'+k));
+      el.insertAdjacentHTML('afterend',`<div class="yn-plan">表示 ${yaTc(x.s)}〜${yaTc(x.e)}${x.corner?`／テロップ「${esc(x.corner)}」`:''}
+${zo.map(z=>`<div>🔍 ${yaTc(z.s)}〜${yaTc(z.e)} ${esc(zn(z.zone))}</div>`).join('')}
+${mk.map(z=>`<div>✏ ${yaTc(z.s)}〜${yaTc(z.e)} ${z.type==='rect'?'四角枠':z.type==='highlight'?'ハイライト':'下線'}：${esc(zn(z.zone))}</div>`).join('')}
+${sr.map(z=>`<div>📄 ${yaTc(z.s)}〜${yaTc(z.e)} 出典${esc(String(z.no))}：${esc(z.name||'')}</div>`).join('')}</div>`);
+    });
+  }
   YN.slides.forEach((s,i)=>{
     const box=document.getElementById('yn-img-'+i);if(!box)return;
     const url=URL.createObjectURL(s.blob);
@@ -9133,6 +9147,201 @@ function ynRender(){
       (s.zones||[]).map((z,k)=>{const [y0,x0,y1,x1]=z.box.map(v=>v/10);
         return `<div class="yn-zone" style="left:${x0}%;top:${y0}%;width:${Math.max(0,x1-x0)}%;height:${Math.max(0,y1-y0)}%;" title="${esc(z.label)}"><span>${k+1}</span></div>`;}).join('');
   });
+}
+
+// ---- 2. 演出の割り当て（音声の文字起こし × スライドのまとまり） ----
+// 時刻はナレスラと同じ「カット前（原音）の時間」で持つ。カットは cuts に入れ、ナレスラ側で適用される。
+// 削る文には演出を付けない（映らないため）。
+function ynKeptSents(){
+  if(!YA.sents.length)return[];
+  const m=(typeof yaMerged==='function')?yaMerged():[];
+  const inCut=(s,e)=>m.some(c=>s>=c.start-0.05&&e<=c.end+0.05);
+  return YA.sents.map((s,i)=>({n:i+1,s:s.s,e:s.e,sp:s.sp,text:s.text})).filter(x=>!inCut(x.s,x.e));
+}
+function ynPlanPrompt(){
+  if(!YN.slides.length)throw new Error('先にスライド画像を読み込んでください');
+  if(YN.slides.some(s=>!s.zones||!s.zones.length))throw new Error('先に「まとまりを読み取る」を実行してください');
+  const sents=ynKeptSents();
+  if(!sents.length)throw new Error('「音声」タブで文字起こしを済ませてください');
+  const slides=YN.slides.map((s,i)=>`【スライド${i+1}】${s.name}\n`+s.zones.map((z,k)=>`  ${k+1}. ${z.label}${z.text?`（${z.text.slice(0,60)}）`:''}`).join('\n')).join('\n\n');
+  const lines=sents.map(x=>`[${x.n}] ${yaTc(x.s)} ${x.sp?(x.sp===1?'A':'B')+': ':''}${x.text}`).join('\n');
+  const srcs=ytParseSources();
+  const srcBlock=srcs.length?`\n\n【根拠資料（動画で一時的に画面へ差し込む）】\n${srcs.map(s=>`  ${s.no}. ${s.name}${s.page?`（${s.page}）`:''}`).join('\n')}`:'';
+  return `あなたは動画編集者です。完成した音声（2人の会話）に、スライドの表示とズーム・強調を割り当ててください。
+
+【前提】
+・スライドは音声の流れに合わせて作ってあります。基本は音声の順にスライドを表示します。
+・1枚のスライドを表示している間、話している箇所にズームしたり、四角枠やハイライトで強調したりします。
+・ずっとズームはしません。スライドに切り替えた直後と、話題の切れ目、スライドの最後は全体表示に戻します。
+
+【割り当てのルール】
+・スライドの範囲：1枚目から順に、連続した文の範囲を割り当てる。飛ばしたり前後させたりしない。スライドが余る場合は最後のスライドに残りを割り当てる。
+・ズーム：その話題を話している文の範囲に、対応するまとまりを割り当てる。3秒未満になる範囲には付けない。1枚につき2〜5個まで。同じまとまりを連続で割り当てない。
+・強調：数字や結論など、特に注目させたい箇所に付ける。種類は rect（四角枠）、highlight（ハイライト）、underline（下線）。1枚につき0〜3個。ズームと同じ範囲に重ねてよい。
+・コーナー名：そのスライドの内容を表す8字以内の短い言葉（動画の右上に出す）。
+・根拠資料：その資料が裏づけている事実を話している文の範囲に割り当てる（4〜8秒程度）。当てはまるものが無ければ空でよい。
+
+【出力】JSONをコードブロック1つでそのまま出力する。説明文は不要。
+{"slides":[{"no":1,"from":文番号,"to":文番号,"corner":"コーナー名"}],
+ "zooms":[{"slide":1,"zone":まとまりの番号,"from":文番号,"to":文番号}],
+ "marks":[{"slide":1,"zone":まとまりの番号,"type":"rect","from":文番号,"to":文番号}],
+ "sources":[{"no":資料の番号,"from":文番号,"to":文番号}]}
+
+【スライドとまとまり】
+${slides}${srcBlock}
+
+【音声の文字起こし（カットで残る文だけ・[番号] 時刻 話者）】
+${lines}`;
+}
+function ynParsePlan(text){
+  const m=String(text||'').match(/\{[\s\S]*\}/);if(!m)throw new Error('JSONが見つかりません');
+  const o=JSON.parse(m[0]);if(!Array.isArray(o.slides))throw new Error('slides がありません');
+  return o;
+}
+function ynApplyPlan(plan){
+  const sents=ynKeptSents();if(!sents.length)throw new Error('文字起こしがありません');
+  const at=n=>sents.find(x=>x.n===+n)||null;
+  const sl=plan.slides.map(x=>({no:+x.no,from:+x.from,to:+x.to,corner:String(x.corner||'').slice(0,12)}))
+    .filter(x=>x.no>=1&&x.no<=YN.slides.length&&at(x.from)).sort((a,b)=>a.no-b.no);
+  if(!sl.length)throw new Error('スライドの範囲が読み取れません');
+  const seg=(f,t)=>{const a=at(f),b=at(t)||at(f);return a?{s:a.s,e:(b||a).e}:null;};
+  const zooms=(plan.zooms||[]).map(z=>({slide:+z.slide,zone:+z.zone,...(seg(z.from,z.to)||{})})).filter(z=>z.s!=null&&YN.slides[z.slide-1]&&YN.slides[z.slide-1].zones[z.zone-1]&&z.e-z.s>=3);
+  const marks=(plan.marks||[]).map(z=>({slide:+z.slide,zone:+z.zone,type:['rect','highlight','underline'].includes(z.type)?z.type:'rect',...(seg(z.from,z.to)||{})})).filter(z=>z.s!=null&&YN.slides[z.slide-1]&&YN.slides[z.slide-1].zones[z.zone-1]&&z.e-z.s>=1);
+  const srcAll=ytParseSources();
+  const sources=(plan.sources||[]).map(x=>{const s=srcAll.find(y=>String(y.no)===String(x.no));const g=seg(x.from,x.to);return s&&g?{no:x.no,label:s.label||s.name,name:s.name,...g}:null;}).filter(Boolean);
+  YN.plan={slides:sl.map(x=>({...x,...(seg(x.from,x.to)||{})})),zooms,marks,sources};
+  ynPut('plan',YN.plan);ynRender();
+  ynStatus(`✅ 割り当てました（スライド${sl.length}枚・ズーム${zooms.length}・強調${marks.length}・出典${sources.length}）`,'ok','status2');
+}
+async function ynAiPlan(btn){
+  let prompt;try{prompt=ynPlanPrompt();}catch(e){ynStatus('❌ '+e.message,'error','status2');return;}
+  if(btn)btn.disabled=true;ynStatus('割り当て中…（数十秒かかります）','','status2');
+  try{
+    const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,resources:[],files:[],temperature:0.1,
+      models:['gemini-3.8-flash','gemini-3.7-flash','gemini-3.6-flash','gemini-3.5-flash']})});
+    const data=await res.json();if(!data.ok)throw new Error(data.error||'不明なエラー');
+    ynEl('plan').value=data.text||'';saveState();
+    ynApplyPlan(ynParsePlan(data.text||''));
+  }catch(e){ynStatus('❌ '+e.message,'error','status2');}
+  finally{if(btn)btn.disabled=false;}
+}
+function ynApplyPasted(){try{ynApplyPlan(ynParsePlan(ynVal('plan')));}catch(e){ynStatus('❌ '+e.message,'error','status2');}}
+
+// ---- 3. ナレスラのプロジェクト（.svpz）を書き出す ----
+// まとまりの枠（0〜1000）→ ナレスラの座標（画像に対する 0〜1）。ズームの target は正方形（＝画面と同じ16:9）
+function ynBox(z){const [y0,x0,y1,x1]=z.box.map(v=>Math.max(0,Math.min(1000,+v))/1000);return{x0:Math.min(x0,x1),y0:Math.min(y0,y1),x1:Math.max(x0,x1),y1:Math.max(y0,y1)};}
+function ynZoomTarget(z,pad){
+  const b=ynBox(z),cx=(b.x0+b.x1)/2,cy=(b.y0+b.y1)/2;
+  let w=Math.max(b.x1-b.x0,b.y1-b.y0)*(1+(pad==null?0.18:pad));
+  w=Math.min(1,Math.max(0.28,w));
+  return{x:Math.min(Math.max(0,cx-w/2),1-w),y:Math.min(Math.max(0,cy-w/2),1-w),w,h:w};
+}
+async function ynTemplate(){
+  const rec=await ynGet('tpl');if(!rec||!rec.blob)return null;
+  try{
+    const zip=await JSZip.loadAsync(rec.blob);
+    const proj=JSON.parse(await zip.file('project.json').async('string'));
+    const extra={};
+    for(const k of [proj.wm&&proj.wm.logoFile,proj.bgmFile])if(k&&zip.file(k))extra[k]=await zip.file(k).async('uint8array');
+    return{proj,extra,name:rec.name};
+  }catch(e){console.warn('[yn] ひな形を読めません',e);return null;}
+}
+async function ynExport(btn){
+  if(!YN.plan)  {alert('先に演出を割り当ててください');return;}
+  if(!YA.file)  {alert('「音声」タブで音声を読み込んでください');return;}
+  if(btn)btn.disabled=true;
+  try{
+    ynStatus('プロジェクトを作成中…','','status3');
+    const tpl=await ynTemplate();
+    let p=tpl?tpl.proj:{version:3,fx:{trans:'crossfade',transDur:0.5,kenBurns:true,kbScale:0.00005,showSub:true,bgmVol:0.2,narVol:1},
+      exp:{w:1920,h:1080,fps:30,qualityMode:'auto',_portrait:false},endPad:2,wm:{enabled:false,useImg:false},
+      bridgeStyle:{},subTemplates:[],subTemplateCtr:0,globalSubStyle:'news',msubSettings:{},gcpSubSettings:{},
+      gcpScript:'',gcpCharacters:[],gcpCharSettings:{},gcpDefaultChar:{}};
+    const zip=new JSZip();
+    if(tpl)for(const [k,v] of Object.entries(tpl.extra))zip.file(k,v);
+    let id=(p.decIdCtr||0)+1000;
+    // スライド画像
+    const slides=[];
+    for(let i=0;i<YN.slides.length;i++){
+      const s=YN.slides[i],ext=(s.name.match(/\.(\w+)$/)||[,'png'])[1].toLowerCase();
+      zip.file(`slides/slide-${i}.${ext}`,s.blob);
+      slides.push({name:s.name,file:`slides/slide-${i}.${ext}`,zoomKeyframes:[],id:++id,kind:'image',narMute:0});
+    }
+    // ズーム（原音時刻）
+    for(const z of YN.plan.zooms){
+      const sl=slides[z.slide-1],zone=YN.slides[z.slide-1].zones[z.zone-1];if(!sl||!zone)continue;
+      sl.zoomKeyframes.push({id:`zk-yt-${++id}`,startTime:+z.s.toFixed(2),endTime:+z.e.toFixed(2),startSil:null,endSil:null,
+        target:ynZoomTarget(zone),enterAnim:{type:'smooth',durationMs:500},exitAnim:{type:'smooth',durationMs:500}});
+    }
+    slides.forEach(s=>s.zoomKeyframes.sort((a,b)=>a.startTime-b.startTime));
+    // 強調（四角枠・ハイライト・下線）
+    const COL={rect:'#e91e8c',highlight:'#ffc107',underline:'#2196f3'};
+    const decorations=YN.plan.marks.map(mk=>{
+      const zone=YN.slides[mk.slide-1].zones[mk.zone-1];const b=ynBox(zone);
+      const base={id:++id,type:mk.type,direction:'right',arrowStyle:'open',color:COL[mk.type],
+        startTime:+mk.s.toFixed(2),endTime:+mk.e.toFixed(2),startSil:null,endSil:null,animIn:'fade',animOut:'fade'};
+      if(mk.type==='underline')return{...base,imgX1:b.x0+0.01,imgY1:Math.min(0.99,b.y1+0.006),imgX2:b.x1-0.01,imgY2:Math.min(1,b.y1+0.031),opacity:40,lineWidth:12};
+      if(mk.type==='highlight')return{...base,imgX1:b.x0,imgY1:b.y0,imgX2:b.x1,imgY2:b.y1,opacity:38,lineWidth:20};
+      return{...base,imgX1:b.x0-0.004,imgY1:b.y0-0.006,imgX2:b.x1+0.004,imgY2:b.y1+0.006,opacity:80,lineWidth:6};
+    });
+    // 出典（仮の画像＋左下の表記）。画像はナレスラで差し替える。出している間はズームを外す（ズーム中は画面の外に出るため）
+    const decImages={};
+    const srcPlan=YN.plan.sources||[];
+    if(srcPlan.length){
+      zip.file('描画画像/yt-src.png',await ynPlaceholder());decImages['yt-src']='描画画像/yt-src.png';
+      for(const sp of srcPlan){
+        decorations.push({id:++id,type:'image',imgX1:.5,imgY1:.5,imgX2:.5,imgY2:.5,color:'#e94560',
+          startTime:+sp.s.toFixed(2),endTime:+sp.e.toFixed(2),startSil:null,endSil:null,opacity:100,animIn:'fade',animOut:'fade',
+          imgRef:'yt-src',imgW:1200,imgH:700,scale:.9,shadow:false,blur:2,dim:30,imgName:`出典${sp.no}（差し替え）`});
+        decorations.push({id:++id,type:'text',imgX1:.28,imgY1:.968,imgX2:.28,imgY2:.968,color:'#ffffff',
+          startTime:+sp.s.toFixed(2),endTime:+sp.e.toFixed(2),startSil:null,endSil:null,opacity:70,lineWidth:4,
+          animIn:'none',animOut:'switch',text:String(sp.label||sp.name||'').slice(0,60),textStyle:'simple',align:'center',size:.6});
+      }
+      slides.forEach(s=>{s.zoomKeyframes=s.zoomKeyframes.flatMap(k=>{
+        for(const sp of srcPlan){
+          if(k.endTime<=sp.s||k.startTime>=sp.e)continue;
+          const out=[];
+          if(sp.s-k.startTime>=3)out.push({...k,endTime:+sp.s.toFixed(2)});
+          if(k.endTime-sp.e>=3)out.push({...k,id:k.id+'b',startTime:+sp.e.toFixed(2)});
+          return out;
+        }
+        return[k];
+      });});
+    }
+    // 切り替え・テロップ・字幕・カット
+    const switchPoints=YN.plan.slides.slice(1).map(x=>+x.s.toFixed(2));
+    const cornerTelops=YN.plan.slides.filter(x=>x.corner).map(x=>({id:++id,text:x.corner,accentColor:'#e91e8c',startSlide:x.no,endSlide:x.no,animIn:.5,animOut:.5,sizeMul:1,posX:73,posY:-85,minChars:8}));
+    const subs=ynKeptSents().map(x=>({id:++id,text:x.text,startTime:+x.s.toFixed(2),endTime:+x.e.toFixed(2),startSil:null,endSil:null,templateId:1}));
+    const cuts=(typeof yaMerged==='function')?yaMerged().map(c=>({start:+c.start.toFixed(2),end:+c.end.toFixed(2)})):[];
+    const ext=(YA.fileName.match(/\.(\w+)$/)||[,'m4a'])[1].toLowerCase();
+    Object.assign(p,{version:3,source:'import',name:`${getTicker()||''}_${getName()||''}_YouTube`,created:new Date().toISOString(),
+      slides,cuts,switchPoints,decorations,decImages,cornerTelops,insertions:[],sfxList:[],sfxVols:{},
+      manualSubtitles:subs,decIdCtr:id+10,narFile:'narration.'+ext,narFileName:YA.fileName,
+      bgmFile:p.bgmFile||'',bgmFileName:p.bgmFileName||''});
+    zip.file('project.json',JSON.stringify(p));
+    zip.file('transcript.json',JSON.stringify({trWords:[],trSentenceSplits:[],trKeywords:[],trSelSentences:[],trSelWords:[]}));
+    zip.file('narration.'+ext,YA.file);
+    const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:3}});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${getTicker()||'code'}_${getName()||'name'}_ナレスラ.svpz`;a.click();
+    ynStatus(`✅ 書き出しました（スライド${slides.length}枚・ズーム${YN.plan.zooms.length}・強調${decorations.length}・カット${cuts.length}・字幕${subs.length}）${tpl?`／ひな形：${esc(tpl.name)}`:'／ひな形なし'}`,'ok','status3');
+  }catch(e){ynStatus('❌ '+e.message,'error','status3');}
+  finally{if(btn)btn.disabled=false;}
+}
+// 出典の仮画像（ナレスラで差し替える）
+function ynPlaceholder(){
+  const cv=document.createElement('canvas');cv.width=1200;cv.height=700;const g=cv.getContext('2d');
+  g.fillStyle='#e2e8f0';g.fillRect(0,0,1200,700);g.strokeStyle='#94a3b8';g.lineWidth=6;g.setLineDash([18,14]);g.strokeRect(20,20,1160,660);
+  g.fillStyle='#475569';g.font='bold 54px sans-serif';g.textAlign='center';g.fillText('ここに出典の画像',600,330);
+  g.font='34px sans-serif';g.fillText('ナレスラで差し替えてください',600,400);
+  return new Promise(r=>cv.toBlob(r,'image/png'));
+}
+// 動画資料の出典一覧（表示用の表記）を読む
+function ytParseSources(){
+  const doc=ytVal('doc');if(!doc)return[];
+  const m=doc.match(/^#{1,4}\s*出典一覧[^\n]*$/m);if(!m)return[];
+  return doc.slice(m.index).split('\n').slice(1).map(l=>l.trim()).filter(l=>/^\|/.test(l)&&!/^\|[\s\-:|]+\|$/.test(l))
+    .map(l=>l.split('|').map(x=>x.trim()).filter(Boolean)).filter(c=>c.length>=2)
+    .map(c=>({no:c[0],name:c[1],url:c[2]||'',page:c[3]||'',label:c[c.length-1]}));
 }
 
 // ---- タブのHTML ----
@@ -9152,16 +9361,40 @@ function ynBuildPaneHtml(){
 
 <div class="sa-card" style="margin-top:8px;">
   <h2>2. 演出の割り当て</h2>
-  <div style="font-size:11px;color:var(--text-sub);">準備中：音声の文字起こし（③でカットした後）とスライドのまとまりを突き合わせ、切り替え・ズーム・強調を決めます。</div>
+  <div style="font-size:11px;color:var(--text-sub);">音声（③でカットした後に残る文）とスライドのまとまりを突き合わせ、切り替え・ズーム・強調・根拠資料の差し込みを決めます。</div>
+  ${row(b('💬 プロンプト',"try{copyText(ynPlanPrompt(),this)}catch(e){alert(e.message)}",G),b('📋 貼り付け',"ynPaste('plan',ynApplyPasted)"),b('↻ 反映','ynApplyPasted()'))}
+  <textarea id="yn-plan" placeholder="Gemini／ChatGPTに投げて、返ってきたJSONを貼り付け" style="min-height:36px;font-size:11px;font-family:monospace;"></textarea>
+  ${row(b('🤖 Gemini APIで割り当て','ynAiPlan(this)','background:#4f46e5;color:#fff;'))}
+  <div id="yn-status2" style="display:none;font-size:11px;"></div>
 </div>
 
 <div class="sa-card" style="margin-top:8px;">
-  <h2>3. 出力</h2>
-  <div style="font-size:11px;color:var(--text-sub);">準備中：ナレスラのプロジェクト（.svpz）。元の音声・カット・字幕・演出・出典の枠を入れます。</div>
+  <h2>3. ナレスラのプロジェクト</h2>
+  <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;">
+    <label style="font-size:11px;color:var(--text-sub);flex:none;">ひな形</label>
+    <input type="file" id="yn-tpl" accept=".svpz" onchange="ynLoadTpl(this.files[0])" style="flex:1;min-width:0;font-size:11px;">
+  </div>
+  <div id="yn-tpl-name" style="font-size:10px;color:var(--text-sub);"></div>
+  ${row(`<button class="main-btn download-btn" style="flex:1;font-size:13px;padding:8px 4px;" onclick="ynExport(this)">💾 .svpz を書き出す</button>`)}
+  <div id="yn-status3" style="display:none;font-size:11px;"></div>
+  <div style="font-size:10px;color:var(--text-sub);">中身：スライド画像・元の音声・カット・切り替え・ズーム・強調・コーナーテロップ・字幕・出典（仮画像＋表記）。ひな形の .svpz を選ぶと、全体の設定（透かし・BGM・字幕スタイル・書き出し設定）を引き継ぎます。</div>
 </div>`;
+}
+async function ynLoadTpl(file){
+  if(!file)return;
+  await ynPut('tpl',{blob:file,name:file.name});
+  const el=ynEl('tpl-name');if(el)el.textContent=`ひな形：${file.name}`;
+}
+async function ynPaste(id,after){
+  try{let s=await navigator.clipboard.readText();if(!s.trim()){alert('クリップボードが空です');return;}
+    s=s.trim().replace(/^```[^\n]*\n/,'').replace(/\n```\s*$/,'');
+    ynEl(id).value=s;saveState();if(after)after();}
+  catch(e){alert('クリップボードを読めませんでした。欄に直接貼り付けてください（Ctrl+V）');}
 }
 async function ynRestore(){
   const a=await ynGet('slides');
+  const pl=await ynGet('plan');if(pl&&pl.slides)YN.plan=pl;
+  const tp=await ynGet('tpl');if(tp&&tp.name){const el=ynEl('tpl-name');if(el)el.textContent=`ひな形：${tp.name}`;}
   if(Array.isArray(a)&&a.length)YN.slides=a.map(s=>({name:s.name,blob:s.blob,zones:s.zones||null}));
   ynRender();
 }
