@@ -476,14 +476,18 @@
 .ya-go.on{background:#dc2626;color:#fff;border-color:#dc2626;}
 .ya-tag{color:#b45309;font-weight:700;border:1px solid #fcd34d;background:#fffbeb;border-radius:3px;padding:0 3px;} .ya-tag.must{color:#b91c1c;border-color:#fca5a5;background:#fef2f2;}
 .ya-warn{color:#b45309;font-weight:700;}
-.ya-pri{flex:none;display:inline-block;width:18px;text-align:center;border-radius:8px;background:#e2e8f0;font-size:10px;}
+.ya-pri{flex:none;display:inline-block;width:30px;text-align:center;border-radius:8px;background:#e2e8f0;font-size:10px;line-height:16px;}
+.ya-pri.p1{background:#fecaca;color:#991b1b;} .ya-pri.p2{background:#fed7aa;color:#9a3412;} .ya-pri.p3{background:#e2e8f0;color:#475569;}
+.ya-pri.p4{background:#bfdbfe;color:#1e40af;} .ya-pri.p5{background:#1e3a8a;color:#fff;}
 .ya-head{position:sticky;top:0;z-index:3;background:#fff;padding:4px 0;display:flex;flex-direction:column;gap:4px;}
 #ya-selbtn{display:none;position:fixed;z-index:50;transform:translateX(-50%);padding:3px 10px;font-size:12px;font-weight:700;border:0;border-radius:4px;background:#dc2626;color:#fff;cursor:pointer;}
 .ya-go{padding:0 6px;font-size:10px;line-height:16px;border:1px solid #93c5fd;background:#eff6ff;color:#1d4ed8;border-radius:3px;cursor:pointer;}
 .ya-go.on,.ya-play.on{background:#dc2626;color:#fff;border-color:#dc2626;}
 .ya-tag{color:#b45309;font-weight:700;border:1px solid #fcd34d;background:#fffbeb;border-radius:3px;padding:0 3px;} .ya-tag.must{color:#b91c1c;border-color:#fca5a5;background:#fef2f2;}
 .ya-warn{color:#b45309;font-weight:700;}
-.ya-pri{flex:none;display:inline-block;width:18px;text-align:center;border-radius:8px;background:#e2e8f0;font-size:10px;}
+.ya-pri{flex:none;display:inline-block;width:30px;text-align:center;border-radius:8px;background:#e2e8f0;font-size:10px;line-height:16px;}
+.ya-pri.p1{background:#fecaca;color:#991b1b;} .ya-pri.p2{background:#fed7aa;color:#9a3412;} .ya-pri.p3{background:#e2e8f0;color:#475569;}
+.ya-pri.p4{background:#bfdbfe;color:#1e40af;} .ya-pri.p5{background:#1e3a8a;color:#fff;}
 .ya-sec{background:#eff6ff;color:#1e3a8a;font-weight:700;font-size:12px;padding:3px 8px;border-bottom:1px solid #dbeafe;}
 /* ===== VERTICAL SLIDES (1080×1920, SNS動画用) =====
    ナレーションの補助資料なので文字量は控えめ（見出し1つ＋「結論＋短い補足」×3）。
@@ -1395,7 +1399,7 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
 
   <!-- 横動画の音声カット（NotebookLMの音声） -->
   <div id="ya-view" style="display:none;flex-direction:column;gap:6px;flex:1;overflow-y:auto;">
-    <div style="font-size:11px;color:var(--text-sub);">時刻＝カット後の時間（押すとそこから通しで再生。元の時刻はマウスを重ねると表示）。数字＝AIの点数（🔒＝流れに必須）。チェックで削る／戻す。▶＝その文を前後つきで再生（削る文はつなぎ目。カットは飛ばす）。◀▶＝切り口を0.05秒ずつ調整、文の一部を削る＝その部分をドラッグで選んで「✂ 選んだ部分を削る」。<span class="ya-warn">⚠</span>＝切り口の近くに無音が無い。前後の秒数は「設定」タブ</div>
+    <div style="font-size:11px;color:var(--text-sub);">時刻＝カット後の時間（押すとそこから通しで再生。元の時刻はマウスを重ねると表示）。色つきの言葉＝AIの判定（<span class="ya-pri p1">不要</span> <span class="ya-pri p2">脇道</span> は削ってよい側、<span class="ya-pri p3">補足</span> は中間、<span class="ya-pri p4">重要</span> <span class="ya-pri p5">必須</span> は残す側）。チェックで削る／戻す。▶＝その文を前後つきで再生（削る文はつなぎ目。カットは飛ばす）。◀▶＝切り口を0.05秒ずつ調整、文の一部を削る＝その部分をドラッグで選んで「✂ 選んだ部分を削る」。<span class="ya-warn">⚠</span>＝切り口の近くに無音が無い。前後の秒数は「設定」タブ</div>
     <div id="ya-head" class="ya-head">
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><span id="ya-sum" style="font-size:12px;">-</span><button class="btn-sm" onclick="yaPlayCut()" style="flex:none;background:#475569;color:#fff;">▶ 通しで聴く</button><span id="ya-player-stale" class="ya-warn" style="display:none;font-size:11px;">カットを変えました。「▶ 通しで聴く」で作り直せます</span></div>
       <div id="ya-player" style="display:none;"><audio id="ya-edited" controls style="width:100%;height:34px;display:block;"></audio></div>
@@ -8834,6 +8838,7 @@ const yaCS=c=>c.start+(c.adjS||0),yaCE=c=>c.end+(c.adjE||0),yaCutLen=c=>Math.max
 // 5＝流れに必須（自動では削らない）／4＝重要／3＝補足／2＝繰り返し・脇道／1＝不要。must＝必ず削る。parts＝文の一部だけ削る
 // 同じ点数なら残っている割合が大きい章から削る。削った結果、相槌が続いたら後ろの相槌も削る
 const YA_SCORE_LABEL={1:'不要',2:'繰り返し・脇道',3:'補足',4:'重要',5:'流れに必須'};
+const YA_SCORE_SHORT={1:'不要',2:'脇道',3:'補足',4:'重要',5:'必須'};   // 一覧のバッジに出す言葉
 function yaTarget(){return (+yaVal('target')||8)*60;}
 function yaPrompt(){
   if(!YA.sents.length)throw new Error('先に音声の文字起こしをしてください');
@@ -9118,7 +9123,7 @@ function yaRender(keepScroll){
   list.innerHTML=YA.sents.map((s,i)=>{
     const n=i+1,ids=by[n]||[];let tx=esc(s.text),whole=false;
     ids.forEach(k=>{const c=YA.cuts[k];if(!c.on)return;if(!c.part)whole=true;else tx=tx.replace(esc(c.part),`<del>${esc(c.part)}</del>`);});
-    const sc=YA.score&&YA.score[n],badge=`<span class="ya-pri" title="${sc?YA_SCORE_LABEL[sc]:'点数なし'}">${sc?(sc===5?'🔒':sc):''}</span>`;
+    const sc=YA.score&&YA.score[n],badge=`<span class="ya-pri${sc?' p'+sc:''}" title="${sc?`${sc}点：${YA_SCORE_LABEL[sc]}`:'点数なし'}">${sc?YA_SCORE_SHORT[sc]:''}</span>`;
     const mk=ids.find(k=>YA.cuts[k].kind!=='part');
     const mc=mk!=null?YA.cuts[mk]:null;
     const tags=mc?`${mc.kind==='must'?'<span class="ya-tag must">必ず削る</span>':''}${mc.review?`<span class="ya-tag" title="${esc(mc.review)}">要確認</span>`:''}${mc.on&&!mc.quiet?'<span class="ya-warn" title="切り口の近くに無音が無い（要確認）">⚠</span>':''}`:'';
@@ -9145,7 +9150,7 @@ function yaRenderSum(){
   yaTrackPlayback();
   const m=yaMerged(),cutSec=m.reduce((a,c)=>a+c.end-c.start,0);
   const pl=yaEl('player-stale');if(pl)pl.style.display=_yaCutKey&&_yaCutKey!==JSON.stringify(m)?'':'none';
-  const txt=YA.dur?`元 ${yaTc(YA.dur)} → カット後 <b>${yaTc(YA.dur-cutSec)}</b>（${m.length}か所・${yaTc(cutSec)}を削除）`+(YA.reach===false?' <span class="ya-warn">🔒以外をすべて削っても目標に届きません</span>':''):'';
+  const txt=YA.dur?`元 ${yaTc(YA.dur)} → カット後 <b>${yaTc(YA.dur-cutSec)}</b>（${m.length}か所・${yaTc(cutSec)}を削除）`+(YA.reach===false?' <span class="ya-warn">「必須」以外をすべて削っても目標に届きません</span>':''):'';
   ['sum','sum2'].forEach(id=>{const el=yaEl(id);if(el)el.innerHTML=txt||'-';});
 }
 
@@ -9186,7 +9191,7 @@ function yaBuildCutHtml(){
   ${row(b('🤖 Gemini APIで判定','yaAiJudge(this)','background:#4f46e5;color:#fff;'),b('🎯 選び直す','yaAutoSelect()'))}
   <div id="ya-st-ai" style="display:none;font-size:11px;"></div>
   <div style="font-size:11px;" id="ya-sum2">-</div>
-  <div style="font-size:10px;color:var(--text-sub);">文の一覧と試聴は右の「🎙 音声カット」。点数の低い順に、同じ点数なら残りの割合が大きい章から削る。🔒は自動では削らない（手動なら可）。</div>
+  <div style="font-size:10px;color:var(--text-sub);">文の一覧と試聴は右の「🎙 音声カット」。点数の低い順に、同じ点数なら残りの割合が大きい章から削る。「必須」は自動では削らない（手動なら可）。</div>
 </div>
 
 <div class="sa-card" style="margin-top:8px;">
