@@ -443,6 +443,10 @@
 .ys-info{flex:1;min-width:0;font-size:11px;line-height:1.4;}
 .ys-url{font-size:10px;color:var(--text-sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ys-btns{flex:none;display:flex;gap:3px;}
+/* スライドの直し：チェックの並び */
+.yt-fixes{display:flex;flex-wrap:wrap;gap:2px 10px;margin:4px 0;}
+.yt-fixes label{flex:0 0 calc(50% - 5px);display:flex;align-items:center;gap:4px;font-size:11px;line-height:1.7;cursor:pointer;}
+.yt-fixes input{flex:none;margin:0;}
 .ys-ov{position:fixed;inset:0;background:rgba(15,23,42,.88);z-index:9999;display:flex;flex-direction:column;}
 .ys-bar{flex:none;display:flex;gap:6px;align-items:center;padding:8px;background:#0f172a;color:#fff;}
 .ys-title{flex:1;min-width:0;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -7830,7 +7834,16 @@ Cの説明
 8. そのうえで、音声順にズームしやすい配置にする
 
 事前に想定された章テンプレートより、
-「完成した音声で実際に何を話しているか」を重視してください。`;
+「完成した音声で実際に何を話しているか」を重視してください。
+
+
+# 出力の形（重要）
+
+画像で出してください。PowerPoint（.pptx）・PDF・HTML・スライド作成ツールのファイルは作らないでください。
+
+・1枚ずつ、16:9（1920×1080）の画像として生成する。
+・1枚の画像に複数のスライドを並べない（タイル状にしない）。
+・まず1枚目を出し、こちらの確認を受けてから次の1枚に進む。`;
 
 // 動画資料から出典を取り除く（［出典n］の印と「出典一覧」以降）
 function ytStripSources(s){
@@ -8027,6 +8040,43 @@ function ytDownloadSource(){
 }
 
 
+// ---- スライドの直し（ChatGPTへの依頼文）----
+// 毎回だいたい同じことを頼むので、よくある直しをチェックで選べるようにする。
+const YT_FIX_ITEMS=[
+  ['asimg','画像で出し直す','PowerPointなどのファイルではなく、16:9（1920×1080）の画像として1枚ずつ出し直してください。1枚の画像に複数のスライドを並べないでください。'],
+  ['topright','右上を空ける','右上のすみは、動画でテロップを出すので、文字や図を置かずに空けてください。'],
+  ['nohead','章の見出しを入れない','「1 はじめに」のような章番号・見出しは入れないでください（動画側で出します）。'],
+  ['nodate','基準日を書かない','「2026年9月20日時点」のような基準日は書かないでください。'],
+  ['nochart','株価チャートを描かない','株価チャートは別の画像を差し込むので、スライドには描かないでください。'],
+  ['nosrc','出典を書かない','出典の表記は動画側で出すので、スライドには書かないでください。'],
+  ['one169','1枚を16:9で','1枚の画像に複数のスライドを並べず、16:9（1920×1080）の1枚として作ってください。'],
+  ['fitvoice','音声に合わせる','言い方・数字・並び順を、音声の文字起こしに合わせてください。音声で触れていない数字は入れないでください。'],
+  ['bigger','文字を大きく','文字が小さいので、離れて見ても読める大きさにしてください（そのぶん要素を減らして構いません）。'],
+  ['overflow','はみ出し・重なり','文字が枠からはみ出したり、要素が重なったりしている箇所を直してください。'],
+  ['less','詰め込みすぎ','1枚に詰め込みすぎなので、要点を絞ってください。'],
+  ['count','数は内容に合わせる','項目の数は内容に合わせて変えて構いません。決まった数に合わせるために、無理に足したり削ったりしないでください。'],
+  ['jp','日本語にする','英語になっている箇所を日本語にしてください。'],
+  ['typo','誤字を直す','社名・製品名・数字に誤りがあるので直してください。'],
+  ['same','ほかの枚とそろえる','ほかのスライドと、配色・書体・余白の感じをそろえてください。']
+];
+function ytFixPrompt(){
+  const on=YT_FIX_ITEMS.filter(x=>(document.getElementById('yt-fix-'+x[0])||{}).checked).map(x=>x[2]);
+  const free=((document.getElementById('yt-fix-note')||{}).value||'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  const all=on.concat(free);
+  if(!all.length)throw new Error('直してほしい内容にチェックを入れるか、下の欄に書いてください');
+  return `作ってもらったスライドについて、次の点を直してください。
+
+${all.map(s=>'・'+s).join('\n')}
+
+ほかのデザイン（配色・書体・レイアウトの考え方）は変えないでください。
+直したスライドを、同じ16:9（1920×1080）の画像で出し直してください。`;
+}
+function ytFixClear(){
+  YT_FIX_ITEMS.forEach(x=>{const el=document.getElementById('yt-fix-'+x[0]);if(el)el.checked=false;});
+  const n=document.getElementById('yt-fix-note');if(n)n.value='';
+  saveState();
+}
+
 // ---- 投稿文（タイトル・サムネ・概要欄・X）----
 // 土台は docs/prompts/gem-youtube-rules.md（ユーザーが Gem で使っていたルール）。
 // 関連動画のURL・動画管理表・VOICEVOX は使わない。シリーズ名は「私が知らなかった実力株」。
@@ -8197,6 +8247,14 @@ function ytBuildTabHtml(){
   <div id="yt-slide-status2" style="display:none;font-size:11px;"></div>
   <div style="font-size:10px;color:var(--text-sub);">ChatGPTには、プロンプトを貼り付け、ZIPの中の2ファイル（音声の文字起こし／レポート・動画資料）と既存のnote用スライドの画像を添付してください。株価チャートはナレスラで差し込むので、スライドには描かせません（TradingViewの画像はロゴが入っていれば出典の表記は不要）。QRコードは、できた画像の上からツールで重ねます。</div>
 </div>
+
+<div class="sa-card" style="margin-top:8px;">
+  <h2>直してもらう</h2>
+  <div style="font-size:11px;color:var(--text-sub);">できたスライドの直しを頼む文です。よくある直しはチェックで選び、そのほかは下の欄に1行ずつ書いてください。</div>
+  <div class="yt-fixes">${YT_FIX_ITEMS.map(x=>`<label><input type="checkbox" id="yt-fix-${x[0]}" onchange="saveState()"> ${esc(x[1])}</label>`).join('')}</div>
+  <textarea id="yt-fix-note" placeholder="そのほかの直し（1行に1つ）&#10;例：4枚目の右下のアイコンを消す&#10;例：2枚目の売上構成を円グラフではなく帯にする" oninput="saveState()" style="min-height:52px;font-size:11px;"></textarea>
+  ${row(b('💬 直しの依頼をコピー',"try{copyText(ytFixPrompt(),this)}catch(e){alert(e.message)}",G),b('✕ 選び直す','ytFixClear()'))}
+</div>
 </div>
 
 <div id="yt-pane-audio" style="display:none;">
@@ -8254,7 +8312,7 @@ ${yaBuildPaneHtml()}</div>
 </div>
 </div>`;
 }
-const YT_PERSIST_IDS=['vd-orient','yt-doc','yt-post','yt-p-titles','yt-p-thumbs','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-yomi','yt-yomi-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan'];
+const YT_PERSIST_IDS=['vd-orient','yt-doc','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-titles','yt-p-thumbs','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-yomi','yt-yomi-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan'];
 function ytRestoreFields(){
   let st=null;try{st=JSON.parse(localStorage.getItem(SA_STORAGE_KEY)||'null');}catch(e){}
   if(!st||!st.fields)return;
