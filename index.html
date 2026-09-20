@@ -7913,6 +7913,19 @@ Cの説明
 株価チャートは別の画像を差し込むため、スライドには描かないでください。
 
 
+# 第7章（まとめ）スライドの追加要件
+
+・まとめの要点を整理する
+・noteへの誘導を入れる
+・note誘導の近くに、QRコード差し込み用の正方形スペースを確保する
+・このスペースは後工程でQRコードを入れるため、空けておく
+
+QRコード用のスペースは、淡い無地の正方形（白〜ごく淡いグレー、またはごく淡い青）と
+してください。濃い色・写真・柄は使わず、ごく薄い枠を付けるのは構いませんが、
+中には何も入れないでください。
+正方形の1辺は、画像の高さの30%程度（1080pxなら約320px）にしてください。
+
+
 # 背景
 
 このスライドは、動画で情報を読むための資料です。
@@ -9136,7 +9149,7 @@ function ynStatus(msg,cls,id){const el=ynEl(id||'status');if(!el)return;el.style
 function ynDb(){return new Promise((res,rej)=>{const r=indexedDB.open('kessanTool-ytNare',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
 async function ynPut(k,v){try{const db=await ynDb();await new Promise((res,rej)=>{const tx=db.transaction('kv','readwrite');tx.objectStore('kv').put(v,k);tx.oncomplete=res;tx.onerror=()=>rej(tx.error);});}catch(e){console.warn('[yn] 保存失敗',e);}}
 async function ynGet(k){try{const db=await ynDb();return await new Promise((res,rej)=>{const r=db.transaction('kv').objectStore('kv').get(k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}catch(e){return null;}}
-function ynSave(){ynPut('slides',YN.slides.map(s=>({name:s.name,blob:s.blob,zones:s.zones||null})));}
+function ynSave(){ynPut('slides',YN.slides.map(s=>({name:s.name,blob:s.blob,zones:s.zones||null,qrOrig:s.qrOrig||null,qrRect:s.qrRect||null})));}
 
 // ---- スライド画像の読み込み（ファイル名順） ----
 async function ynLoadFiles(files){
@@ -9597,6 +9610,155 @@ async function ysCropOk(){
   ynStatus(`✅ 出典${s.no} の画像を取り込みました（${sw}×${sh}）`,'ok','src-status');
 }
 
+// ---- まとめスライドにQRを貼る（YQ）----
+// スライドには、ChatGPT に QR 用の空の正方形を描かせておく。
+// ここでは、その正方形の位置を Gemini に読ませ（手でも直せる）、QRのドットだけを貼る。
+// 枠・文言・パネルは元の画像のままなので、色調が回ごとに変わっても浮かない。
+const YQ={i:-1,rect:null,ov:null,img:null,sel:null,off:null};
+const YQ_PROMPT=`この画像は、YouTube動画で使うスライドです。
+後からQRコードを貼るために、意図的に空けてある正方形の領域があります。
+（淡い無地で、中に文字も図もない四角。note への案内の近くにあります）
+
+その領域の位置だけを返してください。
+
+【出力】JSONだけ。説明は不要。
+{"box":[ymin,xmin,ymax,xmax]}
+値は、画像の左上を0、右下を1000とした数値です。
+見つからない場合は {"box":null} を返してください。`;
+
+function yqNoteUrl(){return ytVal('note-url')||vdVal('vd','note-url')||'';}
+
+async function yqStart(btn){
+  if(!YN.slides.length){alert('先にスライド画像を読み込んでください');return;}
+  if(!yqNoteUrl()){alert('設定タブの「QR用URL」を入れてください（空なら縦動画の設定を使います）');return;}
+  const i=YN.slides.length-1;   // まとめ＝最後の1枚
+  if(btn)btn.disabled=true;
+  try{
+    ynStatus('QRを貼る場所を読み取り中…','','qr-status');
+    const rect=await yqDetect(YN.slides[i].qrOrig||YN.slides[i].blob);
+    ynStatus('',' ','qr-status');
+    yqOpen(i,rect);
+  }catch(e){ynStatus('❌ '+e.message+'（場所は手で囲んでください）','error','qr-status');yqOpen(i,null);}
+  finally{if(btn)btn.disabled=false;}
+}
+async function yqDetect(blob){
+  const part=await ynBlobToPart(blob,1024);
+  const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({prompt:YQ_PROMPT,resources:[],temperature:0,files:[{name:part.name,mimeType:part.mimeType,data:part.data}],
+      models:['gemini-3.8-flash','gemini-3.7-flash','gemini-3.6-flash','gemini-3.5-flash']})});
+  const data=await res.json();
+  if(!data.ok)throw new Error(data.error||'読み取れませんでした');
+  const m=String(data.text||'').match(/\{[\s\S]*\}/);
+  const b=m?(JSON.parse(m[0])||{}).box:null;
+  if(!Array.isArray(b)||b.length!==4)throw new Error('空の正方形が見つかりませんでした');
+  const[y0,x0,y1,x1]=b.map(Number);
+  return{x:x0/1000,y:y0/1000,w:Math.max(0,(x1-x0)/1000),h:Math.max(0,(y1-y0)/1000)};
+}
+
+// ---- 位置の確認・調整 ----
+function yqOpen(i,rect){
+  const s=YN.slides[i],blob=s.qrOrig||s.blob;
+  const url=URL.createObjectURL(blob);
+  const ov=document.createElement('div');ov.className='ys-ov';
+  ov.innerHTML=`<div class="ys-bar"><div class="ys-title">${esc(s.name)}：QRを貼る正方形をドラッグで囲む</div>
+<button class="btn-sm" style="background:#0d9488;color:#fff;" onclick="yqApply(this)">✓ QRを貼る</button>
+<button class="btn-sm" onclick="yqClose()">✕</button></div>
+<div class="ys-stage"><div class="ys-holder"><img id="yq-img" src="${url}"><div class="ys-sel" id="yq-sel" style="display:none;"></div></div></div>`;
+  document.body.appendChild(ov);
+  const img=ov.querySelector('#yq-img'),sel=ov.querySelector('#yq-sel'),hold=ov.querySelector('.ys-holder');
+  YQ.i=i;YQ.ov=ov;YQ.img=img;YQ.sel=sel;YQ.rect=rect;YQ.url=url;
+  img.onload=()=>{
+    hold.style.width=img.clientWidth+'px';hold.style.height=img.clientHeight+'px';
+    yqShow(YQ.rect||{x:.72,y:.55,w:.22,h:.33});
+  };
+  let st=null;
+  const at=e=>{const r=img.getBoundingClientRect();return{x:Math.min(1,Math.max(0,(e.clientX-r.left)/r.width)),y:Math.min(1,Math.max(0,(e.clientY-r.top)/r.height))};};
+  hold.addEventListener('mousedown',e=>{e.preventDefault();st=at(e);});
+  const mv=e=>{if(!st)return;const q=at(e);yqShow({x:Math.min(st.x,q.x),y:Math.min(st.y,q.y),w:Math.abs(q.x-st.x),h:Math.abs(q.y-st.y)});};
+  const up=()=>{st=null;};
+  window.addEventListener('mousemove',mv);window.addEventListener('mouseup',up);
+  YQ.off=()=>{window.removeEventListener('mousemove',mv);window.removeEventListener('mouseup',up);};
+}
+function yqShow(r){
+  if(!YQ.sel)return;
+  if(r.w<0.02||r.h<0.02)r={x:.72,y:.55,w:.22,h:.33};
+  YQ.rect=r;YQ.sel.style.display='';
+  YQ.sel.style.left=(r.x*100)+'%';YQ.sel.style.top=(r.y*100)+'%';
+  YQ.sel.style.width=(r.w*100)+'%';YQ.sel.style.height=(r.h*100)+'%';
+}
+function yqClose(){
+  if(YQ.off)YQ.off();
+  if(YQ.url)URL.revokeObjectURL(YQ.url);
+  if(YQ.ov)YQ.ov.remove();
+  YQ.ov=null;YQ.img=null;YQ.sel=null;YQ.off=null;YQ.url=null;
+}
+
+// ---- 色を拾う：貼る場所の地の色と、スライドで使われている濃い色 ----
+function yqPick(g,W,H,r){
+  const x=Math.round(r.x*W),y=Math.round(r.y*H),w=Math.max(1,Math.round(r.w*W)),h=Math.max(1,Math.round(r.h*H));
+  const d=g.getImageData(x,y,w,h).data;
+  let R=0,G=0,B=0,n=0;
+  for(let i=0;i<d.length;i+=4){R+=d[i];G+=d[i+1];B+=d[i+2];n++;}
+  const light=`rgb(${Math.round(R/n)},${Math.round(G/n)},${Math.round(B/n)})`;
+  // 濃い色（見出しなどに使われている色）を、画像全体から多数決で拾う
+  const all=g.getImageData(0,0,W,H).data,cnt={};
+  for(let i=0;i<all.length;i+=4*13){   // 間引いて走査
+    const rr=all[i],gg=all[i+1],bb=all[i+2];
+    if((rr*0.299+gg*0.587+bb*0.114)>90)continue;
+    const k=`${rr>>4},${gg>>4},${bb>>4}`;cnt[k]=(cnt[k]||0)+1;
+  }
+  const top=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0];
+  let dark='#0f172a';
+  if(top){const[a,b,c]=top[0].split(',').map(Number);dark=`rgb(${a*16+8},${b*16+8},${c*16+8})`;}
+  return{light,dark};
+}
+function yqQr(text,size,dark,light){
+  const box=document.createElement('div');box.style.cssText='position:fixed;left:-9999px;top:0;';
+  document.body.appendChild(box);
+  try{new QRCode(box,{text,width:size,height:size,colorDark:dark,colorLight:light,correctLevel:QRCode.CorrectLevel.M});}
+  catch(e){box.remove();throw new Error('QRを作れませんでした：'+e.message);}
+  return new Promise((res,rej)=>{
+    const done=()=>{
+      const cv=box.querySelector('canvas');
+      if(cv){const c=document.createElement('canvas');c.width=c.height=size;c.getContext('2d').drawImage(cv,0,0,size,size);box.remove();return res(c);}
+      const im=box.querySelector('img');
+      if(im){const c=document.createElement('canvas');c.width=c.height=size;c.getContext('2d').drawImage(im,0,0,size,size);box.remove();return res(c);}
+      box.remove();rej(new Error('QRを作れませんでした'));
+    };
+    const im=box.querySelector('img');
+    if(im&&!im.complete){im.onload=done;im.onerror=()=>{box.remove();rej(new Error('QRを作れませんでした'));};}
+    else setTimeout(done,60);
+  });
+}
+async function yqApply(btn){
+  const i=YQ.i,r=YQ.rect;if(i<0||!r){yqClose();return;}
+  if(btn)btn.disabled=true;
+  try{
+    const s=YN.slides[i],src=s.qrOrig||s.blob;
+    const im=await createImageBitmap(src);
+    const cv=document.createElement('canvas');cv.width=im.width;cv.height=im.height;
+    const g=cv.getContext('2d');g.drawImage(im,0,0);
+    const col=yqPick(g,im.width,im.height,r);
+    // 正方形にそろえる（短い方に合わせ、中心は動かさない）
+    const bw=r.w*im.width,bh=r.h*im.height,side=Math.min(bw,bh);
+    const cx=r.x*im.width+bw/2,cy=r.y*im.height+bh/2;
+    const qr=await yqQr(yqNoteUrl(),Math.max(120,Math.round(side*0.84)),col.dark,col.light);
+    g.fillStyle=col.light;g.fillRect(Math.round(cx-side/2),Math.round(cy-side/2),Math.round(side),Math.round(side));
+    g.drawImage(qr,Math.round(cx-qr.width/2),Math.round(cy-qr.height/2));
+    const out=await new Promise(x=>cv.toBlob(x,'image/png'));
+    if(!s.qrOrig)s.qrOrig=src;   // 元の画像は残す（貼り直し・取り消し用）
+    s.blob=out;s.qrRect=r;
+    await ynSave();yqClose();ynRender();
+    ynStatus(`✅ QRを貼りました（${Math.round(side)}px角／${yqNoteUrl()}）`,'ok','qr-status');
+  }catch(e){ynStatus('❌ '+e.message,'error','qr-status');if(btn)btn.disabled=false;}
+}
+async function yqUndo(){
+  const i=YN.slides.findIndex(s=>s.qrOrig);
+  if(i<0){ynStatus('貼り付け前の画像がありません','error','qr-status');return;}
+  const s=YN.slides[i];s.blob=s.qrOrig;delete s.qrOrig;delete s.qrRect;
+  await ynSave();ynRender();ynStatus('↩ QRを貼る前に戻しました','ok','qr-status');
+}
+
 // ---- タブのHTML ----
 function ynBuildPaneHtml(){
   const G='background:#475569;color:#fff;';
@@ -9610,6 +9772,10 @@ function ynBuildPaneHtml(){
   ${row(b('🔍 まとまりを読み取る','ynReadZones(this)',G),b('↻ 読み取り直す',"YN.slides.forEach(s=>s.zones=null);ynSave();ynRender();ynReadZones()"))}
   <div id="yn-status" style="display:none;font-size:11px;"></div>
   <div style="font-size:10px;color:var(--text-sub);">読み取った位置は、ズーム・四角枠・ハイライトの位置に使います。右の「🎬 ナレスラ」で確認できます。</div>
+  <div class="sa-sub">▼ まとめスライドのQR</div>
+  ${row(b('🔳 QRを貼る','yqStart(this)',G),b('↩ 貼る前に戻す','yqUndo()'))}
+  <div id="yn-qr-status" style="display:none;font-size:11px;"></div>
+  <div style="font-size:10px;color:var(--text-sub);">最後の1枚に空けてあるQR用の正方形を読み取り、その中にQRのドットだけを貼ります（地の色と濃い色は画像から拾います）。位置はドラッグで直せます。URLは設定タブの「QR用URL」。</div>
 </div>
 
 <div class="sa-card" style="margin-top:8px;">
@@ -9657,7 +9823,7 @@ async function ynRestore(){
   const a=await ynGet('slides');
   const pl=await ynGet('plan');if(pl&&pl.slides)YN.plan=pl;
   const tp=await ynGet('tpl');if(tp&&tp.name){const el=ynEl('tpl-name');if(el)el.textContent=`ひな形：${tp.name}`;}
-  if(Array.isArray(a)&&a.length)YN.slides=a.map(s=>({name:s.name,blob:s.blob,zones:s.zones||null}));
+  if(Array.isArray(a)&&a.length)YN.slides=a.map(s=>({name:s.name,blob:s.blob,zones:s.zones||null,...(s.qrOrig?{qrOrig:s.qrOrig}:{}),...(s.qrRect?{qrRect:s.qrRect}:{})}));
   ynRender();
 }
 
