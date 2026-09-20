@@ -477,6 +477,8 @@ select.yn-sel option{color:#0f172a;background:#fff;font-weight:400;}
 .yl-no,.yl-ty{flex:none;color:var(--text-sub);}
 .ys-when{font-size:10px;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ys-unused{opacity:.45;}
+.ys-row{cursor:pointer;} .ys-row.ys-sel{background:#eff6ff;box-shadow:inset 3px 0 0 #2563eb;}
+.ys-paste{background:#0d9488!important;color:#fff!important;border-color:#0d9488!important;}
 .ys-tv{font-size:11px;color:#92400e;background:#fef3c7;border-radius:4px;padding:1px 6px;margin:2px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ys-url.on a{font-weight:700;}
 .ys-ty{display:inline-block;font-size:9px;line-height:13px;padding:0 5px;border-radius:6px;background:#e2e8f0;color:#334155;}
@@ -10078,6 +10080,25 @@ function ysRows(){
   return rows;
 }
 function ysItem(i){const a=ysRows();return a[i]||null;}
+// 行を選ぶ（Ctrl+V の貼り付け先）。ボタンやリンクを押したときは選択を変えるだけで、邪魔はしない
+function ysSelect(i,ev){
+  YS.sel=i;
+  document.querySelectorAll('#yn-src-list .ys-row').forEach((r,k)=>r.classList.toggle('ys-sel',k===i));
+}
+// Ctrl+V：出典の一覧が見えていて、クリップボードに画像があれば、選んでいる行に貼る
+document.addEventListener('paste',ev=>{
+  const list=document.getElementById('yn-src-list');
+  if(!list||!list.offsetParent)return;                                  // 出典の一覧が見えていない
+  if(YS.crop)return;                                                     // 範囲を選んでいる最中
+  const ae=document.activeElement;
+  if(ae&&/^(INPUT|TEXTAREA)$/.test(ae.tagName))return;                   // 文字の欄への貼り付けは邪魔しない
+  const it=[...(ev.clipboardData&&ev.clipboardData.items||[])].find(x=>x.type&&x.type.startsWith('image/'));
+  if(!it)return;
+  ev.preventDefault();
+  if(YS.sel==null||!ysItem(YS.sel)){ynStatus('貼り付ける出典の行を、先に押して選んでください（選んだ行が青くなります）','error','src-status');return;}
+  const blob=it.getAsFile();if(!blob)return;
+  ysOpenCrop(YS.sel,blob,(ysItem(YS.sel)||{}).name||'');
+});
 // PDFかどうか：リンク確認の結果があればそれを使い、無ければURLの形から見る
 function ysIsPdf(u){
   const r=(typeof YL!=='undefined'&&YL.res||[]).find(q=>q.url===u);
@@ -10113,7 +10134,7 @@ function ysRender(){
     const unused=!!YN.plan&&!w;                       // 割り当て済みなのに、どこにも差し込まれていない
     const chart=s.isChart||s.kind==='chart';
     const link=chart&&s.tv?s.tv:s.url;
-    return `<div class="ys-row${unused?' ys-unused':''}">${th}
+    return `<div class="ys-row${unused?' ys-unused':''}${YS.sel===i?' ys-sel':''}" onclick="ysSelect(${i},event)">${th}
 <div class="ys-info"><div class="ys-name" title="${esc(s.name)}${s.note?'／'+esc(s.note):''}">${s.isChart?'':`<b>${esc(s.no)}</b> `}${esc(s.name)}${s.page&&!chart?` <span style="color:var(--text-sub);">${esc(s.page)}</span>`:''}${chart?' <span class="ys-tag chart">チャート</span>':''}${unused?' <span class="ys-tag off">未使用</span>':''}</div>
 ${chart||!(s.urls&&s.urls.length>1)
   ?`<div class="ys-url">${link?`<a href="${esc(link)}" target="_blank" rel="noopener" title="${esc(link)}">${chart?'TradingView で開く：':''}${esc(link)}</a>${!chart&&s.urls&&s.urls[0]?` <span class="ys-ty">${s.urls[0].pdf?'PDF':'ページ'}</span>`:''}`:'URLなし'}</div>`
@@ -10123,11 +10144,11 @@ ${chart&&s.tvSpec?`<div class="ys-tv">TradingView：<b>${esc(s.tvSpec.ticker)}</
 <div class="ys-btns">
 ${s.url&&!chart&&!unused?`<button class="ya-nd" onclick="ysGrab(${i},this)" title="${pdf?ysPageNo(s.page)+'ページを取り直す':'URLから取り直す'}">⬇ 取得</button>`:''}
 ${s.isChart?'':`<button class="ya-nd" onclick="ysKind(${i})" title="種類を切り替える（資料 ⇄ チャート）">${chart?'資料にする':'チャートにする'}</button>`}
-${s.isChart?'':`<button class="ya-nd" onclick="ysEdit(${i})" title="資料名・URL・ページ・表記を直す">✎</button>`}
-<button class="ya-nd" onclick="ysPick(${i})" title="画面を撮った画像を選ぶ">📁</button>
-<button class="ya-nd" onclick="ysPasteImg(${i})" title="クリップボードの画像を貼り付け">📋</button>
-${g&&g.orig?`<button class="ya-nd" onclick="ysReCrop(${i})" title="範囲を選び直す">✂</button>`:''}
-${g?`<button class="ya-nd" onclick="ysDrop(${i})" title="消す">✕</button>`:''}
+${s.isChart?'':`<button class="ya-nd" onclick="ysEdit(${i})" title="資料名・URL・ページ・表記を直す">直す</button>`}
+<button class="ya-nd ys-paste" onclick="ysPasteImg(${i})" title="撮ったキャプチャ（クリップボードの画像）を貼り付ける。行を押して選んでから Ctrl+V でも貼れます">貼り付け</button>
+<button class="ya-nd" onclick="ysPick(${i})" title="画像ファイルを選ぶ">ファイル</button>
+${g&&g.orig?`<button class="ya-nd" onclick="ysReCrop(${i})" title="使う範囲を選び直す">範囲</button>`:''}
+${g?`<button class="ya-nd" onclick="ysDrop(${i})" title="画像を消す">消す</button>`:''}
 </div></div></div>`;
   }).join('');
 }
@@ -10481,11 +10502,11 @@ function ynBuildPaneHtml(){
 
 <div class="sa-card" style="margin-top:8px;">
   <h2>2. 出典の画像</h2>
-  <div style="font-size:11px;color:var(--text-sub);">動画資料の出典一覧の行ごとに、画面へ一時的に差し込む画像を用意します。PDFは「⬇ 取得」でそのページを取ってきて、使う範囲をドラッグで囲みます。ふつうのページは写せないので、画面を撮った画像を「📁」で選ぶか「📋」で貼り付けてください。</div>
+  <div style="font-size:11px;color:var(--text-sub);">出典ごとに、画面へ差し込む画像を用意します。PDFは「取得」、ページやチャートはキャプチャを「貼り付け」。</div>
   ${row(b('⬇ まとめて取得（未取得だけ）','ysGrabAll(this)',G),b('↻ 出典一覧を読み直す','ysRender()'))}
   <div id="yn-src-list"></div>
   <div id="yn-src-status" style="display:none;font-size:11px;"></div>
-  <div style="font-size:10px;color:var(--text-sub);">入れた画像は .svpz に入ります（入れていない出典は仮画像。ナレスラで差し替えてください）。「✂」で範囲だけ選び直せます。</div>
+  <div style="font-size:10px;color:var(--text-sub);">キャプチャは、行を押して選んでから Ctrl+V（または「貼り付け」）。入れた画像は .svpz に入ります。</div>
 </div>
 
 <div class="sa-card" style="margin-top:8px;">
