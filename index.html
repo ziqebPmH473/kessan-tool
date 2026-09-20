@@ -7483,8 +7483,9 @@ function ytFreeReport(){
 }
 
 // ---- ChatGPT：調査・深掘りプロンプト ----
-function ytResearchPrompt(){   // 生成時の指示（ファクトチェックにもそのまま入れる）
-  const fr=ytFreeReport();if(!fr.ok)throw new Error(fr.why);
+// 生成時の指示。ファクトチェックにも入れるが、そのときはレポート本文を外す（チェック済みの内容なので、見に行かせると時間がかかる）
+function ytResearchPrompt(withReport=true){
+  const fr=ytFreeReport();if(!fr.ok&&withReport)throw new Error(fr.why);
   const up=getDir()==='up';
   return `# 命令書
 
@@ -7556,7 +7557,7 @@ Markdownで、次の見出しをこの順番で出力する。
 ${vdBasicInfo('vd')}
 
 【株価分析レポート（1〜2章）】
-${fr.text}`;
+${withReport?fr.text:'（生成時に貼ったレポートの1〜2章。確認済みなので、ここでは省略しています）'}`;
 }
 // ファクトチェックは別のチャットで行う（生成したチャットの先入観を持ち込まない）。株価分析レポートの②〜④と同じ運用：
 // 貼り付けた資料＋生成時の指示を渡して指摘させる → 修正版を貼り直す → もう一度②
@@ -7564,11 +7565,12 @@ function ytFactCheckPrompt(){
   const doc=ytVal('doc');if(!doc)throw new Error('先にChatGPTの動画資料を貼り付けてください');
   return `以下の動画資料は、以下の指示でAIが生成したものです。
 動画資料のファクトチェックを行い、誤っている箇所と指示に沿っていない箇所のみを指摘してください。
+指示の中の「株価分析レポート（1〜2章）」は確認済みのため省いています。レポートから引き写した内容（第1章の値動き・第2章の事業の説明など）は確認しなくてよいので、追加で調べた内容を中心に確認してください。
 特に、数値・固有名詞・日付・シェア・競合名・出典のURLとページ、禁止事項（株価の水準・株価シナリオ・確率・割安水準・売買を促す表現・視聴者への行動要求）を確認してください。
 指摘がある場合には、指摘箇所・指摘内容・修正後内容を記載してください。
 
 --指示--
-${ytResearchPrompt()}
+${ytResearchPrompt(false)}
 
 --動画資料--
 ${doc}`;
