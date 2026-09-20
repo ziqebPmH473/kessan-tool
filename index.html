@@ -443,7 +443,7 @@
 .yn-k{flex:none;width:52px;text-align:center;border-radius:8px;font-size:10px;color:#fff;}
 .yn-k.k-zooms{background:#2563eb;} .yn-k.k-marks{background:#db2777;} .yn-k.k-sources{background:#0d9488;} .yn-k.k-charts{background:#d97706;}
 .yn-tm{flex:none;color:#475569;} .yn-wh{flex:none;max-width:34%;overflow:hidden;text-overflow:ellipsis;}
-.yn-sd{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;color:#64748b;} .yn-ed{flex:none;display:flex;gap:2px;}
+.yn-sd{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;color:#64748b;} .yn-ed{flex:none;display:flex;gap:2px;align-items:center;} .yn-lb{font-size:10px;color:#64748b;margin-left:4px;}
 /* 出典（根拠資料）の画像 */
 .ys-row{display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--border);}
 .ys-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -459,6 +459,7 @@
 .yl-no,.yl-ty{flex:none;color:var(--text-sub);}
 .ys-when{font-size:10px;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ys-unused{opacity:.45;}
+.ys-tv{font-size:11px;color:#92400e;background:#fef3c7;border-radius:4px;padding:1px 6px;margin:2px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ys-url.on a{font-weight:700;}
 .ys-ty{display:inline-block;font-size:9px;line-height:13px;padding:0 5px;border-radius:6px;background:#e2e8f0;color:#334155;}
 .ys-tag{display:inline-block;font-size:9px;line-height:14px;padding:0 6px;border-radius:7px;color:#fff;vertical-align:1px;}
@@ -506,7 +507,7 @@
 .ya-pri.p1{background:#fecaca;color:#991b1b;} .ya-pri.p2{background:#fed7aa;color:#9a3412;} .ya-pri.p3{background:#e2e8f0;color:#475569;}
 .ya-pri.p4{background:#bfdbfe;color:#1e40af;} .ya-pri.p5{background:#1e3a8a;color:#fff;}
 .ya-sec{background:#eff6ff;color:#1e3a8a;font-weight:700;font-size:12px;padding:3px 8px;border-bottom:1px solid #dbeafe;}
-.ya-sw{background:#fef3c7;color:#92400e;font-weight:700;font-size:11px;padding:2px 8px;border-top:2px solid #f59e0b;}
+.ya-sw{background:#eff6ff;color:#1e3a8a;font-weight:700;font-size:12px;padding:3px 8px;border-top:2px solid #3b82f6;border-bottom:1px solid #dbeafe;}
 .ya-swb{margin-left:10px;display:inline-flex;gap:3px;font-weight:400;}
 /* ===== VERTICAL SLIDES (1080×1920, SNS動画用) =====
    ナレーションの補助資料なので文字量は控えめ（見出し1つ＋「結論＋短い補足」×3）。
@@ -9236,7 +9237,8 @@ function yaRender(keepScroll){
   const secStart={};YA.sections.forEach(x=>{secStart[x.from]=x;});
   // 演出の割り当てが済んでいれば、スライドが切り替わる文の前に目印を出す
   const swStart={};
-  if(typeof YN!=='undefined'&&YN.plan&&YN.plan.slides)YN.plan.slides.forEach((x,k)=>{swStart[k===0?1:x.from]=Object.assign({k},x);});   // 1枚目は必ず先頭から
+  const hasPlan=typeof YN!=='undefined'&&!!(YN.plan&&YN.plan.slides&&YN.plan.slides.length);
+  if(hasPlan)YN.plan.slides.forEach((x,k)=>{swStart[k===0?1:x.from]=Object.assign({k},x);});   // 1枚目は必ず先頭から
   if(!YA.sents.length){list.innerHTML=`<div style="font-size:12px;color:var(--text-sub);padding:10px;">${YA.mono?'「文字起こし」を押すと、ここに文の一覧が出ます':'左の「音声」タブで NotebookLM の音声を読み込んでください'}</div>`;yaRenderSum();return;}
   // 1文を1行に。左から 番号・修正後の時刻・話者・点数・チェック・▶・✂・調整（幅を固定して、文の開始位置をそろえる）・文
   // 時刻はカット後の時間（元の時刻はマウスを重ねると出る）。▶＝残す文はその文、削る文はつなぎ目を再生（カットは飛ばす）
@@ -9252,8 +9254,9 @@ function yaRender(keepScroll){
     const box=mc?`<input type="checkbox" data-k="${mk}" ${mc.on?'checked':''} title="${esc(mc.reason||'')}">`:`<input type="checkbox" data-sent="${n}" title="削る">`;
     const parts=ids.filter(k=>YA.cuts[k].kind==='part').map(k=>{const c=YA.cuts[k];return `<label class="ya-part" title="${esc(c.reason||'')}"><input type="checkbox" data-k="${k}" ${c.on?'checked':''}>一部${c.approx?'≈':''}</label>${c.on?adj(k,c):''}`;}).join('');
     const es=yaToEdit(s.s,K);
-    const sw=swStart[n]?`<div class="ya-sw">▼ ここからスライド${swStart[n].no}${YN.slides[swStart[n].no-1]?`（${esc(YN.slides[swStart[n].no-1].name)}）`:''}${swStart[n].corner?`／テロップ「${esc(swStart[n].corner)}」`:''}${swStart[n].k>0?`<span class="ya-swb"><button class="ya-nd" data-sw="${swStart[n].k},-1" title="切り替えを1文前へ">▲ 前の文へ</button><button class="ya-nd" data-sw="${swStart[n].k},1" title="切り替えを1文後へ">▼ 後の文へ</button></span>`:''}</div>`:'';
-    const head=(secStart[n]?`<div class="ya-sec">■ ${esc(secStart[n].title)}（${secStart[n].from}〜${secStart[n].to}）<span data-secsum="${n}"></span></div>`:'')+sw;
+    const sw=swStart[n]?`<div class="ya-sw">■ スライド${swStart[n].no}${YN.slides[swStart[n].no-1]?`（${esc(YN.slides[swStart[n].no-1].name)}）`:''}${swStart[n].corner?`／テロップ「${esc(swStart[n].corner)}」`:''}<span data-swsum="${swStart[n].k}"></span>${swStart[n].k>0?`<span class="ya-swb"><button class="ya-nd" data-sw="${swStart[n].k},-1" title="切り替えを1文前へ">▲ 前の文へ</button><button class="ya-nd" data-sw="${swStart[n].k},1" title="切り替えを1文後へ">▼ 後の文へ</button></span>`:''}</div>`:'';
+    // 帯は1種類。割り当てが済んでいればスライドの帯、まだならAIの章分けの帯
+    const head=hasPlan?sw:(secStart[n]?`<div class="ya-sec">■ ${esc(secStart[n].title)}（${secStart[n].from}〜${secStart[n].to}）<span data-secsum="${n}"></span></div>`:'');
     return `${head}<div class="ya-ln${whole?' cut':''}" data-es="${whole?'':es.toFixed(2)}"><span class="ya-no">${n}</span><span class="ya-tc" data-seek="${es.toFixed(2)}" title="元の時刻 ${yaTc(s.s)}${whole?'':'（押すとカット後の音声をここから再生）'}">${whole?'—':yaTc(es)}</span><span class="ya-sp sp${s.sp}">${s.sp?(s.sp===1?'A':'B'):''}</span>${badge}${box}<button class="ya-go" data-go="${n}" title="${whole?'つなぎ目を再生':'この文を再生'}（カットは飛ばす。もう一度押すと停止）">▶</button><span class="ya-ctl">${tags}${mc&&mc.on?adj(mk,mc):''}${parts}</span><span class="ya-tx" data-n="${n}">${tx}</span></div>`;
   }).join('');
   list.querySelectorAll('input[data-k]').forEach(el=>el.onchange=()=>{const c=YA.cuts[+el.dataset.k];c.on=el.checked;c.manual=true;c.manualOn=el.checked;yaSave();yaRender(true);});
@@ -9262,6 +9265,12 @@ function yaRender(keepScroll){
   list.querySelectorAll('button[data-nd]').forEach(el=>el.onclick=()=>{const [k,w,d]=el.dataset.nd.split(',');const c=YA.cuts[+k];if(w==='s')c.adjS=(c.adjS||0)+0.05*d;else c.adjE=(c.adjE||0)+0.05*d;yaSave();yaRender(true);yaStop();yaAudition(c);});
   list.querySelectorAll('[data-seek]').forEach(el=>el.onclick=()=>{if(el.textContent!=='—')yaSeekEdited(+el.dataset.seek);});
   list.querySelectorAll('button[data-go]').forEach(el=>el.onclick=()=>{const n=+el.dataset.go,c=YA.cuts.find(x=>x.n===n&&x.kind!=='part'&&x.on);if(c)yaAudition(c,el);else yaPlaySentence(n,el);});
+  if(hasPlan)YN.plan.slides.forEach((x,k)=>{
+    const f=k===0?1:x.from,nx=YN.plan.slides[k+1],to=nx?nx.from-1:YA.sents.length;
+    let o=0,c=0;for(let n=f;n<=to&&n<=YA.sents.length;n++){const s=YA.sents[n-1];o+=Math.max(0,s.e-s.s);}
+    YA.cuts.filter(q=>q.on&&q.n>=f&&q.n<=to).forEach(q=>{c+=yaCutLen(q);});
+    const el=list.querySelector(`[data-swsum="${k}"]`);if(el)el.textContent=`　${f}〜${to}文　元 ${yaTc(o)} → ${yaTc(Math.max(0,o-c))}`;
+  });
   YA.sections.forEach(x=>{
     let o=0,c=0;for(let n=x.from;n<=x.to&&n<=YA.sents.length;n++){const s=YA.sents[n-1];o+=Math.max(0,s.e-s.s);}
     YA.cuts.filter(k=>k.on&&k.n>=x.from&&k.n<=x.to).forEach(k=>{c+=yaCutLen(k);});
@@ -9440,17 +9449,20 @@ function ynRender(){
   // 割り当て済みなら、スライドごとの表示時間・ズーム・強調・出典・チャートを下に出す（時刻はカット後）
   if(YN.plan){
     const K=yaKeep(),te=v=>yaToEdit(v,K),sents=ynKeptSents();
+    // 文番号を持っていない古い割り当ては、時刻から文を割り出す
+    const fix=z=>{if(z.from!=null&&z.to!=null)return;const hit=sents.filter(x=>x.e>z.s+0.05&&x.s<z.e-0.05);if(hit.length){z.from=hit[0].n;z.to=hit[hit.length-1].n;}};
+    ['zooms','marks','sources','charts'].forEach(k=>(YN.plan[k]||[]).forEach(fix));
     const said=z=>{const a=sents.filter(x=>x.n>=z.from&&x.n<=z.to).map(x=>x.text).join(' ');return a.length>46?a.slice(0,46)+'…':a;};
     const line=(kind,i,z,what)=>`<div class="yn-it"><span class="yn-k k-${kind}">${ynKinds[kind]}</span>
 <span class="yn-tm" title="元の音声では ${yaTc(z.s)}〜${yaTc(z.e)}">${yaTc(te(z.s))}〜${yaTc(te(z.e))}（${ynEditLen(z.s,z.e).toFixed(1)}秒）</span>
-<span class="yn-wh">${what}</span><span class="yn-sd" title="${esc(sents.filter(x=>x.n>=z.from&&x.n<=z.to).map(x=>x.text).join(' '))}">「${esc(said(z))}」</span>
-<span class="yn-ed"><button class="ya-nd" title="始まりを1文前へ" onclick="ynPlanShift('${kind}',${i},'s',-1)">◀</button><button class="ya-nd" title="始まりを1文後へ" onclick="ynPlanShift('${kind}',${i},'s',1)">▶</button>
-<button class="ya-nd" title="終わりを1文前へ" onclick="ynPlanShift('${kind}',${i},'e',-1)">◀</button><button class="ya-nd" title="終わりを1文後へ" onclick="ynPlanShift('${kind}',${i},'e',1)">▶</button>
-<button class="ya-nd" title="消す" onclick="ynPlanDel('${kind}',${i})">✕</button></span></div>`;
+<span class="yn-wh">${what}</span><span class="yn-sd" title="${esc(sents.filter(x=>x.n>=z.from&&x.n<=z.to).map(x=>x.text).join(' '))}">${said(z)?`話している文：「${esc(said(z))}」`:''}</span>
+<span class="yn-ed"><span class="yn-lb">始まり</span><button class="ya-nd" title="始まりを1文前へ（早く出す）" onclick="ynPlanShift('${kind}',${i},'s',-1)">◀</button><button class="ya-nd" title="始まりを1文後へ（遅く出す）" onclick="ynPlanShift('${kind}',${i},'s',1)">▶</button>
+<span class="yn-lb">終わり</span><button class="ya-nd" title="終わりを1文前へ（早く消す）" onclick="ynPlanShift('${kind}',${i},'e',-1)">◀</button><button class="ya-nd" title="終わりを1文後へ（長く出す）" onclick="ynPlanShift('${kind}',${i},'e',1)">▶</button>
+<button class="ya-nd" title="この演出を消す" onclick="ynPlanDel('${kind}',${i})">消す</button></span></div>`;
     YN.plan.slides.forEach(x=>{
       const el=document.getElementById('yn-img-'+(x.no-1));if(!el||!el.parentElement)return;
       const zn=k=>((((YN.slides[x.no-1]||{}).zones||[])[k-1]||{}).label||('まとまり'+k));
-      const inS=z=>z.s>=x.s-0.01&&z.s<=x.e+0.01;
+      const inS=z=>z.s>=x.s-0.01&&z.s<x.e-0.01;   // 境目ちょうどのものは、後ろのスライド側にだけ出す
       const rows=[];
       YN.plan.zooms.forEach((z,i)=>{if(z.slide===x.no)rows.push([z.s,line('zooms',i,z,esc((z.zones||[z.zone]).map(zn).join(' ＋ ')))]);});
       YN.plan.marks.forEach((z,i)=>{if(z.slide===x.no)rows.push([z.s,line('marks',i,z,`${z.type==='rect'?'四角枠':z.type==='highlight'?'ハイライト':'下線'}：${esc(zn(z.zone))}`)]);});
@@ -9461,7 +9473,7 @@ function ynRender(){
       const si=YN.plan.slides.indexOf(x);
       el.insertAdjacentHTML('afterend',`<div class="yn-plan"><div class="yn-hd2">表示 ${yaTc(te(x.s))}〜${yaTc(te(x.e))}（${ynEditLen(x.s,x.e).toFixed(1)}秒・カット後）${x.corner?`／テロップ「${esc(x.corner)}」`:''}</div>
 <div class="yn-it"><span class="yn-k" style="background:#f59e0b;">切替</span><span class="yn-sd" title="${esc(first)}">ここから：「${esc(first.slice(0,50))}」</span>
-${si>0?`<span class="yn-ed"><button class="ya-nd" title="切り替えを1文前へ" onclick="ynSlideShift(${si},-1)">◀</button><button class="ya-nd" title="切り替えを1文後へ" onclick="ynSlideShift(${si},1)">▶</button></span>`:''}</div>
+${si>0?`<span class="yn-ed"><span class="yn-lb">切り替える文</span><button class="ya-nd" title="切り替えを1文前へ" onclick="ynSlideShift(${si},-1)">◀ 前へ</button><button class="ya-nd" title="切り替えを1文後へ" onclick="ynSlideShift(${si},1)">後へ ▶</button></span>`:''}</div>
 ${rows.map(r=>r[1]).join('')}</div>`);
     });
   }
@@ -9497,7 +9509,7 @@ function ynPlanPrompt(){
   const secs=(YA.sections||[]).map(x=>`[${x.from}]${x.title?`（${x.title}）`:''}`);
   const tick=ynTicker();
   const srcs=ytSources();
-  const srcBlock=srcs.length?`\n\n【根拠資料（動画で一時的に画面へ差し込む）】\n${srcs.map(s=>`  ${s.no}. ${s.name}${s.page?`（${s.page}）`:''}`).join('\n')}`:'';
+  const srcBlock=srcs.length?`\n\n【根拠資料（動画で一時的に画面へ差し込む）】\n${srcs.map(s=>`  ${s.no}. ${s.name}${s.kind==='chart'?`【チャート：${ynTvTicker(s.name)}】`:s.page?`（${s.page}）`:''}`).join('\n')}`:'';
   return `あなたは動画編集者です。完成した音声（2人の会話）に、スライドの表示とズーム・強調を割り当ててください。
 
 【前提】
@@ -9517,6 +9529,7 @@ ${secs.length?`・話題の切れ目：次の文から新しい話題が始ま�
 　画面で見せる価値があるもの（数字の出どころ、会社の発表、公的な資料）を優先し、続けて出さない（間を20秒以上あける）。
 ・チャート：株価の値動き（いつの高値からどれだけ上がった・下がった、決算後の急落など）を話している箇所には、株価チャートを差し込む。
 　チャートは TradingView で用意するので、どの足で・いつからいつまでを映すかを指定する。ティッカーは ${tick}。1件は5〜8秒、全体で1〜3件。
+・【チャート】と付いた根拠資料も TradingView の画像で見せる。sources に入れるときは、interval（足）・start・end（期間）も書く。
 ・根拠資料やチャートを出している間は、スライドが隠れるので、ズームと強調は付けない。
 ・時刻と秒数は、どれもカット後（視聴者が見る時間）のもの。
 
@@ -9524,7 +9537,7 @@ ${secs.length?`・話題の切れ目：次の文から新しい話題が始ま�
 {"slides":[{"no":1,"from":文番号,"to":文番号,"corner":"コーナー名"}],
  "zooms":[{"slide":1,"zones":[まとまりの番号],"from":文番号,"to":文番号}],
  "marks":[{"slide":1,"zone":まとまりの番号,"type":"rect","from":文番号,"to":文番号}],
- "sources":[{"no":資料の番号,"from":文番号,"to":文番号}],
+ "sources":[{"no":資料の番号,"from":文番号,"to":文番号,"interval":"日足","start":"2026-01-01","end":"2026-09-18"}],（interval・start・end は【チャート】の資料だけ）
  "charts":[{"from":文番号,"to":文番号,"interval":"日足","start":"2026-01-01","end":"2026-09-18","note":"何を見せるか（例：2/25の高値から9/18まで）"}]}
 
 【スライドとまとまり】
@@ -9538,6 +9551,10 @@ function ynParsePlan(text){
   const o=JSON.parse(m[0]);if(!Array.isArray(o.slides))throw new Error('slides がありません');
   return o;
 }
+// TradingView の指定（アプリで撮るときに見る）。Webで開くリンクにも、銘柄と足を付ける
+const YN_TV_INT={'月足':'M','週足':'W','日足':'D','4時間足':'240','1時間足':'60','30分足':'30','15分足':'15','5分足':'5'};
+function ynTvUrl(ticker,interval){const iv=YN_TV_INT[interval];return `https://jp.tradingview.com/chart/?symbol=${encodeURIComponent(ticker)}${iv?`&interval=${iv}`:''}`;}
+function ynTvTicker(name){return /日経平均|日経225/.test(name||'')?'TVC:NI225':/TOPIX/i.test(name||'')?'TSE:TOPIX':ynTicker();}
 // TradingView のティッカー（国内は TSE:4519 の形）
 function ynTicker(){const c=(getTicker()||'').trim();return /^[0-9][0-9A-Z]{3}$/i.test(c)?`TSE:${c.toUpperCase()}`:c;}
 const ynKinds={zooms:'ズーム',marks:'強調',sources:'出典',charts:'チャート'};
@@ -9576,7 +9593,7 @@ function ynApplyPlan(plan){
     return{slide:+z.slide,zone:+z.zone,type:['rect','highlight','underline'].includes(z.type)?z.type:'rect',...g};
   }).filter(Boolean);
   const srcAll=ytSources();
-  const sources=(plan.sources||[]).map(x=>{const s=srcAll.find(y=>String(y.no)===String(x.no));const g=rng(x);return s&&g?{no:String(s.no),label:s.label||s.name,name:s.name,...g}:null;}).filter(Boolean);
+  const sources=(plan.sources||[]).map(x=>{const s=srcAll.find(y=>String(y.no)===String(x.no));const g=rng(x);return s&&g?{no:String(s.no),label:s.label||s.name,name:s.name,interval:String(x.interval||''),start:String(x.start||''),end:String(x.end||''),...g}:null;}).filter(Boolean);
   const charts=(plan.charts||[]).map((x,i)=>{const g=rng(x);return g?{id:'c'+(i+1),ticker:ynTicker(),interval:String(x.interval||'日足'),start:String(x.start||''),end:String(x.end||''),note:String(x.note||''),...g}:null;}).filter(Boolean);
   YN.plan={slides:sl.map(x=>({...x,...(ynSeg(x.from,x.to)||{})})),zooms,marks,sources,charts};
   ynPut('plan',YN.plan);ynRender();
@@ -9826,15 +9843,19 @@ function ytSources(){
     }
     // 種類：手で決めていなければ、資料名から判定（株価・指数の値動きはチャート）
     if(x.kind!=='chart'&&x.kind!=='doc')x.kind=/株価|時系列|チャート|日経平均|TOPIX|指数|TradingView/i.test(x.name||'')?'chart':'doc';
-    if(x.kind==='chart')x.tv=`https://jp.tradingview.com/chart/?symbol=${encodeURIComponent(/日経平均|日経225/.test(x.name||'')?'TVC:NI225':/TOPIX/i.test(x.name||'')?'TSE:TOPIX':ynTicker())}`;
+    if(x.kind==='chart'){
+      const sp=((YN.plan||{}).sources||[]).find(q=>String(q.no)===String(x.no))||{};
+      x.tvSpec={ticker:ynTvTicker(x.name),interval:sp.interval||'',start:sp.start||'',end:sp.end||''};
+      x.tv=ynTvUrl(x.tvSpec.ticker,x.tvSpec.interval);
+    }
     return x;
   });
 }
 // 一覧に出す行＝出典＋割り当てで決まったチャート
 function ysRows(){
   const rows=ytSources();
-  ((YN.plan||{}).charts||[]).forEach((c,i)=>rows.push({no:c.id,isChart:true,name:`チャート${i+1}：${c.ticker} ${c.interval} ${c.start}〜${c.end}`,
-    url:`https://jp.tradingview.com/chart/?symbol=${encodeURIComponent(c.ticker)}`,page:'',label:'',note:c.note}));
+  ((YN.plan||{}).charts||[]).forEach((c,i)=>rows.push({no:c.id,isChart:true,name:`チャート${i+1}${c.note?`：${c.note}`:''}`,
+    url:ynTvUrl(c.ticker,c.interval),tv:ynTvUrl(c.ticker,c.interval),tvSpec:{ticker:c.ticker,interval:c.interval,start:c.start,end:c.end},page:'',label:'',note:c.note}));
   return rows;
 }
 function ysItem(i){const a=ysRows();return a[i]||null;}
@@ -9875,6 +9896,7 @@ function ysRender(){
 ${chart||!(s.urls&&s.urls.length>1)
   ?`<div class="ys-url">${link?`<a href="${esc(link)}" target="_blank" rel="noopener" title="${esc(link)}">${chart?'TradingView で開く：':''}${esc(link)}</a>${!chart&&s.urls&&s.urls[0]?` <span class="ys-ty">${s.urls[0].pdf?'PDF':'ページ'}</span>`:''}`:'URLなし'}</div>`
   :s.urls.map((q,k)=>`<div class="ys-url${k===s.use?' on':''}"><button class="ya-nd" onclick="ysUse(${i},${k})" title="このURLを使う">${k===s.use?'●':'○'}</button> <span class="ys-ty">${q.pdf?'PDF':'ページ'}</span> <a href="${esc(q.url)}" target="_blank" rel="noopener" title="${esc(q.url)}">${esc(q.url)}</a>${q.page?` <span style="color:var(--text-sub);">${esc(q.page)}</span>`:''}</div>`).join('')}
+${chart&&s.tvSpec?`<div class="ys-tv">TradingView：<b>${esc(s.tvSpec.ticker)}</b>／${s.tvSpec.interval?`<b>${esc(s.tvSpec.interval)}</b>`:'足は未定'}／${s.tvSpec.start||s.tvSpec.end?`<b>${esc(s.tvSpec.start)}〜${esc(s.tvSpec.end)}</b>`:'期間は未定（割り当てで決まります）'}</div>`:''}
 <div class="ys-when" title="${w?esc(w.text):''}">${w?`差し込み ${yaTc(yaToEdit(w.s,yaKeep()))}〜${yaTc(yaToEdit(w.e,yaKeep()))}（カット後）${w.text?`：${esc(w.text.slice(0,40))}`:''}`:'差し込み位置は未定（先に「1. 演出の割り当て」）'}</div>
 <div class="ys-btns">
 ${s.url&&!chart&&!unused?`<button class="ya-nd" onclick="ysGrab(${i},this)" title="${pdf?ysPageNo(s.page)+'ページを取り直す':'URLから取り直す'}">⬇ 取得</button>`:''}
