@@ -8858,6 +8858,15 @@ function yaFindSilenceNear(t,radius){
   return null;
 }
 function yaSnapOnset(t){const g=yaFindSilenceNear(t,0.50);if(!g||t<g.s-0.40||t>g.e+0.40)return{t,ok:false};return{t:g.e,ok:true};}
+// カットの終点用：吸着先が t より先にあり、その間に声（残す文の頭）があるなら、先へは飛ばない
+function yaVoiced(a,b){let v=0;for(let i=Math.max(0,Math.round(a/YA_HOP));i<Math.min(YA.sil.length,Math.round(b/YA_HOP));i++)if(!YA.sil[i])v++;return v*YA_HOP;}
+function yaSnapOnsetEnd(t){
+  const r=yaSnapOnset(t);
+  if(!r.ok||r.t<=t+0.15)return r;
+  const v=yaVoiced(t,r.t);
+  if(v>=0.12||(r.t>t+0.6&&v>=0.05))return{t,ok:false};   // 小さな声の「あの、」は検出が弱いので、大きく飛ぶときは少しの声でも止める
+  return r;
+}
 // 削る文字列が文の表記と一致しないとき、一番近い場所を探す（0〜1で採点し、6割以上なら採用）
 function yaFindNear(nt,np){
   const L=np.length;if(!L||L>nt.length)return -1;
@@ -8896,7 +8905,7 @@ function yaCutRange(c){
     if(b<a)return null;
   }
   const next=YA.chars[b+1];
-  let st=yaSnapOnset(YA.chars[a].s),en=next?yaSnapOnset(next.s):{t:YA.dur,ok:true};
+  let st=yaSnapOnset(YA.chars[a].s),en=next?yaSnapOnsetEnd(next.s):{t:YA.dur,ok:true};
   if(en.t-st.t<0.05){
     // 短い相槌などは、前後の吸着先が同じ無音になって長さが潰れる。そのときは吸着なしの時刻を使い、
     // それも潰れていれば文の時刻を使う（おおよその位置。試聴して ◀▶ で調整する）
@@ -9569,9 +9578,9 @@ async function ynExport(btn){
           startTime:+sp.s.toFixed(2),endTime:+sp.e.toFixed(2),startSil:null,endSil:null,opacity:100,animIn:'fade',animOut:'fade',
           imgRef:ref,imgW:got&&got.w?got.w:1200,imgH:got&&got.h?got.h:700,scale:.9,shadow:false,blur:2,dim:30,
           imgName:got?`出典${sp.no} ${String(got.name||'').slice(0,30)}`:`出典${sp.no}（差し替え）`});
-        decorations.push({id:++id,type:'text',imgX1:.28,imgY1:.968,imgX2:.28,imgY2:.968,color:'#ffffff',
-          startTime:+sp.s.toFixed(2),endTime:+sp.e.toFixed(2),startSil:null,endSil:null,opacity:70,lineWidth:4,
-          animIn:'none',animOut:'switch',text:String(sp.label||sp.name||'').slice(0,60),textStyle:'simple',align:'center',size:.6});
+        decorations.push({id:++id,type:'text',imgX1:.0096,imgY1:.97,imgX2:.0096,imgY2:.97,color:'#ffffff',
+          startTime:+sp.s.toFixed(2),endTime:+sp.e.toFixed(2),startSil:null,endSil:null,opacity:70,lineWidth:3,
+          animIn:'none',animOut:'switch',text:String(sp.label||sp.name||'').slice(0,90),textStyle:'simple',align:'left',size:.6});
       }
       slides.forEach(s=>{s.zoomKeyframes=s.zoomKeyframes.flatMap(k=>{
         for(const sp of srcPlan){
@@ -9587,7 +9596,12 @@ async function ynExport(btn){
     // 切り替え・テロップ・字幕・カット
     const switchPoints=YN.plan.slides.slice(1).map(x=>+x.s.toFixed(2));
     const cornerTelops=YN.plan.slides.filter(x=>x.corner).map(x=>({id:++id,text:x.corner,accentColor:'#e91e8c',startSlide:x.no,endSlide:x.no,animIn:.5,animOut:.5,sizeMul:1,posX:73,posY:-85,minChars:8}));
-    const subs=ynKeptSents().map(x=>({id:++id,text:x.text,startTime:+x.s.toFixed(2),endTime:+x.e.toFixed(2),startSil:null,endSil:null,templateId:1}));
+    const kept=ynKeptSents().map(x=>({text:x.text,s:x.s,e:x.e})).sort((a,b)=>a.s-b.s);
+    kept.forEach((x,i)=>{
+      if(x.e<x.s+0.3)x.e=x.s+0.6;                                  // 終わりが始まりより前／短すぎる
+      const nx=kept[i+1];if(nx&&x.e>nx.s)x.e=Math.max(x.s+0.2,nx.s);   // 次の字幕と重ならないようにする
+    });
+    const subs=kept.map(x=>({id:++id,text:x.text,startTime:+x.s.toFixed(2),endTime:+x.e.toFixed(2),startSil:null,endSil:null,templateId:1}));
     const cuts=(typeof yaMerged==='function')?yaMerged().map(c=>({start:+c.start.toFixed(2),end:+c.end.toFixed(2)})):[];
     const ext=(YA.fileName.match(/\.(\w+)$/)||[,'m4a'])[1].toLowerCase();
     Object.assign(p,{version:3,source:'import',name:`${getTicker()||''}_${getName()||''}_YouTube`,created:new Date().toISOString(),
