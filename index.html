@@ -7937,8 +7937,7 @@ function ytSlideParts(){
   const ch=YT_CHAPTERS.map(c=>`第${c.no}章 ${up&&c.nameUp?c.nameUp:c.name}`).join('\n');
   const plan=`【内部用の企画方針｜この方針文は画像に表示しない】
 ・シリーズ名：私が知らなかった実力株
-・取り上げる理由：株価が大きく${up?'上昇':'下落'}した銘柄
-・動画の目的：株価の予想ではなく、会社の事業と競争力を掘り下げること
+${ytTheme()?`・今回のテーマ：${ytTheme()}\n`:''}・動画の目的：株価の予想ではなく、会社の事業と競争力を掘り下げること
 ・章の並び（内部用。章番号は画像に描かない）：
 ${ch.split('\n').map(s=>'　'+s).join('\n')}
 
@@ -8016,6 +8015,10 @@ IFRS：イファース
 【音声の最後のルール】
 ・音声の一番最後は、必ず「本日はここまでです」の１文で終えてください。
 ・１文の直後に2秒程度の無音の間を置いてから終了する（無音の指示自体は読み上げない）`;
+// 今回のテーマ（音声タブで直せる）。空欄なら、テーマの言い方を入れない
+function ytThemeDefault(){return `株価が大きく${getDir()==='up'?'上昇':'下落'}した銘柄`;}
+function ytTheme(){return ((document.getElementById('yt-theme')||{}).value||'').trim();}
+function ytThemeReset(){const el=document.getElementById('yt-theme');if(!el)return;el.value=ytThemeDefault();saveState();}
 function ytNotebookPrompt(){
   const up=getDir()==='up',name=getName()||'この会社',min=ytVal('nlm-min')||'12';
   const yomi=ytYomi();
@@ -8023,8 +8026,9 @@ function ytNotebookPrompt(){
   return `根拠資料をもとに、約${min}分のYouTube解説動画用の音声を作成してください。
 
 テーマは、
-「${name}は何者なのか。株価は大きく${up?'上昇':'下落'}したが、この会社の事業と競争力を掘り下げる」
-です。シリーズ「私が知らなかった実力株」の1本で、株価予想ではなく会社そのものを主役にします。
+「${name}は何者なのか。この会社の事業と競争力を掘り下げる」
+です。シリーズ「私が知らなかった実力株」の1本で、株価予想ではなく会社そのものを主役にします。${ytTheme()?`
+今回は「${ytTheme()}」として取り上げます。`:''}
 
 話し手はアナリスト（専門家）、聞き手は投資に詳しいMCです。MCは視聴者と同じ目線の質問係ではなく、論点を整理して引き出し、視聴者に投資判断の材料を渡す役です。
 
@@ -8218,7 +8222,7 @@ function ytSlidePartsLoose(){
   if(!doc)throw new Error('「調査」タブに ChatGPT の動画資料を貼り付けてください');
   const fr=ytFreeReport();
   const plan=`シリーズ「私が知らなかった実力株」
-株価が大きく${up?'上昇':'下落'}した銘柄を取り上げ、会社の事業と競争力を掘り下げる解説動画。
+${ytTheme()?`今回のテーマ：${ytTheme()}\n`:''}会社の事業と競争力を掘り下げる解説動画。
 株価の予想をする動画ではなく、会社そのものを主役にする。
 
 銘柄：${getName()||''}（${getTicker()||''}）`;
@@ -8339,6 +8343,8 @@ function ytBuildTabHtml(){
 <div class="sa-card">
   <h2>1. NotebookLM で音声を作る</h2>
   ${set('銘柄名の読み','<input type="text" id="yt-yomi" placeholder="例：ちゅうがいせいやく（資料を貼ると自動で入ります）" oninput="ytYomiInput()" style="flex:1;min-width:0;font-size:11px;"><input type="hidden" id="yt-yomi-for">')}
+  ${set('今回のテーマ','<input type="text" id="yt-theme" placeholder="空欄なら書きません" oninput="saveState()" style="flex:1;min-width:0;font-size:11px;"><button class="ya-nd" onclick="ytThemeReset()" title="既定の言い方に戻す">↺</button>')}
+  <div style="font-size:10px;color:var(--text-sub);">テーマは、音声の指示・スライド・投稿文で「入口」の言い方として使います（例：株価が大きく下落した銘柄）。この回に合わないときは書き換えるか、空にしてください。</div>
   ${row(b('📄 ソース（.md）','ytDownloadSource()','background:#0d9488;color:#fff;'),b('📓 指示',"ytCopy('nlm',this)",G))}
   <div style="font-size:10px;color:var(--text-sub);">指示は約12分（守られないので、長めに作らせる目安）。NotebookLMの長さ設定は「短い」。</div>
 </div>
@@ -8390,11 +8396,12 @@ ${yaBuildPaneHtml()}</div>
 </div>
 </div>`;
 }
-const YT_PERSIST_IDS=['vd-orient','yt-doc','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-titles','yt-p-thumbs','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-yomi','yt-yomi-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan'];
+const YT_PERSIST_IDS=['vd-orient','yt-doc','yt-theme','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-titles','yt-p-thumbs','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-yomi','yt-yomi-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan'];
 function ytRestoreFields(){
   let st=null;try{st=JSON.parse(localStorage.getItem(SA_STORAGE_KEY)||'null');}catch(e){}
   if(!st||!st.fields)return;
   YT_PERSIST_IDS.forEach(id=>{const el=document.getElementById(id);if(!el||st.fields[id]==null)return;if(el.type==='checkbox')el.checked=!!st.fields[id];else el.value=st.fields[id];});
+  const th=ytEl('theme');if(th&&(!st.fields||st.fields['yt-theme']==null))th.value=ytThemeDefault();   // 初回だけ既定の言い方を入れる（あとは空欄も尊重する）
   const nm=ytEl('nlm-min');if(nm&&nm.value==='8')nm.value='12';   // NotebookLMは長さを守らないので、長めに作らせる目安として12分（旧既定値8分から）
 }
 // 縦（SNS）／横（YouTube）の切り替え
