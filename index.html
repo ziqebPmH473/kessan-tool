@@ -440,12 +440,20 @@
 .yn-plan{font-size:11px;color:#334155;padding:4px 8px;border-top:1px solid var(--border);background:#f8fafc;}
 .yn-hd2{font-weight:700;margin-bottom:2px;}
 .yn-it{display:flex;gap:6px;align-items:center;line-height:1.8;white-space:nowrap;}
-.yn-k{flex:none;width:52px;text-align:center;border-radius:8px;font-size:10px;color:#fff;}
-.sa select.yn-sel,select.yn-sel{flex:none;width:92px;font-size:11px;line-height:18px;padding:0 2px;height:22px;box-sizing:border-box;border:1px solid #94a3b8;border-radius:4px;background:#fff;color:#0f172a;}
+.yn-k{flex:none;width:86px;box-sizing:border-box;text-align:center;border-radius:9px;font-size:10px;line-height:18px;font-weight:700;color:#fff;}
+.sa select.yn-sel,select.yn-sel{flex:none;width:86px;font-size:10px;line-height:18px;height:18px;box-sizing:border-box;padding:0 16px 0 8px;border:none;border-radius:9px;
+  color:#fff;font-weight:700;text-align:center;text-align-last:center;cursor:pointer;-webkit-appearance:none;appearance:none;
+  background:#475569 url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='5'><path d='M0 0l4 5 4-5z' fill='white'/></svg>") no-repeat right 6px center;}
+.sa select.yn-sel.t-zoom,select.yn-sel.t-zoom{background-color:#2563eb;}
+.sa select.yn-sel.t-rect,select.yn-sel.t-rect{background-color:#db2777;}
+.sa select.yn-sel.t-highlight,select.yn-sel.t-highlight{background-color:#ca8a04;}
+.sa select.yn-sel.t-underline,select.yn-sel.t-underline{background-color:#0891b2;}
+select.yn-sel option{color:#0f172a;background:#fff;font-weight:400;}
 .sa input.yn-in,input.yn-in{width:40px;font-size:11px;height:22px;box-sizing:border-box;padding:0 3px;border:1px solid #94a3b8;border-radius:4px;text-align:center;}
 .sa input.yn-in.yn-zn,input.yn-in.yn-zn{width:52px;} .yn-nn{flex:none;display:inline-flex;align-items:center;gap:3px;}
 .yn-go{font-size:10px;line-height:16px;padding:0 5px;border:1px solid #94a3b8;border-radius:4px;background:#f1f5f9;cursor:pointer;}
-.yn-add{border-top:1px dashed #cbd5e1;margin-top:3px;padding-top:3px;}
+.yn-add{border-top:1px dashed #cbd5e1;margin-top:3px;padding-top:3px;background:#f0fdfa;}
+.yn-addbtn{margin-right:6px;font-weight:400;}
 .ya-flash{background:#fef08a!important;transition:background .3s;}
 .yn-k.k-zooms{background:#2563eb;} .yn-k.k-marks{background:#db2777;} .yn-k.k-sources{background:#0d9488;} .yn-k.k-charts{background:#d97706;}
 .yn-tm{flex:none;color:#475569;} .yn-wh{flex:none;max-width:34%;overflow:hidden;text-overflow:ellipsis;}
@@ -9551,7 +9559,7 @@ function ynRender(){
     ['zooms','marks','sources','charts'].forEach(k=>(YN.plan[k]||[]).forEach(fix));
     const said=z=>{const a=sents.filter(x=>x.n>=z.from&&x.n<=z.to).map(x=>x.text).join(' ');return a.length>46?a.slice(0,46)+'…':a;};
     const TYPES=[['zoom','ズーム'],['rect','四角枠'],['highlight','ハイライト'],['underline','下線']];
-    const typeSel=(cur,on)=>`<select class="yn-sel" onchange="${on}">${TYPES.map(o=>`<option value="${o[0]}"${o[0]===cur?' selected':''}>${o[1]}</option>`).join('')}</select>`;
+    const typeSel=(cur,on)=>`<select class="yn-sel t-${cur}" onchange="${on}">${TYPES.map(o=>`<option value="${o[0]}"${o[0]===cur?' selected':''}>${o[1]}</option>`).join('')}</select>`;
     // 文番号の欄：押すと右の文の一覧がその文まで送られる。元の時刻とカット後の時刻はマウスを重ねると出る
     const nums=(kind,i,z)=>`<span class="yn-nn" title="カット後 ${yaTc(te(z.s))}〜${yaTc(te(z.e))}（${ynEditLen(z.s,z.e).toFixed(1)}秒）／元の音声 ${yaTc(z.s)}〜${yaTc(z.e)}">
 <button class="yn-go" onclick="yaJumpTo(${z.from})" title="右の一覧でこの文を表示">文</button><input class="yn-in" type="number" value="${z.from}" onchange="ynFxSet('${kind}',${i},'from',this.value)">〜<input class="yn-in" type="number" value="${z.to}" onchange="ynFxSet('${kind}',${i},'to',this.value)"></span>`;
@@ -9574,14 +9582,14 @@ ${nums(kind,i,z)}${tail(kind,i,z)}</div>`;
       rows.sort((a,b)=>a[0]-b[0]);
       const first=(sents.find(q=>q.n===x.from)||{}).text||'';
       const si=YN.plan.slides.indexOf(x);
-      el.insertAdjacentHTML('afterend',`<div class="yn-plan"><div class="yn-hd2">表示 ${yaTc(te(x.s))}〜${yaTc(te(x.e))}（${ynEditLen(x.s,x.e).toFixed(1)}秒・カット後）／文 ${x.from}〜${x.to}${x.corner?`／テロップ「${esc(x.corner)}」`:''}</div>
+      el.insertAdjacentHTML('afterend',`<div class="yn-plan"><div class="yn-hd2"><button class="ya-nd yn-addbtn" onclick="ynAddOpen(${x.no},true)" title="このスライドに演出を足す">＋ 追加</button> 表示 ${yaTc(te(x.s))}〜${yaTc(te(x.e))}（${ynEditLen(x.s,x.e).toFixed(1)}秒・カット後）／文 ${x.from}〜${x.to}${x.corner?`／テロップ「${esc(x.corner)}」`:''}</div>
 <div class="yn-it"><span class="yn-k" style="background:#f59e0b;">切替</span><span class="yn-nn"><button class="yn-go" onclick="yaJumpTo(${x.from})" title="右の一覧でこの文を表示">文</button> ${x.from}</span><span class="yn-sd" title="${esc(first)}">ここから：「${esc(first.slice(0,50))}」</span>
 ${si>0?`<span class="yn-ed"><span class="yn-lb">切り替える文</span><button class="ya-nd" title="切り替えを1文前へ" onclick="ynSlideShift(${si},-1)">◀ 前へ</button><button class="ya-nd" title="切り替えを1文後へ" onclick="ynSlideShift(${si},1)">後へ ▶</button></span>`:''}</div>
 ${rows.map(r=>r[1]).join('')}
-<div class="yn-it yn-add"><select class="yn-sel" id="yn-add-t${x.no}">${TYPES.map(o=>`<option value="${o[0]}">${o[1]}</option>`).join('')}</select>
+<div class="yn-it yn-add" id="yn-add-row${x.no}" style="display:none;"><select class="yn-sel t-zoom" id="yn-add-t${x.no}" onchange="this.className='yn-sel t-'+this.value">${TYPES.map(o=>`<option value="${o[0]}">${o[1]}</option>`).join('')}</select>
 <span class="yn-lb">枠</span><input class="yn-in yn-zn" id="yn-add-z${x.no}" placeholder="2+3">
 <span class="yn-nn"><span class="yn-lb">文</span><input class="yn-in" type="number" id="yn-add-f${x.no}" placeholder="${x.from}">〜<input class="yn-in" type="number" id="yn-add-e${x.no}" placeholder="${x.to}"></span>
-<button class="ya-nd" onclick="ynFxAdd(${x.no})">＋ 追加</button><span class="yn-sd">枠の番号は上の画像の番号、文の番号は右の一覧の番号</span></div></div>`);
+<button class="ya-nd" style="background:#0d9488;color:#fff;border-color:#0d9488;" onclick="ynFxAdd(${x.no})">保存</button><button class="ya-nd" onclick="ynAddOpen(${x.no},false)">やめる</button><span class="yn-sd">枠＝上の画像の番号、文＝右の一覧の番号</span></div></div>`);
     });
   }
   ynPos();
@@ -9746,6 +9754,12 @@ function ynFxSet(kind,i,field,v){
     Object.assign(it,ynSeg(it.from,it.to)||{});
   }
   ynPut('plan',YN.plan);ynRender();if(typeof ysRender==='function')ysRender();
+}
+// 追加の入力行を出す／しまう
+function ynAddOpen(no,on){
+  const r=document.getElementById('yn-add-row'+no);if(!r)return;
+  r.style.display=on?'':'none';
+  if(on){const z=document.getElementById('yn-add-z'+no);if(z)z.focus();}
 }
 // 演出を足す（種類・枠・始まりと終わりの文）
 function ynFxAdd(slide){
