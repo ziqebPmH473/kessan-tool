@@ -9497,8 +9497,8 @@ function ytParseSources(){
   const m=doc.match(/^#{1,4}\s*出典一覧[^\n]*$/m);if(!m)return[];
   return doc.slice(m.index).split('\n').slice(1).map(l=>l.trim()).filter(l=>/^\|/.test(l)&&!/^\|[\s\-:|]+\|$/.test(l))
     .map(l=>l.split('|').map(x=>x.trim()).filter(Boolean)).filter(c=>c.length>=2)
-    .filter(c=>/^[0-9０-９]/.test(c[0]))   // 表の見出し行（番号｜資料名…）は除く
-    .map(c=>({no:c[0],name:c[1],url:c[2]||'',page:c[3]||'',label:c[c.length-1]}));
+    .filter(c=>/[0-9０-９]/.test(c[0])&&!/^\s*番号/.test(c[0]))   // 表の見出し行（番号｜資料名…）は除く
+    .map(c=>({no:(c[0].match(/[0-9０-９]+/)||[c[0]])[0],name:c[1],url:c[2]||'',page:c[3]||'',label:c[c.length-1]}));
 }
 
 // 表示するスライドを送る（右ペイン）
