@@ -1196,7 +1196,7 @@ select.yn-sel option{color:#0f172a;background:#fff;font-weight:400;}
         </div><!-- /mode-stock -->
 
         <!-- YT動画（テーマを問わない横動画）。中身は、株価分析の横動画のパネル（#yt-root）をそのままここへ移して使う -->
-        <div id="mode-yt" class="sa" style="display:none;"></div>
+        <div id="mode-yt" class="sa" style="display:none;"><div style="display:flex;gap:4px;justify-content:flex-end;margin-bottom:6px;"><button class="btn-sm" onclick="exportTabData('yt')" title="このタブの内容（音声・スライド・割り当て・出典の画像も）をJSONで保存" style="flex:none;padding:4px 10px;font-size:11px;background:#e0f2fe;color:#075985;">📤 エクスポート</button><button class="btn-sm" onclick="importTabDataPick('yt')" title="保存したJSONを読み込んで続きから再開" style="flex:none;padding:4px 10px;font-size:11px;background:#dcfce7;color:#166534;">📥 インポート</button></div></div>
         <div id="mode-price" class="sa" style="display:none;">
 <div class="ctrl">
   <div class="sa-subtabs">
@@ -9224,7 +9224,6 @@ function ytBuildTabHtml(){
 <div class="sa-card">
   <h2>1. 調査・動画資料</h2>
   <div class="yt-only-gen yt-col" style="display:none;">
-    <div style="display:flex;gap:4px;justify-content:flex-end;"><button class="btn-sm" onclick="exportTabData('yt')" title="このタブの内容（音声・スライド・割り当て・出典の画像も）をJSONで保存" style="flex:none;padding:4px 10px;font-size:11px;background:#e0f2fe;color:#075985;">📤 エクスポート</button><button class="btn-sm" onclick="importTabDataPick('yt')" title="保存したJSONを読み込んで続きから再開" style="flex:none;padding:4px 10px;font-size:11px;background:#dcfce7;color:#166534;">📥 インポート</button></div>
     <div class="sa-sub">▼ 1. テーマ</div>
     <input type="text" id="yt-g-theme" placeholder="この動画のテーマ（何が分かる動画か）" oninput="saveState()" style="width:100%;font-size:12px;">
     <div class="sa-sub">▼ 2. レポート（ChatGPTと調べた内容を、レポートにまとめてもらって貼る）→ ファクトチェック</div>
