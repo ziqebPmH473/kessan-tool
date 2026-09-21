@@ -508,6 +508,15 @@ select.yn-sel option{color:#0f172a;background:#fff;font-weight:400;}
 .ys-tag.chart{background:#d97706;} .ys-tag.off{background:#64748b;}
 .ys-btns{flex:1;min-width:0;display:flex;flex-wrap:wrap;gap:3px;}
 /* スライドの直し：チェックの並び */
+/* 戻す（控え）：欄の右上の小さなボタンと、控えの一覧 */
+.yh-wrap{position:relative;}
+.yh-btn{position:absolute;top:3px;right:3px;z-index:2;border:1px solid #cbd5e1;background:rgba(255,255,255,.9);color:#475569;border-radius:5px;font-size:11px;line-height:1;padding:3px 5px;cursor:pointer;opacity:.55;}
+.yh-btn:hover{opacity:1;}
+.yh-menu{position:fixed;z-index:10000;width:290px;max-height:60vh;overflow:auto;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.18);padding:4px;font-size:11px;}
+.yh-hd{padding:4px 6px;color:var(--text-sub);font-weight:bold;}
+.yh-it{display:block;width:100%;text-align:left;border:none;background:none;padding:5px 6px;border-radius:5px;cursor:pointer;font-size:11px;color:var(--text-main);}
+.yh-it:hover{background:#f1f5f9;}
+.yh-it span{display:block;color:var(--text-sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .yt-fixes{display:flex;flex-wrap:wrap;gap:2px 10px;margin:4px 0;}
 /* 横動画のパネル：横に並ぶボタンは、等分にすると長い文字が切れる（「Gemini APIで作る」「まとめて取得…」など）ので、文字の長さに合わせて幅を配る */
 /* カードは縦並びで部品の間を6pxあけている。部品を包んだ所にも同じ間隔を持たせる（包むと、カードの間隔が中まで届かない） */
@@ -9276,7 +9285,8 @@ function ytBuildTabHtml(){
   <h2>3. できたスライドを取り込む</h2>
   <div style="font-size:11px;color:var(--text-sub);">できた画像を読み込みます（ファイル名順）。</div>
   <input type="file" id="yn-files" accept="image/*" multiple onchange="ynLoadFiles(this.files)" style="font-size:11px;">
-  ${row(b('<span id="yn-read-label">🔍 まとまりを読み取る</span>','ynReadZones(this)',G),b('↻ 読み取り直す',"YN.slides.forEach(s=>{s.zones=null;s.texts=null;});ynSave();ynRender();ynReadZones()"))}
+  ${row(b('<span id="yn-read-label">🔍 まとまりを読み取る</span>','ynReadZones(this)',G),b('↻ 読み取り直す',"ynReadAllAgain()"),b('🪄 位置を補正','ynSnapAll(this)'))}
+  <div style="font-size:10px;color:var(--text-sub);">読み取ったあと、ツールが枠を画像の縁や文字に合わせます（自動）。まとまりは、枚ごとに右の「↶」で前の状態に戻せます。</div>
   <details class="yt-col" style="margin-top:4px;">
     <summary style="font-size:11px;color:var(--text-sub);cursor:pointer;">Gemini（Web版）で読み取る（APIが混んでいるとき）</summary>
     <div style="font-size:10px;color:var(--text-sub);">「💾 添付」で保存したZIPを開き、中の画像を全部Geminiに添付し、「💬 プロンプト」を貼って送ります。返ってきたJSONを貼り付けてください。全部の枚が対象です（読み取り済みの枚も読み直します）。1回に10枚までなので、11枚以上あるときは、貼り付けたあと、もう一度「💾 添付」と「💬 プロンプト」を押すと続きの枚になります。</div>
@@ -9405,6 +9415,76 @@ const YT_PERSIST_IDS=['vd-orient','th-ctx','th-note-text','th-note-preset','yt-t
 let YT_CTX=(()=>{try{return localStorage.getItem('kt-yt-ctx')==='gen'?'gen':'stock';}catch(e){return 'stock';}})();
 const ytGen=()=>YT_CTX==='gen';
 const ytKey=k=>(ytGen()&&k!=='tpl')?'gen:'+k:k;   // ナレスラのひな形（tpl）は共通
+
+// ---- 戻せる仕組み（控え）：上書きする前の中身を、種類ごとに直近10個まで IndexedDB に控える。株価分析とYT動画は別に持つ ----
+const YH_MAX=10;
+function yhDb(){return new Promise((res,rej)=>{const r=indexedDB.open('kessanTool-ytHist',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+async function yhGet(key){try{const db=await yhDb();return await new Promise((res,rej)=>{const q=db.transaction('kv').objectStore('kv').get(ytKey('h:'+key));q.onsuccess=()=>res(q.result||[]);q.onerror=()=>rej(q.error);});}catch(e){return[];}}
+async function yhSet(key,list){try{const db=await yhDb();await new Promise((res,rej)=>{const tx=db.transaction('kv','readwrite');tx.objectStore('kv').put(list,ytKey('h:'+key));tx.oncomplete=res;tx.onerror=()=>rej(tx.error);});}catch(e){console.warn('[yh] 控えの保存に失敗',e);}}
+// value＝上書きされる前の中身。merge：同じ理由で5秒以内に続けて変えたときは、最初の1つだけ控える（手で続けて直したときに、控えがあふれないように）
+async function yhPush(key,value,why,merge){
+  if(value==null)return;
+  const list=await yhGet(key),now=Date.now(),js=JSON.stringify(value);
+  if(merge&&list[0]&&list[0].why===why&&now-list[0].t<5000){list[0].t=now;await yhSet(key,list);return;}
+  if(list[0]&&JSON.stringify(list[0].v)===js)return;
+  list.unshift({t:now,why:why||'',v:JSON.parse(js)});await yhSet(key,list.slice(0,YH_MAX));
+}
+const yhTime=t=>{const d=new Date(t),p=n=>String(n).padStart(2,'0');return `${d.getMonth()+1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;};
+function yhPeek(v){
+  if(typeof v==='string')return v.replace(/\s+/g,' ').slice(0,50)||'（空）';
+  if(v&&Array.isArray(v.zones))return `まとまり${v.zones.length}・文字の行${(v.texts||[]).length}`;
+  if(v&&Array.isArray(v.slides))return `スライド${v.slides.length}・ズーム${(v.zooms||[]).length}・強調${(v.marks||[]).length}・出典${(v.sources||[]).length}`;
+  if(Array.isArray(v))return `${v.length}か所`;
+  return '';
+}
+// 控えの一覧を出し、選んだ時点に戻す（onPick に、控えていた中身を渡す）
+function yhMenu(btn,key,label,onPick){
+  yhClose();
+  const m=document.createElement('div');m.id='yh-menu';m.className='yh-menu';m.innerHTML='<div class="yh-hd">読み込み中…</div>';document.body.appendChild(m);
+  const r=btn.getBoundingClientRect();m.style.left=Math.max(8,Math.min(innerWidth-300,r.right-290))+'px';m.style.top=Math.min(innerHeight-120,r.bottom+4)+'px';
+  yhGet(key).then(list=>{
+    if(!document.getElementById('yh-menu'))return;
+    if(!list.length){m.innerHTML=`<div class="yh-hd">${esc(label)}：戻せる控えはまだありません</div>`;return;}
+    m.innerHTML=`<div class="yh-hd">${esc(label)}：この時点に戻す</div>`+list.map((x,i)=>`<button type="button" class="yh-it" data-i="${i}"><b>${yhTime(x.t)}</b>　${esc(x.why||'')}<span>${esc(yhPeek(x.v))}</span></button>`).join('');
+    m.querySelectorAll('.yh-it').forEach(b=>b.onclick=async()=>{yhClose();try{await onPick(list[+b.dataset.i].v);}catch(e){alert('戻せませんでした：'+e.message);}});
+  });
+  setTimeout(()=>document.addEventListener('mousedown',yhOutside),0);
+}
+function yhOutside(e){const m=document.getElementById('yh-menu');if(m&&!m.contains(e.target))yhClose();}
+function yhClose(){const m=document.getElementById('yh-menu');if(m)m.remove();document.removeEventListener('mousedown',yhOutside);}
+
+// 入力欄（横動画のパネルの文章の欄）：中身が入れ替わる前の内容を控える。ボタンで書き換えたときはすぐ、手で打って直したときは欄から離れたときに1つ
+let _yhMute=false;   // 動画の種類の切り替えで中身を入れ替えている間は控えない（上書きではないため）
+const yhFields=()=>[...document.querySelectorAll('#yt-root textarea')].filter(el=>el.id&&!el.readOnly);
+function yhRebase(){yhFields().forEach(el=>{el._yhBase=el.value;el._yhTyped=false;});}
+function yhScan(){
+  if(_yhMute)return;
+  yhFields().forEach(el=>{
+    if(el._yhBase===undefined){el._yhBase=el.value;return;}
+    if(el.value===el._yhBase||document.activeElement===el)return;
+    const prev=el._yhBase;el._yhBase=el.value;
+    if(prev.trim())yhPush('f:'+el.id,prev,el._yhTyped?'手で直す前':'書き換える前');
+    el._yhTyped=false;
+  });
+}
+function yhInitFields(){
+  yhFields().forEach(el=>{
+    if(el._yhWrapped||el.style.display==='none')return;el._yhWrapped=true;
+    el.addEventListener('input',()=>{if(document.activeElement===el)el._yhTyped=true;});
+    el.addEventListener('blur',()=>setTimeout(yhScan,0));
+    const w=document.createElement('div');w.className='yh-wrap';
+    const pcs=getComputedStyle(el.parentNode);if(/flex/.test(pcs.display)&&/^row/.test(pcs.flexDirection)){w.style.flex='1';w.style.minWidth='0';el.style.width='100%';}
+    el.parentNode.insertBefore(w,el);w.appendChild(el);
+    const b=document.createElement('button');b.type='button';b.className='yh-btn';b.title='前の内容に戻す';b.textContent='↶';
+    b.onclick=()=>yhMenu(b,'f:'+el.id,'この欄',async v=>{
+      yhScan();if(el.value.trim())await yhPush('f:'+el.id,el.value,'戻す前');
+      el.value=v;el._yhBase=v;el.dispatchEvent(new Event('input',{bubbles:true}));if(typeof saveState==='function')saveState();
+    });
+    w.appendChild(b);
+  });
+  yhRebase();
+  if(!window._yhTimer)window._yhTimer=setInterval(yhScan,800);
+}
 // 種類を切り替えても入れ替えない欄：縦横の切り替え・サムネイルの文言（別の仕組みで入れ替える）・設定タブの共通の設定
 const YT_SHARED_IDS=['yt-g-aud','vd-orient','th-ctx','th-note-text','th-note-preset','yt-th-text','yt-th-preset','yg-th-text','yg-th-preset','yt-p-fixed','ya-ctx','yt-months','yt-nlm-min','yt-m-cut','yt-m-read','yt-m-plan','yt-m-post','yt-m-qr'];
 const ytWorkIds=()=>YT_PERSIST_IDS.filter(id=>!YT_SHARED_IDS.includes(id));
@@ -9440,6 +9520,7 @@ function ytSetCtx(ctx){
     if(ctx===YT_CTX)return;
     try{if(typeof yaStop==='function')yaStop();}catch(e){}
     await yaFlush();
+    yhScan();_yhMute=true;
     const keep={};ytWorkIds().forEach(id=>{const el=document.getElementById(id);if(el)keep[id]=el.type==='checkbox'?el.checked:el.value;});
     try{localStorage.setItem('kt-yt-fields-'+YT_CTX,JSON.stringify(keep));}catch(e){}
     YT_CTX=ctx;try{localStorage.setItem('kt-yt-ctx',ctx);}catch(e){}
@@ -9455,7 +9536,7 @@ function ytSetCtx(ctx){
     ytCtxApplyUi();
     await ytReloadAll(null);
     if(typeof ytUpdateFreeInfo==='function')ytUpdateFreeInfo();
-  }).catch(e=>console.warn('[yt] 種類の切り替えに失敗',e));
+  }).catch(e=>console.warn('[yt] 種類の切り替えに失敗',e)).then(()=>{if(_yhMute){yhRebase();_yhMute=false;}});
   return _ytCtxChain;
 }
 // 保存済みの定型文（使用ツール）にナレスラの行が無ければ、TradingView の行の下に足す
@@ -9573,7 +9654,12 @@ function yaDb(){return new Promise((res,rej)=>{const r=indexedDB.open('kessanToo
 async function yaPut(k,v){k=ytKey(k);try{const db=await yaDb();await new Promise((res,rej)=>{const tx=db.transaction('kv','readwrite');tx.objectStore('kv').put(v,k);tx.oncomplete=res;tx.onerror=()=>rej(tx.error);});}catch(e){console.warn('[ya] 保存失敗',e);}}
 async function yaGet(k){k=ytKey(k);try{const db=await yaDb();return await new Promise((res,rej)=>{const r=db.transaction('kv').objectStore('kv').get(k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}catch(e){return null;}}
 let _yaSaveTimer=null;
-function yaSaveNow(){_yaSaveTimer=null;return yaPut('state',{fileName:YA.fileName,dur:YA.dur,chars:YA.chars,wchars:YA.wchars,sents:YA.sents,cuts:YA.cuts,sections:YA.sections,score:YA.score,reach:YA.reach,stock:ytWorkName()});}
+let _yaCutsBase=null;   // 前に保存したときのカット（変わっていたら、前のものを控える）
+function yaCutsKeep(){const cj=JSON.stringify(YA.cuts||[]);if(_yaCutsBase!=null&&cj!==_yaCutsBase)yhPush('cuts',JSON.parse(_yaCutsBase),'カットを変える前',true);_yaCutsBase=cj;}
+function yaCutsUndo(btn){
+  yhMenu(btn,'cuts','カット',async v=>{yaCutsKeep();await yhPush('cuts',YA.cuts||[],'戻す前');YA.cuts=v;_yaCutsBase=JSON.stringify(v);await yaSaveNow();yaRender(true);if(typeof ynRender==='function')ynRender();});
+}
+function yaSaveNow(){_yaSaveTimer=null;yaCutsKeep();return yaPut('state',{fileName:YA.fileName,dur:YA.dur,chars:YA.chars,wchars:YA.wchars,sents:YA.sents,cuts:YA.cuts,sections:YA.sections,score:YA.score,reach:YA.reach,stock:ytWorkName()});}
 function yaSave(){clearTimeout(_yaSaveTimer);_yaSaveTimer=setTimeout(yaSaveNow,400);}
 // 保留中の保存を、いますぐ書き出す（動画の種類を切り替える前に呼ぶ。切り替えたあとに書くと、相手側の保存先に入ってしまう）
 async function yaFlush(){if(_yaSaveTimer){clearTimeout(_yaSaveTimer);await yaSaveNow();}}
@@ -10180,7 +10266,7 @@ function yaBuildCutHtml(){
   const row=(...x)=>`<div class="row" style="flex-wrap:nowrap;">${x.join('')}</div>`;
   return `
 <div class="sa-card">
-  <h2>1. 削る箇所の判定</h2>
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;"><h2>1. 削る箇所の判定</h2><button class="ya-nd" onclick="yaCutsUndo(this)" title="カットを前の状態に戻す">↶ 戻す</button></div>
   <div style="font-size:11px;color:var(--text-sub);">基本はNG（売買推奨・言い間違い・資料と食い違う話）だけを削ります。</div>
   <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;">
     <label style="font-size:11px;color:var(--text-sub);flex:none;">目標の長さ</label>
@@ -10217,6 +10303,7 @@ async function yaPaste(id,after){
 // ---- 起動時の復元 ----
 async function yaRestore(){
   const a=await yaGet('audio');const st=await yaGet('state');
+  _yaCutsBase=JSON.stringify((st&&st.cuts)||[]);
   if(st&&st.sents){Object.assign(YA,{fileName:st.fileName||'',dur:st.dur||0,chars:st.chars||[],wchars:st.wchars||[],sents:st.sents||[],cuts:st.cuts||[],sections:st.sections||[],score:st.score||null,reach:st.reach==null?null:st.reach});}
   if(a&&a.blob){
     let f=a.blob;try{f=new File([a.blob],a.name||'narration',{type:a.blob.type});}catch(e){}
@@ -10243,7 +10330,10 @@ function ynStatus(msg,cls,id){const el=ynEl(id||'status');if(!el)return;el.style
 
 // ---- 保存 ----
 function ynDb(){return new Promise((res,rej)=>{const r=indexedDB.open('kessanTool-ytNare',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
-async function ynPut(k,v){k=ytKey(k);try{const db=await ynDb();await new Promise((res,rej)=>{const tx=db.transaction('kv','readwrite');tx.objectStore('kv').put(v,k);tx.oncomplete=res;tx.onerror=()=>rej(tx.error);});}catch(e){console.warn('[yn] 保存失敗',e);}}
+let _ynPlanWhy='';   // 割り当てを保存するときの理由（空なら手で直したもの）
+async function ynPut(k,v){
+  if(k==='plan'){const why=_ynPlanWhy;_ynPlanWhy='';const old=await ynGet('plan');if(old&&old.slides)await yhPush('plan',old,why||'手で直す前',!why);}
+  k=ytKey(k);try{const db=await ynDb();await new Promise((res,rej)=>{const tx=db.transaction('kv','readwrite');tx.objectStore('kv').put(v,k);tx.oncomplete=res;tx.onerror=()=>rej(tx.error);});}catch(e){console.warn('[yn] 保存失敗',e);}}
 async function ynGet(k){k=ytKey(k);try{const db=await ynDb();return await new Promise((res,rej)=>{const r=db.transaction('kv').objectStore('kv').get(k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}catch(e){return null;}}
 function ynSave(){ynPut('slides',YN.slides.map(s=>({name:s.name,blob:s.blob,zones:s.zones||null,texts:s.texts||null,qrOrig:s.qrOrig||null,qrRect:s.qrRect||null})));}
 
@@ -10328,8 +10418,10 @@ async function ynReadZones(btn,only){
       const data=await res.json();
       if(!data.ok)throw new Error(`${i+1}枚目: ${ytAiErr(data,'read')}`);
       let vr;try{vr=ynParseVision(data.text);}catch(e){throw new Error(`${i+1}枚目: ${e.message}`);}
+      await ynZonesKeep(i,'読み取り直す前');
       s.zones=vr.zones;s.texts=vr.texts;
       s.model=data.model;
+      try{await ynSnapApply(i,'補正の前（AIの読み取りのまま）');}catch(e){console.warn('[yn] 補正できませんでした',e);}
       await ynSave();ynRender();
     }
     ynStatus(only!=null?`✅ ${only+1}枚目を読み取り直しました（${YN.slides[only].model||''}）`:`✅ ${YN.slides.length}枚のまとまりを読み取りました（${YN.slides[0].model||''}）。枠は右のプレビューで確認できます`,'ok');
@@ -10400,7 +10492,9 @@ async function ynWebApply(text,typing){
     const i=(+x.no||0)-1,sl=YN.slides[i];
     if(!sl){bad.push(x.no);continue;}
     try{const vr=ynParseVision(JSON.stringify({zones:x.zones||[],texts:x.texts||[]}));if(!vr.zones.length){bad.push(x.no);continue;}
-      sl.zones=vr.zones;sl.texts=vr.texts;sl.model='Gemini（Web版）';done.push(i+1);}
+      await ynZonesKeep(i,'貼り付けの前');
+      sl.zones=vr.zones;sl.texts=vr.texts;sl.model='Gemini（Web版）';done.push(i+1);
+      try{await ynSnapApply(i,'補正の前（AIの読み取りのまま）');}catch(e){console.warn('[yn] 補正できませんでした',e);}}
     catch(e){bad.push(x.no);}
   }
   if(done.length){await ynSave();ynRender();}
@@ -10409,6 +10503,150 @@ async function ynWebApply(text,typing){
   const rest=YN.slides.filter(sl=>!(sl.zones&&sl.zones.length)).length;
   ynStatus(`${done.length?`✅ ${done.join('・')}枚目を反映しました。`:''}${bad.length?`⚠ ${bad.join('・')}枚目は読めませんでした。`:''}${_ynWebFrom?` 続きの${_ynWebFrom+1}枚目からがあります（もう一度「💾 添付」と「💬 プロンプト」を押すと、その枚になります）`:rest?` まだ読み取れていない枚が${rest}枚あります`:' 全部の枚を読み取りました'}`,done.length&&!bad.length?'ok':'error');
 }
+// ---- まとまりの控え（1枚ごと）と、戻す ----
+async function ynZonesKeep(i,why){const s=YN.slides[i];if(!s||!(s.zones&&s.zones.length))return;await yhPush('zones:'+s.name,{zones:s.zones,texts:s.texts||[]},why);}
+function ynZonesUndo(btn,i){
+  const s=YN.slides[i];if(!s)return;
+  yhMenu(btn,'zones:'+s.name,`${i+1}枚目のまとまり`,async v=>{await ynZonesKeep(i,'戻す前');s.zones=v.zones;s.texts=v.texts;await ynSave();ynRender();ynStatus(`↶ ${i+1}枚目のまとまりを戻しました`,'ok');});
+}
+function ynPlanUndo(btn){
+  yhMenu(btn,'plan','演出の割り当て',async v=>{_ynPlanWhy='戻す前';YN.plan=v;try{ynPlanNorm();}catch(e){}await ynPut('plan',YN.plan);ynRender();if(typeof ysRender==='function')ysRender();ynStatus('↶ 演出の割り当てを戻しました','ok','status2');});
+}
+async function ynReadAllAgain(){
+  if(!confirm('全部の枚のまとまりを読み取り直しますか？（今の読み取りは控えるので、あとで戻せます）'))return;
+  for(let i=0;i<YN.slides.length;i++){await ynZonesKeep(i,'読み取り直す前');YN.slides[i].zones=null;YN.slides[i].texts=null;}
+  await ynSave();ynRender();ynReadZones();
+}
+
+// ---- 補正：AIが返したまとまり・文字の行の位置を、画像の実際の縁や文字に合わせる ----
+// AIの枠は、画像の幅・高さの数％ずれる。文字の行は、枠の近くで背景と違う色の点がある範囲にぴったり合わせる。
+// まとまりは、各辺を近くのカードの縁（色が変わる線）に合わせる。大きく外れた枠は、合わせる先が見つからないので元のまま
+// ---- まとまり・文字の行の位置を、画像に合わせて直す（AIの枠は少しずれるため） ----
+// img={w,h,d:RGBA}。box は [ymin,xmin,ymax,xmax]（0〜1000）。返す box も同じ形
+function ynSnapPx(img){
+  const {w,h,d}=img;
+  const at=(x,y)=>(y*w+x)*4;
+  // 窓の中でいちばん多い色（背景）
+  function bgOf(x1,y1,x2,y2){
+    const m=new Map();let best=null,bc=0;
+    const st=Math.max(1,Math.floor(Math.sqrt((x2-x1)*(y2-y1)/4000)));
+    for(let y=y1;y<y2;y+=st)for(let x=x1;x<x2;x+=st){const i=at(x,y);const k=(d[i]>>4)<<8|(d[i+1]>>4)<<4|(d[i+2]>>4);const c=(m.get(k)||0)+1;m.set(k,c);if(c>bc){bc=c;best=k;}}
+    // その色の箱に入る画素の平均
+    let r=0,g=0,b=0,n=0;
+    for(let y=y1;y<y2;y+=st)for(let x=x1;x<x2;x+=st){const i=at(x,y);const k=(d[i]>>4)<<8|(d[i+1]>>4)<<4|(d[i+2]>>4);if(k===best){r+=d[i];g+=d[i+1];b+=d[i+2];n++;}}
+    return[r/n,g/n,b/n];
+  }
+  const dist=(i,c)=>{const a=d[i]-c[0],b=d[i+1]-c[1],e=d[i+2]-c[2];return Math.sqrt(a*a+b*b+e*e);};
+  const cl=(v,a,b)=>Math.max(a,Math.min(b,v));
+  // 並んだ値の、しきい値以上が続く区間（gap 以下のすき間はつなぐ）
+  function runs(arr,thr,gap){const out=[];let s=-1,e=-1;for(let i=0;i<arr.length;i++){if(arr[i]>=thr){if(s<0)s=i;else if(i-e-1>gap){out.push([s,e]);s=i;}e=i;}}if(s>=0)out.push([s,e]);return out;}
+  const ov=(a1,a2,b1,b2)=>Math.max(0,Math.min(a2,b2)-Math.max(a1,b1));
+
+  // 文字の行：窓の中の「背景と違う色の点」の範囲にぴったり合わせる
+  function snapLine(bx){
+    let [x1,y1,x2,y2]=bx;const bw=x2-x1,bh=y2-y1;if(bw<4||bh<4)return null;
+    const mv=Math.max(8,Math.round(bh*0.6)),mh=Math.max(8,Math.round(bw*0.15));
+    const wx1=cl(x1-mh,0,w-1),wx2=cl(x2+mh,1,w),wy1=cl(y1-mv,0,h-1),wy2=cl(y2+mv,1,h);
+    const bg=bgOf(cl(x1,0,w-1),cl(y1,0,h-1),cl(x2,1,w),cl(y2,1,h));   // 背景は枠の中でいちばん多い色（色の帯の上の白い文字も拾えるように）
+    // 文字の色は背景とはっきり違う。ぼかした写真などの薄い模様を拾わないよう、枠の中の「背景との違い」の上位の値に合わせてしきい値を上げる
+    const ds=[];for(let y=cl(y1,0,h-1);y<cl(y2,1,h);y+=2)for(let x=cl(x1,0,w-1);x<cl(x2,1,w);x+=2)ds.push(dist(at(x,y),bg));
+    ds.sort((a,b)=>a-b);const T=Math.max(70,(ds[Math.floor(ds.length*0.95)]||0)*0.45);
+    const ink=(x,y)=>dist(at(x,y),bg)>T;
+    // 行ごとの点の数
+    const ww=wx2-wx1,xa=cl(x1,0,w-1),xb=cl(x2,1,w),bw2=xb-xa;const rows=[],band=[];for(let y=wy1;y<wy2;y++){let c=0;for(let x=xa;x<xb;x++)if(ink(x,y))c++;band.push(c>bw2*0.75);rows.push(c>bw2*0.75?0:c);}   // 行は元の枠の左右の中だけで数える（外側の写真やグラフを拾わない）。幅いっぱいの色の帯は文字ではない   // 窓の幅いっぱいの色の帯（カードや帯の地の色）は文字ではない
+    const rmax=Math.max(...rows);   // 背景の模様（写真・ぼかし）の点は、文字の行よりずっと少ないので、いちばん多い行との比で切る
+    const rr=runs(rows,Math.max(2,Math.round(bw2*0.004),Math.round(rmax*0.2)),Math.max(2,Math.round(bh*0.06)));
+    let best=null,bo=0;for(const r of rr){const o=ov(wy1+r[0],wy1+r[1]+1,y1,y2);if(o>bo){bo=o;best=r;}}
+    if(!best)return null;
+    // 2行がつながって取れたときは、いちばん点の少ない行で2つに分け、元の枠と重なる方を使う
+    let a0=best[0],a1=best[1];
+    for(let k=0;k<2&&(a1-a0+1)>bh*1.4;k++){
+      const lo=a0+Math.round((a1-a0)*0.25),hi=a0+Math.round((a1-a0)*0.75);let mi=lo;for(let i=lo;i<=hi;i++)if(rows[i]<rows[mi])mi=i;
+      const A=[a0,mi-1],B=[mi+1,a1];
+      [a0,a1]=ov(wy1+A[0],wy1+A[1]+1,y1,y2)>=ov(wy1+B[0],wy1+B[1]+1,y1,y2)?A:B;
+    }
+    let ry1=wy1+a0,ry2=wy1+a1+1;const rh=ry2-ry1;
+    if(rh<bh*0.3||rh>bh*2.5)return null;
+    // 列ごとの点の数（選んだ行の中）→ 元の枠と大きく重なるかたまりだけ
+    const cols=[];for(let x=wx1;x<wx2;x++){let c=0;for(let y=ry1;y<ry2;y++)if(!band[y-wy1]&&ink(x,y))c++;cols.push(c);}
+    const cmax=Math.max(...cols);const cr=runs(cols,Math.max(1,Math.round(cmax*0.08)),Math.max(3,Math.round(rh*0.2)));
+    // 窓の端までつながっているかたまりは、枠の外の模様や地の色なので使わない
+    const inner=cr.filter(r=>r[0]>0&&r[1]<cols.length-1);
+    const keep=(inner.length?inner:cr).filter(r=>{const a=wx1+r[0],b=wx1+r[1]+1;return ov(a,b,x1,x2)>=(b-a)*0.5;});
+    if(!keep.length)return null;
+    const cx1=wx1+keep[0][0],cx2=wx1+keep[keep.length-1][1]+1;
+    if(cx2-cx1<bw*0.25||cx2-cx1>bw*2)return null;
+    // 左右が決まったので、上下をもう一度しぼる
+    let t=ry2,b2=ry1;const rthr=Math.max(2,Math.round((cx2-cx1)*0.004),Math.round(rmax*0.06));
+    for(let y=ry1;y<ry2;y++){if(band[y-wy1])continue;let c=0;for(let x=cx1;x<cx2;x++)if(ink(x,y))c++;if(c>=rthr){if(y<t)t=y;if(y>b2)b2=y;}}
+    if(t>=b2)return null;
+    const p=2;return[cl(cx1-p,0,w),cl(t-p,0,h),cl(cx2+p,0,w),cl(b2+1+p,0,h)];
+  }
+  // まとまり：各辺を、近くにある「縁（色が変わる線）」に合わせる
+  function snapZone(bx){
+    let [x1,y1,x2,y2]=bx;const bw=x2-x1,bh=y2-y1;if(bw<10||bh<10)return null;
+    const mX=Math.round(Math.max(12,Math.min(w*0.05,bw*0.25))),mY=Math.round(Math.max(12,Math.min(h*0.06,Math.max(bh*0.6,30))));
+    const t=14;
+    const cd=(i,j)=>{const a=d[i]-d[j],b=d[i+1]-d[j+1],e=d[i+2]-d[j+2];return Math.abs(a)+Math.abs(b)+Math.abs(e);};
+    // 縦の辺：x の位置で、上下の範囲の何割が「左右で色が違う」か
+    function vEdge(x0){
+      const ya=Math.round(y1+bh*0.15),yb=Math.round(y2-bh*0.15);let best=null,bs=0;
+      for(let x=cl(x0-mX,2,w-2);x<=cl(x0+mX,2,w-2);x++){let c=0,n=0;for(let y=cl(ya,0,h-1);y<cl(yb,1,h);y+=2){n++;if(cd(at(x+1,y),at(x-2,y))>t)c++;}
+        const s=c/Math.max(1,n)-Math.abs(x-x0)/(mX*8);if(s>bs){bs=s;best=x;}}
+      return bs>=0.5?best:null;
+    }
+    function hEdge(y0){
+      const xa=Math.round(x1+bw*0.15),xb=Math.round(x2-bw*0.15);let best=null,bs=0;
+      for(let y=cl(y0-mY,2,h-2);y<=cl(y0+mY,2,h-2);y++){let c=0,n=0;for(let x=cl(xa,0,w-1);x<cl(xb,1,w);x+=2){n++;if(cd(at(x,y+1),at(x,y-2))>t)c++;}
+        const s=c/Math.max(1,n)-Math.abs(y-y0)/(mY*8);if(s>bs){bs=s;best=y;}}
+      return bs>=0.5?best:null;
+    }
+    const L=vEdge(x1),R=vEdge(x2),T=hEdge(y1),B=hEdge(y2);
+    const out=[L??x1,T??y1,R??x2,B??y2];
+    if(out[2]-out[0]<bw*0.5||out[3]-out[1]<bh*0.5)return null;
+    return{box:out,n:[L,T,R,B].filter(v=>v!=null).length};
+  }
+  return{snapLine,snapZone};
+}
+// slide={zones,texts}（0〜1000）。直したものと、直せた数・直せなかった数を返す
+function ynSnapSlide(img,slide){
+  const {w,h}=img,S=ynSnapPx(img);
+  const toPx=b=>[Math.round(b[1]*w/1000),Math.round(b[0]*h/1000),Math.round(b[3]*w/1000),Math.round(b[2]*h/1000)];
+  const toK=p=>[Math.round(p[1]*1000/h),Math.round(p[0]*1000/w),Math.round(p[3]*1000/h),Math.round(p[2]*1000/w)];
+  let okL=0,ngL=0,okZ=0,ngZ=0;
+  const zones=(slide.zones||[]).map(z=>{const r=S.snapZone(toPx(z.box));if(r&&r.n){okZ++;return{...z,box:toK(r.box)};}ngZ++;return z;});
+  const texts=(slide.texts||[]).map(t=>({...t,lines:(t.lines||[]).map(b=>{const r=S.snapLine(toPx(b));if(r){okL++;return toK(r);}ngL++;return b;})}));
+  return{zones,texts,okL,ngL,okZ,ngZ};
+}
+async function ynImgData(blob){
+  const bm=await createImageBitmap(blob);const cv=document.createElement('canvas');cv.width=bm.width;cv.height=bm.height;
+  const cx=cv.getContext('2d',{willReadFrequently:true});cx.drawImage(bm,0,0);
+  return{w:cv.width,h:cv.height,d:cx.getImageData(0,0,cv.width,cv.height).data};
+}
+// i枚目を補正する（補正の前の状態を控える）
+async function ynSnapApply(i,why){
+  const s=YN.slides[i];if(!s||!(s.zones&&s.zones.length))return null;
+  await ynZonesKeep(i,why||'補正の前');
+  const r=ynSnapSlide(await ynImgData(s.blob),{zones:s.zones,texts:s.texts||[]});
+  s.zones=r.zones;s.texts=r.texts;return r;
+}
+const ynSnapMsg=a=>`文字の行 ${a.okL}/${a.okL+a.ngL}・まとまり ${a.okZ}/${a.okZ+a.ngZ} を画像に合わせました${a.ngL||a.ngZ?'（合わせられなかったものは元のまま）':''}`;
+async function ynSnapAll(btn,only){
+  if(!YN.slides.some(s=>s.zones&&s.zones.length)){alert('先にまとまりを読み取ってください');return;}
+  if(btn)btn.disabled=true;
+  try{
+    const a={okL:0,ngL:0,okZ:0,ngZ:0};
+    for(let i=0;i<YN.slides.length;i++){
+      if(only!=null&&i!==only)continue;
+      ynStatus(`位置を補正中… ${i+1}/${YN.slides.length}`);
+      const r=await ynSnapApply(i,'補正の前');if(r)['okL','ngL','okZ','ngZ'].forEach(k=>a[k]+=r[k]);
+    }
+    await ynSave();ynRender();
+    ynStatus(`🪄 ${only!=null?`${only+1}枚目の`:''}${ynSnapMsg(a)}。戻すときは、右のスライドの見出しの「↶」`,'ok');
+  }catch(e){ynStatus('❌ 補正できませんでした：'+esc(e.message),'error');}
+  finally{if(btn)btn.disabled=false;}
+}
+
 // 1枚だけ読み直す（右ペインのスライドの見出しのボタン）
 function ynReadOne(i){
   const s=YN.slides[i];if(!s)return;
@@ -10442,7 +10680,7 @@ function ynRender(){
   const area=document.getElementById('yn-prev');if(!area)return;
   if(!YN.slides.length){area.innerHTML='<div style="font-size:11px;color:var(--text-sub);padding:8px;">「ナレスラ」タブでスライド画像を読み込むと、ここに表示されます</div>';return;}
   area.innerHTML=YN.slides.map((s,i)=>`<div class="yn-item"><div class="yn-hd"><b>${i+1}</b> <b>${esc(ynSlideTitle(i))}</b> <span title="${esc(s.name)}">${esc(ynShortName(i))}</span> <span>${s.zones?`${s.zones.length}か所`:'未読み取り'}</span>
-<button class="ya-nd" onclick="ynReadOne(${i})" title="この1枚だけ、まとまりを読み取る（読み取り直す）">${s.zones&&s.zones.length?'↻ 読み直す':'🔍 読み取る'}</button><button class="ya-nd" onclick="ynMove(${i},-1)">↑</button><button class="ya-nd" onclick="ynMove(${i},1)">↓</button><button class="ya-nd" onclick="if(confirm('この画像を外しますか？'))ynRemove(${i})">✕</button></div>
+<button class="ya-nd" onclick="ynSnapAll(this,${i})" title="この1枚の枠を、画像の縁や文字に合わせる">🪄</button><button class="ya-nd" onclick="ynZonesUndo(this,${i})" title="この1枚のまとまりを、前の状態に戻す">↶</button><button class="ya-nd" onclick="ynReadOne(${i})" title="この1枚だけ、まとまりを読み取る（読み取り直す）">${s.zones&&s.zones.length?'↻ 読み直す':'🔍 読み取る'}</button><button class="ya-nd" onclick="ynMove(${i},-1)">↑</button><button class="ya-nd" onclick="ynMove(${i},1)">↓</button><button class="ya-nd" onclick="if(confirm('この画像を外しますか？'))ynRemove(${i})">✕</button></div>
 <div class="yn-img" id="yn-img-${i}"></div></div>`).join('');
   // 割り当て済みなら、スライドごとの表示時間・ズーム・強調・出典・チャートを下に出す（時刻はカット後）
   if(YN.plan){
@@ -10634,7 +10872,7 @@ function ynApplyPlan(plan){
   const fx=ynFxTidy(zooms,marks);
   YN.plan={slides:sl.map(x=>({...x,...(ynSeg(x.from,x.to)||{})})),zooms:fx.zooms,marks:fx.marks,sources,charts};
   ynPlanNorm();
-  ynPut('plan',YN.plan);ynRender();
+  _ynPlanWhy='割り当てのやり直し前';ynPut('plan',YN.plan);ynRender();
   ynStatus(`✅ 割り当てました（スライド${sl.length}枚・ズーム${fx.zooms.length}・強調${fx.marks.length}・出典${sources.length}・チャート${charts.length}）${fx.note?`／${fx.note}`:''}`,'ok','status2');
   if(typeof ysRender==='function')ysRender();
 }
@@ -11559,7 +11797,7 @@ function ynBuildPaneHtml(){
   const row=(...x)=>`<div class="row" style="flex-wrap:nowrap;">${x.join('')}</div>`;
   return `
 <div class="sa-card">
-  <h2>1. 演出の割り当て</h2>
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;"><h2>1. 演出の割り当て</h2><button class="ya-nd" onclick="ynPlanUndo(this)" title="割り当ての前の状態に戻す">↶ 戻す</button></div>
   <div style="font-size:11px;color:var(--text-sub);">音声（③でカットした後に残る文）とスライドのまとまりを突き合わせ、切り替え・ズーム・強調・根拠資料の差し込みを決めます。</div>
   ${row(b('💬 プロンプト',"try{copyText(ynPlanPrompt(),this)}catch(e){alert(e.message)}",G),b('🖼 番号入り画像','ynAnnotatedZip(this)'),b('📋 貼り付け',"ynPaste('plan',ynApplyPasted)"),b('↻ 反映','ynApplyPasted()'))}
   <div style="font-size:10px;color:var(--text-sub);">ChatGPTで割り当てるときは、プロンプトと一緒に「🖼 番号入り画像」のZIPの中の画像を添付してください（Gemini APIは自動で送ります）。</div>
@@ -11634,6 +11872,7 @@ async function ynRestore(){
   ytRestoreFields();
   ytLinkLoad();
   ytCtxApplyUi();
+  yhInitFields();
   {const dc=ytEl('doc');if(dc)dc.addEventListener('input',()=>ytRenderLinks());}   // 資料を直したら、リンクの状態（未確認）を出し直す
   window._thCtxReady=true;ytSyncTabs();
   yaRestore();
@@ -11741,7 +11980,7 @@ async function tabIoYtRestore(y){
   await yaPut('audio',y.audio&&y.audio.blob?{blob:await dec(y.audio.blob),name:y.audio.name||'narration'}:null);
   await yaPut('state',y.state||null);
   await ynPut('slides',await Promise.all((y.slides||[]).map(async s=>({name:s.name,zones:s.zones||null,texts:s.texts||null,qrRect:s.qrRect||null,blob:await dec(s.blob),qrOrig:s.qrOrig?await dec(s.qrOrig):null}))));
-  await ynPut('plan',y.plan||null);
+  _ynPlanWhy='読み込み前';await ynPut('plan',y.plan||null);
   await ynPut('tpl',y.tpl&&y.tpl.blob?{name:y.tpl.name,blob:await dec(y.tpl.blob)}:null);
   const si={};for(const[k,g]of Object.entries(y.srcimg||{}))si[k]={rect:g.rect||null,w:g.w||0,h:g.h||0,name:g.name||'',blob:await dec(g.blob),orig:g.orig?await dec(g.orig):null};
   await ynPut('srcimg',si);
