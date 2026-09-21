@@ -8428,7 +8428,7 @@ function ytGenChapters(){
 function ytChapters(){
   if(!ytGen())return YT_CHAPTERS;
   const ch=ytGenChapters();
-  if(!ch.length)throw new Error('動画資料に「構成」の表がありません。調査タブの「①構成･出典」で作った資料を貼り付けてください');
+  if(!ch.length)throw new Error('動画資料に「構成」の表がありません。調査タブの「①構成」で作った資料を貼り付けてください');
   return ch;
 }
 const ytTheme=()=>ytVal('g-theme');
@@ -9128,8 +9128,9 @@ function ytBuildTabHtml(){
     <textarea id="yt-free-box" readonly style="min-height:36px;font-size:11px;margin-top:4px;"></textarea>
     <div style="font-size:10px;color:var(--text-sub);">3章「将来予測」以降（シナリオ・リスク）は渡しません。</div>
   </details>
-  <div class="sa-sub">▼ ChatGPT <span class="yt-only-stock">調査</span>プロンプト</div>
-  ${row(b('💬 <span class="yt-only-stock">①調査</span><span class="yt-only-gen" style="display:none;">①構成･出典</span>',"ytCopy('research',this)",G),b('✅ ②ファクト',"ytCopy('fc',this)",G),b('🔁 ③再CK',"ytCopy('recheck',this)",G),b('🔧 ④修正',"ytCopy('fix',this)",G))}
+  <div class="sa-sub yt-only-stock">▼ ChatGPT 調査プロンプト</div>
+  <div class="sa-sub yt-only-gen" style="display:none;">▼ ①（構成と出典を付ける）をChatGPTに貼る → 返ってきた動画資料を下の欄に貼る → ②〜④（レポートの中身も②で確かめます）</div>
+  ${row(b('💬 ①調査',"ytCopy('research',this)",G+'" id="yt-b-research'),b('✅ ②ファクト',"ytCopy('fc',this)",G),b('🔁 ③再CK',"ytCopy('recheck',this)",G),b('🔧 ④修正',"ytCopy('fix',this)",G))}
   <textarea id="yt-doc" placeholder="ChatGPTの動画資料をここに貼り付け（②〜④を誤りがなくなるまで繰り返す）" style="min-height:36px;"></textarea>
   ${row(b('🔗 出典のリンクを確認','ytCheckLinks(this)'))}
   <div id="yt-link-status" style="display:none;font-size:11px;"></div>
@@ -9301,6 +9302,9 @@ function ytCtxApplyUi(){
   document.querySelectorAll('#yt-root .yt-only-gen').forEach(el=>{el.style.display=g?'':'none';});
   document.querySelectorAll('#yt-root .yt-only-stock').forEach(el=>{el.style.display=g?'none':'';});
   if(!g&&ytEl('itab-article')?.classList.contains('active'))ytInnerTab('research');
+  // ボタンの文字は、コピーのあと textContent で戻されるので、中に出し分け用の部品を入れず、文字ごと入れ替える
+  const b1=ytEl('b-research');if(b1)b1.textContent=g?'💬 ①構成':'💬 ①調査';
+  const dc=ytEl('doc');if(dc)dc.placeholder=g?'①の結果（構成と出典が付いた動画資料）をここに貼り付け（②〜④を誤りがなくなるまで繰り返す）':'ChatGPTの動画資料をここに貼り付け（②〜④を誤りがなくなるまで繰り返す）';
 }
 // 切り替えは「保留中の保存を書き出す → 欄をしまう → 種類を変える → 欄と保存データを読み直す」を1つずつ順に行う
 let _ytCtxChain=Promise.resolve();
