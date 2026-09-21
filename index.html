@@ -8614,9 +8614,9 @@ function ytPostTranscript(){
   return ((document.getElementById('ya-gtext')||{}).value||'').trim().slice(0,12000);
 }
 function ytPostApply(){
-  const t=ytVal('post');if(!t){ytStatus('投稿文のJSONを貼り付けてください','error','post-status');return;}
+  const t=ytVal('post');if(!t){ytStatus('投稿文のJSONを貼り付けてください','error','post-status');return false;}
   let j;try{const m=t.match(/\{[\s\S]*\}/);j=JSON.parse(m?m[0]:t);}
-  catch(e){ytStatus('❌ JSONの形が崩れています：'+e.message,'error','post-status');return;}
+  catch(e){ytStatus('❌ JSONの形が崩れています：'+e.message,'error','post-status');return false;}
   const set=(id,v)=>{const el=ytEl(id);if(el)el.value=v;};
   // サムネは「上段：中段：下段」の形にそろえる（／や半角:で返ってきても直す）
   const thumb=s=>String(s||'').trim().replace(/\s*[\/／]\s*/g,'：').replace(/:/g,'：');
@@ -8643,7 +8643,8 @@ async function ytPostAi(btn){
       body:JSON.stringify({prompt,resources:[],files:[],temperature:0.6,models:['gemini-3.8-flash','gemini-3.7-flash','gemini-3.6-flash','gemini-3.5-flash']})});
     const data=await res.json();if(!data.ok)throw new Error(data.error||'不明なエラー');
     ytEl('post').value=data.text||'';saveState();
-    ytPostApply();
+    // 反映できたら、株価分析のバックアップ（横動画の音声・スライド・割り当て・出典の画像も入る）を書き出す
+    if(ytPostApply()!==false){const st=ytEl('post-status'),msg=st?st.textContent:'';await exportTabData('price');ytStatus(`${msg}　💾 バックアップを書き出しました`,'ok','post-status');}
   }catch(e){ytStatus('❌ '+e.message,'error','post-status');}
   finally{if(btn)btn.disabled=false;}
 }
