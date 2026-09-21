@@ -10034,7 +10034,7 @@ async function ynExport(btn){
     }
     // 切り替え・テロップ・字幕・カット
     const switchPoints=YN.plan.slides.slice(1).map(x=>+x.s.toFixed(2));
-    const cornerTelops=YN.plan.slides.filter(x=>x.corner).map(x=>({id:++id,text:x.corner,accentColor:'#e91e8c',startSlide:posOf(x.no),endSlide:posOf(x.no),animIn:.5,animOut:.5,sizeMul:1,posX:73,posY:-85,minChars:8}));
+    const cornerTelops=YN.plan.slides.filter(x=>x.corner).map(x=>({id:++id,text:x.corner,accentColor:'#e91e8c',startSlide:posOf(x.no),endSlide:posOf(x.no),animIn:.5,animOut:.5,sizeMul:1,posX:73,posY:-85,minChars:6}));
     const kept=ynKeptSents().map(x=>({text:x.text,s:x.s,e:x.e})).sort((a,b)=>a.s-b.s);
     kept.forEach((x,i)=>{
       if(x.e<x.s+0.3)x.e=x.s+0.6;                                  // 終わりが始まりより前／短すぎる
