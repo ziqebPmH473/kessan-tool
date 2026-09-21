@@ -7668,6 +7668,9 @@ ${ytIntent()}を作成します。そのための動画資料を作ります。
 ・末尾の出典一覧に、番号・資料名・URL・ページ・ページ内の位置・表示用の出典表記（例：出典：〇〇株式会社「2026年3月期 決算説明資料」p.14）を書く。
 ・出典は一次情報にする：発表した本人（企業・取引所・中央銀行・官公庁・業界団体など）が出している資料（決算短信・決算説明資料・有価証券報告書・統計・公表資料など）。
 ・証券会社やメディアの解説記事・コラム・ニュース記事は、出典にしない。一次情報で裏づけられない記述には、出典の番号を付けない。
+・株価・指数の値動き（いつからいつまでに何%動いたか等）の根拠は、資料ではなく「チャート」として出典一覧に入れる。資料名の列に「チャート（銘柄・足・期間）」の形で書く。
+　銘柄はTradingViewでの表記（国内株は TSE:証券コード、日経平均は TVC:NI225、TOPIXは TSE:TOPIX）、足は日足・週足・月足のどれか、期間は「YYYY-MM-DD〜YYYY-MM-DD」。
+　チャートの行の URL・ページ・ページ内の位置・表示用の出典表記は「-」にする。
 ・URLとページは、実際に確認できたものだけを書く。確認できない場合は「要確認」と書く。
 ・決算短信・決算説明資料・有価証券報告書・中期経営計画など、元がPDFの資料は、そのPDFのURLと、根拠が載っているページ番号を書く。
 　会社サイトの案内ページ（HTML）で代用しない。「Webページ」と書くのは、元がHTMLのページしか無い場合だけにする。
@@ -7749,6 +7752,9 @@ ${ytAud()}の構成作家です。
 ・出典は一次情報にする：発表した本人（企業・取引所・中央銀行・官公庁・業界団体など）が出している資料（決算短信・決算説明資料・有価証券報告書・統計・公表資料など）。
 ・証券会社やメディアの解説記事・コラム・ニュース記事は、出典にしない。
 ・一次情報で裏づけられない記述は、出典一覧に入れない。
+・株価・指数の値動き（いつからいつまでに何%動いたか等）の根拠は、資料ではなく「チャート」として出典一覧に入れる。資料名の列に「チャート（銘柄・足・期間）」の形で書く。
+　銘柄はTradingViewでの表記（国内株は TSE:証券コード、日経平均は TVC:NI225、TOPIXは TSE:TOPIX）、足は日足・週足・月足のどれか、期間は「YYYY-MM-DD〜YYYY-MM-DD」。
+　チャートの行の URL・ページ・ページ内の位置・表示用の出典表記は「-」にする。
 ・URLとページは、実際に確認できたものだけを書く。確認できない場合は「要確認」と書く。
 ・決算短信・決算説明資料・有価証券報告書・統計の報告書など、元がPDFの資料は、そのPDFのURLと、根拠が載っているページ番号を書く。
 　案内ページ（HTML）で代用しない。「Webページ」と書くのは、元がHTMLのページしか無い場合だけにする。
@@ -7778,7 +7784,7 @@ function ytFactCheckPrompt(){
 ・出典一覧：「裏づける記述」がレポートにあること。そして、その資料が、その記述の根拠になっていること。
 指摘がある場合には、指摘箇所・指摘内容・修正後内容を記載してください。
 
-出典一覧のURLは、1件ずつ実際に開いて、次の3点を確認してください（確認せずに「問題なし」としない）。
+出典一覧のURLは、1件ずつ実際に開いて、次の3点を確認してください（確認せずに「問題なし」としない）。チャートの行は開かなくてよいです。
 ・そのURLが開けること（開けない・別のページに飛ぶものは、正しいURLに直す）
 ・開いた先が、資料名のとおりの資料であること
 ・書かれているページ・位置に、「裏づける記述」の根拠があること
@@ -7795,7 +7801,7 @@ ${doc}${ytLinkBlock()}`;}
 特に、数値・固有名詞・日付・シェア・競合名・出典のURLとページ、禁止事項（株価の水準・株価シナリオ・確率・割安水準・売買を促す表現・視聴者への行動要求）を確認してください。
 指摘がある場合には、指摘箇所・指摘内容・修正後内容を記載してください。
 
-出典一覧のURLは、1件ずつ実際に開いて、次の3点を確認してください（確認せずに「問題なし」としない）。
+出典一覧のURLは、1件ずつ実際に開いて、次の3点を確認してください（確認せずに「問題なし」としない）。チャートの行は開かなくてよいです。
 ・そのURLが開けること（開けない・別のページに飛ぶものは、正しいURLに直す）
 ・開いた先が、資料名のとおりの資料であること
 ・書かれているページ・位置に、本文の該当の記述の根拠があること
@@ -8571,7 +8577,7 @@ function ytLinkLoad(){
 // いまの出典一覧に対する状態。後の工程へ進めるのは、全部が「問題なし」（目で確認した、を含む）のときだけ
 function ytLinkState(){
   const src=ytParseSources(),urls=[];const noUrl=[];
-  src.forEach(s=>{const u=ytUrlsIn(s.url);if(!u.length)noUrl.push(s.no);u.forEach(v=>urls.push(v));});
+  src.forEach(s=>{if(ytIsChartSrc(s))return;const u=ytUrlsIn(s.url);if(!u.length)noUrl.push(s.no);u.forEach(v=>urls.push(v));});   // チャートの行はURLを確かめない
   const by={};(YL.res||[]).forEach(x=>{by[x.url]=x;});
   let un=0,ng=0,warn=0;
   urls.forEach(u=>{const x=by[u];if(!x){un++;return;}const j=ytLinkJudge(x);if(j.st==='ng')ng++;else if(j.st==='warn'&&!(YL.seen||{})[u])warn++;});
@@ -8581,6 +8587,7 @@ function ytLinkStateText(){
   const t=ytLinkState();
   if(t.noSrc)return['⚠ リンク：出典一覧がまだありません','error'];
   if(t.noUrl.length)return[`⚠ リンク：URLが書かれていない出典があります（出典${t.noUrl.join('・')}）→ ②〜④で直すか、その出典を外してください`,'error'];
+  if(!t.n)return['✅ リンク：確かめるURLはありません（チャートだけ）','ok'];
   if(t.un===t.n)return['⚠ リンク：未確認です。②〜④が終わったら「🔗 出典のリンクを確認」を押してください','error'];
   if(t.un)return[`⚠ リンク：未確認のURLがあります（${t.un}件。資料が変わりました）→ もう一度「🔗 出典のリンクを確認」`,'error'];
   if(t.ng||t.warn)return[`⚠ リンク：${t.ng?`開けない ${t.ng}件`:''}${t.ng&&t.warn?'・':''}${t.warn?`要確認 ${t.warn}件`:''} → 「②ファクト」にこの結果が入ります。要確認は、ページを見て問題なければ「✔ 確認した」`,'error'];
@@ -8589,8 +8596,8 @@ function ytLinkStateText(){
 async function ytCheckLinks(btn){
   const src=ytParseSources();
   if(!src.length){ytStatus('動画資料に出典一覧がありません','error','link-status');return;}
-  const jobs=[];src.forEach(s=>ytUrlsIn(s.url).forEach(u=>jobs.push({no:s.no,name:s.name,url:u})));
-  if(!jobs.length){ytStatus('出典一覧にURLがありません','error','link-status');return;}
+  const jobs=[];src.forEach(s=>{if(ytIsChartSrc(s))return;ytUrlsIn(s.url).forEach(u=>jobs.push({no:s.no,name:s.name,url:u}));});
+  if(!jobs.length){YL.res=[];ytLinkSave();ytRenderLinks();return;}
   if(btn)btn.disabled=true;
   try{
     const out=[];
@@ -10437,7 +10444,7 @@ function ynPlanPrompt(){
   const total=te(YA.dur),mins=total/60,nSrc=Math.min(10,Math.max(1,Math.round(mins*0.8)));
   const tick=ynTicker();
   const srcs=ytSources();
-  const srcBlock=srcs.length?`\n\n【根拠資料（動画で一時的に画面へ差し込む）】\n${srcs.map(s=>`  ${s.no}. ${s.name}${s.kind==='chart'?`【チャート：${ynTvTicker(s.name)}】`:s.page?`（${s.page}）`:''}`).join('\n')}`:'';
+  const srcBlock=srcs.length?`\n\n【根拠資料（動画で一時的に画面へ差し込む）】\n${srcs.map(s=>`  ${s.no}. ${s.name}${s.kind==='chart'?`【チャート：${ynTvTicker(s.name)}${s.tvSpec&&s.tvSpec.interval&&s.tvSpec.start?`・${s.tvSpec.interval}・${s.tvSpec.start}〜${s.tvSpec.end}（決まっているので、interval・start・end は書かなくてよい）`:''}】`:s.page?`（${s.page}）`:''}`).join('\n')}`:'';
   return `あなたは動画編集者です。完成した音声（2人の会話）に、スライドの表示とズーム・強調を割り当ててください。
 
 【前提】
@@ -10491,7 +10498,16 @@ function ynParsePlan(text){
 // TradingView の指定（アプリで撮るときに見る）。Webで開くリンクにも、銘柄と足を付ける
 const YN_TV_INT={'月足':'M','週足':'W','日足':'D','4時間足':'240','1時間足':'60','30分足':'30','15分足':'15','5分足':'5'};
 function ynTvUrl(ticker,interval){const iv=YN_TV_INT[interval];return `https://jp.tradingview.com/chart/?symbol=${encodeURIComponent(ticker)}${iv?`&interval=${iv}`:''}`;}
-function ynTvTicker(name){return /日経平均|日経225/.test(name||'')?'TVC:NI225':/TOPIX/i.test(name||'')?'TSE:TOPIX':ynTicker();}
+// 出典一覧の「チャート（銘柄・足・期間）」を読む。例の形：チャート（TSE:4519・日足・2026-02-25〜2026-09-18）
+function ytChartSpec(name){
+  const m=String(name||'').match(/チャート\s*[（(]([^）)]*)[）)]/);if(!m)return null;
+  const p=m[1].split(/\s*[・･、,／\/]\s*/).map(v=>v.trim()).filter(Boolean);
+  const per=(p.find(v=>/\d{4}-?\d{1,2}/.test(v))||'').split(/\s*[〜~～]\s*/);
+  return{ticker:p.find(v=>/:/.test(v))||'',interval:p.find(v=>/足$/.test(v))||'',start:(per[0]||'').trim(),end:(per[1]||'').trim()};
+}
+// チャートの行か（資料名が「チャート（…）」、またはURLの無い「チャート」）。チャートはTradingViewの画像で見せるので、URLの確認は要らない
+const ytIsChartSrc=s=>!!ytChartSpec(s&&s.name)||(/^チャート/.test(String((s&&s.name)||'').trim())&&!ytUrlsIn(s&&s.url).length);
+function ynTvTicker(name){const cs=ytChartSpec(name);if(cs&&cs.ticker)return cs.ticker;return /日経平均|日経225/.test(name||'')?'TVC:NI225':/TOPIX/i.test(name||'')?'TSE:TOPIX':ynTicker();}
 // TradingView のティッカー（国内は TSE:4519 の形）
 function ynTicker(){if(ytGen())return '';const c=(getTicker()||'').trim();return /^[0-9][0-9A-Z]{3}$/i.test(c)?`TSE:${c.toUpperCase()}`:c;}
 const ynKinds={zooms:'ズーム',marks:'強調',sources:'出典',charts:'チャート'};
@@ -10529,7 +10545,7 @@ function ynApplyPlan(plan){
     return it;
   }).filter(Boolean);
   const srcAll=ytSources();
-  const sources=(plan.sources||[]).map(x=>{const s=srcAll.find(y=>String(y.no)===String(x.no));const g=rng(x);return s&&g?{no:String(s.no),label:s.label||s.name,name:s.name,interval:String(x.interval||''),start:String(x.start||''),end:String(x.end||''),...g}:null;}).filter(Boolean);
+  const sources=(plan.sources||[]).map(x=>{const s=srcAll.find(y=>String(y.no)===String(x.no));const g=rng(x);const cs=s?ytChartSpec(s.name)||{}:{};return s&&g?{no:String(s.no),label:s.label||s.name,name:s.name,interval:String(cs.interval||x.interval||''),start:String(cs.start||x.start||''),end:String(cs.end||x.end||''),...g}:null;}).filter(Boolean);
   const charts=(plan.charts||[]).map((x,i)=>{const g=rng(x);return g?{id:'c'+(i+1),ticker:(ytGen()&&x.ticker)?String(x.ticker):ynTicker(),interval:String(x.interval||'日足'),start:String(x.start||''),end:String(x.end||''),note:String(x.note||''),...g}:null;}).filter(Boolean);
   const fx=ynFxTidy(zooms,marks);
   YN.plan={slides:sl.map(x=>({...x,...(ynSeg(x.from,x.to)||{})})),zooms:fx.zooms,marks:fx.marks,sources,charts};
@@ -11004,7 +11020,8 @@ function ytSources(){
     if(x.kind!=='chart'&&x.kind!=='doc')x.kind=/株価|時系列|チャート|日経平均|TOPIX|指数|TradingView/i.test(x.name||'')?'chart':'doc';
     if(x.kind==='chart'){
       const sp=((YN.plan||{}).sources||[]).find(q=>String(q.no)===String(x.no))||{};
-      x.tvSpec={ticker:ynTvTicker(x.name),interval:sp.interval||'',start:sp.start||'',end:sp.end||''};
+      const cs=ytChartSpec(x.name)||{};   // 出典一覧に書かれた足・期間を優先し、無ければ割り当てで決めたもの
+      x.tvSpec={ticker:ynTvTicker(x.name),interval:cs.interval||sp.interval||'',start:cs.start||sp.start||'',end:cs.end||sp.end||''};
       x.tv=ynTvUrl(x.tvSpec.ticker,x.tvSpec.interval);
     }
     return x;
