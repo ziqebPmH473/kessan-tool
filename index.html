@@ -9921,14 +9921,61 @@ function ynApplyPlan(plan){
   const srcAll=ytSources();
   const sources=(plan.sources||[]).map(x=>{const s=srcAll.find(y=>String(y.no)===String(x.no));const g=rng(x);return s&&g?{no:String(s.no),label:s.label||s.name,name:s.name,interval:String(x.interval||''),start:String(x.start||''),end:String(x.end||''),...g}:null;}).filter(Boolean);
   const charts=(plan.charts||[]).map((x,i)=>{const g=rng(x);return g?{id:'c'+(i+1),ticker:ynTicker(),interval:String(x.interval||'日足'),start:String(x.start||''),end:String(x.end||''),note:String(x.note||''),...g}:null;}).filter(Boolean);
-  YN.plan={slides:sl.map(x=>({...x,...(ynSeg(x.from,x.to)||{})})),zooms,marks,sources,charts};
+  const fx=ynFxTidy(zooms,marks);
+  YN.plan={slides:sl.map(x=>({...x,...(ynSeg(x.from,x.to)||{})})),zooms:fx.zooms,marks:fx.marks,sources,charts};
   ynPlanNorm();
   ynPut('plan',YN.plan);ynRender();
-  ynStatus(`✅ 割り当てました（スライド${sl.length}枚・ズーム${zooms.length}・強調${marks.length}・出典${sources.length}・チャート${charts.length}）`,'ok','status2');
+  ynStatus(`✅ 割り当てました（スライド${sl.length}枚・ズーム${fx.zooms.length}・強調${fx.marks.length}・出典${sources.length}・チャート${charts.length}）${fx.note?`／${fx.note}`:''}`,'ok','status2');
   if(typeof ysRender==='function')ysRender();
 }
 // スライドの並びを、音声で出てくる順（始まりの文の順）にそろえる。
 // 音声の話の順番がスライドの番号順と違うことがある（例：強み→急落の真相 の順で話している）
+// AIの割り当てを、決まった形に整える（AIにはまとまりの位置や大きさが見えないため、ツールで直す）
+//  1. 同じ時間のズームと四角で、四角の枠がズームの枠を含んでいたら入れ替える（小さい方にズームして大きい方を囲っても意味がない）
+//  2. 同じスライドでズームが続いたら、全部が入る範囲のズーム1回にまとめ、元のズームはそれぞれ四角枠にする
+//  3. ズーム中に、その外にある強調があれば、ズームの範囲を広げて入れる
+//  まとめた範囲がスライドのほぼ全体なら、ズームは付けない
+function ynFxTidy(zooms,marks){
+  const ns=ynKeptSents().map(x=>x.n),gi=n=>ns.indexOf(n);
+  const Zb=(slide,zs)=>{const Z=((YN.slides[slide-1]||{}).zones)||[];const b=zs.map(k=>Z[k-1]).filter(Boolean).map(ynBox);
+    return b.length?{x0:Math.min(...b.map(v=>v.x0)),y0:Math.min(...b.map(v=>v.y0)),x1:Math.max(...b.map(v=>v.x1)),y1:Math.max(...b.map(v=>v.y1))}:null;};
+  const Mb=m=>{if(m.text){const q=(((YN.slides[m.slide-1]||{}).texts)||[])[m.text-1];if(!q)return null;const L=q.lines.map(l=>ynBox({box:l}));
+    return{x0:Math.min(...L.map(v=>v.x0)),y0:Math.min(...L.map(v=>v.y0)),x1:Math.max(...L.map(v=>v.x1)),y1:Math.max(...L.map(v=>v.y1))};}return Zb(m.slide,m.zones||[]);};
+  const inside=(a,b,tol=0.015)=>a&&b&&a.x0>=b.x0-tol&&a.y0>=b.y0-tol&&a.x1<=b.x1+tol&&a.y1<=b.y1+tol;
+  const over=(a,b)=>a.slide===b.slide&&a.s<b.e-0.05&&b.s<a.e-0.05;
+  const whole=b=>b&&(b.x1-b.x0)*(b.y1-b.y0)>=0.72;
+  let nSwap=0,nMerge=0,nWide=0,nDrop=0;
+  let Z=zooms.map(z=>({...z,zones:[...z.zones]})),M=marks.map(m=>({...m,...(m.zones?{zones:[...m.zones]}:{})}));
+  // 1. 入れ替え
+  M.forEach(m=>{if(m.type!=='rect'||!m.zones)return;Z.forEach(z=>{
+    if(!over(z,m))return;const zb=Zb(z.slide,z.zones),mb=Zb(m.slide,m.zones);
+    if(inside(zb,mb)&&!inside(mb,zb)){const t=z.zones;z.zones=m.zones;m.zones=t;m.color=ynMarkColor(m,'soft');nSwap++;}});});
+  // 2. 続くズームをまとめる（間が1文以内）
+  Z.sort((a,b)=>(a.slide-b.slide)||(a.s-b.s));
+  const out=[];
+  for(let i=0;i<Z.length;){
+    let j=i;while(j+1<Z.length&&Z[j+1].slide===Z[i].slide&&gi(Z[j+1].from)-gi(Z[j].to)<=2)j++;
+    if(j>i){
+      const g=Z.slice(i,j+1),zs=ynTrimNested([...new Set(g.flatMap(z=>z.zones))],Z[i].slide);
+      g.forEach(z=>{const zb=Zb(z.slide,z.zones);if(!M.some(m=>over(m,z)&&inside(Mb(m),zb))){   // その時間に、この枠の中をもう強調していれば足さない
+        
+        const mk={slide:z.slide,zones:z.zones,type:'rect',from:z.from,to:z.to,s:z.s,e:z.e};mk.color=ynMarkColor(mk,'soft');M.push(mk);}});
+      const last=g[g.length-1];out.push({slide:Z[i].slide,zones:zs,from:Z[i].from,to:last.to,s:Z[i].s,e:last.e});nMerge+=g.length;
+    }else out.push(Z[i]);
+    i=j+1;
+  }
+  // 3. ズームの外の強調を入れる。全体に近くなったズームは外す
+  const res=out.filter(z=>{
+    M.forEach(m=>{if(!over(z,m))return;const mb=Mb(m),zb=Zb(z.slide,z.zones);if(!mb||inside(mb,zb))return;
+      const add=m.zones?m.zones:((((YN.slides[m.slide-1]||{}).texts||[])[m.text-1]||{}).zone?[(YN.slides[m.slide-1].texts[m.text-1]).zone]:[]);
+      if(add.length){z.zones=ynTrimNested([...new Set(z.zones.concat(add))],z.slide);nWide++;}});
+    if(whole(Zb(z.slide,z.zones))){nDrop++;return false;}
+    return true;
+  });
+  M.sort((a,b)=>(a.slide-b.slide)||(a.s-b.s));
+  const note=[nSwap?`ズームと四角の入れ替え${nSwap}`:'',nMerge?`続くズーム${nMerge}個を1回にまとめて四角枠に`:'',nWide?`ズームを広げて強調を入れた${nWide}`:'',nDrop?`全体に近いズーム${nDrop}個を外した`:''].filter(Boolean).join('・');
+  return{zooms:res,marks:M,note:note?`ツールで整えた：${note}`:''};
+}
 // 強調の色：そのまとまり（文字なら入っているまとまり）の読み取りで返った色。無ければ強い＝赤、控えめは種類ごとの色
 function ynMarkColor(it,str){
   const S=YN.slides[it.slide-1]||{},Z=S.zones||[];
