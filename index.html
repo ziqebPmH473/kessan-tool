@@ -8773,10 +8773,64 @@ const YT_POST_RULES=`あなたはYouTubeチャンネルの成長戦略顧問で�
 【出力】次の形のJSONだけを出力する。説明文やコードフェンスは不要。
 {"titles":["","",""],"thumbs":["上段：中段：下段","",""],"desc":"","tags":["#銘柄名","#証券コード",""],"hook":"","points":["","",""],"x":"","x_tags":[],"yt_post_tags":[],"insta_tags":[],"lemon8_title":"","lemon8_intro":"","lemon8_tags":[],"tiktok_tags":[]}`;
 
+// YT動画のときの読み替え。運用ルール（Gemの原文）はそのまま使い、【この動画での読み替え】から後ろだけを差し替える
+function ytPostRulesGen(){
+  const k=YT_POST_RULES.indexOf('【この動画での読み替え');
+  const base=k>0?YT_POST_RULES.slice(0,k):YT_POST_RULES+'\n\n';
+  const sr=ytSeries();
+  return `${base}【この動画での読み替え（運用ルールより優先）】
+・この動画は、1つの銘柄を分析する動画ではない。この動画の主題は「${ytTheme()}」。
+　運用ルールの「銘柄名」「銘柄固有」「対象銘柄」は、「この動画の主題」に読み替える。「優先フックの定義（具体性の担保）」は、この主題に固有の内容で満たす。
+・タイトルの先頭に【銘柄名（証券コード）】は付けない。${sr?`末尾は「｜${sr}」にする（「｜銘柄分析」などは付けない）。`:'末尾には何も付けない（「｜銘柄分析」なども付けない）。'}
+・サムネ案は、スラッシュ区切りではなく、ツールの記法「上段：中段：下段」（全角コロン区切り）で書く。
+　- 中段は、この動画の主題（何が分かる動画か・何を分析する動画か）を、視聴者が見たくなる言葉で短く言い表す。全角6〜9文字。マーカーは付けない。
+　　動画の中で取り上げる個別の材料・指標・要因は、中段に書かない。
+　- 上段と下段は、運用ルールの役割・文字数・禁止事項のとおりに、中段の主題に向けて作る。
+　- 強調したい語を色のマーカーで囲む：*オレンジ*（いちばん目立たせたい語）、#水色#、%黄色%。1案につき2〜3か所。
+・概要欄は、運用ルールの「1行目 導入文／2行目 キーワード行／3〜5行目 内容要約」までを書く。
+　関連動画・メンバーシップ・使用ツール・AI注意喚起の文は、ツールが後ろに付けるので書かない。
+・概要欄の最後に付けるハッシュタグを tags に出す。3〜5個。この動画の内容を探す人が検索窓に実際に打ち込みそうな言葉にする。
+　どの動画にも付けられる汎用的な言葉は使わない。一般の人が検索に使わない言葉も使わない。
+・SNSの投稿文は、X・YouTubeの投稿・Instagram・Lemon8・TikTok の5つを作る。
+　運用ルールのX投稿案の「目的」「内容」「禁止」は、5つすべてに当てはめる。
+　5つは、次の部品をツールが組み合わせて作るので、部品だけを書く。
+　- hook：5つ共通の1行目。運用ルールのタイトル案のフックの考え方で作る問いかけ。何の動画かが分かる言葉を入れる。全角30字以内。
+　- points：この動画で確かめること。動画で話す順に3〜5個。各全角20字以内。答えは書かない。
+　- x：Xで hook に続ける1〜2文。全角60字以内。
+　- lemon8_title：Lemon8の見出し。この動画で注目してもらいたい点で、読む人を引きつける言葉。全角30字以内。
+　- lemon8_intro：Lemon8の本文の最初の段落。何が起きているのかと、何が疑問なのか。全角150〜250字。
+　どの部品も、運用ルールの「優先フックの定義（具体性の担保）」と、概要欄の禁止「汎用的すぎる説明文」に従う（この動画の主題に固有の焦点を書く）。
+　YouTubeへの誘導、noteの案内、URLは、ツールが付けるので書かない。
+・SNSのハッシュタグ
+　- x_tags：3個。yt_post_tags：3個。言葉の選び方は tags と同じ。
+　- insta_tags：5個。lemon8_tags：5個。tiktok_tags：5〜8個。
+　　この動画の内容を探す人が打ち込みそうな言葉に加えて、株式投資の分野を探す人が使う言葉も入れる。
+　　一般の人が検索に使わない言葉は使わない。
+・CTR／SEO最適化ポイント、動画管理表は出力しない。
+
+【出力】次の形のJSONだけを出力する。説明文やコードフェンスは不要。
+{"titles":["","",""],"thumbs":["上段：中段：下段","",""],"desc":"","tags":["","",""],"hook":"","points":["","",""],"x":"","x_tags":[],"yt_post_tags":[],"insta_tags":[],"lemon8_title":"","lemon8_intro":"","lemon8_tags":[],"tiktok_tags":[]}`;
+}
 function ytPostPrompt(){
   const{plan,report}=ytSlidePartsLoose();
   const tr=ytPostTranscript();
   const sr=ytSeries();
+  if(ytGen()){
+    if(!ytTheme())throw new Error('「調査」タブにテーマを入力してください');
+    return `${ytPostRulesGen()}
+
+---
+【動画の企画】
+${plan}
+
+---
+【レポート・動画資料（出典は除いています）】
+${report}${tr?`
+
+---
+【動画で実際に話している内容（音声の文字起こし）】
+${tr}`:''}`;
+  }
   return `${YT_POST_RULES.replace('{{SERIES_RULE}}',sr
     ?`・タイトルの末尾は「｜${sr}」にする（「｜銘柄分析」などは付けない）。先頭は【銘柄名（証券コード）】。`
     :'・タイトルの末尾には何も付けない（「｜銘柄分析」なども付けない）。先頭は【銘柄名（証券コード）】。')}
@@ -8881,14 +8935,14 @@ function ytPostBuild(){
   const body=ytVal('p-body'),xbody=ytVal('p-xbody'),hook=ytVal('p-hook');
   if(body){
     const url=ytNoteUrl(),fixed=ytVal('p-fixed'),tags=ytVal('p-tags');
-    ytEl('p-desc').value=[body,url?`▼ さらに詳しい分析はこちら（note）\n${url}`:'',fixed,tags].filter(Boolean).join('\n\n');
+    ytEl('p-desc').value=[body,url?`${ytGen()?'▼ 記事で読む（note）':'▼ さらに詳しい分析はこちら（note）'}\n${url}`:'',fixed,tags].filter(Boolean).join('\n\n');
   }
   if(hook||xbody){
     // 1行目＝【#銘柄名（コード）】、hook、続きの文、ハッシュタグ、最終行に動画のURL（記事タブのX告知文と同じ。空行は入れない）
-    const head=`【#${(getName()||'').replace(/\s+/g,'')}（${getTicker()||''}）】`,yt=ytVal('p-yturl');
+    const head=ytGen()?'':`【#${(getName()||'').replace(/\s+/g,'')}（${getTicker()||''}）】`,yt=ytVal('p-yturl');   // YT動画は1つの銘柄の動画ではないので、1行目の銘柄名は付けない
     const src=hook?[hook,xbody,ytVal('p-xtags')]:[xbody];   // hook が無いのは、SNSの部品が入る前の形のJSON
     const lines=src.filter(Boolean).join('\n').split(/\r?\n/).map(s=>s.trim()).filter(Boolean).filter(s=>!/^【\s*#/.test(s)&&!/^https?:/.test(s));
-    const dup=[(getName()||'').replace(/\s+/g,''),String(getTicker()||'')].filter(Boolean);
+    const dup=ytGen()?[]:[(getName()||'').replace(/\s+/g,''),String(getTicker()||'')].filter(Boolean);
     const body=lines.map(s=>s.replace(/[#＃]([^\s#＃]+)/g,(m,w)=>dup.includes(w)?'':m).replace(/[ 　]{2,}/g,' ').trim()).filter(Boolean);
     ytEl('p-x').value=[head,...body,yt].filter(Boolean).join('\n');
   }
@@ -8901,13 +8955,20 @@ function ytPostBuild(){
     ytEl('p-ig').value=J([hook,pts.length?L+'\n'+bul:'',ytPostFixedText('ig'),ytVal('p-igtags')]);
     // 見出し＝【#銘柄名（コード）】＋AIの言葉（Xの1行目と同じ書き方）
     const l8=ytVal('p-l8title').replace(/^【[^】]*】\s*/,'');
-    ytEl('p-l8t').value=`【#${(getName()||'').replace(/\s+/g,'')}（${getTicker()||''}）】${l8}`;
+    ytEl('p-l8t').value=ytGen()?l8:`【#${(getName()||'').replace(/\s+/g,'')}（${getTicker()||''}）】${l8}`;
     ytEl('p-l8').value=J([ytVal('p-l8intro'),pts.length?L+'\n'+num:'',ytPostFixedText('l8'),ytVal('p-l8tags')]);
     ytEl('p-tt').value=J([[hook,bul].filter(Boolean).join('\n'),ytPostFixedText('tt'),ytVal('p-tttags')]);
   }
   saveState();
 }
 // SNSの投稿文の定型文（誘導とnoteの案内）。Lemon8 のプロフィールは note だけ、TikTok はプロフィールに YouTube を置けない
+// YT動画用の既定（noteは無料の記事。動画と同じ内容を文章で読める、という案内）
+const YT_SNS_FIXED_GEN={
+  yp:'▶ 文章で読みたい方は、noteの記事をどうぞ（リンクは動画の概要欄に）',
+  ig:'▶ 動画はYouTube「すみっこマネー大学」で公開中\n▶ 文章で読みたい方は、noteの記事をどうぞ\n（どちらもプロフィールのリンクから）',
+  l8:'▶ 解説動画と記事は、noteにまとめています（プロフィールのリンクから）',
+  tt:'▶ フル版の動画は、YouTubeで「すみっこマネー大学」と検索\n▶ 文章で読みたい方は、noteの記事をどうぞ',
+};
 const YT_SNS_FIXED={
   yp:'▶ 株価の{下値/上値}や今後のシナリオは、noteで詳しく分析しています（リンクは動画の概要欄に）',
   ig:'▶ 動画はYouTube「すみっこマネー大学」で公開中\n▶ 株価の{下値/上値}や今後のシナリオは、noteで詳しく分析しています\n（どちらもプロフィールのリンクから）',
@@ -9089,7 +9150,7 @@ ${yaBuildPaneHtml()}</div>
   <div class="sa-sub">▼ 概要欄の定型文（使用ツール・AIの注意書き）</div>
   <textarea id="yt-p-fixed" style="min-height:90px;font-size:11px;">${esc(YT_POST_FIXED)}</textarea>
   <div class="sa-sub">▼ SNSの投稿文の定型文（誘導とnoteの案内）</div>
-  <div style="font-size:10px;color:var(--text-sub);">{下値/上値} は、株価が下がった回は「下値」、上がった回は「上値」に置き換わります。直したら、投稿文タブの「↻ 組み立て直す」で入ります。</div>
+  <div class="yt-only-stock" style="font-size:10px;color:var(--text-sub);">{下値/上値} は、株価が下がった回は「下値」、上がった回は「上値」に置き換わります。直したら、投稿文タブの「↻ 組み立て直す」で入ります。</div>
   ${[['yp','YouTubeの投稿'],['ig','Instagram'],['l8','Lemon8'],['tt','TikTok']].map(([k,n])=>`<div style="font-size:11px;margin-top:4px;">${n}</div><textarea id="yt-f-${k}" style="min-height:44px;font-size:11px;">${esc(YT_SNS_FIXED[k])}</textarea>`).join('')}
 </div>
 </div>`;
@@ -9134,7 +9195,9 @@ function ytSetCtx(ctx){
     let next=null;try{next=JSON.parse(localStorage.getItem('kt-yt-fields-'+ctx)||'null');}catch(e){}
     ytWorkIds().forEach(id=>{
       const el=document.getElementById(id);if(!el)return;
-      const v=(next&&next[id]!=null)?next[id]:(ctx==='gen'&&id==='yt-series')?'':YT_FIELD_DEFAULTS[id];   // シリーズ名の既定は株価分析の動画のもの。YT動画は空から
+      // まだ保存の無い種類へ切り替えたときの出発点。YT動画は、シリーズ名は空、SNSの定型文はYT動画用
+      const gd=ctx==='gen'?(id==='yt-series'?'':/^yt-f-(yp|ig|l8|tt)$/.test(id)?YT_SNS_FIXED_GEN[id.slice(5)]:undefined):undefined;
+      const v=(next&&next[id]!=null)?next[id]:gd!==undefined?gd:YT_FIELD_DEFAULTS[id];
       if(el.type==='checkbox')el.checked=!!v;else el.value=v==null?'':v;
     });
     if(typeof saveStateNow==='function')saveStateNow();
