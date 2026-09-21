@@ -510,6 +510,8 @@ select.yn-sel option{color:#0f172a;background:#fff;font-weight:400;}
 /* スライドの直し：チェックの並び */
 .yt-fixes{display:flex;flex-wrap:wrap;gap:2px 10px;margin:4px 0;}
 /* 横動画のパネル：横に並ぶボタンは、等分にすると長い文字が切れる（「②ファクト」「まとめて取得…」など）ので、文字の長さに合わせて幅を配る */
+/* カードは縦並びで部品の間を6pxあけている。部品を包んだ所にも同じ間隔を持たせる（包むと、カードの間隔が中まで届かない） */
+#yt-root .yt-col{display:flex;flex-direction:column;gap:6px;}
 #yt-root .row:has(>button:nth-child(2))>button{flex:1 1 auto !important;padding-left:4px;padding-right:4px;}
 .yt-fixes label{flex:0 0 calc(50% - 5px);display:flex;align-items:center;gap:4px;font-size:11px;line-height:1.7;cursor:pointer;}
 .yt-fixes input{flex:none;margin:0;}
@@ -9206,7 +9208,7 @@ function ytBuildTabHtml(){
 <div id="yt-pane-research">
 <div class="sa-card">
   <h2>1. 調査・動画資料</h2>
-  <div class="yt-only-gen" style="display:none;">
+  <div class="yt-only-gen yt-col" style="display:none;">
     <div style="display:flex;gap:4px;justify-content:flex-end;"><button class="btn-sm" onclick="exportTabData('yt')" title="このタブの内容（音声・スライド・割り当て・出典の画像も）をJSONで保存" style="flex:none;padding:4px 10px;font-size:11px;background:#e0f2fe;color:#075985;">📤 エクスポート</button><button class="btn-sm" onclick="importTabDataPick('yt')" title="保存したJSONを読み込んで続きから再開" style="flex:none;padding:4px 10px;font-size:11px;background:#dcfce7;color:#166534;">📥 インポート</button></div>
     <div class="sa-sub">▼ 1. テーマ</div>
     <input type="text" id="yt-g-theme" placeholder="この動画のテーマ（何が分かる動画か）" oninput="saveState()" style="width:100%;font-size:12px;">
@@ -9225,9 +9227,9 @@ function ytBuildTabHtml(){
   <div class="sa-sub yt-only-gen" style="display:none;">▼ 3. 構成と出典（レポートのファクトチェックが済んでから。①も②も、「💾 添付」で保存したレポートを添付）</div>
   <div class="yt-only-stock">${row(b('💬 ①調査',"ytCopy('research',this)",G),b('✅ ②ファクト',"ytCopy('fc',this)",G),b('🔁 ③再CK',"ytCopy('recheck',this)",G),b('🔧 ④修正',"ytCopy('fix',this)",G))}</div>
   <div class="yt-only-gen" style="display:none;">${row(`<button class="btn-sm" onclick="ygReportDownload(this)" title="レポートをファイル（レポート.md）に保存します。ChatGPTに添付してください" style="flex:1;min-width:0;background:#0d9488;color:#fff;">💾 添付</button>`,b('💬 ①構成',"ytCopy('research',this)",G))}</div>
-  <div id="yt-doc-box" style="display:flex;flex-direction:column;">
+  <div id="yt-doc-box" class="yt-col">
     <textarea id="yt-doc" placeholder="ChatGPTの動画資料をここに貼り付け（②〜④を誤りがなくなるまで繰り返す）" style="min-height:36px;"></textarea>
-    <div id="yt-doc-links">
+    <div id="yt-doc-links" class="yt-col">
       ${row(b('🔗 出典のリンクを確認','ytCheckLinks(this)'))}
       <div class="yt-only-gen" style="display:none;font-size:10px;color:var(--text-sub);">②〜④が終わったら、最後に1回押します（全部が問題なしになるまで、音声から先へは進めません）。問題があったら、もう一度②を押すと、その内容がプロンプトに入ります。</div>
       <div id="yt-link-status" style="display:none;font-size:11px;"></div><input type="hidden" id="yt-link-state">
