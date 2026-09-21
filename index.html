@@ -4294,6 +4294,7 @@ risk_3=`;
 
             // 入力内容の復元（テキストボックス等がリロードで消えないように）→ 各欄へ保存フックを登録
             const restored = restoreState();
+            if (typeof ytFixedMigrate === 'function') ytFixedMigrate();   // 復元で古い定型文に戻るので、ここでも足す
             switchSaCompareMode(getSaCompareMode());
             bindPersistence();
             // 欄の値から作る表示・設定も戻す（サムネの透過率/拡大率/プリセット、株探の指標サマリ、サムネ背景画像）
@@ -8668,6 +8669,7 @@ function ytPostBuild(){
 }
 const YT_POST_FIXED=`■使用ツール
 ・素材・チャート分析：TradingView ▶ https://jp.tradingview.com/?aff_id=162125&source=Youtube
+・動画作成アプリ：ナレスラ ▶ https://naresla.com
 
 本動画にはAI生成コンテンツが含まれています。
 迅速な解説と可視化（図解・イラスト化）を実現するため、生成AIを活用しています。
@@ -8814,11 +8816,17 @@ ${yaBuildPaneHtml()}</div>
 </div>`;
 }
 const YT_PERSIST_IDS=['vd-orient','th-ctx','th-note-text','th-note-preset','yt-th-text','yt-th-preset','yt-doc','yt-theme','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-t1','yt-p-t2','yt-p-t3','yt-p-s1','yt-p-s2','yt-p-s3','yt-p-body','yt-p-xbody','yt-p-yturl','yt-p-tags','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-yomi','yt-yomi-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan'];
+// 保存済みの定型文（使用ツール）にナレスラの行が無ければ、TradingView の行の下に足す
+function ytFixedMigrate(){
+  const fx=document.getElementById('yt-p-fixed');
+  if(fx&&fx.value&&!/ナレスラ/.test(fx.value)&&/TradingView.*/.test(fx.value))fx.value=fx.value.replace(/(TradingView.*)/,'$1\n・動画作成アプリ：ナレスラ ▶ https://naresla.com');
+}
 function ytRestoreFields(){
   let st=null;try{st=JSON.parse(localStorage.getItem(SA_STORAGE_KEY)||'null');}catch(e){}
   if(!st||!st.fields)return;
   YT_PERSIST_IDS.forEach(id=>{const el=document.getElementById(id);if(!el||st.fields[id]==null)return;if(el.type==='checkbox')el.checked=!!st.fields[id];else el.value=st.fields[id];});
   const th=ytEl('theme');if(th&&(!st.fields||st.fields['yt-theme']==null))th.value=ytThemeDefault();   // 初回だけ既定の言い方を入れる（あとは空欄も尊重する）
+  ytFixedMigrate();
   const nm=ytEl('nlm-min');if(nm&&nm.value==='8')nm.value='12';   // NotebookLMは長さを守らないので、長めに作らせる目安として12分（旧既定値8分から）
 }
 // 縦（SNS）／横（YouTube）の切り替え
