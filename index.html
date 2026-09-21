@@ -4299,7 +4299,8 @@ risk_3=`;
 
             // 入力内容の復元（テキストボックス等がリロードで消えないように）→ 各欄へ保存フックを登録
             const restored = restoreState();
-            if (typeof ytFixedMigrate === 'function') ytFixedMigrate();   // 復元で古い定型文に戻るので、ここでも足す
+            if (typeof ytFixedMigrate === 'function') ytFixedMigrate();
+            if (typeof ytModelMigrate === 'function') ytModelMigrate(true);   // 復元で古い定型文に戻るので、ここでも足す
             switchSaCompareMode(getSaCompareMode());
             bindPersistence();
             // 欄の値から作る表示・設定も戻す（サムネの透過率/拡大率/プリセット、株探の指標サマリ、サムネ背景画像）
@@ -7541,14 +7542,15 @@ function earnPrevMode(m){
 // ・スライドは「スライド作成」タブの6枚を土台に組み直す（1280×720 で組み、1.5倍で 1920×1080 に画像化）
 // ============================================================
 // ---- 横動画：Gemini のモデル（作業ごとに設定タブで選ぶ）----
-// 回数の上限のときは、選んだモデルから一覧の順に下のモデルへ切り替える。混雑のときは切り替えずに止める（下も混んでいることが多い）
+// 回数の上限のときは、選んだモデルから一覧の順に下のモデルへ切り替える（Lite は除く）。混雑のときは切り替えずに止める（下も混んでいることが多い）
 const YT_MODEL_LIST=[['gemini-3.8-flash','Gemini 3.8 Flash（20回/日）'],['gemini-3.7-flash','Gemini 3.7 Flash（20回/日）'],['gemini-3.6-flash','Gemini 3.6 Flash（20回/日）'],['gemini-3.5-flash','Gemini 3.5 Flash（20回/日）'],['gemini-3-flash-preview','Gemini 3 Flash（20回/日）'],['gemini-3.5-flash-lite','Gemini 3.5 Flash Lite（500回/日）'],['gemini-3.1-flash-lite','Gemini 3.1 Flash Lite（500回/日）'],['gemini-2.5-flash','Gemini 2.5 Flash（20回/日）'],['gemini-2.5-flash-lite','Gemini 2.5 Flash Lite（20回/日）']];
-const YT_AI_TASKS=[['cut','カットの判定','gemini-3.8-flash'],['read','まとまりの読み取り','gemini-3.5-flash-lite'],['plan','演出の割り当て','gemini-3.8-flash'],['post','投稿文','gemini-3.8-flash'],['qr','QRの位置','gemini-3.5-flash-lite']];
+const YT_AI_TASKS=[['cut','カットの判定','gemini-3.8-flash'],['read','まとまりの読み取り','gemini-3.5-flash'],['plan','演出の割り当て','gemini-3.8-flash'],['post','投稿文','gemini-3.8-flash'],['qr','QRの位置','gemini-3.5-flash']];
 const ytModelName=m=>((YT_MODEL_LIST.find(x=>x[0]===m)||[])[1]||m).replace(/（.*$/,'');
 function ytModels(task){
   const def=(YT_AI_TASKS.find(x=>x[0]===task)||[])[2]||'gemini-3.8-flash';
   const sel=((document.getElementById('yt-m-'+task)||{}).value)||def;
-  return [sel,...YT_MODEL_LIST.map(x=>x[0]).filter(m=>m!==sel)];
+  // 上限で下へ切り替えるときも Lite には落とさない（読み取りの位置が大きくずれて使えなかった。2026-09-21）。Lite は自分で選んだときだけ使う
+  return [sel,...YT_MODEL_LIST.map(x=>x[0]).filter(m=>m!==sel&&!/lite/.test(m))];
 }
 // Gemini のエラーを、どのモデルで何が起きたかの日本語にする
 function ytAiErr(d,task){
@@ -8896,7 +8898,7 @@ ${yaBuildPaneHtml()}</div>
   ${set('チャート期間','<input type="number" id="yt-months" value="12" min="1" max="60" style="width:60px;flex:none;font-size:11px;padding:4px;">','ヶ月')}
   ${set('試聴の前後','<input type="number" id="ya-ctx" value="2" min="0" max="10" step="0.5" style="width:60px;flex:none;font-size:11px;padding:4px;">','秒（音声カットの▶・試聴で、前後に足す長さ）')}
   <div class="sa-sub">▼ Geminiのモデル（作業ごと）</div>
-  <div style="font-size:10px;color:var(--text-sub);">回数の上限のときは、選んだモデルから一覧の順に下のモデルへ自動で切り替えます。混雑のときは切り替えずに止まるので、ここで別のモデルを選んでもう一度押してください。</div>
+  <div style="font-size:10px;color:var(--text-sub);">回数の上限のときは、選んだモデルから一覧の順に下のモデルへ自動で切り替えます（Lite には切り替えません。読み取りの位置が大きくずれて使えなかったため）。混雑のときは切り替えずに止まるので、ここで別のモデルを選んでもう一度押してください。</div>
   ${YT_AI_TASKS.map(([k,n,d])=>set(n,`<select id="yt-m-${k}" onchange="saveState()" style="flex:1;min-width:0;font-size:11px;padding:3px;">${YT_MODEL_LIST.map(([v,l])=>`<option value="${v}"${v===d?' selected':''}>${l}</option>`).join('')}</select>`)).join('')}
   ${set('NotebookLMの長さ','<input type="number" id="yt-nlm-min" value="12" min="3" max="30" style="width:60px;flex:none;font-size:11px;padding:4px;">','分（指示文に書く目安）')}
   <div class="sa-sub">▼ 概要欄の定型文（使用ツール・AIの注意書き）</div>
@@ -8909,6 +8911,15 @@ ${yaBuildPaneHtml()}</div>
 }
 const YT_PERSIST_IDS=['vd-orient','th-ctx','th-note-text','th-note-preset','yt-th-text','yt-th-preset','yt-doc','yt-series','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-t1','yt-p-t2','yt-p-t3','yt-p-s1','yt-p-s2','yt-p-s3','yt-p-body','yt-p-xbody','yt-p-hook','yt-p-points','yt-p-xtags','yt-p-yptags','yt-p-igtags','yt-p-tttags','yt-p-l8title','yt-p-l8intro','yt-p-l8tags','yt-p-yp','yt-p-ig','yt-p-l8t','yt-p-l8','yt-p-tt','yt-f-yp','yt-f-ig','yt-f-l8','yt-f-tt','yt-p-yturl','yt-p-tags','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-m-cut','yt-m-read','yt-m-plan','yt-m-post','yt-m-qr','yt-yomi','yt-yomi-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan'];
 // 保存済みの定型文（使用ツール）にナレスラの行が無ければ、TradingView の行の下に足す
+// 読み取りとQRの前の既定（Lite）が保存されたままなら、一度だけ新しい既定に戻す。
+// 保存内容の読み込みは2回あり、後の方（done=true）で済んだ印を付ける
+function ytModelMigrate(done){
+  try{
+    if(localStorage.getItem('yt-m-nolite'))return;
+    ['read','qr'].forEach(k=>{const el=document.getElementById('yt-m-'+k);if(el&&/lite/.test(el.value))el.value='gemini-3.5-flash';});
+    if(done){localStorage.setItem('yt-m-nolite','1');if(typeof saveState==='function')saveState();}
+  }catch(e){}
+}
 function ytFixedMigrate(){
   const fx=document.getElementById('yt-p-fixed');
   if(fx&&fx.value&&!/ナレスラ/.test(fx.value)&&/TradingView.*/.test(fx.value))fx.value=fx.value.replace(/(TradingView.*)/,'$1\n・動画作成アプリ：ナレスラ ▶ https://naresla.com');
