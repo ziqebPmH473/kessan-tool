@@ -8246,6 +8246,37 @@ PowerPoint、PPTX、プレゼンテーションファイルは作成しないで
 シリーズ名、銘柄名、日付、章番号、スライド番号などを
 装飾目的で追加しないでください。`;
 
+// YT動画のときのスライド用プロンプト。株価分析の動画の文面（YT_SLIDE_DESIGNER）を土台に、銘柄・7章固定・noteの案内の箇所だけを置き換える。
+// 置き換える元の文が見つからないとき（土台の文面を直したとき）は、コンソールに知らせる。
+function ytSlideDesignerText(){
+  if(!ytGen())return YT_SLIDE_DESIGNER;
+  const ch=ytChapters(),n=ch.length+1,qr=!!ytNoteUrl();
+  let t=YT_SLIDE_DESIGNER;
+  const sw=(a,b,all)=>{if(!t.includes(a)){console.warn('[yt] スライド用プロンプトの置き換え元がありません：',a.slice(0,30));return;}t=all?t.split(a).join(b):t.replace(a,b);};
+  sw('あなたは、投資系YouTube動画で使用する',`あなたは、${ytAud()}で使用する`);
+  sw('「スライド画像」を8枚生成',`「スライド画像」を${n}枚生成`);
+  sw('株価分析レポート','レポート',true);
+  sw('事実・数字・企業情報の根拠です。','事実・数字の根拠です。');
+  sw('この動画を見た視聴者が、その企業を投資対象として自分で検討するための材料を','この動画を見た視聴者が、このテーマについて自分で判断するための材料を');
+  sw('企業紹介や、音声を要約した板書にはしないでください。','音声を要約した板書にはしないでください。');
+  sw('「それを知ると、投資家は何を判断できるのか」','「それを知ると、視聴者は何を判断できるのか」');
+  sw('音声で話している論点を投資判断に使えるところまで具体化','音声で話している論点を、視聴者が判断に使えるところまで具体化');
+  sw('基本は8枚です。',`${n}枚です。`);
+  sw('・第1章\n・第2章\n・第3章\n・第4章\n・第5章\n・第6章\n・第7章（まとめ）',ch.map((c,i)=>`・第${c.no}章${i===ch.length-1?'（まとめ）':''}`).join('\n'));
+  sw('並びは上から順に、銘柄名（証券コード）、この動画で答える問い、この動画で何を見るかの1行。','並びは上から順に、この動画の主題（テーマを短く言い表した言葉）、この動画で答える問い、この動画で何を見るかの1行。');
+  sw('・2つ目と3つ目には、今回取り上げる会社の名前を書かない（1つ目で出しているため）','・2つ目と3つ目では、1つ目の言葉を繰り返さない');
+  sw('・株価・業績・利益率などの数字は載せない（本編の章で扱う）','・数字は載せない（本編の章で扱う）');
+  sw('# 第7章（まとめ）スライドの追加要件','# 最後の章（まとめ）スライドの追加要件');
+  if(!qr){
+    // noteの案内とQRは、QR用のURLがあるときだけ
+    const a=t.indexOf('・noteへの誘導を入れる'),z='正方形の1辺は、画像の高さの30%程度（1080pxなら約320px）にしてください。',b=t.indexOf(z);
+    if(a>=0&&b>a)t=t.slice(0,a).replace(/\s+$/,'')+t.slice(b+z.length);else console.warn('[yt] スライド用プロンプトのQRの段が見つかりません');
+  }
+  sw('全8枚',`全${n}枚`,true);
+  sw('・8枚を通して、',`・${n}枚を通して、`);
+  sw('・「株価の予想をする動画ではなく、会社そのものを主役にする」\n・「株価が大きく下落した銘柄を取り上げる」\n・その他、動画や企画の説明文','・動画や企画の説明文');
+  return t;
+}
 // 動画資料から出典を取り除く（［出典n］の印と「出典一覧」以降）
 function ytStripSources(s){
   let x=String(s||'').replace(/[［\[（(]\s*出典\s*[0-9０-９]+\s*[］\]）)]/g,'');
@@ -8260,7 +8291,15 @@ function ytSlideParts(){
   if(!doc)throw new Error('「調査」タブに ChatGPT の動画資料を貼り付けてください');
   if(!tr)throw new Error('「音声」タブに Gemini の文字起こしを貼り付けてください');
   const fr=ytFreeReport();
-  const ch=YT_CHAPTERS.map(c=>`${c.no} ${up&&c.whatUp?c.whatUp:c.what}`).join('\n');
+  const ch=ytChapters().map(c=>`${c.no} ${up&&c.whatUp?c.whatUp:c.what}`).join('\n');
+  if(ytGen())return{tr,report:`テーマ：${ytTheme()}\n\n${doc}`,plan:`【内部用の企画方針｜この方針文は画像に表示しない】
+・どういう動画か：${ytIntent()}
+・章の並びと、その章で扱う内容（内部用。章番号は画像に描かない）：
+${ch.split('\n').map(s=>'　'+s).join('\n')}
+・各スライドの見出しは、その章の音声とレポートの内容から付けてください。
+　上の「扱う内容」の文をそのまま見出しにしないでください。
+
+テーマ：${ytTheme()}`};
   const plan=`【内部用の企画方針｜この方針文は画像に表示しない】
 ・どういう動画か：${ytIntent()}
 ・章の並びと、その章で扱う内容（内部用。章番号は画像に描かない）：
@@ -8277,7 +8316,7 @@ ${ch.split('\n').map(s=>'　'+s).join('\n')}
 // プロンプトはコピーして使う。入力2・3は添付ファイル（ZIPの中身）を見てもらう
 function ytSlideDesignerPrompt(){
   const{plan}=ytSlideParts();
-  return `${YT_SLIDE_DESIGNER}
+  return `${ytSlideDesignerText()}
 
 ---
 【入力1｜動画全体の企画・大まかな章構成】
@@ -8288,7 +8327,7 @@ ${plan}
 添付ファイル「02_音声の文字起こし.txt」を使ってください。
 
 ---
-【入力3｜株価分析レポート・動画資料】
+【入力3｜${ytGen()?'':'株価分析'}レポート・動画資料】
 添付ファイル「03_レポート・動画資料.txt」を使ってください。
 `;
 }
@@ -8300,7 +8339,7 @@ async function ytDownloadSlideZip(btn){
     zip.file('02_音声の文字起こし.txt',parts.tr);
     zip.file('03_レポート・動画資料.txt',parts.report);
     const blob=await zip.generateAsync({type:'blob'});
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${getTicker()||'code'}_${getName()||'name'}_スライド作成一式.zip`;a.click();
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${ytFileBase('code','name')}_スライド作成一式.zip`;a.click();
     ytStatus('✅ ZIPを保存しました（音声の文字起こし・レポート）。ChatGPTには、この2つを添付し、プロンプトを貼り付けてください','ok','slide-status2');
   }catch(e){ytStatus('❌ '+e.message,'error','slide-status2');}
   finally{if(btn)btn.disabled=false;}
@@ -8346,11 +8385,12 @@ function ytNoteInfo(){
   const el=ytEl('note-info');if(!el)return;
   const u=ytNoteUrl();
   const from=ytVal('note-url')?'この欄':((document.getElementById('art-url')||{}).value||'').trim()?'「記事」タブの記事URL':vdVal('vd','note-url')?'縦動画の設定':'';
-  el.textContent=u?`いま使うURL：${u}（${from}）`:'いま使うURL：なし（記事タブの記事URLか、この欄を入れてください）';
-  el.style.color=u?'var(--text-sub)':'#dc2626';
+  el.textContent=u?`いま使うURL：${u}（${from}）`:ytGen()?'いま使うURL：なし（入れると、まとめのスライドにnoteの案内とQRが付きます）':'いま使うURL：なし（記事タブの記事URLか、この欄を入れてください）';
+  el.style.color=(u||ytGen())?'var(--text-sub)':'#dc2626';
 }
 // note の URL。横の設定が空なら、記事タブの記事URL、それも空なら縦動画の設定を使う
 function ytNoteUrl(){
+  if(ytGen())return ytVal('note-url');   // YT動画は、株価分析の記事のURLを使わない
   return ytVal('note-url')
     ||((document.getElementById('art-url')||{}).value||'').trim()
     ||vdVal('vd','note-url')||'';
@@ -8361,6 +8401,34 @@ function ytSeries(){const el=document.getElementById('yt-series');return el?(el.
 function ytSeriesReset(){const el=document.getElementById('yt-series');if(!el)return;el.value=YT_SERIES_DEFAULT;saveState();}
 // どういう動画か（意図だけ）。調査・音声・スライド・投稿文のプロンプトで同じ文を使う。細かいことは構成と資料が伝える
 const YT_G_AUD_DEFAULT='個人投資家向けのYouTube番組';
+// 作品の名前（株価分析の動画＝銘柄名、YT動画＝テーマ）。読みがなや保存済み音声が「別の作品のもの」かを見分けるのにも使う
+const ytWorkName=()=>ytGen()?ytTheme():(getName()||'');
+// 書き出すファイル名の頭。株価分析の動画＝コード_銘柄名（今までどおり）、YT動画＝テーマ
+function ytFileBase(code,name){
+  if(!ytGen())return `${getTicker()||code}_${getName()||name}`;
+  return (ytTheme().replace(/[\\\/:*?"<>|\s]/g,'').slice(0,30))||'YT動画';
+}
+// YT動画：動画資料の「## 構成」の表（章｜章の名前｜扱う内容）を読む
+function ytGenChapters(){
+  const doc=ytVal('doc'),m=doc.match(/^#{1,4}\s*構成[^\n]*$/m);if(!m)return[];
+  const rows=[];
+  for(const l of doc.slice(m.index).split('\n').slice(1)){
+    const t=l.trim();
+    if(/^#{1,4}\s/.test(t))break;
+    if(!/^\|/.test(t)||/^\|[\s\-:|]+\|$/.test(t))continue;
+    const c=t.split('|').map(x=>x.trim());c.shift();if(c[c.length-1]==='')c.pop();
+    if(c.length<2||!/[0-9０-９]/.test(c[0]))continue;   // 見出しの行（章｜章の名前…）は除く
+    rows.push({no:rows.length+1,name:c[1]||'',what:c[2]||c[1]||''});
+  }
+  return rows;
+}
+// 章の並び。株価分析の動画は決まった7章、YT動画は貼り付けた動画資料の構成
+function ytChapters(){
+  if(!ytGen())return YT_CHAPTERS;
+  const ch=ytGenChapters();
+  if(!ch.length)throw new Error('動画資料に「構成」の表がありません。調査タブの「①構成･出典」で作った資料を貼り付けてください');
+  return ch;
+}
 const ytTheme=()=>ytVal('g-theme');
 const ytAud=()=>ytVal('g-aud')||YT_G_AUD_DEFAULT;
 function ytIntent(){
@@ -8370,6 +8438,24 @@ function ytIntent(){
 }
 function ytNotebookPrompt(){
   const up=getDir()==='up',name=getName()||'この会社',min=ytVal('nlm-min')||'12';
+  if(ytGen()){
+    // 読みがなは「言葉＝よみ、言葉＝よみ」。無くてもよい
+    const ym=ytYomi().split(/[、,\n]/).map(x=>x.trim()).filter(x=>/[=＝:：]/.test(x)).map(x=>x.replace(/\s*[=＝:：]\s*/,'：')).join('\n');
+    return `${ytIntent()}を作成します。
+根拠資料をもとに、以下の構成で動画に使用する音声（約${min}分）を生成してください。
+
+話し手は解説者（専門家）、聞き手はMCです。MCは視聴者と同じ目線の質問係ではなく、論点を整理して引き出し、視聴者に判断の材料を渡す役です。
+
+構成は以下です。時間配分は厳密に守る必要はありません。
+${ytChapters().map(c=>`${c.no}. ${c.name}\n   ${c.what}`).join('\n')}
+
+根拠資料の全項目を均等に紹介する必要はありません。
+細かな数字の羅列や各論の説明に偏らず、動画全体の流れと分かりやすさを優先してください。
+この音声は、${ytAud()}で使います。
+【話さないこと（最重要）】
+特定の銘柄の売買を促す表現、将来の株価の水準の断定、視聴者への行動要求（「〜すべき」「〜する必要があります」）は話さない。
+${YT_VOICE_RULES.replace('{{NAME_YOMI}}',ym?ym+'\n':'')}`;
+  }
   const yomi=ytYomi();
   if(!yomi){ytEl('yomi')?.focus();throw new Error('銘柄名の読みがなを入れてください（NotebookLMは銘柄名を読み間違えやすいため必須）');}
   return `${ytIntent()}を作成します。
@@ -8406,6 +8492,10 @@ ${YT_VOICE_RULES.replace('{{NAME_YOMI}}',`${name}：${yomi}\n`)}`;
 }
 // NotebookLM に読ませるソース（基本情報＋レポート1〜2章＋ChatGPTの動画資料）
 function ytNotebookSource(){
+  if(ytGen()){
+    const d=ytStripSources(ytVal('doc'));if(!d)throw new Error('ChatGPTの動画資料（最終版）を貼り付けてください');
+    return `# ${ytTheme()} 動画資料\n\n${d}\n`;
+  }
   const fr=ytFreeReport();if(!fr.ok)throw new Error(fr.why);
   const doc=ytVal('doc');if(!doc)throw new Error('ChatGPTの動画資料（最終版）を貼り付けてください');
   return `# ${getName()||''}（${getTicker()||''}）動画資料\n\n## 基本情報\n${vdBasicInfo('vd')}\n\n## 株価分析レポート（1〜2章）\n${fr.text}\n\n## 動画資料（調査・深掘り）\n${doc}\n`;
@@ -8413,17 +8503,18 @@ function ytNotebookSource(){
 
 // 銘柄名の読みがな。欄の値は、入れたときの銘柄名と今の銘柄名が同じときだけ使う（別銘柄の読みを使わない）
 function ytYomiFromDoc(){
+  if(ytGen()){const g=ytVal('doc').match(/読みがな\s*[:：]\s*([^\n]+)/);const v=g?g[1].replace(/^[（(]|[）)]$/g,'').trim():'';return /^なし/.test(v)?'':v;}
   const m=ytVal('doc').match(/銘柄名の読み\s*[:：]\s*[（(]?\s*([ぁ-ゖー・\s]+)/);
   return m?m[1].replace(/\s/g,''):'';
 }
 function ytYomi(){
   const v=ytVal('yomi');
-  if(v&&ytVal('yomi-for')===getName())return v;
+  if(v&&ytVal('yomi-for')===ytWorkName())return v;
   const d=ytYomiFromDoc();
-  if(d){ytEl('yomi').value=d;ytEl('yomi-for').value=getName();saveState();}
+  if(d){ytEl('yomi').value=d;ytEl('yomi-for').value=ytWorkName();saveState();}
   return d;
 }
-function ytYomiInput(){ytEl('yomi-for').value=getName();}
+function ytYomiInput(){ytEl('yomi-for').value=ytWorkName();}
 
 // ---- 出典のリンク確認（AIに任せず、実際に開けるかを機械的に確かめる）----
 const YL={res:null};   // [{no,name,url,ok,status,type,error}]
@@ -8505,7 +8596,7 @@ function ytUpdateFreeInfo(){
 function ytDownloadSource(){
   try{
     const blob=new Blob([ytNotebookSource()],{type:'text/markdown'});
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${getTicker()||'code'}_${getName()||'name'}_YouTube資料.md`;a.click();
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${ytFileBase('code','name')}_YouTube資料.md`;a.click();
     ytStatus('✅ NotebookLM用のソースを保存しました','ok');
   }catch(e){ytStatus('❌ '+e.message,'error');}
 }
@@ -8707,6 +8798,7 @@ function ytSlidePartsLoose(){
   const up=getDir()==='up';
   const doc=ytStripSources(ytVal('doc'));
   if(!doc)throw new Error('「調査」タブに ChatGPT の動画資料を貼り付けてください');
+  if(ytGen())return{plan:`${ytIntent()}です。\n\nテーマ：${ytTheme()}`,report:`テーマ：${ytTheme()}\n\n${doc}`};
   const fr=ytFreeReport();
   const plan=`${ytIntent()}です。
 
@@ -8922,7 +9014,7 @@ function ytBuildTabHtml(){
 <div id="yt-pane-audio" style="display:none;">
 <div class="sa-card">
   <h2>1. NotebookLM で音声を作る</h2>
-  ${set('銘柄名の読み','<input type="text" id="yt-yomi" placeholder="例：ちゅうがいせいやく（資料を貼ると自動で入ります）" oninput="ytYomiInput()" style="flex:1;min-width:0;font-size:11px;"><input type="hidden" id="yt-yomi-for">')}
+  ${set('<span class="yt-only-stock">銘柄名の読み</span><span class="yt-only-gen" style="display:none;">読みがな</span>','<input type="text" id="yt-yomi" placeholder="資料を貼ると自動で入ります" oninput="ytYomiInput()" style="flex:1;min-width:0;font-size:11px;"><input type="hidden" id="yt-yomi-for">')}
   ${set('シリーズ名','<input type="text" id="yt-series" value="'+YT_SERIES_DEFAULT+'" placeholder="空欄ならシリーズ無し" oninput="saveState()" style="flex:1;min-width:0;font-size:11px;"><button class="ya-nd" onclick="ytSeriesReset()" title="既定のシリーズ名に戻す">↺</button>')}
   <div style="font-size:10px;color:var(--text-sub);">シリーズ名は、調査・音声・スライド・投稿文の「どういう動画か」の一文と、タイトルの末尾（｜シリーズ名）に入ります。空にすると、シリーズ無しとして作ります。</div>
   ${row(b('📄 ソース（.md）','ytDownloadSource()','background:#0d9488;color:#fff;'),b('📓 指示',"ytCopy('nlm',this)",G))}
@@ -9167,7 +9259,7 @@ function yaDb(){return new Promise((res,rej)=>{const r=indexedDB.open('kessanToo
 async function yaPut(k,v){k=ytKey(k);try{const db=await yaDb();await new Promise((res,rej)=>{const tx=db.transaction('kv','readwrite');tx.objectStore('kv').put(v,k);tx.oncomplete=res;tx.onerror=()=>rej(tx.error);});}catch(e){console.warn('[ya] 保存失敗',e);}}
 async function yaGet(k){k=ytKey(k);try{const db=await yaDb();return await new Promise((res,rej)=>{const r=db.transaction('kv').objectStore('kv').get(k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}catch(e){return null;}}
 let _yaSaveTimer=null;
-function yaSaveNow(){_yaSaveTimer=null;return yaPut('state',{fileName:YA.fileName,dur:YA.dur,chars:YA.chars,wchars:YA.wchars,sents:YA.sents,cuts:YA.cuts,sections:YA.sections,score:YA.score,reach:YA.reach,stock:getName()});}
+function yaSaveNow(){_yaSaveTimer=null;return yaPut('state',{fileName:YA.fileName,dur:YA.dur,chars:YA.chars,wchars:YA.wchars,sents:YA.sents,cuts:YA.cuts,sections:YA.sections,score:YA.score,reach:YA.reach,stock:ytWorkName()});}
 function yaSave(){clearTimeout(_yaSaveTimer);_yaSaveTimer=setTimeout(yaSaveNow,400);}
 // 保留中の保存を、いますぐ書き出す（動画の種類を切り替える前に呼ぶ。切り替えたあとに書くと、相手側の保存先に入ってしまう）
 async function yaFlush(){if(_yaSaveTimer){clearTimeout(_yaSaveTimer);await yaSaveNow();}}
@@ -9673,7 +9765,7 @@ async function yaDownloadCut(btn){
   try{
     const r=yaRenderCut(),fmt=yaVal('fmt')||'mp3';
     const out=await vdProcessAudio(r,0,fmt);
-    const a=document.createElement('a');a.href=URL.createObjectURL(out.blob);a.download=`${getTicker()||'code'}_${getName()||'name'}_音声_カット済み.${out.ext}`;a.click();
+    const a=document.createElement('a');a.href=URL.createObjectURL(out.blob);a.download=`${ytFileBase('code','name')}_音声_カット済み.${out.ext}`;a.click();
     yaStatus('st-out',`✅ カット後の音声を保存しました（${yaTc(r.samples.length/r.sampleRate)}）`,'ok');
   }catch(e){yaStatus('st-out','❌ '+esc(e.message),'error');}
   finally{if(btn)btn.disabled=false;}
@@ -9683,7 +9775,7 @@ function yaDownloadText(){
   if(!YA.sents.length){alert('文字起こしがありません');return;}
   const m=yaMerged();const inCut=(s,e)=>m.some(c=>s>=c.start-0.05&&e<=c.end+0.05);
   const L=YA.sents.map((s,i)=>`${inCut(s.s,s.e)?'✂ ':''}[${yaTc(s.s)}] ${s.sp?(s.sp===1?'A':'B')+': ':''}${s.text}`);
-  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([L.join('\n')],{type:'text/plain'}));a.download=`${getTicker()||'code'}_${getName()||'name'}_文字起こし.txt`;a.click();
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([L.join('\n')],{type:'text/plain'}));a.download=`${ytFileBase('code','name')}_文字起こし.txt`;a.click();
 }
 
 // ---- 右ペインの一覧 ----
@@ -9813,7 +9905,7 @@ async function yaRestore(){
     let f=a.blob;try{f=new File([a.blob],a.name||'narration',{type:a.blob.type});}catch(e){}
     await yaLoadFile(f,true);
     if(typeof ynRender==='function')ynRender();if(typeof ysRender==='function')ysRender();
-    if(st&&st.stock&&st.stock!==getName())yaStatus('st-tr',`⚠ 保存されている音声は「${esc(st.stock)}」のものです（${esc(YA.fileName)}）。別の銘柄なら読み込み直してください`,'error');
+    if(st&&st.stock&&st.stock!==ytWorkName())yaStatus('st-tr',`⚠ 保存されている音声は「${esc(st.stock)}」のものです（${esc(YA.fileName)}）。別の${ytGen()?'テーマ':'銘柄'}なら読み込み直してください`,'error');
   }
   yaRender();
 }
@@ -9942,7 +10034,8 @@ function ynReadOne(i){
 // スライドが構成のどれにあたるか（1枚目＝表紙、2枚目から章の順）
 function ynSlideTitle(i){
   if(i===0)return'表紙';
-  const c=YT_CHAPTERS[i-1];if(!c)return'';
+  let chs=[];try{chs=ytChapters();}catch(e){}
+  const c=chs[i-1];if(!c)return'';
   return `${c.no}章 ${(getDir()==='up'&&c.nameUp)?c.nameUp:c.name}`;
 }
 // ファイル名は、全部に共通する頭の部分を省いて末尾だけ見せる
@@ -10074,8 +10167,9 @@ function ynPlanPrompt(){
 ・根拠資料：その資料が裏づけている事実を話している文の範囲に割り当てる。1件は5〜8秒。
 　この動画はカット後で約${mins.toFixed(1)}分なので、根拠資料の差し込みは${nSrc}件前後にする（多すぎると画面が落ち着かない。少なすぎると根拠が見えない）。
 　画面で見せる価値があるもの（数字の出どころ、会社の発表、公的な資料）を優先し、続けて出さない（間を20秒以上あける）。
-・チャート：株価の値動き（いつの高値からどれだけ上がった・下がった、決算後の急落など）を話している箇所には、株価チャートを差し込む。
-　チャートは TradingView で用意するので、どの足で・いつからいつまでを映すかを指定する。ティッカーは ${tick}。1件は5〜8秒、全体で1〜3件。
+${ytGen()?`・チャート：株価や指数の値動き（いつの高値からどれだけ上がった・下がったなど）を話している箇所には、そのチャートを差し込む。値動きの話が無ければ charts は空にする。
+　チャートは TradingView で用意するので、何の・どの足で・いつからいつまでを映すかを指定する。ticker は TradingView の表記（国内株は TSE:証券コード、日経平均は TVC:NI225）で書く。1件は5〜8秒、全体で0〜3件。`:`・チャート：株価の値動き（いつの高値からどれだけ上がった・下がった、決算後の急落など）を話している箇所には、株価チャートを差し込む。
+　チャートは TradingView で用意するので、どの足で・いつからいつまでを映すかを指定する。ティッカーは ${tick}。1件は5〜8秒、全体で1〜3件。`}
 ・【チャート】と付いた根拠資料も TradingView の画像で見せる。sources に入れるときは、interval（足）・start・end（期間）も書く。
 ・根拠資料やチャートを出している間は、スライドが隠れるので、ズームと強調は付けない。
 ・ズームと強調は、前振りや問いかけの文には付けず、その箇所の中身を話し始めた文から付ける。
@@ -10086,7 +10180,7 @@ function ynPlanPrompt(){
  "zooms":[{"slide":1,"zones":[まとまりの番号],"from":文番号,"to":文番号}],
  "marks":[{"slide":1,"zone":まとまりの番号,"type":"rect","strength":"soft","from":文番号,"to":文番号}],（文字に付けるときは zone の代わりに "text":"T1"）
  "sources":[{"no":資料の番号,"from":文番号,"to":文番号,"interval":"日足","start":"2026-01-01","end":"2026-09-18"}],（interval・start・end は【チャート】の資料だけ）
- "charts":[{"from":文番号,"to":文番号,"interval":"日足","start":"2026-01-01","end":"2026-09-18","note":"何を見せるか（例：2/25の高値から9/18まで）"}]}
+ "charts":[{"from":文番号,"to":文番号,${ytGen()?'"ticker":"TSE:0000",':''}"interval":"日足","start":"2026-01-01","end":"2026-09-18","note":"何を見せるか（例：2/25の高値から9/18まで）"}]}
 
 【スライドとまとまり】（番号を描き込んだスライドの画像を、スライド1から順に添付します。青い枠と数字がまとまりの番号、オレンジの点線とTの番号が文字の番号。まとまりの位置・大きさ・どれがどれを含むかは、画像で確かめる）
 ${slides}${srcBlock}
@@ -10104,7 +10198,7 @@ const YN_TV_INT={'月足':'M','週足':'W','日足':'D','4時間足':'240','1時
 function ynTvUrl(ticker,interval){const iv=YN_TV_INT[interval];return `https://jp.tradingview.com/chart/?symbol=${encodeURIComponent(ticker)}${iv?`&interval=${iv}`:''}`;}
 function ynTvTicker(name){return /日経平均|日経225/.test(name||'')?'TVC:NI225':/TOPIX/i.test(name||'')?'TSE:TOPIX':ynTicker();}
 // TradingView のティッカー（国内は TSE:4519 の形）
-function ynTicker(){const c=(getTicker()||'').trim();return /^[0-9][0-9A-Z]{3}$/i.test(c)?`TSE:${c.toUpperCase()}`:c;}
+function ynTicker(){if(ytGen())return '';const c=(getTicker()||'').trim();return /^[0-9][0-9A-Z]{3}$/i.test(c)?`TSE:${c.toUpperCase()}`:c;}
 const ynKinds={zooms:'ズーム',marks:'強調',sources:'出典',charts:'チャート'};
 // 文番号（from〜to）から、元の音声の時刻を出す
 function ynSeg(f,t){
@@ -10141,7 +10235,7 @@ function ynApplyPlan(plan){
   }).filter(Boolean);
   const srcAll=ytSources();
   const sources=(plan.sources||[]).map(x=>{const s=srcAll.find(y=>String(y.no)===String(x.no));const g=rng(x);return s&&g?{no:String(s.no),label:s.label||s.name,name:s.name,interval:String(x.interval||''),start:String(x.start||''),end:String(x.end||''),...g}:null;}).filter(Boolean);
-  const charts=(plan.charts||[]).map((x,i)=>{const g=rng(x);return g?{id:'c'+(i+1),ticker:ynTicker(),interval:String(x.interval||'日足'),start:String(x.start||''),end:String(x.end||''),note:String(x.note||''),...g}:null;}).filter(Boolean);
+  const charts=(plan.charts||[]).map((x,i)=>{const g=rng(x);return g?{id:'c'+(i+1),ticker:(ytGen()&&x.ticker)?String(x.ticker):ynTicker(),interval:String(x.interval||'日足'),start:String(x.start||''),end:String(x.end||''),note:String(x.note||''),...g}:null;}).filter(Boolean);
   const fx=ynFxTidy(zooms,marks);
   YN.plan={slides:sl.map(x=>({...x,...(ynSeg(x.from,x.to)||{})})),zooms:fx.zooms,marks:fx.marks,sources,charts};
   ynPlanNorm();
@@ -10368,7 +10462,7 @@ async function ynAnnotatedZip(btn){
     const zip=new JSZip();
     for(let i=0;i<YN.slides.length;i++){const a=await ynAnnotated(i);zip.file(a.name,a.blob);}
     const blob=await zip.generateAsync({type:'blob'}),url=URL.createObjectURL(blob),a=document.createElement('a');
-    a.href=url;a.download=`${getTicker()||''}_${getName()||''}_割り当て用_番号入りスライド.zip`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);
+    a.href=url;a.download=`${ytFileBase('','')}_割り当て用_番号入りスライド.zip`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);
   }catch(e){alert('画像を作れませんでした：'+e.message);}
   finally{if(btn)btn.disabled=false;}
 }
@@ -10536,7 +10630,7 @@ async function ynExport(btn){
     const subs=kept.map(x=>({id:++id,text:x.text,startTime:+x.s.toFixed(2),endTime:+x.e.toFixed(2),startSil:null,endSil:null,templateId:1}));
     const cuts=(typeof yaMerged==='function')?yaMerged().map(c=>({start:+c.start.toFixed(2),end:+c.end.toFixed(2)})):[];
     const ext=(YA.fileName.match(/\.(\w+)$/)||[,'m4a'])[1].toLowerCase();
-    Object.assign(p,{version:3,source:'import',name:`${getTicker()||''}_${getName()||''}_YouTube`,created:new Date().toISOString(),
+    Object.assign(p,{version:3,source:'import',name:`${ytFileBase('','')}_YouTube`,created:new Date().toISOString(),
       slides,cuts,switchPoints,decorations,decImages,cornerTelops,insertions:[],sfxList:[],sfxVols:{},
       manualSubtitles:subs,decIdCtr:id+10,narFile:'narration.'+ext,narFileName:YA.fileName,
       bgmFile:p.bgmFile||'',bgmFileName:p.bgmFileName||''});
@@ -10544,7 +10638,7 @@ async function ynExport(btn){
     zip.file('transcript.json',JSON.stringify({trWords:[],trSentenceSplits:[],trKeywords:[],trSelSentences:[],trSelWords:[]}));
     zip.file('narration.'+ext,YA.file);
     const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:3}});
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${getTicker()||'code'}_${getName()||'name'}_ナレスラ.svpz`;a.click();
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${ytFileBase('code','name')}_ナレスラ.svpz`;a.click();
     ynStatus(`✅ 書き出しました（スライド${slides.length}枚・ズーム${YN.plan.zooms.length}・強調${decorations.filter(d=>d.type!=='image'&&d.type!=='text').length}・チャート${chartPlan.length}・カット${cuts.length}・字幕${subs.length}・出典${srcPlan.length}（画像あり${nGot}））${tpl?`／ひな形：${esc(tpl.name)}`:'／ひな形なし'}`,'ok','status3');
   }catch(e){ynStatus('❌ '+e.message,'error','status3');}
   finally{if(btn)btn.disabled=false;}
