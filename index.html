@@ -509,7 +509,7 @@ select.yn-sel option{color:#0f172a;background:#fff;font-weight:400;}
 .ys-btns{flex:1;min-width:0;display:flex;flex-wrap:wrap;gap:3px;}
 /* スライドの直し：チェックの並び */
 .yt-fixes{display:flex;flex-wrap:wrap;gap:2px 10px;margin:4px 0;}
-/* 横動画のパネル：横に並ぶボタンは、等分にすると長い文字が切れる（「②ファクト」「まとめて取得…」など）ので、文字の長さに合わせて幅を配る */
+/* 横動画のパネル：横に並ぶボタンは、等分にすると長い文字が切れる（「Gemini APIで作る」「まとめて取得…」など）ので、文字の長さに合わせて幅を配る */
 /* カードは縦並びで部品の間を6pxあけている。部品を包んだ所にも同じ間隔を持たせる（包むと、カードの間隔が中まで届かない） */
 #yt-root .yt-col{display:flex;flex-direction:column;gap:6px;}
 #yt-root .row:has(>button:nth-child(2))>button{flex:1 1 auto !important;padding-left:4px;padding-right:4px;}
@@ -7669,7 +7669,7 @@ ${ytIntent()}を作成します。そのための動画資料を作ります。
 ・出典は一次情報にする：発表した本人（企業・取引所・中央銀行・官公庁・業界団体など）が出している資料（決算短信・決算説明資料・有価証券報告書・統計・公表資料など）。
 ・証券会社やメディアの解説記事・コラム・ニュース記事は、出典にしない。一次情報で裏づけられない記述には、出典の番号を付けない。
 ・株価・指数の値動き（いつからいつまでに何%動いたか等）の根拠は、資料ではなく「チャート」として出典一覧に入れる。資料名の列に「チャート（銘柄・足・期間）」の形で書く。
-　銘柄はTradingViewでの表記（国内株は TSE:証券コード、日経平均は TVC:NI225、TOPIXは TSE:TOPIX）、足は日足・週足・月足のどれか、期間は「YYYY-MM-DD〜YYYY-MM-DD」。
+　銘柄はTradingViewでの表記、足は日足・週足・月足のどれか、期間は「YYYY-MM-DD〜YYYY-MM-DD」。
 　チャートの行の URL・ページ・ページ内の位置・表示用の出典表記は「-」にする。
 ・URLとページは、実際に確認できたものだけを書く。確認できない場合は「要確認」と書く。
 ・決算短信・決算説明資料・有価証券報告書・中期経営計画など、元がPDFの資料は、そのPDFのURLと、根拠が載っているページ番号を書く。
@@ -7753,7 +7753,7 @@ ${ytAud()}の構成作家です。
 ・証券会社やメディアの解説記事・コラム・ニュース記事は、出典にしない。
 ・一次情報で裏づけられない記述は、出典一覧に入れない。
 ・株価・指数の値動き（いつからいつまでに何%動いたか等）の根拠は、資料ではなく「チャート」として出典一覧に入れる。資料名の列に「チャート（銘柄・足・期間）」の形で書く。
-　銘柄はTradingViewでの表記（国内株は TSE:証券コード、日経平均は TVC:NI225、TOPIXは TSE:TOPIX）、足は日足・週足・月足のどれか、期間は「YYYY-MM-DD〜YYYY-MM-DD」。
+　銘柄はTradingViewでの表記、足は日足・週足・月足のどれか、期間は「YYYY-MM-DD〜YYYY-MM-DD」。
 　チャートの行の URL・ページ・ページ内の位置・表示用の出典表記は「-」にする。
 ・URLとページは、実際に確認できたものだけを書く。確認できない場合は「要確認」と書く。
 ・決算短信・決算説明資料・有価証券報告書・統計の報告書など、元がPDFの資料は、そのPDFのURLと、根拠が載っているページ番号を書く。
@@ -7779,9 +7779,7 @@ function ytFactCheckPrompt(){
   const doc=ytVal('doc');if(!doc)throw new Error('先にChatGPTの動画資料を貼り付けてください');
   if(ytGen()){ygNeed(true);return `以下の「構成と出典」は、添付ファイル「${YG_REPORT_FILE}」（ファクトチェック済みのレポート）をもとに、以下の指示でAIが生成したものです。
 誤っている箇所と、指示に沿っていない箇所のみを指摘してください。
-レポートの内容そのものは確認済みなので、確認しなくてよいです。確認するのは次の2つです。
-・構成の表：レポートに無い内容が入っていないこと。
-・出典一覧：「裏づける記述」がレポートにあること。そして、その資料が、その記述の根拠になっていること。
+レポートの内容そのものは確認済みなので、確認しなくてよいです。
 指摘がある場合には、指摘箇所・指摘内容・修正後内容を記載してください。
 
 出典一覧のURLは、1件ずつ実際に開いて、次の3点を確認してください（確認せずに「問題なし」としない）。チャートの行は開かなくてよいです。
@@ -8590,7 +8588,7 @@ function ytLinkStateText(){
   if(!t.n)return['✅ リンク：確かめるURLはありません（チャートだけ）','ok'];
   if(t.un===t.n)return['⚠ リンク：未確認です。②〜④が終わったら「🔗 出典のリンクを確認」を押してください','error'];
   if(t.un)return[`⚠ リンク：未確認のURLがあります（${t.un}件。資料が変わりました）→ もう一度「🔗 出典のリンクを確認」`,'error'];
-  if(t.ng||t.warn)return[`⚠ リンク：${t.ng?`開けない ${t.ng}件`:''}${t.ng&&t.warn?'・':''}${t.warn?`要確認 ${t.warn}件`:''} → 「②ファクト」にこの結果が入ります。要確認は、ページを見て問題なければ「✔ 確認した」`,'error'];
+  if(t.ng||t.warn)return[`⚠ リンク：${t.ng?`開けない ${t.ng}件`:''}${t.ng&&t.warn?'・':''}${t.warn?`要確認 ${t.warn}件`:''} → 「②FC」にこの結果が入ります。要確認は、ページを見て問題なければ「✔ 確認した」`,'error'];
   return[`✅ リンク：${t.n}件すべて問題ありません`,'ok'];
 }
 async function ytCheckLinks(btn){
@@ -9223,7 +9221,7 @@ function ytBuildTabHtml(){
     <div class="sa-sub">▼ 2. レポート（ChatGPTと調べた内容を、レポートにまとめてもらって貼る）→ ファクトチェック</div>
     ${row(b('📋 貼り付け',"ygPasteReport(this)"),`<button class="btn-danger" onclick="if(confirm('レポートを消しますか？')){ytEl('g-report').value='';saveState();}" style="flex:1;">✕ クリア</button>`)}
     <textarea id="yt-g-report" placeholder="ChatGPTのレポートをここに貼り付け（②〜④を誤りがなくなるまで繰り返し、直った全文を貼り直す）" oninput="saveState()" style="min-height:36px;"></textarea>
-    ${row(`<button class="btn-sm" onclick="ygReportDownload(this)" title="レポートをファイル（レポート.md）に保存します。ChatGPTに添付してください" style="flex:1;min-width:0;background:#0d9488;color:#fff;">💾 添付</button>`,b('✅ ②ファクト',"ytCopy('rfc',this)",G),b('🔁 ③再CK',"ytCopy('recheck',this)",G),b('🔧 ④修正',"ytCopy('rfix',this)",G))}
+    ${row(`<button class="btn-sm" onclick="ygReportDownload(this)" title="レポートをファイル（レポート.md）に保存します。ChatGPTに添付してください" style="flex:1;min-width:0;background:#0d9488;color:#fff;">💾 添付</button>`,b('✅ ②FC',"ytCopy('rfc',this)",G),b('🔁 ③再CK',"ytCopy('recheck',this)",G),b('🔧 ④修正',"ytCopy('rfix',this)",G))}
     <div style="font-size:10px;color:var(--text-sub);margin-top:4px;">レポートは長いので、プロンプトには入れません。「💾 添付」で保存した「レポート.md」を、ChatGPTに添付してください。②は新しいチャットで。</div>
   </div>
   <details class="yt-only-stock">
@@ -9233,7 +9231,7 @@ function ytBuildTabHtml(){
   </details>
   <div class="sa-sub yt-only-stock">▼ ChatGPT 調査プロンプト</div>
   <div class="sa-sub yt-only-gen" style="display:none;">▼ 3. 構成と出典（レポートのファクトチェックが済んでから。①も②も、「💾 添付」で保存したレポートを添付）</div>
-  <div class="yt-only-stock">${row(b('💬 ①調査',"ytCopy('research',this)",G),b('✅ ②ファクト',"ytCopy('fc',this)",G),b('🔁 ③再CK',"ytCopy('recheck',this)",G),b('🔧 ④修正',"ytCopy('fix',this)",G))}</div>
+  <div class="yt-only-stock">${row(b('💬 ①調査',"ytCopy('research',this)",G),b('✅ ②FC',"ytCopy('fc',this)",G),b('🔁 ③再CK',"ytCopy('recheck',this)",G),b('🔧 ④修正',"ytCopy('fix',this)",G))}</div>
   <div class="yt-only-gen" style="display:none;">${row(`<button class="btn-sm" onclick="ygReportDownload(this)" title="レポートをファイル（レポート.md）に保存します。ChatGPTに添付してください" style="flex:1;min-width:0;background:#0d9488;color:#fff;">💾 添付</button>`,b('💬 ①構成',"ytCopy('research',this)",G))}</div>
   <div id="yt-doc-box" class="yt-col">
     <textarea id="yt-doc" placeholder="ChatGPTの動画資料をここに貼り付け（②〜④を誤りがなくなるまで繰り返す）" style="min-height:36px;"></textarea>
@@ -9245,7 +9243,7 @@ function ytBuildTabHtml(){
       <div id="yt-link-list"></div>
     </div>
   </div>
-  <div class="yt-only-gen" id="yt-g-fcrow" style="display:none;">${row(`<button class="btn-sm" onclick="ygReportDownload(this)" title="レポートをファイル（レポート.md）に保存します。ChatGPTに添付してください" style="flex:1;min-width:0;background:#0d9488;color:#fff;">💾 添付</button>`,b('✅ ②ファクト',"ytCopy('fc',this)",G),b('🔁 ③再CK',"ytCopy('recheck',this)",G),b('🔧 ④修正',"ytCopy('fix',this)",G))}</div>
+  <div class="yt-only-gen" id="yt-g-fcrow" style="display:none;">${row(`<button class="btn-sm" onclick="ygReportDownload(this)" title="レポートをファイル（レポート.md）に保存します。ChatGPTに添付してください" style="flex:1;min-width:0;background:#0d9488;color:#fff;">💾 添付</button>`,b('✅ ②FC',"ytCopy('fc',this)",G),b('🔁 ③再CK',"ytCopy('recheck',this)",G),b('🔧 ④修正',"ytCopy('fix',this)",G))}</div>
 </div>
 
 </div>
@@ -10470,7 +10468,7 @@ function ynPlanPrompt(){
 　この動画はカット後で約${mins.toFixed(1)}分なので、根拠資料の差し込みは${nSrc}件前後にする（多すぎると画面が落ち着かない。少なすぎると根拠が見えない）。
 　画面で見せる価値があるもの（数字の出どころ、会社の発表、公的な資料）を優先し、続けて出さない（間を20秒以上あける）。
 ${ytGen()?`・チャート：株価や指数の値動き（いつの高値からどれだけ上がった・下がったなど）を話している箇所には、そのチャートを差し込む。値動きの話が無ければ charts は空にする。
-　チャートは TradingView で用意するので、何の・どの足で・いつからいつまでを映すかを指定する。ticker は TradingView の表記（国内株は TSE:証券コード、日経平均は TVC:NI225）で書く。1件は5〜8秒、全体で0〜3件。`:`・チャート：株価の値動き（いつの高値からどれだけ上がった・下がった、決算後の急落など）を話している箇所には、株価チャートを差し込む。
+　チャートは TradingView で用意するので、何の・どの足で・いつからいつまでを映すかを指定する。ticker は TradingView の表記で書く。1件は5〜8秒、全体で0〜3件。`:`・チャート：株価の値動き（いつの高値からどれだけ上がった・下がった、決算後の急落など）を話している箇所には、株価チャートを差し込む。
 　チャートは TradingView で用意するので、どの足で・いつからいつまでを映すかを指定する。ティッカーは ${tick}。1件は5〜8秒、全体で1〜3件。`}
 ・【チャート】と付いた根拠資料も TradingView の画像で見せる。sources に入れるときは、interval（足）・start・end（期間）も書く。
 ・根拠資料やチャートを出している間は、スライドが隠れるので、ズームと強調は付けない。
