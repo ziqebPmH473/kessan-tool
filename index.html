@@ -8253,7 +8253,7 @@ function ytSeriesReset(){const el=document.getElementById('yt-series');if(!el)re
 // どういう動画か（意図だけ）。調査・音声・スライド・投稿文のプロンプトで同じ文を使う。細かいことは構成と資料が伝える
 function ytIntent(){
   const s=ytSeries();
-  return `${getName()||'この会社'}の株価${getDir()==='up'?'上昇':'下落'}の原因と強み、今後見るべき点を分析する動画${s?`（「${s}」というシリーズで）`:''}`;
+  return `${getName()||'この会社'}の株価${getDir()==='up'?'上昇':'下落'}の原因と強み、今後見るべき点などを分析する動画${s?`（「${s}」というシリーズで）`:''}`;
 }
 function ytNotebookPrompt(){
   const up=getDir()==='up',name=getName()||'この会社',min=ytVal('nlm-min')||'12';
