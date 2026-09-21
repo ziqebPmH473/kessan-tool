@@ -512,6 +512,8 @@ select.yn-sel option{color:#0f172a;background:#fff;font-weight:400;}
 /* 横動画のパネル：横に並ぶボタンは、等分にすると長い文字が切れる（「Gemini APIで作る」「まとめて取得…」など）ので、文字の長さに合わせて幅を配る */
 /* カードは縦並びで部品の間を6pxあけている。部品を包んだ所にも同じ間隔を持たせる（包むと、カードの間隔が中まで届かない） */
 #yt-root .yt-col{display:flex;flex-direction:column;gap:6px;}
+/* 知らせは画面の下に重ねて出す（並びを押し下げない）。数秒で消える。押しても消える */
+.yt-toast{position:fixed;left:16px;bottom:16px;z-index:9999;width:min(380px,calc(100vw - 32px));box-sizing:border-box;padding:8px 12px;font-size:12px;line-height:1.5;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,.18);cursor:pointer;}
 #yt-root .row:has(>button:nth-child(2))>button{flex:1 1 auto !important;padding-left:4px;padding-right:4px;}
 .yt-fixes label{flex:0 0 calc(50% - 5px);display:flex;align-items:center;gap:4px;font-size:11px;line-height:1.7;cursor:pointer;}
 .yt-fixes input{flex:none;margin:0;}
@@ -4677,8 +4679,13 @@ function copyText(text,btn){
     t.value=text;t.style.cssText='position:fixed;left:-9999px;opacity:0;';
     document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);
   });
-  const o=btn.textContent;btn.textContent='✔ コピーしました！';
-  setTimeout(()=>btn.textContent=o,2000);
+  if(!btn)return;
+  // 文字を「コピーしました」に変えても、ボタンの幅は変えない（横に並ぶボタンの位置が動かないように）。入りきらなければ短く出す
+  if(btn.dataset.orig==null){btn.dataset.orig=btn.textContent;btn.dataset.of=btn.style.flex;}
+  btn.style.setProperty('flex','0 0 '+btn.getBoundingClientRect().width+'px','important');   // 幅を今のまま固定（ほかのボタンの幅と位置も変わらない）
+  clearTimeout(btn._copyTimer);
+  for(const t of ['✔ コピーしました！','✔ コピー','✔']){btn.textContent=t;if(btn.scrollWidth<=btn.clientWidth+1)break;}
+  btn._copyTimer=setTimeout(()=>{btn.textContent=btn.dataset.orig;btn.style.removeProperty('flex');if(btn.dataset.of)btn.style.flex=btn.dataset.of;delete btn.dataset.orig;},2000);
 }
 
 function buildAnalysisText(){
@@ -7607,6 +7614,8 @@ function ytStatus(msg,cls,id){
   const el=ytEl(id||'status');if(!el)return;
   el.style.display=msg?'block':'none';el.textContent=msg||'';
   el.style.color=cls==='error'?'#dc2626':cls==='ok'?'#059669':'var(--text-sub)';
+  // 上の知らせ（重ねて出すもの）は、しばらくしたら消す。エラーは長めに
+  if(!id||id==='status'){clearTimeout(el._t);if(msg)el._t=setTimeout(()=>{el.style.display='none';},cls==='error'?10000:5000);}
 }
 
 // ---- レポートの無料範囲（1〜2章）を切り出す ----
@@ -9203,7 +9212,7 @@ function ytBuildTabHtml(){
   <button class="sa-subtab yt-only-gen" id="yt-itab-article" onclick="ytInnerTab('article')" style="display:none;">記事</button>
   <button class="sa-subtab" id="yt-itab-settings" onclick="ytInnerTab('settings')">設定</button>
 </div>
-<div id="yt-status" style="display:none;font-size:11px;margin:4px 0;"></div>
+<div id="yt-status" class="yt-toast" style="display:none;" onclick="this.style.display='none'" title="押すと消えます"></div>
 
 <div id="yt-pane-research">
 <div class="sa-card">
