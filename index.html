@@ -9867,7 +9867,7 @@ function ynPlanPrompt(){
  "sources":[{"no":資料の番号,"from":文番号,"to":文番号,"interval":"日足","start":"2026-01-01","end":"2026-09-18"}],（interval・start・end は【チャート】の資料だけ）
  "charts":[{"from":文番号,"to":文番号,"interval":"日足","start":"2026-01-01","end":"2026-09-18","note":"何を見せるか（例：2/25の高値から9/18まで）"}]}
 
-【スライドとまとまり】
+【スライドとまとまり】（番号を描き込んだスライドの画像を、スライド1から順に添付します。青い枠と数字がまとまりの番号、オレンジの点線とTの番号が文字の番号。まとまりの位置・大きさ・どれがどれを含むかは、画像で確かめる）
 ${slides}${srcBlock}
 
 【音声の文字起こし（カットで残る文だけ・[番号] 時刻 話者）】
@@ -10123,11 +10123,40 @@ function ynPlanShift(kind,i,edge,d){
   it.from=ns[a];it.to=ns[b];Object.assign(it,ynSeg(it.from,it.to)||{});
   ynPut('plan',YN.plan);ynRender();if(typeof ysRender==='function')ysRender();
 }
+// 割り当て用：まとまりの番号（青い枠）と文字の番号（オレンジの点線）を描き込んだスライド画像。位置・大きさ・入れ子をAIに見せる
+async function ynAnnotated(i,max){
+  const s=YN.slides[i],img=await createImageBitmap(s.blob);
+  const sc=Math.min(1,(max||1280)/Math.max(img.width,img.height)),W=Math.round(img.width*sc),H=Math.round(img.height*sc);
+  const cv=document.createElement('canvas');cv.width=W;cv.height=H;const g=cv.getContext('2d');g.drawImage(img,0,0,W,H);
+  const fs=Math.max(14,Math.round(H/30));g.font=`bold ${fs}px sans-serif`;g.textBaseline='top';
+  const tag=(txt,x,y,col)=>{const tw=g.measureText(txt).width+8;x=Math.max(0,Math.min(W-tw,x));y=Math.max(0,Math.min(H-fs-4,y));g.fillStyle=col;g.fillRect(x,y,tw,fs+4);g.fillStyle='#fff';g.fillText(txt,x+4,y+2);};
+  (s.zones||[]).forEach((z,k)=>{const b=ynBox(z);g.setLineDash([]);g.strokeStyle='#1d4ed8';g.lineWidth=Math.max(2,Math.round(H/300));
+    g.strokeRect(b.x0*W,b.y0*H,(b.x1-b.x0)*W,(b.y1-b.y0)*H);tag(String(k+1),b.x0*W,b.y0*H,'#1d4ed8');});
+  (s.texts||[]).forEach((q,k)=>q.lines.forEach((l,j)=>{const b=ynBox({box:l});g.setLineDash([6,4]);g.strokeStyle='#f97316';g.lineWidth=2;
+    g.strokeRect(b.x0*W,b.y0*H,(b.x1-b.x0)*W,(b.y1-b.y0)*H);g.setLineDash([]);if(j===0)tag('T'+(k+1),b.x1*W-40,b.y0*H-fs-4,'#f97316');}));
+  const bl=await new Promise(r=>cv.toBlob(r,'image/jpeg',0.85));
+  const buf=new Uint8Array(await bl.arrayBuffer());let bin='';
+  for(let o=0;o<buf.length;o+=0x8000)bin+=String.fromCharCode.apply(null,buf.subarray(o,o+0x8000));
+  return{name:`スライド${i+1}.jpg`,mimeType:'image/jpeg',data:btoa(bin),blob:bl};
+}
+// ChatGPT で割り当てるとき用：番号入りの画像をZIPで保存（プロンプトと一緒に添付する）
+async function ynAnnotatedZip(btn){
+  if(!YN.slides.length||YN.slides.some(s=>!s.zones||!s.zones.length)){alert('先にスライドを読み込み、「まとまりを読み取る」を実行してください');return;}
+  if(btn)btn.disabled=true;
+  try{
+    const zip=new JSZip();
+    for(let i=0;i<YN.slides.length;i++){const a=await ynAnnotated(i);zip.file(a.name,a.blob);}
+    const blob=await zip.generateAsync({type:'blob'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+    a.href=url;a.download=`${getTicker()||''}_${getName()||''}_割り当て用_番号入りスライド.zip`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);
+  }catch(e){alert('画像を作れませんでした：'+e.message);}
+  finally{if(btn)btn.disabled=false;}
+}
 async function ynAiPlan(btn){
   let prompt;try{prompt=ynPlanPrompt();}catch(e){ynStatus('❌ '+e.message,'error','status2');return;}
-  if(btn)btn.disabled=true;ynStatus('割り当て中…（数十秒かかります）','','status2');
+  if(btn)btn.disabled=true;ynStatus('割り当て中…（番号入りのスライド画像も送ります。数十秒かかります）','','status2');
   try{
-    const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,resources:[],files:[],temperature:0.1,
+    const files=[];for(let i=0;i<YN.slides.length;i++){const a=await ynAnnotated(i);files.push({name:a.name,mimeType:a.mimeType,data:a.data});}
+    const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,resources:[],files,temperature:0.1,
       models:['gemini-3.8-flash','gemini-3.7-flash','gemini-3.6-flash','gemini-3.5-flash']})});
     const data=await res.json();if(!data.ok)throw new Error(data.error||'不明なエラー');
     ynEl('plan').value=data.text||'';saveState();
@@ -10814,7 +10843,8 @@ function ynBuildPaneHtml(){
 <div class="sa-card">
   <h2>1. 演出の割り当て</h2>
   <div style="font-size:11px;color:var(--text-sub);">音声（③でカットした後に残る文）とスライドのまとまりを突き合わせ、切り替え・ズーム・強調・根拠資料の差し込みを決めます。</div>
-  ${row(b('💬 プロンプト',"try{copyText(ynPlanPrompt(),this)}catch(e){alert(e.message)}",G),b('📋 貼り付け',"ynPaste('plan',ynApplyPasted)"),b('↻ 反映','ynApplyPasted()'))}
+  ${row(b('💬 プロンプト',"try{copyText(ynPlanPrompt(),this)}catch(e){alert(e.message)}",G),b('🖼 番号入り画像','ynAnnotatedZip(this)'),b('📋 貼り付け',"ynPaste('plan',ynApplyPasted)"),b('↻ 反映','ynApplyPasted()'))}
+  <div style="font-size:10px;color:var(--text-sub);">ChatGPTで割り当てるときは、プロンプトと一緒に「🖼 番号入り画像」のZIPの中の画像を添付してください（Gemini APIは自動で送ります）。</div>
   <textarea id="yn-plan" placeholder="Gemini／ChatGPTに投げて、返ってきたJSONを貼り付け" style="min-height:36px;font-size:11px;font-family:monospace;"></textarea>
   ${row(b('🤖 Gemini APIで割り当て','ynAiPlan(this)','background:#4f46e5;color:#fff;'))}
   <div id="yn-status2" style="display:none;font-size:11px;"></div>
