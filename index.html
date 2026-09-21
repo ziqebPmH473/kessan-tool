@@ -9279,7 +9279,7 @@ function ytBuildTabHtml(){
   ${row(b('<span id="yn-read-label">🔍 まとまりを読み取る</span>','ynReadZones(this)',G),b('↻ 読み取り直す',"YN.slides.forEach(s=>{s.zones=null;s.texts=null;});ynSave();ynRender();ynReadZones()"))}
   <details class="yt-col" style="margin-top:4px;">
     <summary style="font-size:11px;color:var(--text-sub);cursor:pointer;">Gemini（Web版）で読み取る（APIが混んでいるとき）</summary>
-    <div style="font-size:10px;color:var(--text-sub);">「💾 添付」で保存した画像（先頭の番号の順）をGeminiに添付し、「💬 プロンプト」を貼って送ります。返ってきたJSONを貼り付けてください。全部の枚が対象です（読み取り済みの枚も読み直します）。1回に10枚までなので、11枚以上あるときは、貼り付けたあと、もう一度「💾 添付」と「💬 プロンプト」を押すと続きの枚になります。</div>
+    <div style="font-size:10px;color:var(--text-sub);">「💾 添付」で保存したZIPを開き、中の画像を全部Geminiに添付し、「💬 プロンプト」を貼って送ります。返ってきたJSONを貼り付けてください。全部の枚が対象です（読み取り済みの枚も読み直します）。1回に10枚までなので、11枚以上あるときは、貼り付けたあと、もう一度「💾 添付」と「💬 プロンプト」を押すと続きの枚になります。</div>
     ${row(`<button class="btn-sm" onclick="ynWebDownload(this)" title="プロンプトの対象の枚の画像を、添付する順の番号を付けて保存します" style="flex:1;min-width:0;background:#0d9488;color:#fff;">💾 添付</button>`,b('💬 プロンプト',"ynWebCopy(this)",G),b('📋 貼り付け',"ynWebPaste()"))}
     <textarea id="yn-webread" placeholder="GeminiのJSONをここに貼り付け（貼ると反映します）" oninput="ynWebApply(this.value,true)" style="min-height:36px;font-size:11px;"></textarea>
   </details>
@@ -10352,8 +10352,8 @@ function ynWebPrompt(){
   if(!YN.slides.length)throw new Error('先にスライド画像を読み込んでください');
   const t=ynWebTargets(),nos=t.map(i=>i+1);
   const body=YN_VISION_PROMPT.replace('この画像は、YouTube動画で使うスライドです。','').split('【出力】')[0].trim();
-  return `添付した画像${t.length}枚は、YouTube動画で使うスライドです。添付の順に、スライドの${nos.join('・')}枚目です。
-${t.map((i,k)=>`・${String(k+1).padStart(2,'0')}_${i+1}枚目：${i+1}枚目（元のファイル名：${YN.slides[i].name}）`).join('\n')}
+  return `添付した画像${t.length}枚は、YouTube動画で使うスライドの${nos.join('・')}枚目です。ファイル名とスライドの対応は次のとおりです。
+${t.map(i=>`・${ynWebFileName(i)}：${i+1}枚目`).join('\n')}
 
 1枚ずつ、次の指示どおりに読み取ってください。
 
@@ -10368,19 +10368,21 @@ function ynWebCopy(btn){
   catch(e){ynStatus('❌ '+esc(e.message),'error');}
 }
 // 対象の枚の画像を、添付する順の番号を付けて1枚ずつ保存する（Geminiには画像のまま添付するので、ZIPにはしない）
+// 保存するファイル名（プロンプトにも同じ名前を並べる）。番号は、スライドの何枚目か
+function ynWebFileName(i){const sl=YN.slides[i]||{};const ext=((sl.blob&&sl.blob.type)||'image/png').split('/')[1].replace('jpeg','jpg');return `スライド${String(i+1).padStart(2,'0')}.${ext}`;}
+// 対象の枚の画像を、ZIP 1つにまとめて保存する（Geminiには、ZIPを開いて画像を添付する）
 async function ynWebDownload(btn){
   if(!YN.slides.length){alert('先にスライド画像を読み込んでください');return;}
   const t=ynWebTargets();if(btn)btn.disabled=true;
   try{
-    for(let k=0;k<t.length;k++){
-      const sl=YN.slides[t[k]],ext=((sl.blob&&sl.blob.type)||'image/png').split('/')[1].replace('jpeg','jpg');
-      const a=document.createElement('a');a.href=URL.createObjectURL(sl.blob);
-      a.download=`${String(k+1).padStart(2,'0')}_${t[k]+1}枚目.${ext}`;document.body.appendChild(a);a.click();a.remove();
-      setTimeout(()=>URL.revokeObjectURL(a.href),5000);
-      await new Promise(r=>setTimeout(r,250));   // 続けて保存すると、ブラウザが落とすことがあるので間をあける
-    }
-    ynStatus(`✅ ${t.map(i=>i+1).join('・')}枚目の画像を保存しました（${t.length}枚。ファイル名の先頭の番号の順に添付してください）`,'ok');
-  }finally{if(btn)btn.disabled=false;}
+    const zip=new JSZip();t.forEach(i=>zip.file(ynWebFileName(i),YN.slides[i].blob));
+    const blob=await zip.generateAsync({type:'blob'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+    a.download=`${ytFileBase('','')}_まとまり読み取り用_${t[0]+1}-${t[t.length-1]+1}枚目.zip`;document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+    ynStatus(`✅ ${t[0]+1}〜${t[t.length-1]+1}枚目の画像（${t.length}枚）をZIPで保存しました。ZIPを開き、中の画像を全部Geminiに添付してください`,'ok');
+  }catch(e){ynStatus('❌ '+esc(e.message),'error');}
+  finally{if(btn)btn.disabled=false;}
 }
 async function ynWebPaste(){
   try{const t=await navigator.clipboard.readText();if(!t.trim()){alert('クリップボードが空です');return;}const el=ynEl('webread');el.value=t;ynWebApply(t);}
