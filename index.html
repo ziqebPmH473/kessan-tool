@@ -8611,7 +8611,7 @@ async function ytPaste(id,after){
 // レポートを貼ったら、ファクトチェックのプロンプトをコピーする（動画資料の欄と同じ動き）
 async function ygPasteReport(btn){
   if(!await ytPaste('g-report'))return;
-  try{copyText(ygReportFcPrompt(),btn);ytStatus('✅ 貼り付けました。ファクトチェックのプロンプトをコピーしました（「💾 添付ファイル」で保存したレポートを添付して、AIに貼り付けてください）','ok');}
+  try{copyText(ygReportFcPrompt(),btn);ytStatus('✅ 貼り付けました。ファクトチェックのプロンプトをコピーしました（「💾 添付」で保存したレポートを添付して、AIに貼り付けてください）','ok');}
   catch(e){ytStatus('❌ '+e.message,'error');}
 }
 async function ytPasteDoc(btn){
@@ -9150,10 +9150,10 @@ function ytBuildTabHtml(){
     <div class="sa-sub">▼ 1. テーマ</div>
     <input type="text" id="yt-g-theme" placeholder="この動画のテーマ（何が分かる動画か）" oninput="saveState()" style="width:100%;font-size:12px;">
     <div class="sa-sub">▼ 2. レポート（ChatGPTと調べた内容を、レポートにまとめてもらって貼る）→ ファクトチェック</div>
-    ${row(b('✅ ②ファクト',"ytCopy('rfc',this)",G),b('🔁 ③再CK',"ytCopy('recheck',this)",G),b('🔧 ④修正',"ytCopy('rfix',this)",G))}
     <textarea id="yt-g-report" placeholder="ChatGPTのレポートをここに貼り付け（②〜④を誤りがなくなるまで繰り返し、直った全文を貼り直す）" oninput="saveState()" style="min-height:36px;"></textarea>
-    ${row(b('📋 貼り付け',"ygPasteReport(this)"),`<button class="btn-sm" onclick="ygReportDownload(this)" style="flex:1;min-width:0;background:#0d9488;color:#fff;">💾 添付ファイル</button>`,`<button class="btn-danger" onclick="if(confirm('レポートを消しますか？')){ytEl('g-report').value='';saveState();}" style="flex:1;">✕ クリア</button>`)}
-    <div style="font-size:10px;color:var(--text-sub);margin-top:4px;">レポートは長いので、プロンプトには入れません。「💾 添付ファイル」で保存した「レポート.md」を、ChatGPTに添付してください（②も、下の①②も同じ）。②は新しいチャットで。</div>
+    ${row(b('📋 貼り付け',"ygPasteReport(this)"),`<button class="btn-danger" onclick="if(confirm('レポートを消しますか？')){ytEl('g-report').value='';saveState();}" style="flex:1;">✕ クリア</button>`)}
+    ${row(`<button class="btn-sm" onclick="ygReportDownload(this)" title="レポートをファイル（レポート.md）に保存します。ChatGPTに添付してください" style="flex:1;min-width:0;background:#0d9488;color:#fff;">💾 添付</button>`,b('✅ ②ファクト',"ytCopy('rfc',this)",G),b('🔁 ③再CK',"ytCopy('recheck',this)",G),b('🔧 ④修正',"ytCopy('rfix',this)",G))}
+    <div style="font-size:10px;color:var(--text-sub);margin-top:4px;">レポートは長いので、プロンプトには入れません。「💾 添付」で保存した「レポート.md」を、ChatGPTに添付してください。②は新しいチャットで。</div>
   </div>
   <details class="yt-only-stock">
     <summary id="yt-free-info" style="font-size:11px;color:var(--text-sub);cursor:pointer;"></summary>
@@ -9161,13 +9161,19 @@ function ytBuildTabHtml(){
     <div style="font-size:10px;color:var(--text-sub);">3章「将来予測」以降（シナリオ・リスク）は渡しません。</div>
   </details>
   <div class="sa-sub yt-only-stock">▼ ChatGPT 調査プロンプト</div>
-  <div class="sa-sub yt-only-gen" style="display:none;">▼ 3. 構成と出典（レポートのファクトチェックが済んでから。①も②も「レポート.md」を添付）</div>
-  ${row(b('💬 ①調査',"ytCopy('research',this)",G+'" id="yt-b-research'),b('✅ ②ファクト',"ytCopy('fc',this)",G),b('🔁 ③再CK',"ytCopy('recheck',this)",G),b('🔧 ④修正',"ytCopy('fix',this)",G))}
-  <textarea id="yt-doc" placeholder="ChatGPTの動画資料をここに貼り付け（②〜④を誤りがなくなるまで繰り返す）" style="min-height:36px;"></textarea>
-  ${row(b('🔗 出典のリンクを確認','ytCheckLinks(this)'))}
-  <div id="yt-link-status" style="display:none;font-size:11px;"></div>
-  <div id="yt-link-list"></div>
-  ${row(b('📋 貼り付け',"ytPasteDoc(this)"),`<button class="btn-danger" onclick="if(confirm('動画資料を消しますか？')){ytEl('doc').value='';saveState();}" style="flex:1;">✕ クリア</button>`)}
+  <div class="sa-sub yt-only-gen" style="display:none;">▼ 3. 構成と出典（レポートのファクトチェックが済んでから。①も②も、「💾 添付」で保存したレポートを添付）</div>
+  <div class="yt-only-stock">${row(b('💬 ①調査',"ytCopy('research',this)",G),b('✅ ②ファクト',"ytCopy('fc',this)",G),b('🔁 ③再CK',"ytCopy('recheck',this)",G),b('🔧 ④修正',"ytCopy('fix',this)",G))}</div>
+  <div class="yt-only-gen" style="display:none;">${row(`<button class="btn-sm" onclick="ygReportDownload(this)" title="レポートをファイル（レポート.md）に保存します。ChatGPTに添付してください" style="flex:1;min-width:0;background:#0d9488;color:#fff;">💾 添付</button>`,b('💬 ①構成',"ytCopy('research',this)",G))}</div>
+  <div id="yt-doc-box" style="display:flex;flex-direction:column;">
+    <textarea id="yt-doc" placeholder="ChatGPTの動画資料をここに貼り付け（②〜④を誤りがなくなるまで繰り返す）" style="min-height:36px;"></textarea>
+    <div id="yt-doc-links">
+      ${row(b('🔗 出典のリンクを確認','ytCheckLinks(this)'))}
+      <div id="yt-link-status" style="display:none;font-size:11px;"></div>
+      <div id="yt-link-list"></div>
+    </div>
+    <div id="yt-doc-paste">${row(b('📋 貼り付け',"ytPasteDoc(this)"),`<button class="btn-danger" onclick="if(confirm('動画資料を消しますか？')){ytEl('doc').value='';saveState();}" style="flex:1;">✕ クリア</button>`)}</div>
+  </div>
+  <div class="yt-only-gen" style="display:none;">${row(`<button class="btn-sm" onclick="ygReportDownload(this)" title="レポートをファイル（レポート.md）に保存します。ChatGPTに添付してください" style="flex:1;min-width:0;background:#0d9488;color:#fff;">💾 添付</button>`,b('✅ ②ファクト',"ytCopy('fc',this)",G),b('🔁 ③再CK',"ytCopy('recheck',this)",G),b('🔧 ④修正',"ytCopy('fix',this)",G))}</div>
 </div>
 
 </div>
@@ -9334,8 +9340,8 @@ function ytCtxApplyUi(){
   document.querySelectorAll('#yt-root .yt-only-gen').forEach(el=>{el.style.display=g?'':'none';});
   document.querySelectorAll('#yt-root .yt-only-stock').forEach(el=>{el.style.display=g?'none':'';});
   if(!g&&ytEl('itab-article')?.classList.contains('active'))ytInnerTab('research');
-  // ボタンの文字は、コピーのあと textContent で戻されるので、中に出し分け用の部品を入れず、文字ごと入れ替える
-  const b1=ytEl('b-research');if(b1)b1.textContent=g?'💬 ①構成':'💬 ①調査';
+  // ボタンの文字は、コピーのあと textContent で戻されるので、ボタンの中に出し分け用の部品を入れない（ボタンごと出し分ける）
+  const dp=ytEl('doc-paste'),dl=ytEl('doc-links');if(dp&&dl){dp.style.order=g?'1':'';dl.style.order=g?'2':'';}   // YT動画は操作の順（貼る → リンク確認 → ②）。株価分析は今までの並び
   const dc=ytEl('doc');if(dc)dc.placeholder=g?'①の結果（構成と出典）をここに貼り付け（②〜④を誤りがなくなるまで繰り返す）':'ChatGPTの動画資料をここに貼り付け（②〜④を誤りがなくなるまで繰り返す）';
 }
 // 切り替えは「保留中の保存を書き出す → 欄をしまう → 種類を変える → 欄と保存データを読み直す」を1つずつ順に行う
