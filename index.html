@@ -7540,6 +7540,29 @@ function earnPrevMode(m){
 // ・ChatGPT に渡すのはレポートの 1〜2章（無料範囲）だけ。3章以降（将来予測・シナリオ・リスク）は渡さない
 // ・スライドは「スライド作成」タブの6枚を土台に組み直す（1280×720 で組み、1.5倍で 1920×1080 に画像化）
 // ============================================================
+// ---- 横動画：Gemini のモデル（作業ごとに設定タブで選ぶ）----
+// 回数の上限のときは、選んだモデルから一覧の順に下のモデルへ切り替える。混雑のときは切り替えずに止める（下も混んでいることが多い）
+const YT_MODEL_LIST=[['gemini-3.8-flash','Gemini 3.8 Flash（20回/日）'],['gemini-3.7-flash','Gemini 3.7 Flash（20回/日）'],['gemini-3.6-flash','Gemini 3.6 Flash（20回/日）'],['gemini-3.5-flash','Gemini 3.5 Flash（20回/日）'],['gemini-3-flash-preview','Gemini 3 Flash（20回/日）'],['gemini-3.5-flash-lite','Gemini 3.5 Flash Lite（500回/日）'],['gemini-3.1-flash-lite','Gemini 3.1 Flash Lite（500回/日）'],['gemini-2.5-flash','Gemini 2.5 Flash（20回/日）'],['gemini-2.5-flash-lite','Gemini 2.5 Flash Lite（20回/日）']];
+const YT_AI_TASKS=[['cut','カットの判定','gemini-3.8-flash'],['read','まとまりの読み取り','gemini-3.5-flash-lite'],['plan','演出の割り当て','gemini-3.8-flash'],['post','投稿文','gemini-3.8-flash'],['qr','QRの位置','gemini-3.5-flash-lite']];
+const ytModelName=m=>((YT_MODEL_LIST.find(x=>x[0]===m)||[])[1]||m).replace(/（.*$/,'');
+function ytModels(task){
+  const def=(YT_AI_TASKS.find(x=>x[0]===task)||[])[2]||'gemini-3.8-flash';
+  const sel=((document.getElementById('yt-m-'+task)||{}).value)||def;
+  return [sel,...YT_MODEL_LIST.map(x=>x[0]).filter(m=>m!==sel)];
+}
+// Gemini のエラーを、どのモデルで何が起きたかの日本語にする
+function ytAiErr(d,task){
+  const tn=(YT_AI_TASKS.find(x=>x[0]===task)||[])[1]||'';
+  const f=(d&&d.failures)||[];
+  if(!f.length)return (d&&d.error)||'不明なエラー';
+  const lastBy={};f.forEach(x=>{lastBy[x.model]=x;});
+  const why=k=>k==='quota'?'今日の回数の上限':k==='busy'?'混雑':'エラー';
+  const tried=Object.values(lastBy).map(x=>`${ytModelName(x.model)}＝${why(x.kind)}`).join('、');
+  const last=f[f.length-1];
+  if(d.busy||last.kind==='busy')return `${ytModelName(last.model)} が混雑していて使えませんでした（Google側の一時的な混雑です。下のモデルには切り替えていません）。少し待ってもう一度押すか、設定タブの「${tn}」のモデルを変えてください。［試したモデル：${tried}］`;
+  if(last.kind==='quota')return `使えるモデルがすべて今日の回数の上限でした。明日まで待つか、設定タブの「${tn}」で Lite のモデルを選んでください。［試したモデル：${tried}］`;
+  return `${ytModelName(last.model)} でエラーになりました：${last.error}［試したモデル：${tried}］`;
+}
 const YT_CHAPTERS=[
   {no:1,name:'なぜ今この銘柄？',tags:['下落','チャート','背景','問い'],
    what:'値動きの大きさ（いつの高値から何%）、相場全体との対比、今回この会社を見る理由'},
@@ -8640,8 +8663,8 @@ async function ytPostAi(btn){
   if(btn)btn.disabled=true;ytStatus('作成中…（数十秒かかります）','','post-status');
   try{
     const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({prompt,resources:[],files:[],temperature:0.6,models:['gemini-3.8-flash','gemini-3.7-flash','gemini-3.6-flash','gemini-3.5-flash']})});
-    const data=await res.json();if(!data.ok)throw new Error(data.error||'不明なエラー');
+      body:JSON.stringify({prompt,resources:[],files:[],temperature:0.6,models:ytModels('post'),onBusy:'stop'})});
+    const data=await res.json();if(!data.ok)throw new Error(ytAiErr(data,'post'));
     ytEl('post').value=data.text||'';saveState();
     // 反映できたら、株価分析のバックアップ（横動画の音声・スライド・割り当て・出典の画像も入る）を書き出す
     if(ytPostApply()!==false){const st=ytEl('post-status'),msg=st?st.textContent:'';await exportTabData('price');ytStatus(`${msg}　💾 バックアップを書き出しました`,'ok','post-status');}
@@ -8872,6 +8895,9 @@ ${yaBuildPaneHtml()}</div>
   <div id="yt-note-info" style="font-size:10px;color:var(--text-sub);"></div>
   ${set('チャート期間','<input type="number" id="yt-months" value="12" min="1" max="60" style="width:60px;flex:none;font-size:11px;padding:4px;">','ヶ月')}
   ${set('試聴の前後','<input type="number" id="ya-ctx" value="2" min="0" max="10" step="0.5" style="width:60px;flex:none;font-size:11px;padding:4px;">','秒（音声カットの▶・試聴で、前後に足す長さ）')}
+  <div class="sa-sub">▼ Geminiのモデル（作業ごと）</div>
+  <div style="font-size:10px;color:var(--text-sub);">回数の上限のときは、選んだモデルから一覧の順に下のモデルへ自動で切り替えます。混雑のときは切り替えずに止まるので、ここで別のモデルを選んでもう一度押してください。</div>
+  ${YT_AI_TASKS.map(([k,n,d])=>set(n,`<select id="yt-m-${k}" onchange="saveState()" style="flex:1;min-width:0;font-size:11px;padding:3px;">${YT_MODEL_LIST.map(([v,l])=>`<option value="${v}"${v===d?' selected':''}>${l}</option>`).join('')}</select>`)).join('')}
   ${set('NotebookLMの長さ','<input type="number" id="yt-nlm-min" value="12" min="3" max="30" style="width:60px;flex:none;font-size:11px;padding:4px;">','分（指示文に書く目安）')}
   <div class="sa-sub">▼ 概要欄の定型文（使用ツール・AIの注意書き）</div>
   <textarea id="yt-p-fixed" style="min-height:90px;font-size:11px;">${esc(YT_POST_FIXED)}</textarea>
@@ -8881,7 +8907,7 @@ ${yaBuildPaneHtml()}</div>
 </div>
 </div>`;
 }
-const YT_PERSIST_IDS=['vd-orient','th-ctx','th-note-text','th-note-preset','yt-th-text','yt-th-preset','yt-doc','yt-series','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-t1','yt-p-t2','yt-p-t3','yt-p-s1','yt-p-s2','yt-p-s3','yt-p-body','yt-p-xbody','yt-p-hook','yt-p-points','yt-p-xtags','yt-p-yptags','yt-p-igtags','yt-p-tttags','yt-p-l8title','yt-p-l8intro','yt-p-l8tags','yt-p-yp','yt-p-ig','yt-p-l8t','yt-p-l8','yt-p-tt','yt-f-yp','yt-f-ig','yt-f-l8','yt-f-tt','yt-p-yturl','yt-p-tags','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-yomi','yt-yomi-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan'];
+const YT_PERSIST_IDS=['vd-orient','th-ctx','th-note-text','th-note-preset','yt-th-text','yt-th-preset','yt-doc','yt-series','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-t1','yt-p-t2','yt-p-t3','yt-p-s1','yt-p-s2','yt-p-s3','yt-p-body','yt-p-xbody','yt-p-hook','yt-p-points','yt-p-xtags','yt-p-yptags','yt-p-igtags','yt-p-tttags','yt-p-l8title','yt-p-l8intro','yt-p-l8tags','yt-p-yp','yt-p-ig','yt-p-l8t','yt-p-l8','yt-p-tt','yt-f-yp','yt-f-ig','yt-f-l8','yt-f-tt','yt-p-yturl','yt-p-tags','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-m-cut','yt-m-read','yt-m-plan','yt-m-post','yt-m-qr','yt-yomi','yt-yomi-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan'];
 // 保存済みの定型文（使用ツール）にナレスラの行が無ければ、TradingView の行の下に足す
 function ytFixedMigrate(){
   const fx=document.getElementById('yt-p-fixed');
@@ -9332,8 +9358,8 @@ async function yaAiJudge(btn){
   let prompt;try{prompt=yaPrompt();}catch(e){yaStatus('st-ai','❌ '+esc(e.message),'error');return;}
   if(btn)btn.disabled=true;yaStatus('st-ai','判定中…（数十秒かかります）');
   try{
-    const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,resources:[],files:[],temperature:0.1,models:['gemini-3.8-flash','gemini-3.7-flash','gemini-3.6-flash','gemini-3.5-flash']})});
-    const data=await res.json();if(!data.ok)throw new Error(data.error||'不明なエラー');
+    const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,resources:[],files:[],temperature:0.1,models:ytModels('cut'),onBusy:'stop'})});
+    const data=await res.json();if(!data.ok)throw new Error(ytAiErr(data,'cut'));
     yaEl('plan').value=data.text||'';saveState();
     if(yaApplyPlan(yaParsePlan(data.text||''))){
       const fb=data.fellBack&&data.failures?'・降格：'+data.failures.map(f=>String(f.model).replace('gemini-','')+' '+(f.status||'通信')+' '+f.sec+'秒').join(' / '):'';
@@ -9699,29 +9725,42 @@ async function ynBlobToPart(blob,max){
   for(let i=0;i<buf.length;i+=0x8000)bin+=String.fromCharCode.apply(null,buf.subarray(i,i+0x8000));
   return{name:'slide.jpg',mimeType:'image/jpeg',data:btoa(bin),w:img.width,h:img.height};
 }
-async function ynReadZones(btn){
+// 読み取り済みの枚は飛ばす（エラーで止まったら、もう一度押すと続きの枚から読む）。only を渡すと、その1枚だけ読み直す
+async function ynReadZones(btn,only){
   if(!YN.slides.length){alert('先にスライド画像を読み込んでください');return;}
   if(btn)btn.disabled=true;
+  let cur=-1;
   try{
     for(let i=0;i<YN.slides.length;i++){
       const s=YN.slides[i];
-      if(s.zones&&s.zones.length){continue;}
+      if(only!=null&&i!==only)continue;
+      if(only==null&&s.zones&&s.zones.length){continue;}
+      cur=i;
       ynStatus(`まとまりを読み取り中… ${i+1}/${YN.slides.length}`);
       const part=await ynBlobToPart(s.blob,1024);
       const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({prompt:YN_VISION_PROMPT,resources:[],temperature:0,files:[{name:part.name,mimeType:part.mimeType,data:part.data}],
-          models:['gemini-3.8-flash','gemini-3.7-flash','gemini-3.6-flash','gemini-3.5-flash']})});
+          models:ytModels('read'),onBusy:'stop'})});
       const data=await res.json();
-      if(!data.ok)throw new Error(`${i+1}枚目: ${data.error||'不明なエラー'}`);
+      if(!data.ok)throw new Error(`${i+1}枚目: ${ytAiErr(data,'read')}`);
       let vr;try{vr=ynParseVision(data.text);}catch(e){throw new Error(`${i+1}枚目: ${e.message}`);}
       s.zones=vr.zones;s.texts=vr.texts;
       s.model=data.model;
       await ynSave();ynRender();
     }
-    ynStatus(`✅ ${YN.slides.length}枚のまとまりを読み取りました（${YN.slides[0].model||''}）。枠は下のプレビューで確認できます`,'ok');
+    ynStatus(only!=null?`✅ ${only+1}枚目を読み取り直しました（${YN.slides[only].model||''}）`:`✅ ${YN.slides.length}枚のまとまりを読み取りました（${YN.slides[0].model||''}）。枠は右のプレビューで確認できます`,'ok');
     if(!ytNoteUrl())ynStatus('⚠ QRの飛び先がありません。「記事」タブの記事URL、または設定タブの「QR用URL」を入れてください','error','qr-status');
-  }catch(e){ynStatus('❌ '+e.message,'error');}
+  }catch(e){
+    const done=YN.slides.filter(s=>s.zones&&s.zones.length).length;
+    ynStatus('❌ '+esc(e.message)+(only==null&&done?`<br>（読み取れた ${done}枚はそのまま残っています。「🔍 まとまりを読み取る」をもう一度押すと、読み取れていない枚から続けます）`:''),'error');
+  }
   finally{if(btn)btn.disabled=false;}
+}
+// 1枚だけ読み直す（右ペインのスライドの見出しのボタン）
+function ynReadOne(i){
+  const s=YN.slides[i];if(!s)return;
+  if(s.zones&&s.zones.length&&!confirm(`${i+1}枚目のまとまりを読み取り直しますか？（この枚の割り当てで使っている枠の番号が変わることがあります）`))return;
+  ynReadZones(null,i);
 }
 
 // ---- プレビュー（右ペイン）：読み取った枠を画像の上に重ねる ----
@@ -9742,7 +9781,7 @@ function ynRender(){
   const area=document.getElementById('yn-prev');if(!area)return;
   if(!YN.slides.length){area.innerHTML='<div style="font-size:11px;color:var(--text-sub);padding:8px;">「ナレスラ」タブでスライド画像を読み込むと、ここに表示されます</div>';return;}
   area.innerHTML=YN.slides.map((s,i)=>`<div class="yn-item"><div class="yn-hd"><b>${i+1}</b> <b>${esc(ynSlideTitle(i))}</b> <span title="${esc(s.name)}">${esc(ynShortName(i))}</span> <span>${s.zones?`${s.zones.length}か所`:'未読み取り'}</span>
-<button class="ya-nd" onclick="ynMove(${i},-1)">↑</button><button class="ya-nd" onclick="ynMove(${i},1)">↓</button><button class="ya-nd" onclick="if(confirm('この画像を外しますか？'))ynRemove(${i})">✕</button></div>
+<button class="ya-nd" onclick="ynReadOne(${i})" title="この1枚だけ、まとまりを読み取る（読み取り直す）">${s.zones&&s.zones.length?'↻ 読み直す':'🔍 読み取る'}</button><button class="ya-nd" onclick="ynMove(${i},-1)">↑</button><button class="ya-nd" onclick="ynMove(${i},1)">↓</button><button class="ya-nd" onclick="if(confirm('この画像を外しますか？'))ynRemove(${i})">✕</button></div>
 <div class="yn-img" id="yn-img-${i}"></div></div>`).join('');
   // 割り当て済みなら、スライドごとの表示時間・ズーム・強調・出典・チャートを下に出す（時刻はカット後）
   if(YN.plan){
@@ -10157,8 +10196,8 @@ async function ynAiPlan(btn){
   try{
     const files=[];for(let i=0;i<YN.slides.length;i++){const a=await ynAnnotated(i);files.push({name:a.name,mimeType:a.mimeType,data:a.data});}
     const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,resources:[],files,temperature:0.1,
-      models:['gemini-3.8-flash','gemini-3.7-flash','gemini-3.6-flash','gemini-3.5-flash']})});
-    const data=await res.json();if(!data.ok)throw new Error(data.error||'不明なエラー');
+      models:ytModels('plan'),onBusy:'stop'})});
+    const data=await res.json();if(!data.ok)throw new Error(ytAiErr(data,'plan'));
     ynEl('plan').value=data.text||'';saveState();
     ynApplyPlan(ynParsePlan(data.text||''));
   }catch(e){ynStatus('❌ '+e.message,'error','status2');}
@@ -10720,9 +10759,9 @@ async function yqDetect(blob){
   const part=await ynBlobToPart(blob,1024);
   const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({prompt:YQ_PROMPT,resources:[],temperature:0,files:[{name:part.name,mimeType:part.mimeType,data:part.data}],
-      models:['gemini-3.8-flash','gemini-3.7-flash','gemini-3.6-flash','gemini-3.5-flash']})});
+      models:ytModels('qr'),onBusy:'stop'})});
   const data=await res.json();
-  if(!data.ok)throw new Error(data.error||'読み取れませんでした');
+  if(!data.ok)throw new Error(ytAiErr(data,'qr'));
   const m=String(data.text||'').match(/\{[\s\S]*\}/);
   const b=m?(JSON.parse(m[0])||{}).box:null;
   if(!Array.isArray(b)||b.length!==4)throw new Error('空の正方形が見つかりませんでした');

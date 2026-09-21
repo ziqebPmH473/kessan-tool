@@ -72,12 +72,18 @@ export async function onRequestPost(context) {
     status === 429 || status >= 500 ||
     /quota|rate|exhaust|limit:\s*0|overload|high demand|unavailable|temporarily|try again|resource has been exhausted/i.test(raw || "");
   const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+  // エラーの種類：quota＝回数の上限（下のモデルへ切り替えると通ることが多い）／busy＝相手側の混雑（下のモデルも混んでいることが多い）
+  const kindOf = (status, raw) =>
+    (status === 429 || /quota|exhaust|rate.?limit|limit:\s*0|per day|per minute|resource has been exhausted/i.test(raw || "")) ? "quota"
+    : (status >= 500 || /overload|high demand|unavailable|temporarily|try again/i.test(raw || "")) ? "busy" : "other";
+  // onBusy: 'stop' なら、混雑のときは下のモデルへ切り替えずに止める（どのモデルが混雑かを返し、画面で選び直してもらう）
+  const stopOnBusy = payload.onBusy === "stop";
 
   let lastErr = "";
   // 降格した理由（モデル・HTTPステータス・所要秒・エラー文の先頭）。画面に出して原因を特定できるようにする
   const failures = [];
   const note = (m, status, t0, msg) =>
-    failures.push({ model: m, status, sec: Math.round((Date.now() - t0) / 100) / 10, error: String(msg || "").slice(0, 160) });
+    failures.push({ model: m, status, kind: kindOf(status, msg), sec: Math.round((Date.now() - t0) / 100) / 10, error: String(msg || "").slice(0, 160) });
   for (let i = 0; i < models.length; i++) {
     const m = models[i];
     for (let attempt = 0; attempt < 2; attempt++) {   // 各モデル最大2回（一時エラー時に1回リトライ）
@@ -104,7 +110,9 @@ export async function onRequestPost(context) {
         note(m, res.status, t0, raw);
         // 一時エラー以外（認証ミス等）は即中断
         if (!isTransient(res.status, raw)) return json({ ok: false, error: "Gemini API エラー: " + raw, model: m, failures }, 502);
-        if (attempt === 0) { await delay(800); continue; }  // 同モデルで1回リトライ
+        if (attempt === 0) { await delay(stopOnBusy && kindOf(res.status, raw) === "busy" ? 2500 : 800); continue; }  // 同モデルで1回リトライ
+        if (stopOnBusy && kindOf(res.status, raw) === "busy")
+          return json({ ok: false, busy: true, model: m, error: "混雑: " + raw, failures }, 503);
       } catch (e) {
         lastErr = (e && e.message) ? e.message : String(e);
         note(m, 0, t0, lastErr);
