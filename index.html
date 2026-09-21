@@ -8555,7 +8555,7 @@ const YT_POST_RULES=`あなたはYouTubeチャンネルの成長戦略顧問で�
 　- hook：5つ共通の1行目。運用ルールのタイトル案のフックの考え方で作る問いかけ。銘柄名を入れる。全角30字以内。
 　- points：この動画で確かめること。動画の章の順に3〜5個。各全角20字以内。答えは書かない。
 　- x：Xで hook に続ける1〜2文。全角60字以内。
-　- lemon8_title：Lemon8の見出し。全角30字以内。
+　- lemon8_title：Lemon8の見出しの、【#銘柄名（証券コード）】に続く部分（【#銘柄名（証券コード）】はツールが付けるので書かない）。この動画で注目してもらいたい点で、読む人を引きつける言葉。全角20字以内。
 　- lemon8_intro：Lemon8の本文の最初の段落。何が起きたのかと、何が疑問なのか。全角150〜250字。
 　Xの「【#銘柄名（証券コード）】」の行、YouTubeへの誘導、noteの案内、URLは、ツールが付けるので書かない。
 ・SNSのハッシュタグ
@@ -8692,7 +8692,9 @@ function ytPostBuild(){
     const J=a=>a.filter(Boolean).join('\n\n');
     ytEl('p-yp').value=J([hook,pts.length?L+'\n'+bul:'',ytPostFixedText('yp'),ytVal('p-yptags')]);
     ytEl('p-ig').value=J([hook,pts.length?L+'\n'+bul:'',ytPostFixedText('ig'),ytVal('p-igtags')]);
-    ytEl('p-l8t').value=ytVal('p-l8title');
+    // 見出し＝【#銘柄名（コード）】＋AIの言葉（Xの1行目と同じ書き方）
+    const l8=ytVal('p-l8title').replace(/^【[^】]*】\s*/,'');
+    ytEl('p-l8t').value=`【#${(getName()||'').replace(/\s+/g,'')}（${getTicker()||''}）】${l8}`;
     ytEl('p-l8').value=J([ytVal('p-l8intro'),pts.length?L+'\n'+num:'',ytPostFixedText('l8'),ytVal('p-l8tags')]);
     ytEl('p-tt').value=J([[hook,bul].filter(Boolean).join('\n'),ytPostFixedText('tt'),ytVal('p-tttags')]);
   }
