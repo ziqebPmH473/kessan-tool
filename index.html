@@ -9278,6 +9278,10 @@ function ytBuildTabHtml(){
   <div style="font-size:11px;color:var(--text-sub);">できた画像を読み込みます（ファイル名順）。</div>
   <input type="file" id="yn-files" accept="image/*" multiple onchange="ynLoadFiles(this.files)" style="font-size:11px;">
   ${row(b('<span id="yn-read-label">🔍 まとまりを読み取る</span>','ynReadZones(this)',G),b('↻ 読み取り直す',"YN.slides.forEach(s=>{s.zones=null;s.texts=null;});ynSave();ynRender();ynReadZones()"))}
+  <div class="sa-sub">▼ Gemini（Web版）で読み取る（APIが混んでいるとき）</div>
+  <div style="font-size:10px;color:var(--text-sub);">プロンプトをコピーし、Geminiに、プロンプトに書かれた枚のスライド画像をその順に添付して送ります。返ってきたJSONを貼り付けてください。1回に10枚まで（多いときは、貼り付けたあと、もう一度プロンプトをコピーすると続きの枚になります）。</div>
+  ${row(b('💬 プロンプト',"ynWebCopy(this)",G),b('📋 貼り付け',"ynWebPaste()"))}
+  <textarea id="yn-webread" placeholder="GeminiのJSONをここに貼り付け（貼ると反映します）" oninput="ynWebApply(this.value,true)" style="min-height:36px;font-size:11px;"></textarea>
   <div id="yn-status" style="display:none;font-size:11px;"></div>
   <div class="sa-sub">▼ まとめスライドのQR</div>
   ${row(b('🔳 QRを貼る','yqStart(this)',G),b('↩ 貼る前に戻す','yqUndo()'))}
@@ -10334,6 +10338,55 @@ async function ynReadZones(btn,only){
     ynStatus('❌ '+esc(e.message)+(only==null&&done?`<br>（読み取れた ${done}枚はそのまま残っています。「🔍 続きから」を押すと、読み取れていない枚から続けます）`:''),'error');
   }
   finally{if(btn)btn.disabled=false;}
+}
+// ---- Gemini（Web版）で読み取る：APIと同じ指示を、複数枚まとめて1回で ----
+// 対象は、まだ読み取っていない枚（全部読み取り済みなら先頭から）。Gemini（Web版）に1回で添付できるのは10枚まで
+function ynWebTargets(){
+  let idx=YN.slides.map((s,i)=>i).filter(i=>!(YN.slides[i].zones&&YN.slides[i].zones.length));
+  if(!idx.length)idx=YN.slides.map((s,i)=>i);
+  return idx.slice(0,10);
+}
+function ynWebPrompt(){
+  if(!YN.slides.length)throw new Error('先にスライド画像を読み込んでください');
+  const t=ynWebTargets(),nos=t.map(i=>i+1);
+  const body=YN_VISION_PROMPT.replace('この画像は、YouTube動画で使うスライドです。','').split('【出力】')[0].trim();
+  return `添付した画像${t.length}枚は、YouTube動画で使うスライドです。添付の順に、スライドの${nos.join('・')}枚目です。
+${t.map(i=>`・${i+1}枚目：${YN.slides[i].name}`).join('\n')}
+
+1枚ずつ、次の指示どおりに読み取ってください。
+
+${body}
+
+【出力】JSONだけを出力する。説明文・コードフェンスの外の文字は不要。
+・no は、上の「何枚目か」の番号（${nos.join('・')}）。
+{"slides":[{"no":${nos[0]},"zones":[{"label":"","text":"","box":[0,0,0,0],"strong":"","soft":""}],"texts":[{"label":"","kind":"","zone":0,"lines":[[0,0,0,0]]}]}]}`;
+}
+function ynWebCopy(btn){
+  try{const t=ynWebTargets();copyText(ynWebPrompt(),btn);ynStatus(`プロンプトをコピーしました。Geminiに、${t.map(i=>i+1).join('・')}枚目の画像をこの順に添付してください`,'ok');}
+  catch(e){ynStatus('❌ '+esc(e.message),'error');}
+}
+async function ynWebPaste(){
+  try{const t=await navigator.clipboard.readText();if(!t.trim()){alert('クリップボードが空です');return;}const el=ynEl('webread');el.value=t;ynWebApply(t);}
+  catch(e){alert('クリップボードを読めませんでした。欄に直接貼り付けてください（Ctrl+V）');}
+}
+// 貼り付けたJSONを、枚ごとに反映する（形は {"slides":[{"no","zones","texts"}]}）。typing＝欄に打ち込み中（読めなくても知らせない）
+async function ynWebApply(text,typing){
+  const s=String(text||'');if(!s.trim())return;
+  let j;try{const a=s.indexOf('{'),b=s.lastIndexOf('}');j=JSON.parse(s.slice(a,b+1));}
+  catch(e){if(!typing)ynStatus('❌ JSONとして読めませんでした。Geminiの返事をまるごと貼り付けてください','error');return;}
+  const list=Array.isArray(j.slides)?j.slides:null;
+  if(!list){ynStatus('❌ 「slides」が見つかりません。このツールのプロンプトで作った返事を貼り付けてください','error');return;}
+  const done=[],bad=[];
+  for(const x of list){
+    const i=(+x.no||0)-1,sl=YN.slides[i];
+    if(!sl){bad.push(x.no);continue;}
+    try{const vr=ynParseVision(JSON.stringify({zones:x.zones||[],texts:x.texts||[]}));if(!vr.zones.length){bad.push(x.no);continue;}
+      sl.zones=vr.zones;sl.texts=vr.texts;sl.model='Gemini（Web版）';done.push(i+1);}
+    catch(e){bad.push(x.no);}
+  }
+  if(done.length){await ynSave();ynRender();}
+  const rest=YN.slides.filter(sl=>!(sl.zones&&sl.zones.length)).length;
+  ynStatus(`${done.length?`✅ ${done.join('・')}枚目を反映しました。`:''}${bad.length?`⚠ ${bad.join('・')}枚目は読めませんでした。`:''}${rest?` まだ読み取っていない枚が${rest}枚あります（もう一度「💬 プロンプト」をコピーすると、その枚になります）`:' 全部の枚を読み取りました'}`,done.length&&!bad.length?'ok':'error');
 }
 // 1枚だけ読み直す（右ペインのスライドの見出しのボタン）
 function ynReadOne(i){
