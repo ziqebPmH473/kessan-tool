@@ -9279,7 +9279,7 @@ function ytBuildTabHtml(){
   ${row(b('<span id="yn-read-label">🔍 まとまりを読み取る</span>','ynReadZones(this)',G),b('↻ 読み取り直す',"YN.slides.forEach(s=>{s.zones=null;s.texts=null;});ynSave();ynRender();ynReadZones()"))}
   <details class="yt-col" style="margin-top:4px;">
     <summary style="font-size:11px;color:var(--text-sub);cursor:pointer;">Gemini（Web版）で読み取る（APIが混んでいるとき）</summary>
-    <div style="font-size:10px;color:var(--text-sub);">「💾 添付」で保存した画像（先頭の番号の順）をGeminiに添付し、「💬 プロンプト」を貼って送ります。返ってきたJSONを貼り付けてください。1回に10枚まで（多いときは、貼り付けたあと、もう一度「💾 添付」と「💬 プロンプト」を押すと続きの枚になります）。</div>
+    <div style="font-size:10px;color:var(--text-sub);">「💾 添付」で保存した画像（先頭の番号の順）をGeminiに添付し、「💬 プロンプト」を貼って送ります。返ってきたJSONを貼り付けてください。全部の枚が対象です（読み取り済みの枚も読み直します）。1回に10枚までなので、11枚以上あるときは、貼り付けたあと、もう一度「💾 添付」と「💬 プロンプト」を押すと続きの枚になります。</div>
     ${row(`<button class="btn-sm" onclick="ynWebDownload(this)" title="プロンプトの対象の枚の画像を、添付する順の番号を付けて保存します" style="flex:1;min-width:0;background:#0d9488;color:#fff;">💾 添付</button>`,b('💬 プロンプト',"ynWebCopy(this)",G),b('📋 貼り付け',"ynWebPaste()"))}
     <textarea id="yn-webread" placeholder="GeminiのJSONをここに貼り付け（貼ると反映します）" oninput="ynWebApply(this.value,true)" style="min-height:36px;font-size:11px;"></textarea>
   </details>
@@ -10342,10 +10342,11 @@ async function ynReadZones(btn,only){
 }
 // ---- Gemini（Web版）で読み取る：APIと同じ指示を、複数枚まとめて1回で ----
 // 対象は、まだ読み取っていない枚（全部読み取り済みなら先頭から）。Gemini（Web版）に1回で添付できるのは10枚まで
+// 対象は全部の枚（読み取り済みの枚も、読み直す）。Gemini（Web版）に1回で添付できるのは10枚までなので、11枚以上は、貼り付けたあとに続きの枚へ進む
+let _ynWebFrom=0;
 function ynWebTargets(){
-  let idx=YN.slides.map((s,i)=>i).filter(i=>!(YN.slides[i].zones&&YN.slides[i].zones.length));
-  if(!idx.length)idx=YN.slides.map((s,i)=>i);
-  return idx.slice(0,10);
+  if(_ynWebFrom>=YN.slides.length)_ynWebFrom=0;
+  return YN.slides.map((s,i)=>i).slice(_ynWebFrom,_ynWebFrom+10);
 }
 function ynWebPrompt(){
   if(!YN.slides.length)throw new Error('先にスライド画像を読み込んでください');
@@ -10401,8 +10402,10 @@ async function ynWebApply(text,typing){
     catch(e){bad.push(x.no);}
   }
   if(done.length){await ynSave();ynRender();}
+  // 今回の10枚の先に続きがあれば、次のプロンプト・添付はその枚から。全部終われば最初に戻す
+  const last=Math.max(-1,...done.map(n=>n-1));_ynWebFrom=last+1<YN.slides.length?last+1:0;
   const rest=YN.slides.filter(sl=>!(sl.zones&&sl.zones.length)).length;
-  ynStatus(`${done.length?`✅ ${done.join('・')}枚目を反映しました。`:''}${bad.length?`⚠ ${bad.join('・')}枚目は読めませんでした。`:''}${rest?` まだ読み取っていない枚が${rest}枚あります（もう一度「💬 プロンプト」をコピーすると、その枚になります）`:' 全部の枚を読み取りました'}`,done.length&&!bad.length?'ok':'error');
+  ynStatus(`${done.length?`✅ ${done.join('・')}枚目を反映しました。`:''}${bad.length?`⚠ ${bad.join('・')}枚目は読めませんでした。`:''}${_ynWebFrom?` 続きの${_ynWebFrom+1}枚目からがあります（もう一度「💾 添付」と「💬 プロンプト」を押すと、その枚になります）`:rest?` まだ読み取れていない枚が${rest}枚あります`:' 全部の枚を読み取りました'}`,done.length&&!bad.length?'ok':'error');
 }
 // 1枚だけ読み直す（右ペインのスライドの見出しのボタン）
 function ynReadOne(i){
