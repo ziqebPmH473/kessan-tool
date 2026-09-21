@@ -485,7 +485,10 @@ select.yn-sel option{color:#0f172a;background:#fff;font-weight:400;}
 .yl-row{display:flex;gap:6px;align-items:center;font-size:10px;line-height:1.6;white-space:nowrap;overflow:hidden;}
 .yl-row a{color:#2563eb;overflow:hidden;text-overflow:ellipsis;min-width:0;}
 .yl-st{flex:none;width:44px;text-align:center;border-radius:8px;font-size:10px;}
-.yl-st.ok{background:#bbf7d0;color:#166534;} .yl-st.ng{background:#fecaca;color:#991b1b;}
+.yl-st.ok{background:#bbf7d0;color:#166534;} .yl-st.ng{background:#fecaca;color:#991b1b;} .yl-st.wn{background:#fde68a;color:#92400e;}
+.yl-sub{font-size:10px;line-height:1.5;color:var(--text-sub);margin:0 0 3px 50px;word-break:break-all;}
+.yl-sub b{color:#92400e;font-weight:600;} .yl-seen{font-size:10px;padding:1px 6px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;cursor:pointer;margin-left:4px;}
+.yl-seen.on{background:#bbf7d0;border-color:#86efac;color:#166534;}
 .yl-no,.yl-ty{flex:none;color:var(--text-sub);}
 .ys-when{font-size:11px;color:#334155;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ys-unused{opacity:.45;}
@@ -8443,6 +8446,7 @@ function ytGenChapters(){
 }
 // YT動画の材料（スライド・NotebookLM・投稿文・記事に渡す）：テーマ＋ファクトチェック済みのレポート＋企画と構成（出典一覧は除く）
 function ygMaterial(){
+  ygLinkGate();
   const r=ygReport(),d=ytStripSources(ytVal('doc'));
   if(!r)throw new Error('「調査」タブに、ファクトチェックを終えたレポートを貼り付けてください');
   if(!d)throw new Error('「調査」タブの「3. 構成と出典」に、①で作った結果を貼り付けてください');
@@ -8465,6 +8469,7 @@ function ytIntent(){
 function ytNotebookPrompt(){
   const up=getDir()==='up',name=getName()||'この会社',min=ytVal('nlm-min')||'12';
   if(ytGen()){
+    ygLinkGate();
     // 読みがなは「言葉＝よみ、言葉＝よみ」。無くてもよい
     const ym=ytYomi().split(/[、,\n]/).map(x=>x.trim()).filter(x=>/[=＝:：]/.test(x)).map(x=>x.replace(/\s*[=＝:：]\s*/,'：')).join('\n');
     return `${ytIntent()}を作成します。
@@ -8542,8 +8547,42 @@ function ytYomi(){
 function ytYomiInput(){ytEl('yomi-for').value=ytWorkName();}
 
 // ---- 出典のリンク確認（AIに任せず、実際に開けるかを機械的に確かめる）----
-const YL={res:null};   // [{no,name,url,ok,status,type,error}]
+const YL={res:null,seen:{}};   // [{no,name,url,ok,status,type,error}]
 const ytUrlsIn=s=>(String(s||'').match(/https?:\/\/[^\s|）)」＞>]+/g)||[]).map(u=>u.replace(/[、。,.]+$/,''));
+// 判定は4つ：ok＝問題なし／warn＝転送された・種類が違う・見つからないページの可能性（目で確かめて「確認した」にできる）／ng＝開けない（URLを直すしかない）
+// 確かめた結果（YL.res）と「目で確認した」の印（YL.seen＝URLごと）は、欄 yt-link-state に入れて保存する（リロード・種類の切り替え・書き出しで残る）
+const ytUrlKey=u=>String(u||'').trim().replace(/^https?:\/\//i,'').replace(/#.*$/,'').replace(/\/+$/,'').toLowerCase();
+function ytLinkJudge(x){
+  if(!x.ok)return{st:'ng',why:[`開けません（${x.status||x.error||'エラー'}）`]};
+  const why=[],isPdf=x.type==='application/pdf',isImg=(x.type||'').startsWith('image/');
+  if(x.finalUrl&&ytUrlKey(x.finalUrl)!==ytUrlKey(x.url))why.push(`別のURLへ転送されました → ${x.finalUrl}`);
+  if(!isPdf&&!isImg&&(/\.pdf(\?|#|$)/i.test(x.url)||/決算|短信|説明資料|有価証券|中期経営/.test(x.name||'')))why.push('PDFの資料のはずですが、ページ（HTML）が返ってきました');
+  if(x.hit)why.push(`見つからないページの可能性：「${x.hit}」`);
+  return{st:why.length?'warn':'ok',why};
+}
+function ytLinkSave(){const el=ytEl('link-state');if(!el)return;el.value=YL.res?JSON.stringify({res:YL.res,seen:YL.seen||{}}):'';saveState();}
+function ytLinkLoad(){
+  YL.res=null;YL.seen={};
+  try{const j=JSON.parse(ytVal('link-state')||'null');if(j&&Array.isArray(j.res)){YL.res=j.res;YL.seen=j.seen||{};}}catch(e){}
+}
+// いまの出典一覧に対する状態。後の工程へ進めるのは、全部が「問題なし」（目で確認した、を含む）のときだけ
+function ytLinkState(){
+  const src=ytParseSources(),urls=[];const noUrl=[];
+  src.forEach(s=>{const u=ytUrlsIn(s.url);if(!u.length)noUrl.push(s.no);u.forEach(v=>urls.push(v));});
+  const by={};(YL.res||[]).forEach(x=>{by[x.url]=x;});
+  let un=0,ng=0,warn=0;
+  urls.forEach(u=>{const x=by[u];if(!x){un++;return;}const j=ytLinkJudge(x);if(j.st==='ng')ng++;else if(j.st==='warn'&&!(YL.seen||{})[u])warn++;});
+  return{n:urls.length,noSrc:!src.length,noUrl,un,ng,warn,pass:!!src.length&&!noUrl.length&&!un&&!ng&&!warn};
+}
+function ytLinkStateText(){
+  const t=ytLinkState();
+  if(t.noSrc)return['⚠ リンク：出典一覧がまだありません','error'];
+  if(t.noUrl.length)return[`⚠ リンク：URLが書かれていない出典があります（出典${t.noUrl.join('・')}）→ ②〜④で直すか、その出典を外してください`,'error'];
+  if(t.un===t.n)return['⚠ リンク：未確認です。②〜④が終わったら「🔗 出典のリンクを確認」を押してください','error'];
+  if(t.un)return[`⚠ リンク：未確認のURLがあります（${t.un}件。資料が変わりました）→ もう一度「🔗 出典のリンクを確認」`,'error'];
+  if(t.ng||t.warn)return[`⚠ リンク：${t.ng?`開けない ${t.ng}件`:''}${t.ng&&t.warn?'・':''}${t.warn?`要確認 ${t.warn}件`:''} → 「②ファクト」にこの結果が入ります。要確認は、ページを見て問題なければ「✔ 確認した」`,'error'];
+  return[`✅ リンク：${t.n}件すべて問題ありません`,'ok'];
+}
 async function ytCheckLinks(btn){
   const src=ytParseSources();
   if(!src.length){ytStatus('動画資料に出典一覧がありません','error','link-status');return;}
@@ -8558,33 +8597,53 @@ async function ytCheckLinks(btn){
       try{
         const r=await fetch('/api/grab?check=1&url='+encodeURIComponent(j.url));
         const d=await r.json();
-        out.push(Object.assign({},j,{ok:!!d.ok,status:d.status||0,type:d.type||'',error:d.error||''}));
+        out.push(Object.assign({},j,{ok:!!d.ok,status:d.status||0,type:d.type||'',finalUrl:d.finalUrl||'',title:d.title||'',hit:d.hit||'',error:d.error||''}));
       }catch(e){out.push(Object.assign({},j,{ok:false,status:0,type:'',error:e.message}));}
     }
-    YL.res=out;ytRenderLinks();
-    const ng=out.filter(x=>!x.ok).length;
-    ytStatus(ng?`❌ ${out.length}件中 ${ng}件が開けません。「②ファクト」のプロンプトに、この結果が入ります`:`✅ ${out.length}件すべて開けました`,ng?'error':'ok','link-status');
+    // 「目で確認した」の印は、同じURLで、同じ結果（転送先・見つかった文）のときだけ引き継ぐ
+    const old={};(YL.res||[]).forEach(x=>{old[x.url]=x;});const seen={};
+    out.forEach(x=>{const o=old[x.url];if((YL.seen||{})[x.url]&&o&&o.finalUrl===x.finalUrl&&o.hit===x.hit&&o.type===x.type)seen[x.url]=true;});
+    YL.res=out;YL.seen=seen;ytLinkSave();ytRenderLinks();
   }finally{if(btn)btn.disabled=false;}
+}
+function ytLinkSeen(i){
+  const x=(YL.res||[])[i];if(!x)return;YL.seen=YL.seen||{};
+  if(YL.seen[x.url])delete YL.seen[x.url];else YL.seen[x.url]=true;
+  ytLinkSave();ytRenderLinks();
 }
 function ytRenderLinks(){
   const box=ytEl('link-list');if(!box)return;
-  if(!YL.res){box.innerHTML='';return;}
-  box.innerHTML=YL.res.map(x=>`<div class="yl-row"><span class="yl-st ${x.ok?'ok':'ng'}">${x.ok?'開ける':(x.status||'エラー')}</span>
+  if(!YL.res){box.innerHTML='';}
+  else box.innerHTML=YL.res.map((x,i)=>{
+    const j=ytLinkJudge(x),seen=!!(YL.seen||{})[x.url],cls=j.st==='ng'?'ng':(j.st==='warn'&&!seen)?'wn':'ok';
+    const lab=j.st==='ng'?(x.status||'エラー'):j.st==='warn'?(seen?'確認済':'要確認'):'問題なし';
+    const ty=x.ok&&x.type?(x.type==='application/pdf'?'PDF':x.type.startsWith('image/')?'画像':'ページ'):'';
+    return `<div class="yl-row"><span class="yl-st ${cls}">${lab}</span>
 <span class="yl-no">出典${esc(x.no)}</span><a href="${esc(x.url)}" target="_blank" rel="noopener" title="${esc(x.url)}">${esc(x.url)}</a>
-${x.ok&&x.type?`<span class="yl-ty">${x.type==='application/pdf'?'PDF':x.type.startsWith('image/')?'画像':'ページ'}</span>`:''}</div>`).join('');
+${ty?`<span class="yl-ty">${ty}</span>`:''}</div>
+<div class="yl-sub">${esc(x.name||'')}${x.title?` ／ 開いたページ：${esc(x.title)}`:''}${j.why.map(w=>`<br><b>${esc(w)}</b>`).join('')}${j.st==='warn'?`<button class="yl-seen${seen?' on':''}" onclick="ytLinkSeen(${i})">${seen?'✔ 確認した（押すと戻す）':'✔ 確認した（問題なし）'}</button>`:''}</div>`;
+  }).join('');
+  if(YL.res||ytGen()){const[m,c]=ytLinkStateText();ytStatus(m,c,'link-status');}else ytStatus('','','link-status');
 }
-// ファクトチェックに入れる、リンク確認の結果
+// ファクトチェックに入れる、リンク確認の結果（開けない・転送された・種類が違う・見つからないページの可能性。「目で確認した」ものは入れない）
 function ytLinkBlock(){
   if(!YL.res)return '';
-  const ng=YL.res.filter(x=>!x.ok);
-  const pdfLike=YL.res.filter(x=>x.ok&&x.type!=='application/pdf'&&/決算|短信|説明資料|有価証券|中期経営/.test(x.name));
-  if(!ng.length&&!pdfLike.length)return '';
+  const cur=new Set();ytParseSources().forEach(s=>ytUrlsIn(s.url).forEach(u=>cur.add(u)));
+  const rows=YL.res.filter(x=>cur.has(x.url)).map(x=>({x,j:ytLinkJudge(x)})).filter(r=>r.j.st==='ng'||(r.j.st==='warn'&&!(YL.seen||{})[r.x.url]));
+  if(!rows.length)return '';
   return `
 
 --出典のリンク確認の結果（ツールで実際に開いて確認）--
-${ng.length?`次のURLは開けませんでした。正しいURLを探して、出典一覧を直してください（見つからない場合は、その出典と、それに依拠した本文の記述を削除）。
-${ng.map(x=>`・出典${x.no} ${x.name}\n　${x.url}（${x.status||x.error||'エラー'}）`).join('\n')}`:''}${ng.length&&pdfLike.length?'\n\n':''}${pdfLike.length?`次の出典は、元がPDFの資料のはずですが、URLがページ（HTML）になっています。PDFそのもののURLと、根拠が載っているページ番号に直してください。
-${pdfLike.map(x=>`・出典${x.no} ${x.name}\n　${x.url}`).join('\n')}`:''}`;
+次の出典は、URLに問題がありました。それぞれ、正しい資料を実際に開けるURL（元がPDFの資料なら、PDFそのもののURLと、根拠が載っているページ番号）に直してください。
+転送された出典は、転送先が資料名どおりの資料かを確かめ、正しければ出典一覧のURLを転送先に書き換えてください。
+正しいURLが見つからない場合は、その出典と、それに依拠した記述を削除してください。
+${rows.map(r=>`・出典${r.x.no} ${r.x.name}\n　${r.x.url}\n${r.j.why.map(w=>'　→ '+w).join('\n')}`).join('\n')}`;
+}
+// YT動画：調査が済んでいない（リンクに問題が残っている）うちは、後の工程のプロンプト・添付を作らない
+function ygLinkGate(){
+  if(!ytGen())return;
+  const t=ytLinkState();if(t.pass)return;
+  throw new Error('「調査」タブの「3. 構成と出典」で、出典のリンクの確認が済んでいません（'+ytLinkStateText()[0].replace(/^[⚠✅]\s*リンク：/,'')+'）');
 }
 
 // ---- 操作 ----
@@ -8617,7 +8676,7 @@ async function ygPasteReport(btn){
   catch(e){ytStatus('❌ '+e.message,'error');}
 }
 async function ytPasteDoc(btn){
-  if(!await ytPaste('doc',()=>{ytUpdateFreeInfo();ytYomi();}))return;
+  if(!await ytPaste('doc',()=>{ytUpdateFreeInfo();ytYomi();ytRenderLinks();}))return;
   try{
     copyText(ytFactCheckPrompt(),btn);
     ytStatus('✅ 貼り付けました。ファクトチェックのプロンプトをコピーしました（そのままAIに貼り付けてください）','ok');
@@ -9170,13 +9229,13 @@ function ytBuildTabHtml(){
     <textarea id="yt-doc" placeholder="ChatGPTの動画資料をここに貼り付け（②〜④を誤りがなくなるまで繰り返す）" style="min-height:36px;"></textarea>
     <div id="yt-doc-links">
       ${row(b('🔗 出典のリンクを確認','ytCheckLinks(this)'))}
-      <div class="yt-only-gen" style="display:none;font-size:10px;color:var(--text-sub);">②ファクトの前に押すと、開けなかったURLが②のプロンプトに入り、直す対象になります（押さなくても進めます）。</div>
-      <div id="yt-link-status" style="display:none;font-size:11px;"></div>
+      <div class="yt-only-gen" style="display:none;font-size:10px;color:var(--text-sub);">②〜④が終わったら、最後に1回押します（全部が問題なしになるまで、音声から先へは進めません）。問題があったら、もう一度②を押すと、その内容がプロンプトに入ります。</div>
+      <div id="yt-link-status" style="display:none;font-size:11px;"></div><input type="hidden" id="yt-link-state">
       <div id="yt-link-list"></div>
     </div>
     <div id="yt-doc-paste">${row(b('📋 貼り付け',"ytPasteDoc(this)"),`<button class="btn-danger" onclick="if(confirm('動画資料を消しますか？')){ytEl('doc').value='';saveState();}" style="flex:1;">✕ クリア</button>`)}</div>
   </div>
-  <div class="yt-only-gen" style="display:none;">${row(`<button class="btn-sm" onclick="ygReportDownload(this)" title="レポートをファイル（レポート.md）に保存します。ChatGPTに添付してください" style="flex:1;min-width:0;background:#0d9488;color:#fff;">💾 添付</button>`,b('✅ ②ファクト',"ytCopy('fc',this)",G),b('🔁 ③再CK',"ytCopy('recheck',this)",G),b('🔧 ④修正',"ytCopy('fix',this)",G))}</div>
+  <div class="yt-only-gen" id="yt-g-fcrow" style="display:none;">${row(`<button class="btn-sm" onclick="ygReportDownload(this)" title="レポートをファイル（レポート.md）に保存します。ChatGPTに添付してください" style="flex:1;min-width:0;background:#0d9488;color:#fff;">💾 添付</button>`,b('✅ ②ファクト',"ytCopy('fc',this)",G),b('🔁 ③再CK',"ytCopy('recheck',this)",G),b('🔧 ④修正',"ytCopy('fix',this)",G))}</div>
 </div>
 
 </div>
@@ -9317,7 +9376,7 @@ ${[['n','note記事（無料）','noteは表を表示できないので、表を
 </div>
 </div>`;
 }
-const YT_PERSIST_IDS=['vd-orient','th-ctx','th-note-text','th-note-preset','yt-th-text','yt-th-preset','yg-th-text','yg-th-preset','yt-g-theme','yt-g-report','yt-g-aud','yt-a-n-raw','yt-a-n-title','yt-a-n-body','yt-a-n-tags','yt-a-b-raw','yt-a-b-title','yt-a-b-body','yt-a-b-tags','yt-a-check','yt-doc','yt-series','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-t1','yt-p-t2','yt-p-t3','yt-p-s1','yt-p-s2','yt-p-s3','yt-p-body','yt-p-xbody','yt-p-hook','yt-p-points','yt-p-xtags','yt-p-yptags','yt-p-igtags','yt-p-tttags','yt-p-l8title','yt-p-l8intro','yt-p-l8tags','yt-p-yp','yt-p-ig','yt-p-l8t','yt-p-l8','yt-p-tt','yt-f-yp','yt-f-ig','yt-f-l8','yt-f-tt','yt-p-yturl','yt-p-tags','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-m-cut','yt-m-read','yt-m-plan','yt-m-post','yt-m-qr','yt-yomi','yt-yomi-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan'];
+const YT_PERSIST_IDS=['vd-orient','th-ctx','th-note-text','th-note-preset','yt-th-text','yt-th-preset','yg-th-text','yg-th-preset','yt-g-theme','yt-g-report','yt-g-aud','yt-a-n-raw','yt-a-n-title','yt-a-n-body','yt-a-n-tags','yt-a-b-raw','yt-a-b-title','yt-a-b-body','yt-a-b-tags','yt-a-check','yt-link-state','yt-doc','yt-series','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-t1','yt-p-t2','yt-p-t3','yt-p-s1','yt-p-s2','yt-p-s3','yt-p-body','yt-p-xbody','yt-p-hook','yt-p-points','yt-p-xtags','yt-p-yptags','yt-p-igtags','yt-p-tttags','yt-p-l8title','yt-p-l8intro','yt-p-l8tags','yt-p-yp','yt-p-ig','yt-p-l8t','yt-p-l8','yt-p-tt','yt-f-yp','yt-f-ig','yt-f-l8','yt-f-tt','yt-p-yturl','yt-p-tags','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-m-cut','yt-m-read','yt-m-plan','yt-m-post','yt-m-qr','yt-yomi','yt-yomi-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan'];
 // ---- 動画の種類：株価分析の横動画＝stock ／ YT動画タブ＝gen ----
 // 画面と関数は1組だけ。種類を切り替えると、作品ごとの欄（localStorage）と IndexedDB のキーを入れ替える。
 // 株価分析の側は今までのキーのまま、YT動画の側は前に 'gen:' を付ける。設計：docs/design/2026-09-21_YT動画タブ.md
@@ -9333,7 +9392,8 @@ function ytCaptureDefaults(){ytWorkIds().forEach(id=>{const el=document.getEleme
 async function ytReloadAll(links){
   Object.assign(YA,{file:null,fileName:'',buf:null,mono:null,sil:null,chars:[],wchars:[],sents:[],cuts:[],dur:0,sections:[],score:null,reach:null});
   YN.slides=[];YN.plan=null;YN.cur=0;YS.imgs={};YS.edit={};YS.sel=null;
-  if(typeof YL!=='undefined'){YL.res=links||null;if(typeof ytRenderLinks==='function')ytRenderLinks();}
+  // リンク確認の結果：保存してある欄（「目で確認した」の印も入っている）から戻す。欄が空で、読み込んだファイルに結果があればそれを使う
+  if(typeof YL!=='undefined'){ytLinkLoad();if(!YL.res&&links){YL.res=links;YL.seen={};ytLinkSave();}if(typeof ytRenderLinks==='function')ytRenderLinks();}
   const tn=document.getElementById('yn-tpl-name');if(tn)tn.textContent='';
   await yaRestore();await ynRestore();await ysRestore();
 }
@@ -9344,7 +9404,10 @@ function ytCtxApplyUi(){
   document.querySelectorAll('#yt-root .yt-only-stock').forEach(el=>{el.style.display=g?'none':'';});
   if(!g&&ytEl('itab-article')?.classList.contains('active'))ytInnerTab('research');
   // ボタンの文字は、コピーのあと textContent で戻されるので、ボタンの中に出し分け用の部品を入れない（ボタンごと出し分ける）
-  const dp=ytEl('doc-paste'),dl=ytEl('doc-links');if(dp&&dl){dp.style.order=g?'-1':'';dl.style.order='';}   // YT動画は操作の順（貼り付け → 貼る欄 → リンク確認 → ②）。株価分析は今までの並び
+  // YT動画は操作の順（貼り付け → 貼る欄 → ②③④ → リンク確認）。株価分析は今までの並び（貼る欄 → リンク確認 → 貼り付け）
+  const dp=ytEl('doc-paste'),dl=ytEl('doc-links'),fr=ytEl('g-fcrow'),bx=ytEl('doc-box');
+  if(dp&&dl&&fr&&bx){dp.style.order=g?'-1':'';if(g)fr.after(dl);else bx.insertBefore(dl,dp);}
+  if(typeof ytRenderLinks==='function')ytRenderLinks();
   const dc=ytEl('doc');if(dc)dc.placeholder=g?'①の結果（構成と出典）をここに貼り付け（②〜④を誤りがなくなるまで繰り返す）':'ChatGPTの動画資料をここに貼り付け（②〜④を誤りがなくなるまで繰り返す）';
 }
 // 切り替えは「保留中の保存を書き出す → 欄をしまう → 種類を変える → 欄と保存データを読み直す」を1つずつ順に行う
@@ -11458,7 +11521,9 @@ async function ynRestore(){
   PERSIST_IDS.push(...YT_PERSIST_IDS);
   ytCaptureDefaults();
   ytRestoreFields();
+  ytLinkLoad();
   ytCtxApplyUi();
+  {const dc=ytEl('doc');if(dc)dc.addEventListener('input',()=>ytRenderLinks());}   // 資料を直したら、リンクの状態（未確認）を出し直す
   window._thCtxReady=true;ytSyncTabs();
   yaRestore();
   ynRestore();ysRestore();
