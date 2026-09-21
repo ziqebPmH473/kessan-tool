@@ -506,6 +506,8 @@ select.yn-sel option{color:#0f172a;background:#fff;font-weight:400;}
 .ys-btns{flex:1;min-width:0;display:flex;flex-wrap:wrap;gap:3px;}
 /* スライドの直し：チェックの並び */
 .yt-fixes{display:flex;flex-wrap:wrap;gap:2px 10px;margin:4px 0;}
+/* 横動画のパネル：横に並ぶボタンは、等分にすると長い文字が切れる（「②ファクト」「まとめて取得…」など）ので、文字の長さに合わせて幅を配る */
+#yt-root .row:has(>button:nth-child(2))>button{flex:1 1 auto !important;padding-left:4px;padding-right:4px;}
 .yt-fixes label{flex:0 0 calc(50% - 5px);display:flex;align-items:center;gap:4px;font-size:11px;line-height:1.7;cursor:pointer;}
 .yt-fixes input{flex:none;margin:0;}
 .ys-ov{position:fixed;inset:0;background:rgba(15,23,42,.88);z-index:9999;display:flex;flex-direction:column;}
@@ -9150,8 +9152,8 @@ function ytBuildTabHtml(){
     <div class="sa-sub">▼ 1. テーマ</div>
     <input type="text" id="yt-g-theme" placeholder="この動画のテーマ（何が分かる動画か）" oninput="saveState()" style="width:100%;font-size:12px;">
     <div class="sa-sub">▼ 2. レポート（ChatGPTと調べた内容を、レポートにまとめてもらって貼る）→ ファクトチェック</div>
-    <textarea id="yt-g-report" placeholder="ChatGPTのレポートをここに貼り付け（②〜④を誤りがなくなるまで繰り返し、直った全文を貼り直す）" oninput="saveState()" style="min-height:36px;"></textarea>
     ${row(b('📋 貼り付け',"ygPasteReport(this)"),`<button class="btn-danger" onclick="if(confirm('レポートを消しますか？')){ytEl('g-report').value='';saveState();}" style="flex:1;">✕ クリア</button>`)}
+    <textarea id="yt-g-report" placeholder="ChatGPTのレポートをここに貼り付け（②〜④を誤りがなくなるまで繰り返し、直った全文を貼り直す）" oninput="saveState()" style="min-height:36px;"></textarea>
     ${row(`<button class="btn-sm" onclick="ygReportDownload(this)" title="レポートをファイル（レポート.md）に保存します。ChatGPTに添付してください" style="flex:1;min-width:0;background:#0d9488;color:#fff;">💾 添付</button>`,b('✅ ②ファクト',"ytCopy('rfc',this)",G),b('🔁 ③再CK',"ytCopy('recheck',this)",G),b('🔧 ④修正',"ytCopy('rfix',this)",G))}
     <div style="font-size:10px;color:var(--text-sub);margin-top:4px;">レポートは長いので、プロンプトには入れません。「💾 添付」で保存した「レポート.md」を、ChatGPTに添付してください。②は新しいチャットで。</div>
   </div>
@@ -9168,6 +9170,7 @@ function ytBuildTabHtml(){
     <textarea id="yt-doc" placeholder="ChatGPTの動画資料をここに貼り付け（②〜④を誤りがなくなるまで繰り返す）" style="min-height:36px;"></textarea>
     <div id="yt-doc-links">
       ${row(b('🔗 出典のリンクを確認','ytCheckLinks(this)'))}
+      <div class="yt-only-gen" style="display:none;font-size:10px;color:var(--text-sub);">②ファクトの前に押すと、開けなかったURLが②のプロンプトに入り、直す対象になります（押さなくても進めます）。</div>
       <div id="yt-link-status" style="display:none;font-size:11px;"></div>
       <div id="yt-link-list"></div>
     </div>
@@ -9341,7 +9344,7 @@ function ytCtxApplyUi(){
   document.querySelectorAll('#yt-root .yt-only-stock').forEach(el=>{el.style.display=g?'none':'';});
   if(!g&&ytEl('itab-article')?.classList.contains('active'))ytInnerTab('research');
   // ボタンの文字は、コピーのあと textContent で戻されるので、ボタンの中に出し分け用の部品を入れない（ボタンごと出し分ける）
-  const dp=ytEl('doc-paste'),dl=ytEl('doc-links');if(dp&&dl){dp.style.order=g?'1':'';dl.style.order=g?'2':'';}   // YT動画は操作の順（貼る → リンク確認 → ②）。株価分析は今までの並び
+  const dp=ytEl('doc-paste'),dl=ytEl('doc-links');if(dp&&dl){dp.style.order=g?'-1':'';dl.style.order='';}   // YT動画は操作の順（貼り付け → 貼る欄 → リンク確認 → ②）。株価分析は今までの並び
   const dc=ytEl('doc');if(dc)dc.placeholder=g?'①の結果（構成と出典）をここに貼り付け（②〜④を誤りがなくなるまで繰り返す）':'ChatGPTの動画資料をここに貼り付け（②〜④を誤りがなくなるまで繰り返す）';
 }
 // 切り替えは「保留中の保存を書き出す → 欄をしまう → 種類を変える → 欄と保存データを読み直す」を1つずつ順に行う
