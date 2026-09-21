@@ -8547,9 +8547,11 @@ const YT_POST_RULES=`あなたはYouTubeチャンネルの成長戦略顧問で�
 　- 例：「なぜここまで*売られた*のか：銘柄名：#強さ#は%本物%なのか」
 ・概要欄は、運用ルールの「1行目 導入文／2行目 キーワード行／3〜5行目 内容要約」までを書く。
 　関連動画・メンバーシップ・使用ツール・AI注意喚起の文は、ツールが後ろに付けるので書かない。
-・概要欄の最後に付けるハッシュタグを tags に出す。3〜5個。銘柄名と証券コードは必ず入れ、あとは業種やこの動画のテーマにする（「#投資」のような広すぎるものは避ける）。
+・概要欄の最後に付けるハッシュタグを tags に出す。3〜5個。銘柄名と証券コードは必ず入れ、あとは、この会社やこの動画の内容を探す人が検索窓に実際に打ち込みそうな言葉にする。
+　どの銘柄の動画にも付けられる汎用的な言葉は使わない。開発番号や型番のように、一般の人が検索に使わない言葉も使わない。
 ・X投稿案の1行目「【#銘柄名（証券コード）】」と、その直下の動画のURLは、ツールが付けるので書かない。本文から書き始める。
 　1行目とURLの分があるので、本文はハッシュタグを含めて全角100字以内にする。
+・X投稿案の最後のハッシュタグには、銘柄名と証券コードを入れない（1行目に入っているため）。言葉の選び方は tags と同じ。
 ・CTR／SEO最適化ポイント、動画管理表は出力しない。
 
 【出力】次の形のJSONだけを出力する。説明文やコードフェンスは不要。
@@ -8640,7 +8642,9 @@ function ytPostBuild(){
     // 1行目＝【#銘柄名（コード）】、その直下に動画のURL、本文、ハッシュタグ（空行は入れない）
     const head=`【#${(getName()||'').replace(/\s+/g,'')}（${getTicker()||''}）】`,yt=ytVal('p-yturl');
     const lines=xbody.split(/\r?\n/).map(s=>s.trim()).filter(Boolean).filter(s=>!/^【\s*#/.test(s)&&!/^https?:/.test(s));
-    ytEl('p-x').value=[head,yt,...lines].filter(Boolean).join('\n');
+    const dup=[(getName()||'').replace(/\s+/g,''),String(getTicker()||'')].filter(Boolean);
+    const body=lines.map(s=>s.replace(/[#＃]([^\s#＃]+)/g,(m,w)=>dup.includes(w)?'':m).replace(/[ 　]{2,}/g,' ').trim()).filter(Boolean);
+    ytEl('p-x').value=[head,yt,...body].filter(Boolean).join('\n');
   }
   saveState();
 }
@@ -8766,7 +8770,7 @@ ${yaBuildPaneHtml()}</div>
 <div class="sa-card" style="margin-top:8px;">
   <h2>3. 概要欄・X</h2>
   ${set('YouTubeのURL','<input type="text" id="yt-p-yturl" placeholder="動画を上げたあとのURL（Xの投稿文に入ります）" oninput="ytPostBuild();saveState()" style="flex:1;min-width:0;font-size:11px;">')}
-  ${set('ハッシュタグ','<input type="text" id="yt-p-tags" placeholder="#中外製薬 #4519 #株式投資（概要欄の最後に付きます）" oninput="ytPostBuild();saveState()" style="flex:1;min-width:0;font-size:11px;">')}
+  ${set('ハッシュタグ','<input type="text" id="yt-p-tags" placeholder="#銘柄名 #証券コード ほか（概要欄の最後に付きます）" oninput="ytPostBuild();saveState()" style="flex:1;min-width:0;font-size:11px;">')}
   <input type="hidden" id="yt-p-body"><input type="hidden" id="yt-p-xbody">
   <div class="sa-sub">▼ 概要欄（このまま貼れる全文）</div>
   <textarea id="yt-p-desc" placeholder="本文／noteの記事リンク／使用ツール／AIの注意書き／ハッシュタグ" oninput="saveState()" style="min-height:150px;font-size:11px;"></textarea>
