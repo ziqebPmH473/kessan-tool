@@ -9714,7 +9714,6 @@ function ynPlanPrompt(){
   // 時刻と長さは「カット後」のもの（視聴者が見る時間）。文の一部を削っている分も引いてある
   const lines=sents.map(x=>`[${x.n}] ${yaTc(te(x.s))}（${Math.max(0,te(x.e)-te(x.s)).toFixed(1)}秒） ${x.sp?(x.sp===1?'A':'B')+': ':''}${x.text}`).join('\n');
   const total=te(YA.dur),mins=total/60,nSrc=Math.min(10,Math.max(1,Math.round(mins*0.8)));
-  const secs=(YA.sections||[]).map(x=>`[${x.from}]${x.title?`（${x.title}）`:''}`);
   const tick=ynTicker();
   const srcs=ytSources();
   const srcBlock=srcs.length?`\n\n【根拠資料（動画で一時的に画面へ差し込む）】\n${srcs.map(s=>`  ${s.no}. ${s.name}${s.kind==='chart'?`【チャート：${ynTvTicker(s.name)}】`:s.page?`（${s.page}）`:''}`).join('\n')}`:'';
@@ -9726,8 +9725,9 @@ function ynPlanPrompt(){
 ・ずっとズームはしません。スライドに切り替えた直後と、話題の切れ目、スライドの最後は全体表示に戻します。
 
 【割り当てのルール】
-${secs.length?`・話題の切れ目：次の文から新しい話題が始まる。${secs.join('、')}。スライドの切り替えは、できるだけこの切れ目に合わせる。
-`:''}・スライドの範囲：連続した文の範囲を割り当てる。1枚目（表紙）は必ず最初の文から始める。基本はスライドの番号順だが、音声の話の順番がスライドの並びと違うときは、音声の順に合わせてスライドの順番を入れ替えてよい（その内容を話している箇所に、その内容のスライドを出す）。スライドが余る場合は最後のスライドに残りを割り当てる。
+・スライドの範囲：連続した文の範囲を割り当てる。1枚目（表紙）は必ず最初の文から始める。
+　スライドの切り替えは、そのスライドの内容を実際に説明し始める文から。次の話題への問いかけや前振りの文は、前のスライドに含める。
+　基本はスライドの番号順だが、音声の話の順番がスライドの並びと違うときは、音声の順に合わせてスライドの順番を入れ替えてよい（その内容を話している箇所に、その内容のスライドを出す）。スライドが余る場合は最後のスライドに残りを割り当てる。
 ・ズーム：その話題を話している文の範囲に、対応するまとまりを割り当てる。3秒未満になる範囲には付けない。1枚につき2〜5個まで。
 　隣り合う複数のまとまりを一緒に見せたいときは、zones に番号を複数入れる（例：[2,3]）。1つだけなら [2]。
 　まとまりが入れ子（大きな枠の中に小さな枠）のときは、外側の番号だけを書く（中の番号を並べない）。同じまとまりを連続で割り当てない。
@@ -9740,6 +9740,7 @@ ${secs.length?`・話題の切れ目：次の文から新しい話題が始ま�
 　チャートは TradingView で用意するので、どの足で・いつからいつまでを映すかを指定する。ティッカーは ${tick}。1件は5〜8秒、全体で1〜3件。
 ・【チャート】と付いた根拠資料も TradingView の画像で見せる。sources に入れるときは、interval（足）・start・end（期間）も書く。
 ・根拠資料やチャートを出している間は、スライドが隠れるので、ズームと強調は付けない。
+・ズームと強調は、前振りや問いかけの文には付けず、その箇所の中身を話し始めた文から付ける。
 ・時刻と秒数は、どれもカット後（視聴者が見る時間）のもの。
 
 【出力】JSONをコードブロック1つでそのまま出力する。説明文は不要。
@@ -9780,15 +9781,9 @@ function ynApplyPlan(plan){
   const sl=plan.slides.map(x=>({no:+x.no,from:+x.from,to:+x.to,corner:String(x.corner||'').slice(0,12)}))
     .filter(x=>x.no>=1&&x.no<=YN.slides.length&&at(x.from)).sort((a,b)=>(a.from-b.from)||(a.no-b.no));   // 音声で出てくる順
   if(!sl.length)throw new Error('スライドの範囲が読み取れません');
-  // 1枚目は最初の文から。2枚目以降は、近くに章の切れ目（青の帯）があればそこへ寄せる（2文以内）
-  const ns=sents.map(q=>q.n),secFrom=(YA.sections||[]).map(x=>+x.from);
-  sl.forEach((x,i)=>{
-    if(i===0){x.from=ns[0];return;}
-    const a=ns.indexOf(x.from);if(a<0)return;
-    let best=-1;
-    for(const f of secFrom){const j=ns.findIndex(n=>n>=f);if(j<0||Math.abs(j-a)>2)continue;if(best<0||Math.abs(j-a)<Math.abs(best-a))best=j;}
-    if(best>=0&&ns[best]>sl[i-1].from&&(i===sl.length-1||ns[best]<sl[i+1].from))x.from=ns[best];
-  });
+  // 1枚目は最初の文から。2枚目以降は、AIが決めた文のまま（章の切れ目へは寄せない。切れ目は前振りの文から始まるので、切り替えが早くなる）
+  const ns=sents.map(q=>q.n);
+  sl[0].from=ns[0];
   sl.forEach((x,i)=>{if(i<sl.length-1)x.to=ns[Math.max(ns.indexOf(x.from),ns.indexOf(sl[i+1].from)-1)];else x.to=ns[ns.length-1];});
   const rng=x=>{const g=ynSeg(x.from,x.to);return g?{from:+x.from,to:+(x.to||x.from),...g}:null;};
   const zn=(s,k)=>YN.slides[s-1]&&YN.slides[s-1].zones&&YN.slides[s-1].zones[k-1];
