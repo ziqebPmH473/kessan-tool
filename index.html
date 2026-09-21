@@ -8558,7 +8558,7 @@ function ytYomiInput(){ytEl('yomi-for').value=ytWorkName();}
 
 // ---- 出典のリンク確認（AIに任せず、実際に開けるかを機械的に確かめる）----
 const YL={res:null,seen:{}};   // [{no,name,url,ok,status,type,error}]
-const ytUrlsIn=s=>(String(s||'').match(/https?:\/\/[^\s|）)」＞>]+/g)||[]).map(u=>u.replace(/[、。,.]+$/,''));
+const ytUrlsIn=s=>(String(s||'').replace(/<br\s*\/?>/gi,' ').match(/https?:\/\/[^\s|）)」＞><]+/g)||[]).map(u=>u.replace(/[、。,.]+$/,''));
 // 判定は4つ：ok＝問題なし／warn＝転送された・種類が違う・見つからないページの可能性（目で確かめて「確認した」にできる）／ng＝開けない（URLを直すしかない）
 // 確かめた結果（YL.res）と「目で確認した」の印（YL.seen＝URLごと）は、欄 yt-link-state に入れて保存する（リロード・種類の切り替え・書き出しで残る）
 const ytUrlKey=u=>String(u||'').trim().replace(/^https?:\/\//i,'').replace(/#.*$/,'').replace(/\/+$/,'').toLowerCase();
@@ -10967,8 +10967,10 @@ function ynPlaceholder(){
 function ytParseSources(){
   const doc=ytVal('doc');if(!doc)return[];
   const m=doc.match(/^#{1,4}\s*出典一覧[^\n]*$/m);if(!m)return[];
+  // セルは「\|」（表の中の縦線）で区切らない。空のセルも残す（列がずれないように）。セルの中の <br> は改行として読む
+  const cells=l=>l.replace(/^\|/,'').replace(/(?<!\\)\|\s*$/,'').split(/(?<!\\)\|/).map(x=>x.replace(/<br\s*\/?>/gi,'\n').trim());
   return doc.slice(m.index).split('\n').slice(1).map(l=>l.trim()).filter(l=>/^\|/.test(l)&&!/^\|[\s\-:|]+\|$/.test(l))
-    .map(l=>l.split('|').map(x=>x.trim()).filter(Boolean)).filter(c=>c.length>=2)
+    .map(cells).filter(c=>c.length>=2)
     .filter(c=>/[0-9０-９]/.test(c[0])&&!/^\s*番号/.test(c[0]))   // 表の見出し行（番号｜資料名…）は除く
     .map(c=>({no:(c[0].match(/[0-9０-９]+/)||[c[0]])[0],name:c[1],url:c[2]||'',page:c[3]||'',pos:c.length>=6?c[4]:'',label:c[c.length-1]}));
 }
@@ -11016,9 +11018,12 @@ function ytSources(){
     if(us.length){
       let k=+x.use;if(!(k>=0&&k<us.length)){k=x.urls.findIndex(q=>q.pdf);if(k<0)k=0;}
       x.use=k;x.url=x.urls[k].url;x.page=x.urls[k].page;x.posUse=x.urls[k].pos;
+      // 1つの行に複数の資料があるとき、表示用の出典表記も、選んだURLに合うものを使う
+      const lbs=String(x.label||'').split('\n').map(v=>v.trim()).filter(Boolean);if(lbs.length===us.length)x.label=lbs[k];else if(lbs.length>1)x.label=lbs.join(' ／ ');
     }else x.posUse=String(x.pos||'');
     // 種類：手で決めていなければ、資料名から判定（株価・指数の値動きはチャート）
-    if(x.kind!=='chart'&&x.kind!=='doc')x.kind=/株価|時系列|チャート|日経平均|TOPIX|指数|TradingView/i.test(x.name||'')?'chart':'doc';
+    // 「株価」「TOPIX」「指数」だけで判定すると、「東証指数算出要領（TOPIX編）」「日経平均株価の銘柄定期入れ替え」のような資料までチャートになるので、チャートの行（「チャート（…）」）と、時系列・TradingView だけにする
+    if(x.kind!=='chart'&&x.kind!=='doc')x.kind=(ytIsChartSrc(x)||/時系列|TradingView/i.test(x.name||''))?'chart':'doc';
     if(x.kind==='chart'){
       const sp=((YN.plan||{}).sources||[]).find(q=>String(q.no)===String(x.no))||{};
       const cs=ytChartSpec(x.name)||{};   // 出典一覧に書かれた足・期間を優先し、無ければ割り当てで決めたもの
