@@ -8910,6 +8910,48 @@ ${yaBuildPaneHtml()}</div>
 </div>`;
 }
 const YT_PERSIST_IDS=['vd-orient','th-ctx','th-note-text','th-note-preset','yt-th-text','yt-th-preset','yt-doc','yt-series','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-t1','yt-p-t2','yt-p-t3','yt-p-s1','yt-p-s2','yt-p-s3','yt-p-body','yt-p-xbody','yt-p-hook','yt-p-points','yt-p-xtags','yt-p-yptags','yt-p-igtags','yt-p-tttags','yt-p-l8title','yt-p-l8intro','yt-p-l8tags','yt-p-yp','yt-p-ig','yt-p-l8t','yt-p-l8','yt-p-tt','yt-f-yp','yt-f-ig','yt-f-l8','yt-f-tt','yt-p-yturl','yt-p-tags','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-m-cut','yt-m-read','yt-m-plan','yt-m-post','yt-m-qr','yt-yomi','yt-yomi-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan'];
+// ---- 動画の種類：株価分析の横動画＝stock ／ YT動画タブ＝gen ----
+// 画面と関数は1組だけ。種類を切り替えると、作品ごとの欄（localStorage）と IndexedDB のキーを入れ替える。
+// 株価分析の側は今までのキーのまま、YT動画の側は前に 'gen:' を付ける。設計：docs/design/2026-09-21_YT動画タブ.md
+let YT_CTX=(()=>{try{return localStorage.getItem('kt-yt-ctx')==='gen'?'gen':'stock';}catch(e){return 'stock';}})();
+const ytGen=()=>YT_CTX==='gen';
+const ytKey=k=>(ytGen()&&k!=='tpl')?'gen:'+k:k;   // ナレスラのひな形（tpl）は共通
+// 種類を切り替えても入れ替えない欄：縦横の切り替え・サムネイルの文言（別の仕組みで入れ替える）・設定タブの共通の設定
+const YT_SHARED_IDS=['vd-orient','th-ctx','th-note-text','th-note-preset','yt-th-text','yt-th-preset','yt-p-fixed','ya-ctx','yt-months','yt-nlm-min','yt-m-cut','yt-m-read','yt-m-plan','yt-m-post','yt-m-qr'];
+const ytWorkIds=()=>YT_PERSIST_IDS.filter(id=>!YT_SHARED_IDS.includes(id));
+const YT_FIELD_DEFAULTS={};   // 画面を組み立てた直後の値。まだ何も保存していない種類に切り替えたときの出発点
+function ytCaptureDefaults(){ytWorkIds().forEach(id=>{const el=document.getElementById(id);if(el)YT_FIELD_DEFAULTS[id]=el.type==='checkbox'?el.checked:el.value;});}
+// いま画面にある分を空にしてから、保存先から読み直す（インポートのあとと、種類を切り替えたあと）
+async function ytReloadAll(links){
+  Object.assign(YA,{file:null,fileName:'',buf:null,mono:null,sil:null,chars:[],wchars:[],sents:[],cuts:[],dur:0,sections:[],score:null,reach:null});
+  YN.slides=[];YN.plan=null;YN.cur=0;YS.imgs={};YS.edit={};YS.sel=null;
+  if(typeof YL!=='undefined'){YL.res=links||null;if(typeof ytRenderLinks==='function')ytRenderLinks();}
+  const tn=document.getElementById('yn-tpl-name');if(tn)tn.textContent='';
+  await yaRestore();await ynRestore();await ysRestore();
+}
+// 切り替えは「保留中の保存を書き出す → 欄をしまう → 種類を変える → 欄と保存データを読み直す」を1つずつ順に行う
+let _ytCtxChain=Promise.resolve();
+function ytSetCtx(ctx){
+  ctx=ctx==='gen'?'gen':'stock';
+  _ytCtxChain=_ytCtxChain.then(async()=>{
+    if(ctx===YT_CTX)return;
+    try{if(typeof yaStop==='function')yaStop();}catch(e){}
+    await yaFlush();
+    const keep={};ytWorkIds().forEach(id=>{const el=document.getElementById(id);if(el)keep[id]=el.type==='checkbox'?el.checked:el.value;});
+    try{localStorage.setItem('kt-yt-fields-'+YT_CTX,JSON.stringify(keep));}catch(e){}
+    YT_CTX=ctx;try{localStorage.setItem('kt-yt-ctx',ctx);}catch(e){}
+    let next=null;try{next=JSON.parse(localStorage.getItem('kt-yt-fields-'+ctx)||'null');}catch(e){}
+    ytWorkIds().forEach(id=>{
+      const el=document.getElementById(id);if(!el)return;
+      const v=(next&&next[id]!=null)?next[id]:(ctx==='gen'&&id==='yt-series')?'':YT_FIELD_DEFAULTS[id];   // シリーズ名の既定は株価分析の動画のもの。YT動画は空から
+      if(el.type==='checkbox')el.checked=!!v;else el.value=v==null?'':v;
+    });
+    if(typeof saveStateNow==='function')saveStateNow();
+    await ytReloadAll(null);
+    if(typeof ytUpdateFreeInfo==='function')ytUpdateFreeInfo();
+  }).catch(e=>console.warn('[yt] 種類の切り替えに失敗',e));
+  return _ytCtxChain;
+}
 // 保存済みの定型文（使用ツール）にナレスラの行が無ければ、TradingView の行の下に足す
 // 読み取りとQRの前の既定（3.5 Flash Lite → 3.5 Flash）が保存されたままなら、一度だけ今の既定（3.8 Flash。表紙を読めたモデル）に戻す。
 // 保存内容の読み込みは2回あり、後の方（done=true）で済んだ印を付ける
@@ -9003,10 +9045,13 @@ function yaStatus(id,msg,cls){const el=yaEl(id);if(!el)return;el.style.display=m
 
 // ---- 保存（IndexedDB） ----
 function yaDb(){return new Promise((res,rej)=>{const r=indexedDB.open('kessanTool-ytAudio',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
-async function yaPut(k,v){try{const db=await yaDb();await new Promise((res,rej)=>{const tx=db.transaction('kv','readwrite');tx.objectStore('kv').put(v,k);tx.oncomplete=res;tx.onerror=()=>rej(tx.error);});}catch(e){console.warn('[ya] 保存失敗',e);}}
-async function yaGet(k){try{const db=await yaDb();return await new Promise((res,rej)=>{const r=db.transaction('kv').objectStore('kv').get(k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}catch(e){return null;}}
+async function yaPut(k,v){k=ytKey(k);try{const db=await yaDb();await new Promise((res,rej)=>{const tx=db.transaction('kv','readwrite');tx.objectStore('kv').put(v,k);tx.oncomplete=res;tx.onerror=()=>rej(tx.error);});}catch(e){console.warn('[ya] 保存失敗',e);}}
+async function yaGet(k){k=ytKey(k);try{const db=await yaDb();return await new Promise((res,rej)=>{const r=db.transaction('kv').objectStore('kv').get(k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}catch(e){return null;}}
 let _yaSaveTimer=null;
-function yaSave(){clearTimeout(_yaSaveTimer);_yaSaveTimer=setTimeout(()=>yaPut('state',{fileName:YA.fileName,dur:YA.dur,chars:YA.chars,wchars:YA.wchars,sents:YA.sents,cuts:YA.cuts,sections:YA.sections,score:YA.score,reach:YA.reach,stock:getName()}),400);}
+function yaSaveNow(){_yaSaveTimer=null;return yaPut('state',{fileName:YA.fileName,dur:YA.dur,chars:YA.chars,wchars:YA.wchars,sents:YA.sents,cuts:YA.cuts,sections:YA.sections,score:YA.score,reach:YA.reach,stock:getName()});}
+function yaSave(){clearTimeout(_yaSaveTimer);_yaSaveTimer=setTimeout(yaSaveNow,400);}
+// 保留中の保存を、いますぐ書き出す（動画の種類を切り替える前に呼ぶ。切り替えたあとに書くと、相手側の保存先に入ってしまう）
+async function yaFlush(){if(_yaSaveTimer){clearTimeout(_yaSaveTimer);await yaSaveNow();}}
 
 // ---- 音声の読み込み ----
 async function yaLoadFile(file,restoring){
@@ -9670,8 +9715,8 @@ function ynStatus(msg,cls,id){const el=ynEl(id||'status');if(!el)return;el.style
 
 // ---- 保存 ----
 function ynDb(){return new Promise((res,rej)=>{const r=indexedDB.open('kessanTool-ytNare',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
-async function ynPut(k,v){try{const db=await ynDb();await new Promise((res,rej)=>{const tx=db.transaction('kv','readwrite');tx.objectStore('kv').put(v,k);tx.oncomplete=res;tx.onerror=()=>rej(tx.error);});}catch(e){console.warn('[yn] 保存失敗',e);}}
-async function ynGet(k){try{const db=await ynDb();return await new Promise((res,rej)=>{const r=db.transaction('kv').objectStore('kv').get(k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}catch(e){return null;}}
+async function ynPut(k,v){k=ytKey(k);try{const db=await ynDb();await new Promise((res,rej)=>{const tx=db.transaction('kv','readwrite');tx.objectStore('kv').put(v,k);tx.oncomplete=res;tx.onerror=()=>rej(tx.error);});}catch(e){console.warn('[yn] 保存失敗',e);}}
+async function ynGet(k){k=ytKey(k);try{const db=await ynDb();return await new Promise((res,rej)=>{const r=db.transaction('kv').objectStore('kv').get(k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}catch(e){return null;}}
 function ynSave(){ynPut('slides',YN.slides.map(s=>({name:s.name,blob:s.blob,zones:s.zones||null,texts:s.texts||null,qrOrig:s.qrOrig||null,qrRect:s.qrRect||null})));}
 
 // ---- スライド画像の読み込み（ファイル名順） ----
@@ -10969,6 +11014,7 @@ async function ynRestore(){
   vdRestoreTts();
   // 横動画（YouTube）
   PERSIST_IDS.push(...YT_PERSIST_IDS);
+  ytCaptureDefaults();
   ytRestoreFields();
   window._thCtxReady=true;ytSyncTabs();
   yaRestore();
@@ -11074,12 +11120,7 @@ async function tabIoYtRestore(y){
   const si={};for(const[k,g]of Object.entries(y.srcimg||{}))si[k]={rect:g.rect||null,w:g.w||0,h:g.h||0,name:g.name||'',blob:await dec(g.blob),orig:g.orig?await dec(g.orig):null};
   await ynPut('srcimg',si);
   await ynPut('srcedit',y.srcedit||{});
-  // いま画面にある分を空にしてから、保存先から読み直す
-  Object.assign(YA,{file:null,fileName:'',buf:null,mono:null,sil:null,chars:[],wchars:[],sents:[],cuts:[],dur:0,sections:[],score:null,reach:null});
-  YN.slides=[];YN.plan=null;YN.cur=0;YS.imgs={};YS.edit={};YS.sel=null;
-  if(typeof YL!=='undefined'){YL.res=y.links||null;if(typeof ytRenderLinks==='function')ytRenderLinks();}
-  const tn=document.getElementById('yn-tpl-name');if(tn)tn.textContent='';
-  await yaRestore();await ynRestore();await ysRestore();
+  await ytReloadAll(y.links||null);
 }
 function tabIoFileName(tab){
   const cfg=TAB_IO[tab];
