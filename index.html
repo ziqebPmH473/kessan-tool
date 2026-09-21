@@ -5107,9 +5107,10 @@ async function relAuto(){
 // ============================================================
 const ART_NG_WORDS=['買うべき','売るべき','待つべき','見送るべき','買い見送','投資見送','購入は控え','買いは控え','仕込','エントリー','ナンピン','利確','損切','買い時','売り時','買い場','売り場','押し目買い','買い増し','買い候補','買いポイント','売りポイント','おすすめ','オススメ','推奨','する必要があります','ねばなりません','すべきです','しましょう','上値目標','下値目標'];
 const ART_CHECK_FIELDS=[{key:'title',id:'art-title',label:'タイトル'},{key:'body',id:'art-body',label:'本文'},{key:'thumb',id:'art-thumb',label:'サムネ構成案'},{key:'x',id:'art-x',label:'X告知文'}];
-function artNgScan(){
+window._ART_CHECK_FIELDS_DEFAULT=ART_CHECK_FIELDS;
+function artNgScan(fields){
   const hits=[];
-  ART_CHECK_FIELDS.forEach(f=>{
+  (fields||ART_CHECK_FIELDS).forEach(f=>{
     const v=(document.getElementById(f.id)||{}).value||'';
     v.split('\n').forEach(line=>{
       if(/売買を推奨するものではありません/.test(line))return;   // 固定の免責文は対象外
@@ -5146,8 +5147,11 @@ const ART_CHECK_PROMPT=`あなたは株式分析記事の表現チェック担�
 ・field は、タイトル=title、本文=body、サムネ構成案=thumb、X告知文=x とする。
 ・original は資料の文字列と一字一句完全に一致させる（ツールが文字列一致で置換するため）。改行をまたがず、違反を含む1文の全体（文頭から句点「。」まで。箇条書きなら行頭記号を除いたその項目の文全体）を抜き出す。文の途中や文末だけを切り出さない。fixed もその1文全体の書き直しとする。省略記号（…）で略さない。
 ・【機械検知された語】は参考情報。文脈上、違反でなければ挙げなくてよい。検知されていない箇所でも違反なら挙げる。`;
-async function artComplianceCheck(btnEl,silent){
-  const out=document.getElementById('art-check');
+// opt：{fields:[{key,id,label}],outId,status(msg,cls)}。YT動画の記事タブから、別の欄に対して使う
+async function artComplianceCheck(btnEl,silent,opt){
+  const ART_CHECK_FIELDS=(opt&&opt.fields)||window._ART_CHECK_FIELDS_DEFAULT,artNgScanF=()=>artNgScan(ART_CHECK_FIELDS);
+  const setArtStatus=(opt&&opt.status)||window.setArtStatus;
+  const out=document.getElementById((opt&&opt.outId)||'art-check');
   const val=id=>((document.getElementById(id)||{}).value||'');
   if(!ART_CHECK_FIELDS.some(f=>val(f.id).trim())){
     if(!silent)alert('先に「記事・SNSを生成」を実行してください');
@@ -5156,7 +5160,7 @@ async function artComplianceCheck(btnEl,silent){
   const o=btnEl?btnEl.textContent:'';
   if(btnEl){btnEl.disabled=true;btnEl.textContent='チェック中…';}
   if(!silent)setArtStatus('売買表現チェック中…（10〜30秒）','info');
-  const pre=artNgScan();
+  const pre=artNgScanF();
   const resources=ART_CHECK_FIELDS.map(f=>({label:f.label,text:val(f.id)}));
   resources.push({label:'機械検知された語',text:pre.length?pre.map(h=>`${h.label}｜${h.word}｜${h.line}`).join('\n'):'なし'});
   const ov=(document.getElementById('gem-article-model')||{}).value||'';
@@ -5190,7 +5194,7 @@ async function artComplianceCheck(btnEl,silent){
     }else lines.push('✖ AIチェックの結果を読み取れませんでした（JSON形式でない出力）。もう一度実行してください。');
   }else lines.push('✖ AIチェックに失敗: '+r.error);
   // 修正後にもう一度、禁止語を検知する
-  const post=artNgScan();
+  const post=artNgScanF();
   if(post.length){
     lines.push('⚠ 禁止語の検知（単純一致のため、市場の描写など問題ない文も拾います。目視で確認してください）');
     post.forEach(h=>lines.push(`　［${h.label}］「${h.word}」：${h.line.length>80?h.line.slice(0,80)+'…':h.line}`));
@@ -8902,6 +8906,96 @@ async function ytPostAi(btn){
   }catch(e){ytStatus('❌ '+e.message,'error','post-status');}
   finally{if(btn)btn.disabled=false;}
 }
+// ---- YT動画：記事（note・ブログ）。元は、ファクトチェック済みの動画資料 ----
+// 出力の形は、株価分析の記事・ブログの貼り付けと同じ【タイトル】【本　文】【ハッシュタグ】（sumikko-money/docs/article-format.md）
+function ygArticlePrompt(kind){
+  const theme=ytTheme(),doc=ytStripSources(ytVal('doc'));
+  if(!theme)throw new Error('「調査」タブにテーマを入力してください');
+  if(!doc)throw new Error('「調査」タブに、ファクトチェックを終えた動画資料を貼り付けてください');
+  const note=kind==='n';
+  return `あなたは、${ytAud()}の内容を、記事として分かりやすく伝える書き手です。
+下の【動画資料】をもとに、${note?'noteの無料記事':'ブログの記事'}を書いてください。テーマは「${theme}」です。
+
+【書き方】
+・【動画資料】に書かれている事実と数字だけを使う。資料に無い内容を足さない。
+・専門用語は、最初に出たところで一言で説明する。
+・冒頭に、この記事で何が分かるかを2〜3文で書く（見出しは付けない）。
+・そのあとは、【動画資料】の構成の表の章の順に、大見出し（##）を立てる。章の中は、必要なら小見出し（###）で分ける。最後はまとめの章で終える。
+・見出しに「第1章」などの番号は付けない。見出しは、その章の中身が分かる言葉にする。
+${note?'・Markdownの表は使わない（noteは表を表示できない）。数字の比較は箇条書きにする。':'・数字の比較は、Markdownの表にする。表のすぐ上か下に、何の表かが分かる一文を置く。'}
+・売買をすすめる表現、読者への行動要求（「〜すべきです」「〜する必要があります」）、将来の株価の断定は書かない。
+・出典の番号、URL、免責文、動画の案内は書かない（あとで別に付ける）。
+・本文は2000〜3500字。
+
+【ハッシュタグ】
+5〜7個。テーマの言葉を入れる。どの記事にも付く言葉は使わない。
+
+【出力形式（厳守）】
+次の3つを、この見出しと順番で出力する。見出しは行頭に置き、次の行からコードブロックを始める。前置き・感想は不要。
+【タイトル】
+\`\`\`
+（記事の題名）
+\`\`\`
+【本　文】
+\`\`\`
+（Markdown）
+\`\`\`
+【ハッシュタグ】
+\`\`\`
+#タグ1 #タグ2 #タグ3 #タグ4 #タグ5
+\`\`\`
+
+【動画資料】
+${doc}`;
+}
+const ygArtStatus=(k,msg,cls)=>ytStatus(msg,cls,'a-'+k+'-status');
+function ygArtApply(k,text){
+  const p=parseArticleOutput(String(text||''));
+  if(!p.title&&!p.body){ygArtStatus(k,'❌ 【タイトル】【本　文】が見つかりません。AIの出力をまるごと貼り付けてください','error');return false;}
+  ytEl('a-'+k+'-raw').value=text;
+  ytEl('a-'+k+'-title').value=fixBoldBrackets(p.title||'');
+  ytEl('a-'+k+'-body').value=fixBoldBrackets(p.body||'');
+  ytEl('a-'+k+'-tags').value=p.hashtags||'';
+  if(k==='n')ygArtUrlApply(false);
+  saveState();
+  ygArtStatus(k,`✅ 反映しました（本文${(p.body||'').length.toLocaleString()}字）`,'ok');
+  return true;
+}
+async function ygArtPaste(k){
+  try{const t=await navigator.clipboard.readText();if(!t.trim()){alert('クリップボードが空です');return;}ygArtApply(k,t);}
+  catch(e){alert('クリップボードを読めませんでした');}
+}
+// note記事の本文に、動画のURLを入れる（最初の段落のあと。URLだけの段落にする）。何度押しても1か所だけ
+function ygArtUrlApply(manual){
+  const el=ytEl('a-n-body');if(!el||!el.value.trim()){if(manual)alert('先にnote記事を作ってください');return;}
+  const url=ytVal('p-yturl');
+  if(!url){if(manual)alert('投稿文タブの「YouTubeのURL」を入れてから押してください（動画を上げたあとで構いません）');return;}
+  const isYt=l=>/^https?:\/\/(www\.|m\.)?(youtube\.com|youtu\.be)\/\S+$/.test(l.trim());
+  const blocks=el.value.split(/\n{2,}/).map(x=>x.trim()).filter(x=>x&&!isYt(x));
+  let i=blocks.findIndex(x=>!/^#{1,6}\s/.test(x));if(i<0)i=0;
+  blocks.splice(i+1,0,url);
+  el.value=blocks.join('\n\n');saveState();
+  if(manual)ygArtStatus('n','✅ 動画のURLを、最初の段落のあとに入れました','ok');
+}
+function ygArtCheck(k,btn){
+  if(!ytVal('a-'+k+'-body')){alert('先に記事を作ってください');return Promise.resolve(null);}
+  return artComplianceCheck(btn||null,!btn,{fields:[{key:'title',id:'yt-a-'+k+'-title',label:'タイトル'},{key:'body',id:'yt-a-'+k+'-body',label:'本文'}],outId:'yt-a-check',status:(m,c)=>ygArtStatus(k,m,c==='info'?'':c)});
+}
+async function ygArtAi(k,btn){
+  let prompt;try{prompt=ygArticlePrompt(k);}catch(e){ygArtStatus(k,'❌ '+e.message,'error');return;}
+  if(btn)btn.disabled=true;ygArtStatus(k,'作成中…（30秒〜1分かかります）','');
+  try{
+    const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({prompt,resources:[],files:[],temperature:0.7,models:ytModels('post'),onBusy:'stop'})});
+    const data=await res.json();if(!data.ok)throw new Error(ytAiErr(data,'post'));
+    if(ygArtApply(k,data.text||'')){
+      ygArtStatus(k,'売買をすすめる表現をチェック中…','');
+      const ck=await ygArtCheck(k,null);
+      ygArtStatus(k,`✅ 作成しました${ck?' ／ '+ck.summary:''}`,ck&&!ck.clean?'':'ok');
+    }
+  }catch(e){ygArtStatus(k,'❌ '+e.message,'error');}
+  finally{if(btn)btn.disabled=false;}
+}
 // サムネ案を、右のサムネイル（th-input）に入れて表示する
 function ytThumbUse(k){
   const v=ytVal('p-s'+k);if(!v){alert('サムネ案が空です');return;}
@@ -8986,7 +9080,8 @@ const YT_POST_FIXED=`■使用ツール
 // ---- タブのHTML ----
 function ytInnerTab(t){
   try{sessionStorage.setItem('yt-itab',t);}catch(e){}   // リロードで戻すため（新しく開いたタブには引き継がない）
-  ['research','audio','slides','cut','naresla','post','settings'].forEach(k=>{
+  if(t==='article'&&!ytGen())t='research';   // 記事タブは YT動画だけ
+  ['research','audio','slides','cut','naresla','post','article','settings'].forEach(k=>{
     const b=ytEl('itab-'+k),p=ytEl('pane-'+k);
     if(b)b.classList.toggle('active',k===t);if(p)p.style.display=k===t?'':'none';
   });
@@ -9012,6 +9107,7 @@ function ytBuildTabHtml(){
   <button class="sa-subtab" id="yt-itab-cut" onclick="ytInnerTab('cut')">カット</button>
   <button class="sa-subtab" id="yt-itab-naresla" onclick="ytInnerTab('naresla')">ナレスラ</button>
   <button class="sa-subtab" id="yt-itab-post" onclick="ytInnerTab('post')">投稿文</button>
+  <button class="sa-subtab yt-only-gen" id="yt-itab-article" onclick="ytInnerTab('article')" style="display:none;">記事</button>
   <button class="sa-subtab" id="yt-itab-settings" onclick="ytInnerTab('settings')">設定</button>
 </div>
 <div id="yt-status" style="display:none;font-size:11px;margin:4px 0;"></div>
@@ -9134,6 +9230,30 @@ ${yaBuildPaneHtml()}</div>
 </div>
 </div>
 
+<div id="yt-pane-article" style="display:none;">
+${[['n','note記事（無料）','noteは表を表示できないので、表を使わない形で作ります。動画のURLは、本文の最初の段落のあとに入ります（noteに貼ったあと、URLの行の末尾でEnterを押すと動画のカードになります）。'],['b','ブログ記事','表を使う形で作ります。動画は、ブログの管理画面の「YouTube の URL」の欄に入れてください（本文には入れません）。']].map(([k,title,note],i)=>`
+<div class="sa-card"${i?' style="margin-top:8px;"':''}>
+  <h2>${i+1}. ${title}</h2>
+  <div style="font-size:11px;color:var(--text-sub);">${note}</div>
+  ${row(b('💬 プロンプト',"try{copyText(ygArticlePrompt('"+k+"'),this)}catch(e){alert(e.message)}",G),b('📋 貼り付け',"ygArtPaste('"+k+"')"),b('🤖 Gemini APIで作る',"ygArtAi('"+k+"',this)",'background:#0d9488;color:#fff;'))}
+  <textarea id="yt-a-${k}-raw" style="display:none;"></textarea>
+  <div class="sa-sub">▼ タイトル</div>
+  <div class="row" style="flex-wrap:nowrap;gap:4px;"><input type="text" id="yt-a-${k}-title" oninput="saveState()" style="flex:1;min-width:0;font-size:12px;"><button class="ya-nd" onclick="copyText(ytVal('a-${k}-title'),this)">コピー</button></div>
+  <div class="sa-sub">▼ 本文</div>
+  <textarea id="yt-a-${k}-body" oninput="saveState()" style="min-height:120px;font-size:11px;"></textarea>
+  ${row(b('📄 本文をコピー',"copyText(ytVal('a-"+k+"-body'),this)"),k==='n'?b('🎬 動画のURLを入れ直す','ygArtUrlApply(true)'):b('🎬 動画のURLをコピー',"ytVal('p-yturl')?copyText(ytVal('p-yturl'),this):alert('投稿文タブの「YouTubeのURL」が空です')"))}
+  <div class="sa-sub">▼ ハッシュタグ</div>
+  <div class="row" style="flex-wrap:nowrap;gap:4px;"><input type="text" id="yt-a-${k}-tags" oninput="saveState()" style="flex:1;min-width:0;font-size:11px;"><button class="ya-nd" onclick="copyText(ytVal('a-${k}-tags'),this)">コピー</button></div>
+  <div id="yt-a-${k}-status" style="display:none;font-size:11px;"></div>
+</div>`).join('')}
+<div class="sa-card" style="margin-top:8px;">
+  <h2>3. 売買をすすめる表現のチェック</h2>
+  <div style="font-size:11px;color:var(--text-sub);">Gemini APIで作ったときは自動で行います。貼り付けた記事は、下のボタンで。</div>
+  ${row(b('✅ note記事をチェック',"ygArtCheck('n',this)"),b('✅ ブログ記事をチェック',"ygArtCheck('b',this)"))}
+  <textarea id="yt-a-check" readonly placeholder="チェックの結果（どこを・どう直したか）がここに出ます" style="min-height:46px;font-size:11px;"></textarea>
+</div>
+</div>
+
 <div id="yt-pane-settings" style="display:none;">
 <div class="sa-card">
   <h2>設定</h2>
@@ -9155,7 +9275,7 @@ ${yaBuildPaneHtml()}</div>
 </div>
 </div>`;
 }
-const YT_PERSIST_IDS=['vd-orient','th-ctx','th-note-text','th-note-preset','yt-th-text','yt-th-preset','yg-th-text','yg-th-preset','yt-g-theme','yt-g-report','yt-g-aud','yt-doc','yt-series','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-t1','yt-p-t2','yt-p-t3','yt-p-s1','yt-p-s2','yt-p-s3','yt-p-body','yt-p-xbody','yt-p-hook','yt-p-points','yt-p-xtags','yt-p-yptags','yt-p-igtags','yt-p-tttags','yt-p-l8title','yt-p-l8intro','yt-p-l8tags','yt-p-yp','yt-p-ig','yt-p-l8t','yt-p-l8','yt-p-tt','yt-f-yp','yt-f-ig','yt-f-l8','yt-f-tt','yt-p-yturl','yt-p-tags','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-m-cut','yt-m-read','yt-m-plan','yt-m-post','yt-m-qr','yt-yomi','yt-yomi-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan'];
+const YT_PERSIST_IDS=['vd-orient','th-ctx','th-note-text','th-note-preset','yt-th-text','yt-th-preset','yg-th-text','yg-th-preset','yt-g-theme','yt-g-report','yt-g-aud','yt-a-n-raw','yt-a-n-title','yt-a-n-body','yt-a-n-tags','yt-a-b-raw','yt-a-b-title','yt-a-b-body','yt-a-b-tags','yt-a-check','yt-doc','yt-series','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-t1','yt-p-t2','yt-p-t3','yt-p-s1','yt-p-s2','yt-p-s3','yt-p-body','yt-p-xbody','yt-p-hook','yt-p-points','yt-p-xtags','yt-p-yptags','yt-p-igtags','yt-p-tttags','yt-p-l8title','yt-p-l8intro','yt-p-l8tags','yt-p-yp','yt-p-ig','yt-p-l8t','yt-p-l8','yt-p-tt','yt-f-yp','yt-f-ig','yt-f-l8','yt-f-tt','yt-p-yturl','yt-p-tags','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-m-cut','yt-m-read','yt-m-plan','yt-m-post','yt-m-qr','yt-yomi','yt-yomi-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan'];
 // ---- 動画の種類：株価分析の横動画＝stock ／ YT動画タブ＝gen ----
 // 画面と関数は1組だけ。種類を切り替えると、作品ごとの欄（localStorage）と IndexedDB のキーを入れ替える。
 // 株価分析の側は今までのキーのまま、YT動画の側は前に 'gen:' を付ける。設計：docs/design/2026-09-21_YT動画タブ.md
@@ -9180,6 +9300,7 @@ function ytCtxApplyUi(){
   const g=ytGen();
   document.querySelectorAll('#yt-root .yt-only-gen').forEach(el=>{el.style.display=g?'':'none';});
   document.querySelectorAll('#yt-root .yt-only-stock').forEach(el=>{el.style.display=g?'none':'';});
+  if(!g&&ytEl('itab-article')?.classList.contains('active'))ytInnerTab('research');
 }
 // 切り替えは「保留中の保存を書き出す → 欄をしまう → 種類を変える → 欄と保存データを読み直す」を1つずつ順に行う
 let _ytCtxChain=Promise.resolve();
