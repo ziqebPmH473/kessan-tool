@@ -7733,7 +7733,7 @@ function ygStructPrompt(){
 ${ytAud()}の構成作家です。
 
 ## 目的
-${ytIntent()}を作成します。添付ファイル「${YG_REPORT_FILE}」が、その根拠資料（ファクトチェック済みのレポート）です。
+「${ytTheme()}」というテーマで ${ytVal('nlm-min')||'12'}分 の動画${ytSeries()?`（「${ytSeries()}」というシリーズで）`:''}を作成します。添付ファイル「${YG_REPORT_FILE}」が、その根拠資料（ファクトチェック済みのレポート）です。
 このレポートをもとに、動画の構成と、画面に出す出典の一覧を作ります。
 
 ## やること
@@ -9366,7 +9366,7 @@ ${[['n','note記事（無料）','noteは表を表示できないので、表を
   ${YT_AI_TASKS.map(([k,n,d])=>set(n,`<select id="yt-m-${k}" onchange="saveState()" style="flex:1;min-width:0;font-size:11px;padding:3px;">${YT_MODEL_LIST.map(([v,l])=>`<option value="${v}"${v===d?' selected':''}>${l}</option>`).join('')}</select>`)).join('')}
   <div class="yt-only-gen" style="display:none;">${set('番組の説明','<input type="text" id="yt-g-aud" value="'+YT_G_AUD_DEFAULT+'" oninput="saveState()" style="flex:1;min-width:0;font-size:11px;padding:4px;">','')}
   <div style="font-size:10px;color:var(--text-sub);">ChatGPTへの指示の「あなたの役割」に入れる、番組の説明です。</div></div>
-  ${set('NotebookLMの長さ','<input type="number" id="yt-nlm-min" value="12" min="3" max="30" style="width:60px;flex:none;font-size:11px;padding:4px;">','分（指示文に書く目安）')}
+  ${set('動画の長さ','<input type="number" id="yt-nlm-min" value="12" min="3" max="30" oninput="saveState()" style="width:60px;flex:none;font-size:11px;padding:4px;">','分（構成と音声の指示に入ります）')}
   <div class="sa-sub">▼ 概要欄の定型文（使用ツール・AIの注意書き）</div>
   <textarea id="yt-p-fixed" style="min-height:90px;font-size:11px;">${esc(YT_POST_FIXED)}</textarea>
   <div class="sa-sub">▼ SNSの投稿文の定型文（誘導とnoteの案内）</div>
