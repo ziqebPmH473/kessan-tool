@@ -7711,7 +7711,7 @@ function ygNeed(report){
 }
 function ygReportDownload(btn){
   try{ygNeed(true);}catch(e){ytStatus('❌ '+e.message,'error');return;}
-  const blob=new Blob([`# ${ytTheme()}\n\n${ygReport()}\n`],{type:'text/markdown'});
+  const blob=new Blob([ygReport()+'\n'],{type:'text/markdown'});   // 貼ったレポートをそのまま。見出しなどを足すと、④修正で全文を出し直させたときに貼り戻され、保存のたびに増えていく
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=YG_REPORT_FILE;a.click();
   ytStatus(`✅ 「${YG_REPORT_FILE}」を保存しました。ChatGPTに、プロンプトと一緒に添付してください`,'ok');
 }
