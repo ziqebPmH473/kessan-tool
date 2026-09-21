@@ -9644,7 +9644,8 @@ const YA_G_PROMPT=`この音声を文字起こししてください。
 
 【出力形式】
 ・コードブロック1つの中に、文字起こしだけを出力する（前置き・説明・見出し・出典は不要）
-・1行に1発言。行頭に話者を付ける（最初に話す人を「A: 」、もう一人を「B: 」）
+・話者が変わるところで改行し、行頭に話者を付ける（最初に話す人を「A: 」、もう一人を「B: 」）
+・「。」「？」「！」で文が終わるところでも改行する
 ・「ええ」「はい」などの短い相槌も省略せず、1行として書く`;
 // 正確な文章の各文字に、Whisper の文字の時刻を移す（帯つきの最長共通部分列）。対応しない文字は前後の時刻で按分
 function yaAlign(text){
@@ -9654,7 +9655,9 @@ function yaAlign(text){
   for(const raw of text.split(/\r?\n/)){
     const line=raw.trim();if(!line||/^```/.test(line))continue;
     const m=line.match(/^(?:\*\*)?([^:：\s*]{1,8})(?:\*\*)?\s*[:：]\s*(.*)$/);
-    let body=line;if(m){cur=m[1];body=m[2];}
+    // 行頭に話者が無い行は、前の行と同じ話者（文の終わりごとに改行させているため）。
+    // 「結論：…」のような本文を話者と読まないよう、話者が2人そろったあとは、その2人の名前だけを話者とみなす
+    let body=line;if(m&&(labels.length<2||labels.includes(m[1]))){cur=m[1];body=m[2];}
     if(cur&&!labels.includes(cur))labels.push(cur);
     for(const p of (body.match(/[^。？！?!]+[。？！?!]*/g)||[]))if(yaNorm(p))items.push({text:p.trim(),sp:cur?labels.indexOf(cur)+1:0});
   }
