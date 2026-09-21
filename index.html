@@ -8632,6 +8632,24 @@ function ytThumbUse(k){
   if(typeof renderThumbPreview==='function')renderThumbPreview();
 }
 // 概要欄＝AIの本文＋noteの案内＋定型文（使用ツール・AIの注意書き）
+// YouTubeのURLを入れたとき：いま欄にあるXの文面はそのままに、URLの行だけを差し替える（手で直した文面を戻さない）
+function ytPostUrlSet(){
+  const el=ytEl('p-x'),yt=ytVal('p-yturl');
+  if(!el.value.trim()){ytPostBuild();return;}
+  const lines=el.value.split(/\r?\n/);
+  const k=lines.findIndex(s=>/^https?:\/\/\S+$/.test(s.trim()));
+  if(k>=0){if(yt)lines[k]=yt;else lines.splice(k,1);}
+  else if(yt)lines.splice(/^【/.test((lines[0]||'').trim())?1:0,0,yt);
+  el.value=lines.join('\n');saveState();
+}
+// ハッシュタグを変えたとき：概要欄の文面はそのままに、末尾のタグだけを差し替える
+function ytPostTagsSet(inp){
+  const el=ytEl('p-desc'),prev=(inp.dataset.prev||'').trim(),now=inp.value.trim();inp.dataset.prev=inp.value;
+  if(!el.value.trim()){ytPostBuild();return;}
+  let v=el.value.replace(/\s+$/,'');
+  if(prev&&v.endsWith(prev))v=v.slice(0,v.length-prev.length).replace(/\s+$/,'');
+  el.value=[v,now].filter(Boolean).join('\n\n');saveState();
+}
 function ytPostBuild(){
   const body=ytVal('p-body'),xbody=ytVal('p-xbody');
   if(body){
@@ -8769,13 +8787,13 @@ ${yaBuildPaneHtml()}</div>
 
 <div class="sa-card" style="margin-top:8px;">
   <h2>3. 概要欄・X</h2>
-  ${set('YouTubeのURL','<input type="text" id="yt-p-yturl" placeholder="動画を上げたあとのURL（Xの投稿文に入ります）" oninput="ytPostBuild();saveState()" style="flex:1;min-width:0;font-size:11px;">')}
-  ${set('ハッシュタグ','<input type="text" id="yt-p-tags" placeholder="#銘柄名 #証券コード ほか（概要欄の最後に付きます）" oninput="ytPostBuild();saveState()" style="flex:1;min-width:0;font-size:11px;">')}
+  ${set('YouTubeのURL','<input type="text" id="yt-p-yturl" placeholder="動画を上げたあとのURL（Xの投稿文に入ります）" oninput="ytPostUrlSet()" style="flex:1;min-width:0;font-size:11px;">')}
+  ${set('ハッシュタグ','<input type="text" id="yt-p-tags" placeholder="#銘柄名 #証券コード ほか（概要欄の最後に付きます）" onfocus="this.dataset.prev=this.value" oninput="ytPostTagsSet(this)" style="flex:1;min-width:0;font-size:11px;">')}
   <input type="hidden" id="yt-p-body"><input type="hidden" id="yt-p-xbody">
   <div class="sa-sub">▼ 概要欄（このまま貼れる全文）</div>
   <textarea id="yt-p-desc" placeholder="本文／noteの記事リンク／使用ツール／AIの注意書き／ハッシュタグ" oninput="saveState()" style="min-height:150px;font-size:11px;"></textarea>
-  ${row(b('📋 概要欄をコピー',"copyText(ytVal('p-desc'),this)",'background:#0d9488;color:#fff;'),b('↻ 組み立て直す','ytPostBuild()'))}
-  <div style="font-size:10px;color:var(--text-sub);">本文 → noteの記事リンク（記事タブの記事URL）→ 定型文（設定タブ）→ ハッシュタグ の順に組み立てます。URLやタグを変えたら「↻ 組み立て直す」。</div>
+  ${row(b('📋 概要欄をコピー',"copyText(ytVal('p-desc'),this)",'background:#0d9488;color:#fff;'),b('↻ 組み立て直す',"if(confirm('概要欄とXを、AIの本文から作り直します。手で直した分は消えます。よろしいですか？'))ytPostBuild()"))}
+  <div style="font-size:10px;color:var(--text-sub);">本文 → noteの記事リンク（記事タブの記事URL）→ 定型文（設定タブ）→ ハッシュタグ の順に組み立てます。「↻ 組み立て直す」は、手で直した分を捨てて、AIの本文から作り直します。</div>
   <div class="sa-sub">▼ X（旧Twitter）（このまま貼れる全文）</div>
   <textarea id="yt-p-x" placeholder="【#銘柄名（コード）】／YouTubeのURL／本文／ハッシュタグ" oninput="saveState()" style="min-height:90px;font-size:11px;"></textarea>
   ${row(b('📋 Xをコピー',"copyText(ytVal('p-x'),this)"))}
