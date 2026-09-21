@@ -9275,7 +9275,7 @@ function ytBuildTabHtml(){
   ${set('シリーズ名','<input type="text" id="yt-series" value="'+YT_SERIES_DEFAULT+'" placeholder="空欄ならシリーズ無し" oninput="saveState()" style="flex:1;min-width:0;font-size:11px;"><button class="ya-nd" onclick="ytSeriesReset()" title="既定のシリーズ名に戻す">↺</button>')}
   <div style="font-size:10px;color:var(--text-sub);">シリーズ名は、調査・音声・スライド・投稿文の「どういう動画か」の一文と、タイトルの末尾（｜シリーズ名）に入ります。空にすると、シリーズ無しとして作ります。</div>
   ${row(b('📄 ソース（.md）','ytDownloadSource()','background:#0d9488;color:#fff;'),b('📓 指示',"ytCopy('nlm',this)",G))}
-  <div style="font-size:10px;color:var(--text-sub);">指示は約12分（守られないので、長めに作らせる目安）。NotebookLMの長さ設定は「短い」。</div>
+  <div style="font-size:10px;color:var(--text-sub);">NotebookLMの長さ設定は「短い」。</div>
 </div>
 ${yaBuildPaneHtml()}</div>
 <div id="yt-pane-cut" style="display:none;">${yaBuildCutHtml()}</div>
