@@ -436,6 +436,10 @@
 .yn-fit{position:relative;line-height:0;max-width:100%;}
 .yn-fit img{display:block;max-width:100%;max-height:calc(100vh - 190px);width:auto;}
 .yn-zone{position:absolute;border:2px solid rgba(37,99,235,.9);background:rgba(37,99,235,.06);}
+.yn-tline{position:absolute;border:1px dashed #f97316;pointer-events:none;}
+.yn-tline span{position:absolute;right:100%;top:-1px;font-size:9px;line-height:11px;padding:0 2px;background:#f97316;color:#fff;border-radius:2px;margin-right:1px;}
+.sa select.yn-col,select.yn-col{flex:none;width:34px;height:18px;font-size:10px;line-height:18px;padding:0 2px;border:none;border-radius:9px;color:#fff;font-weight:700;appearance:none;-webkit-appearance:none;text-align:center;cursor:pointer;}
+.yn-warn{flex:none;font-size:10px;color:#b45309;background:#fef3c7;border-radius:6px;padding:0 4px;cursor:help;}
 .yn-zone span{position:absolute;left:0;top:0;background:rgba(37,99,235,.9);color:#fff;font-size:10px;line-height:1.4;padding:0 4px;}
 .yn-plan{font-size:11px;color:#334155;padding:4px 8px;border-top:1px solid var(--border);background:#f8fafc;}
 .yn-hd2{font-weight:700;margin-bottom:2px;}
@@ -8788,7 +8792,7 @@ function ytBuildTabHtml(){
   <h2>3. できたスライドを取り込む</h2>
   <div style="font-size:11px;color:var(--text-sub);">できた画像を読み込みます（ファイル名順）。</div>
   <input type="file" id="yn-files" accept="image/*" multiple onchange="ynLoadFiles(this.files)" style="font-size:11px;">
-  ${row(b('🔍 まとまりを読み取る','ynReadZones(this)',G),b('↻ 読み取り直す',"YN.slides.forEach(s=>s.zones=null);ynSave();ynRender();ynReadZones()"))}
+  ${row(b('🔍 まとまりを読み取る','ynReadZones(this)',G),b('↻ 読み取り直す',"YN.slides.forEach(s=>{s.zones=null;s.texts=null;});ynSave();ynRender();ynReadZones()"))}
   <div id="yn-status" style="display:none;font-size:11px;"></div>
   <div class="sa-sub">▼ まとめスライドのQR</div>
   ${row(b('🔳 QRを貼る','yqStart(this)',G),b('↩ 貼る前に戻す','yqUndo()'))}
@@ -9629,7 +9633,7 @@ function ynStatus(msg,cls,id){const el=ynEl(id||'status');if(!el)return;el.style
 function ynDb(){return new Promise((res,rej)=>{const r=indexedDB.open('kessanTool-ytNare',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
 async function ynPut(k,v){try{const db=await ynDb();await new Promise((res,rej)=>{const tx=db.transaction('kv','readwrite');tx.objectStore('kv').put(v,k);tx.oncomplete=res;tx.onerror=()=>rej(tx.error);});}catch(e){console.warn('[yn] 保存失敗',e);}}
 async function ynGet(k){try{const db=await ynDb();return await new Promise((res,rej)=>{const r=db.transaction('kv').objectStore('kv').get(k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}catch(e){return null;}}
-function ynSave(){ynPut('slides',YN.slides.map(s=>({name:s.name,blob:s.blob,zones:s.zones||null,qrOrig:s.qrOrig||null,qrRect:s.qrRect||null})));}
+function ynSave(){ynPut('slides',YN.slides.map(s=>({name:s.name,blob:s.blob,zones:s.zones||null,texts:s.texts||null,qrOrig:s.qrOrig||null,qrRect:s.qrRect||null})));}
 
 // ---- スライド画像の読み込み（ファイル名順） ----
 async function ynLoadFiles(files){
@@ -9653,9 +9657,36 @@ const YN_VISION_PROMPT=`この画像は、YouTube動画で使うスライドで�
 - label: そのまとまりに書かれている見出しや要点（画像の文字のまま。25字以内）
 - text: そのまとまりに書かれている文字をすべて（200字以内）
 - box: [ymin, xmin, ymax, xmax]（画像の左上を0、右下を1000とした値）
+- strong: そのまとまりの背景や周りの色合いから見て、枠や下線が強く見える色
+- soft: 同じく、控えめな強調に見える色
+（strong と soft は red・blue・green・yellow のどれか）
 
-【出力】JSONの配列だけを出力する。説明文・コードフェンスの外の文字は不要。
-[{"label":"","text":"","box":[0,0,0,0]}]`;
+次に、下線を引く価値のある文字を挙げてください。対象は、見出し・サブタイトル、数字とその数字が何を表すかの見出し（ひとまとめにする）、結論の一文です。
+それぞれについて、次を返してください。
+- label: その文字（画像の文字のまま。40字以内）
+- kind: heading（見出し・サブタイトル）／number（数字とその見出し）／conclusion（結論の一文）
+- zone: その文字が入っているまとまりの番号（上で挙げた順に1から）。どのまとまりにも入らなければ 0
+- lines: 文字の行ごとの位置 [ymin, xmin, ymax, xmax] の配列。改行されていれば行ごとに1つ。数字とその見出しが同じ行に並んでいれば、見出しの左端から数字の右端までを1つにする。文字そのものを囲み、余白や枠の線は含めない。
+
+【出力】JSONだけを出力する。説明文・コードフェンスの外の文字は不要。
+{"zones":[{"label":"","text":"","box":[0,0,0,0],"strong":"","soft":""}],"texts":[{"label":"","kind":"","zone":0,"lines":[[0,0,0,0]]}]}`;
+// 強調の色（ナレスラの色見本と同じ値）。名前は読み取りのAIが返す red・blue・green・yellow
+const YN_COL={red:'#e91e8c',blue:'#2196f3',green:'#4caf50',yellow:'#ffc107'};
+const YN_COLS=[['#e91e8c','赤'],['#2196f3','青'],['#4caf50','緑'],['#ffc107','黄']];
+const YN_TKIND={heading:'見出し',number:'数字',conclusion:'結論'};
+// 読み取りの結果（新しい形 {zones,texts}、古い形 [まとまり] のどちらも読む）
+function ynParseVision(raw){
+  const s=String(raw||''),a=s.indexOf('['),o=s.indexOf('{');
+  const cn=v=>YN_COL[String(v||'').toLowerCase()]?String(v).toLowerCase():null;
+  const bx=b=>Array.isArray(b)&&b.length===4&&b.every(v=>isFinite(+v))?b.map(Number):null;
+  let zs=[],ts=[];
+  if(a>=0&&(o<0||a<o)){const m=s.match(/\[[\s\S]*\]/);if(!m)throw new Error('JSONが返りませんでした');zs=JSON.parse(m[0]);}
+  else{const m=s.match(/\{[\s\S]*\}/);if(!m)throw new Error('JSONが返りませんでした');const j=JSON.parse(m[0]);zs=j.zones||[];ts=j.texts||[];}
+  const zones=zs.filter(z=>bx(z.box)).map(z=>({label:String(z.label||'').slice(0,40),text:String(z.text||'').slice(0,300),box:bx(z.box),col:{strong:cn(z.strong),soft:cn(z.soft)}}));
+  const texts=ts.map(x=>({label:String(x.label||'').slice(0,60),kind:YN_TKIND[x.kind]?x.kind:'heading',zone:(+x.zone>=1&&+x.zone<=zones.length)?+x.zone:0,
+    lines:(Array.isArray(x.lines)?x.lines:[]).map(bx).filter(Boolean)})).filter(x=>x.lines.length).slice(0,24);
+  return{zones,texts};
+}
 async function ynBlobToPart(blob,max){
   const img=await createImageBitmap(blob);
   const sc=Math.min(1,max/Math.max(img.width,img.height));
@@ -9680,9 +9711,8 @@ async function ynReadZones(btn){
           models:['gemini-3.8-flash','gemini-3.7-flash','gemini-3.6-flash','gemini-3.5-flash']})});
       const data=await res.json();
       if(!data.ok)throw new Error(`${i+1}枚目: ${data.error||'不明なエラー'}`);
-      const m=String(data.text||'').match(/\[[\s\S]*\]/);
-      if(!m)throw new Error(`${i+1}枚目: JSONが返りませんでした`);
-      s.zones=JSON.parse(m[0]).filter(z=>Array.isArray(z.box)&&z.box.length===4).map(z=>({label:String(z.label||'').slice(0,40),text:String(z.text||'').slice(0,300),box:z.box.map(Number)}));
+      let vr;try{vr=ynParseVision(data.text);}catch(e){throw new Error(`${i+1}枚目: ${e.message}`);}
+      s.zones=vr.zones;s.texts=vr.texts;
       s.model=data.model;
       await ynSave();ynRender();
     }
@@ -9727,17 +9757,23 @@ function ynRender(){
     const tail=(kind,i,z)=>`<span class="yn-sd" title="${esc(sents.filter(x=>x.n>=z.from&&x.n<=z.to).map(x=>x.text).join(' '))}">${said(z)?`「${esc(said(z))}」`:''}</span>
 <span class="yn-ed"><button class="ya-nd" title="この演出を消す" onclick="ynPlanDel('${kind}',${i})">消す</button></span>`;
     // 並び：種類 → 枠 → 文番号 → 話している文 → 消す
-    const fxLine=(kind,i,z,cur,zn)=>`<div class="yn-it">${typeSel(cur,`ynPlanKind('${kind}',${i},this.value)`)}
-<span class="yn-lb">枠</span><input class="yn-in yn-zn" value="${(z.zones||[z.zone]).join('+')}" title="${esc((z.zones||[z.zone]).map(zn).join(' ＋ '))}（複数は 2+3 のように書く）" onchange="ynFxSet('${kind}',${i},'zones',this.value)">
-${nums(kind,i,z)}${tail(kind,i,z)}</div>`;
+    const colSel=(cur,on)=>`<select class="yn-col" style="background:${cur||'#94a3b8'}" onchange="${on}" title="強調の色">${YN_COLS.map(o=>`<option value="${o[0]}"${o[0]===cur?' selected':''} style="background:${o[0]}">${o[1]}</option>`).join('')}</select>`;
+    const fxLine=(kind,i,z,cur,zn,tl)=>{
+      const tgt=z.text?`T${z.text}`:(z.zones||[z.zone]).join('+');
+      const tip=z.text?tl(z.text):(z.zones||[z.zone]).map(zn).join(' ＋ ');
+      const out=z.text&&ynTextOut(z.slide,z.text);
+      return `<div class="yn-it">${typeSel(cur,`ynPlanKind('${kind}',${i},this.value)`)}${kind==='marks'?colSel(z.color||ynMarkColor(z,'soft'),`ynFxSet('marks',${i},'color',this.value)`):''}
+<span class="yn-lb">${z.text?'文字':'枠'}</span><input class="yn-in yn-zn" value="${tgt}" title="${esc(tip)}（枠は 2+3、文字は T1 のように書く）" onchange="ynFxSet('${kind}',${i},'zones',this.value)">${out?'<span class="yn-warn" title="読み取った文字の位置が、入っているまとまりの枠から外れています。書き出しには入ります。ナレスラで位置を確かめてください">⚠位置</span>':''}
+${nums(kind,i,z)}${tail(kind,i,z)}</div>`;};
     const fixLine=(kind,i,z,what)=>`<div class="yn-it"><span class="yn-k k-${kind}">${ynKinds[kind]}</span><span class="yn-wh" title="${esc(what)}">${esc(what)}</span>${nums(kind,i,z)}${tail(kind,i,z)}</div>`;
     YN.plan.slides.forEach(x=>{
       const el=document.getElementById('yn-img-'+(x.no-1));if(!el||!el.parentElement)return;
       const zn=k=>((((YN.slides[x.no-1]||{}).zones||[])[k-1]||{}).label||('まとまり'+k));
+      const tl=k=>{const q=(((YN.slides[x.no-1]||{}).texts||[])[k-1])||{};return `${YN_TKIND[q.kind]||'文字'}：${q.label||''}`;};
       const inS=z=>z.s>=x.s-0.01&&z.s<x.e-0.01;   // 境目ちょうどのものは、後ろのスライド側にだけ出す
       const rows=[];
-      YN.plan.zooms.forEach((z,i)=>{if(z.slide===x.no)rows.push([z.s,fxLine('zooms',i,z,'zoom',zn)]);});
-      YN.plan.marks.forEach((z,i)=>{if(z.slide===x.no)rows.push([z.s,fxLine('marks',i,z,z.type,zn)]);});
+      YN.plan.zooms.forEach((z,i)=>{if(z.slide===x.no)rows.push([z.s,fxLine('zooms',i,z,'zoom',zn,tl)]);});
+      YN.plan.marks.forEach((z,i)=>{if(z.slide===x.no)rows.push([z.s,fxLine('marks',i,z,z.type,zn,tl)]);});
       (YN.plan.sources||[]).forEach((z,i)=>{if(inS(z))rows.push([z.s,fixLine('sources',i,z,`出典${String(z.no)}：${z.name||''}`)]);});
       (YN.plan.charts||[]).forEach((z,i)=>{if(inS(z))rows.push([z.s,fixLine('charts',i,z,`${z.ticker} ${z.interval} ${z.start}〜${z.end}${z.note?`（${z.note}）`:''}`)]);});
       rows.sort((a,b)=>a[0]-b[0]);
@@ -9748,9 +9784,10 @@ ${nums(kind,i,z)}${tail(kind,i,z)}</div>`;
 ${si>0?`<span class="yn-ed"><span class="yn-lb">切り替える文</span><button class="ya-nd" title="切り替えを1文前へ" onclick="ynSlideShift(${si},-1)">◀ 前へ</button><button class="ya-nd" title="切り替えを1文後へ" onclick="ynSlideShift(${si},1)">後へ ▶</button></span>`:''}</div>
 ${rows.map(r=>r[1]).join('')}
 <div class="yn-it yn-add" id="yn-add-row${x.no}" style="display:none;"><select class="yn-sel t-zoom" id="yn-add-t${x.no}" onchange="this.className='yn-sel t-'+this.value">${TYPES.map(o=>`<option value="${o[0]}">${o[1]}</option>`).join('')}</select>
-<span class="yn-lb">枠</span><input class="yn-in yn-zn" id="yn-add-z${x.no}" placeholder="2+3">
+<select class="yn-col" id="yn-add-c${x.no}" title="強調の色（自動＝そのまとまりで控えめに見える色）"><option value="">自動</option>${YN_COLS.map(o=>`<option value="${o[0]}" style="background:${o[0]}">${o[1]}</option>`).join('')}</select>
+<span class="yn-lb">枠</span><input class="yn-in yn-zn" id="yn-add-z${x.no}" placeholder="2+3/T1">
 <span class="yn-nn"><span class="yn-lb">文</span><input class="yn-in" type="number" id="yn-add-f${x.no}" placeholder="${x.from}">〜<input class="yn-in" type="number" id="yn-add-e${x.no}" placeholder="${x.to}"></span>
-<button class="ya-nd" style="background:#0d9488;color:#fff;border-color:#0d9488;" onclick="ynFxAdd(${x.no})">保存</button><button class="ya-nd" onclick="ynAddOpen(${x.no},false)">やめる</button><span class="yn-sd">枠＝上の画像の番号、文＝右の一覧の番号</span></div></div>`);
+<button class="ya-nd" style="background:#0d9488;color:#fff;border-color:#0d9488;" onclick="ynFxAdd(${x.no})">保存</button><button class="ya-nd" onclick="ynAddOpen(${x.no},false)">やめる</button><span class="yn-sd">枠＝上の画像の番号（文字はT1）、文＝右の一覧の番号</span></div></div>`);
     });
   }
   ynPos();
@@ -9759,7 +9796,9 @@ ${rows.map(r=>r[1]).join('')}
     const url=URL.createObjectURL(s.blob);
     box.innerHTML=`<div class="yn-fit"><img src="${url}">`+
       (s.zones||[]).map((z,k)=>{const [y0,x0,y1,x1]=z.box.map(v=>v/10);
-        return `<div class="yn-zone" style="left:${x0}%;top:${y0}%;width:${Math.max(0,x1-x0)}%;height:${Math.max(0,y1-y0)}%;" title="${esc(z.label)}"><span>${k+1}</span></div>`;}).join('')+`</div>`;
+        return `<div class="yn-zone" style="left:${x0}%;top:${y0}%;width:${Math.max(0,x1-x0)}%;height:${Math.max(0,y1-y0)}%;" title="${esc(z.label)}"><span>${k+1}</span></div>`;}).join('')+
+      (s.texts||[]).map((q,k)=>q.lines.map((l,j)=>{const b=ynBox({box:l});
+        return `<div class="yn-tline" style="left:${b.x0*100}%;top:${b.y0*100}%;width:${(b.x1-b.x0)*100}%;height:${(b.y1-b.y0)*100}%;" title="T${k+1} ${esc(YN_TKIND[q.kind]||'')}：${esc(q.label)}">${j===0?`<span>T${k+1}</span>`:''}</div>`;}).join('')).join('')+`</div>`;
   });
 }
 
@@ -9777,7 +9816,8 @@ function ynPlanPrompt(){
   if(YN.slides.some(s=>!s.zones||!s.zones.length))throw new Error('先に「まとまりを読み取る」を実行してください');
   const sents=ynKeptSents();
   if(!sents.length)throw new Error('「音声」タブで文字起こしを済ませてください');
-  const slides=YN.slides.map((s,i)=>`【スライド${i+1}】${s.name}\n`+s.zones.map((z,k)=>`  ${k+1}. ${z.label}${z.text?`（${z.text.slice(0,60)}）`:''}`).join('\n')).join('\n\n');
+  const slides=YN.slides.map((s,i)=>`【スライド${i+1}】${s.name}\n`+s.zones.map((z,k)=>`  ${k+1}. ${z.label}${z.text?`（${z.text.slice(0,60)}）`:''}`).join('\n')
+    +((s.texts||[]).length?`\n  文字（下線・ハイライト用）：\n`+s.texts.map((x,k)=>`  T${k+1}. ${YN_TKIND[x.kind]}：${x.label}`).join('\n'):'')).join('\n\n');
   const K=yaKeep(),te=v=>yaToEdit(v,K);
   // 時刻と長さは「カット後」のもの（視聴者が見る時間）。文の一部を削っている分も引いてある
   const lines=sents.map(x=>`[${x.n}] ${yaTc(te(x.s))}（${Math.max(0,te(x.e)-te(x.s)).toFixed(1)}秒） ${x.sp?(x.sp===1?'A':'B')+': ':''}${x.text}`).join('\n');
@@ -9802,6 +9842,8 @@ function ynPlanPrompt(){
 ・強調：種類は rect（四角枠）、highlight（ハイライト）、underline（下線）。そのスライドを表示している時間に応じて付け、目安は8〜10秒に1個。
 　四角枠は、いま話している項目（カードや枠）に付け、話が次の項目に移ったら次の項目に付け替える。ズームしている範囲の中の項目にも付ける。
 　下線は、見出し、数字とその見出し、結論の一文に付ける。ハイライトは、下線と同じ対象を控えめに見せたいときに使う。
+　下線とハイライトは、そのスライドに「文字」（T番号）があれば、zone ではなく text に T番号を書く。
+　strength：その1枚でいちばん重要な箇所だけ strong、それ以外は soft。
 ・表紙（1枚目）は、まだ説明が始まっていないので、ズームは付けず、強調も付けないか1個まで。
 ・コーナー名：そのスライドの内容を表す8字以内の短い言葉（動画の右上に出す）。
 ・根拠資料：その資料が裏づけている事実を話している文の範囲に割り当てる。1件は5〜8秒。
@@ -9817,7 +9859,7 @@ function ynPlanPrompt(){
 【出力】JSONをコードブロック1つでそのまま出力する。説明文は不要。
 {"slides":[{"no":1,"from":文番号,"to":文番号,"corner":"コーナー名"}],
  "zooms":[{"slide":1,"zones":[まとまりの番号],"from":文番号,"to":文番号}],
- "marks":[{"slide":1,"zone":まとまりの番号,"type":"rect","from":文番号,"to":文番号}],
+ "marks":[{"slide":1,"zone":まとまりの番号,"type":"rect","strength":"soft","from":文番号,"to":文番号}],（文字に付けるときは zone の代わりに "text":"T1"）
  "sources":[{"no":資料の番号,"from":文番号,"to":文番号,"interval":"日足","start":"2026-01-01","end":"2026-09-18"}],（interval・start・end は【チャート】の資料だけ）
  "charts":[{"from":文番号,"to":文番号,"interval":"日足","start":"2026-01-01","end":"2026-09-18","note":"何を見せるか（例：2/25の高値から9/18まで）"}]}
 
@@ -9864,8 +9906,13 @@ function ynApplyPlan(plan){
     return zs.length?{slide:+z.slide,zones:zs,...g}:null;
   }).filter(z=>z&&ynEditLen(z.s,z.e)>=3);          // 長さはカット後で見る
   const marks=(plan.marks||[]).map(z=>{
-    const g=rng(z);if(!g||!zn(+z.slide,+z.zone))return null;
-    return{slide:+z.slide,zones:[+z.zone],type:['rect','highlight','underline'].includes(z.type)?z.type:'rect',...g};
+    const g=rng(z),S=YN.slides[+z.slide-1];if(!g||!S)return null;
+    const tn=+((String(z.text||'').match(/\d+/)||[])[0]||0),tx=tn&&S.texts&&S.texts[tn-1]?tn:0;
+    if(!tx&&!zn(+z.slide,+z.zone))return null;
+    const it={slide:+z.slide,type:['rect','highlight','underline'].includes(z.type)?z.type:'rect',...g};
+    if(tx)it.text=tx;else it.zones=[+z.zone];
+    it.color=ynMarkColor(it,z.strength==='strong'?'strong':'soft');
+    return it;
   }).filter(Boolean);
   const srcAll=ytSources();
   const sources=(plan.sources||[]).map(x=>{const s=srcAll.find(y=>String(y.no)===String(x.no));const g=rng(x);return s&&g?{no:String(s.no),label:s.label||s.name,name:s.name,interval:String(x.interval||''),start:String(x.start||''),end:String(x.end||''),...g}:null;}).filter(Boolean);
@@ -9878,6 +9925,21 @@ function ynApplyPlan(plan){
 }
 // スライドの並びを、音声で出てくる順（始まりの文の順）にそろえる。
 // 音声の話の順番がスライドの番号順と違うことがある（例：強み→急落の真相 の順で話している）
+// 強調の色：そのまとまり（文字なら入っているまとまり）の読み取りで返った色。無ければ強い＝赤、控えめは種類ごとの色
+function ynMarkColor(it,str){
+  const S=YN.slides[it.slide-1]||{},Z=S.zones||[];
+  const zk=it.text?(((S.texts||[])[it.text-1]||{}).zone||0):((it.zones||[])[0]||0);
+  const c=zk&&Z[zk-1]&&Z[zk-1].col&&Z[zk-1].col[str];
+  if(c&&YN_COL[c])return YN_COL[c];
+  return str==='strong'?YN_COL.red:({rect:YN_COL.red,underline:YN_COL.blue,highlight:YN_COL.yellow}[it.type]||YN_COL.blue);
+}
+// 文字の位置が、入っているはずのまとまりの枠から外れていないか（読み取りのずれの目安）
+function ynTextOut(slide,tx){
+  const S=YN.slides[slide-1]||{},x=(S.texts||[])[tx-1];if(!x||!x.zone)return false;
+  const z=(S.zones||[])[x.zone-1];if(!z)return false;
+  const b=ynBox(z),tol=0.02;
+  return x.lines.some(l=>{const c=ynBox({box:l});return c.x0<b.x0-tol||c.y0<b.y0-tol||c.x1>b.x1+tol||c.y1>b.y1+tol;});
+}
 function ynPlanNorm(){
   const P=YN.plan;if(!P||!P.slides||!P.slides.length)return;
   ['zooms','marks'].forEach(k=>(P[k]||[]).forEach(it=>{if(it.zones&&it.zones.length>1)it.zones=ynTrimNested(it.zones,it.slide);}));
@@ -9909,13 +9971,19 @@ function ynParseZones(v,slide){
   const max=(((YN.slides[slide-1]||{}).zones)||[]).length;
   return ynTrimNested([...new Set(String(v||'').split(/[^0-9]+/).map(Number).filter(k=>k>=1&&k<=max))],slide);
 }
-// 枠・始まりの文・終わりの文を直す
+// 枠・始まりの文・終わりの文・色を直す
 function ynFxSet(kind,i,field,v){
   const it=YN.plan&&YN.plan[kind]&&YN.plan[kind][i];if(!it)return;
-  if(field==='zones'){
+  if(field==='color'){it.color=v;}
+  else if(field==='zones'&&kind==='marks'&&/^\s*[tTｔＴ]\s*\d+/.test(v)){
+    const n=+String(v).replace(/[^0-9]/g,''),S=YN.slides[it.slide-1]||{};
+    if(!(S.texts||[])[n-1]){alert('そのスライドに無い文字の番号です（上の画像の T の番号）');ynRender();return;}
+    it.text=n;delete it.zones;delete it.zone;
+  }
+  else if(field==='zones'){
     const zs=ynParseZones(v,it.slide);
     if(!zs.length){alert('枠の番号を、画像に出ている番号で入れてください（複数は 2+3）');ynRender();return;}
-    it.zones=zs;delete it.zone;
+    it.zones=zs;delete it.zone;delete it.text;
   }else{
     const ns=ynKeptSents().map(x=>x.n);let n=+v;
     if(!ns.includes(n)){const near=ns.reduce((a,b)=>Math.abs(b-n)<Math.abs(a-n)?b:a,ns[0]);n=near;}   // 削った文の番号なら、近くの残る文へ
@@ -9933,14 +10001,18 @@ function ynAddOpen(no,on){
 // 演出を足す（種類・枠・始まりと終わりの文）
 function ynFxAdd(slide){
   const g=id=>document.getElementById(id+slide),type=g('yn-add-t').value;
-  const zs=ynParseZones(g('yn-add-z').value,slide);
-  if(!zs.length){alert('枠の番号を入れてください（画像に出ている番号。複数は 2+3）');return;}
+  const zv=g('yn-add-z').value,S=YN.slides[slide-1]||{};
+  const tn=type!=='zoom'&&/^\s*[tTｔＴ]\s*\d+/.test(zv)?+zv.replace(/[^0-9]/g,''):0;
+  if(tn&&!(S.texts||[])[tn-1]){alert('そのスライドに無い文字の番号です（上の画像の T の番号）');return;}
+  const zs=tn?[]:ynParseZones(zv,slide);
+  if(!tn&&!zs.length){alert('枠の番号を入れてください（画像に出ている番号。複数は 2+3。文字は T1）');return;}
   const sl=YN.plan.slides.find(x=>x.no===slide),ns=ynKeptSents().map(x=>x.n);
   const pick=v=>{let n=+v;if(!v||!ns.length)return null;return ns.includes(n)?n:ns.reduce((a,b)=>Math.abs(b-n)<Math.abs(a-n)?b:a,ns[0]);};
   let f=pick(g('yn-add-f').value)||sl.from,e=pick(g('yn-add-e').value)||f;if(e<f)e=f;
   const seg=ynSeg(f,e);if(!seg){alert('文の番号を確かめてください');return;}
-  const it={slide,zones:zs,from:f,to:e,...seg};
-  if(type==='zoom')YN.plan.zooms.push(it);else YN.plan.marks.push({...it,type});
+  const it={slide,...(tn?{text:tn}:{zones:zs}),from:f,to:e,...seg};
+  if(type==='zoom')YN.plan.zooms.push(it);
+  else{const mk={...it,type},cv=g('yn-add-c').value;mk.color=cv||ynMarkColor(mk,'soft');YN.plan.marks.push(mk);}
   ynPut('plan',YN.plan);ynRender();
 }
 // 右の文の一覧を、その文まで送る
@@ -9954,10 +10026,12 @@ function yaJumpTo(n){
 function ynPlanKind(kind,i,to){
   const P=YN.plan;if(!P||!P[kind]||!P[kind][i])return;
   const it=P[kind][i];
-  const zs=it.zones||[it.zone];
+  let zs=it.zones||[it.zone];
+  if(it.text){const pz=(((YN.slides[it.slide-1]||{}).texts||[])[it.text-1]||{}).zone;zs=pz?[pz]:[];}   // 文字の強調をズームにするときは、入っているまとまりへ
   if(kind==='zooms'&&to!=='zoom'){
-    P.zooms.splice(i,1);P.marks.push({slide:it.slide,zones:zs,type:to,from:it.from,to:it.to,s:it.s,e:it.e});   // 枠は複数のまま持つ（書き出すときに枠ごとに描く）
+    P.zooms.splice(i,1);const mk={slide:it.slide,zones:zs,type:to,from:it.from,to:it.to,s:it.s,e:it.e};mk.color=ynMarkColor(mk,'soft');P.marks.push(mk);   // 枠は複数のまま持つ（書き出すときに枠ごとに描く）
   }else if(kind==='marks'&&to==='zoom'){
+    if(!zs.length){alert('この文字はどのまとまりにも入っていないので、ズームにできません');ynRender();return;}
     P.marks.splice(i,1);P.zooms.push({slide:it.slide,zones:zs,from:it.from,to:it.to,s:it.s,e:it.e});
   }else if(kind==='marks'){it.type=to;}
   ynPut('plan',P);ynRender();
@@ -10053,16 +10127,29 @@ async function ynExport(btn){
     }
     slides.forEach(s=>s.zoomKeyframes.sort((a,b)=>a.startTime-b.startTime));
     // 強調（四角枠・ハイライト・下線）
-    const COL={rect:'#e91e8c',highlight:'#ffc107',underline:'#2196f3'};
-    const decorations=YN.plan.marks.flatMap(m0=>(m0.zones||[m0.zone]).map(k=>({...m0,zone:k}))).map(mk=>{
-      const zone=(((YN.slides[mk.slide-1]||{}).zones)||[])[mk.zone-1];if(!zone)return null;
-      const b=ynBox(zone);
-      const base={id:++id,type:mk.type,direction:'right',arrowStyle:'open',color:COL[mk.type],
-        startTime:+mk.s.toFixed(2),endTime:+mk.e.toFixed(2),startSil:null,endSil:null,animIn:'fade',animOut:'fade'};
-      if(mk.type==='underline')return{...base,imgX1:b.x0+0.01,imgY1:Math.min(0.99,b.y1+0.006),imgX2:b.x1-0.01,imgY2:Math.min(1,b.y1+0.031),opacity:40,lineWidth:12};
-      if(mk.type==='highlight')return{...base,imgX1:b.x0,imgY1:b.y0,imgX2:b.x1,imgY2:b.y1,opacity:38,lineWidth:20};
-      return{...base,imgX1:b.x0-0.004,imgY1:b.y0-0.006,imgX2:b.x1+0.004,imgY2:b.y1+0.006,opacity:80,lineWidth:6};
-    }).filter(Boolean);
+    const COL={rect:YN_COL.red,highlight:YN_COL.yellow,underline:YN_COL.blue};   // 色が決まっていない古い割り当て用
+    // 文字（T番号）の強調は行ごとに1本（同じ時間）。四角枠は行をまとめて囲む。結論の下線は太く
+    const decorations=YN.plan.marks.flatMap(mk=>{
+      const S=YN.slides[mk.slide-1]||{};
+      const base=()=>({id:++id,type:mk.type,direction:'right',arrowStyle:'open',color:mk.color||COL[mk.type],
+        startTime:+mk.s.toFixed(2),endTime:+mk.e.toFixed(2),startSil:null,endSil:null,animIn:'fade',animOut:'fade'});
+      if(mk.text){
+        const q=(S.texts||[])[mk.text-1];if(!q)return[];
+        const L=q.lines.map(l=>ynBox({box:l}));
+        if(mk.type==='rect'){const b={x0:Math.min(...L.map(v=>v.x0)),y0:Math.min(...L.map(v=>v.y0)),x1:Math.max(...L.map(v=>v.x1)),y1:Math.max(...L.map(v=>v.y1))};
+          return[{...base(),imgX1:b.x0-0.008,imgY1:b.y0-0.01,imgX2:b.x1+0.008,imgY2:b.y1+0.01,opacity:80,lineWidth:6}];}
+        return L.map(b=>mk.type==='underline'
+          ?{...base(),imgX1:b.x0,imgY1:Math.min(0.99,b.y1+0.003),imgX2:b.x1,imgY2:Math.min(1,b.y1+0.028),opacity:40,lineWidth:q.kind==='conclusion'?12:6}
+          :{...base(),imgX1:b.x0-0.004,imgY1:b.y0,imgX2:b.x1+0.004,imgY2:b.y1,opacity:24,lineWidth:6});
+      }
+      return (mk.zones||[mk.zone]).map(k=>{
+        const zone=(S.zones||[])[k-1];if(!zone)return null;
+        const b=ynBox(zone);
+        if(mk.type==='underline')return{...base(),imgX1:b.x0+0.01,imgY1:Math.min(0.99,b.y1+0.006),imgX2:b.x1-0.01,imgY2:Math.min(1,b.y1+0.031),opacity:40,lineWidth:6};
+        if(mk.type==='highlight')return{...base(),imgX1:b.x0,imgY1:b.y0,imgX2:b.x1,imgY2:b.y1,opacity:38,lineWidth:20};
+        return{...base(),imgX1:b.x0-0.004,imgY1:b.y0-0.006,imgX2:b.x1+0.004,imgY2:b.y1+0.006,opacity:80,lineWidth:6};
+      }).filter(Boolean);
+    });
     // 出典（仮の画像＋左下の表記）。画像はナレスラで差し替える。出している間はズームを外す（ズーム中は画面の外に出るため）
     const decImages={};
     const srcPlan=YN.plan.sources||[];
@@ -10701,7 +10788,7 @@ async function ynRestore(){
   const a=await ynGet('slides');
   const pl=await ynGet('plan');if(pl&&pl.slides){YN.plan=pl;try{ynPlanNorm();}catch(e){}}
   const tp=await ynGet('tpl');if(tp&&tp.name){const el=ynEl('tpl-name');if(el)el.textContent=`ひな形：${tp.name}`;}
-  if(Array.isArray(a)&&a.length)YN.slides=a.map(s=>({name:s.name,blob:s.blob,zones:s.zones||null,...(s.qrOrig?{qrOrig:s.qrOrig}:{}),...(s.qrRect?{qrRect:s.qrRect}:{})}));
+  if(Array.isArray(a)&&a.length)YN.slides=a.map(s=>({name:s.name,blob:s.blob,zones:s.zones||null,texts:s.texts||null,...(s.qrOrig?{qrOrig:s.qrOrig}:{}),...(s.qrRect?{qrRect:s.qrRect}:{})}));
   ynRender();
 }
 
@@ -10813,7 +10900,7 @@ async function tabIoYtCollect(){
   return{v:1,
     audio:audioBlob?{name:YA.fileName||audioBlob.name||'narration',blob:await enc(audioBlob)}:null,
     state:(YA.sents&&YA.sents.length)||YA.dur?{fileName:YA.fileName,dur:YA.dur,chars:YA.chars,wchars:YA.wchars,sents:YA.sents,cuts:YA.cuts,sections:YA.sections,score:YA.score,reach:YA.reach,stock:getName()}:null,
-    slides:await Promise.all((YN.slides||[]).map(async s=>({name:s.name,zones:s.zones||null,qrRect:s.qrRect||null,blob:await enc(s.blob),qrOrig:s.qrOrig?await enc(s.qrOrig):null}))),
+    slides:await Promise.all((YN.slides||[]).map(async s=>({name:s.name,zones:s.zones||null,texts:s.texts||null,qrRect:s.qrRect||null,blob:await enc(s.blob),qrOrig:s.qrOrig?await enc(s.qrOrig):null}))),
     plan:YN.plan||null,
     tpl:tpl&&tpl.blob?{name:tpl.name,blob:await enc(tpl.blob)}:null,
     srcimg:Object.fromEntries(await Promise.all(Object.entries(YS.imgs||{}).map(async([k,g])=>[k,{rect:g.rect||null,w:g.w||0,h:g.h||0,name:g.name||'',blob:await enc(g.blob),orig:g.orig?await enc(g.orig):null}]))),
@@ -10826,7 +10913,7 @@ async function tabIoYtRestore(y){
   // 保存先（IndexedDB）を書き換える
   await yaPut('audio',y.audio&&y.audio.blob?{blob:await dec(y.audio.blob),name:y.audio.name||'narration'}:null);
   await yaPut('state',y.state||null);
-  await ynPut('slides',await Promise.all((y.slides||[]).map(async s=>({name:s.name,zones:s.zones||null,qrRect:s.qrRect||null,blob:await dec(s.blob),qrOrig:s.qrOrig?await dec(s.qrOrig):null}))));
+  await ynPut('slides',await Promise.all((y.slides||[]).map(async s=>({name:s.name,zones:s.zones||null,texts:s.texts||null,qrRect:s.qrRect||null,blob:await dec(s.blob),qrOrig:s.qrOrig?await dec(s.qrOrig):null}))));
   await ynPut('plan',y.plan||null);
   await ynPut('tpl',y.tpl&&y.tpl.blob?{name:y.tpl.name,blob:await dec(y.tpl.blob)}:null);
   const si={};for(const[k,g]of Object.entries(y.srcimg||{}))si[k]={rect:g.rect||null,w:g.w||0,h:g.h||0,name:g.name||'',blob:await dec(g.blob),orig:g.orig?await dec(g.orig):null};
