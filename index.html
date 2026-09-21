@@ -8901,8 +8901,8 @@ async function ytPostAi(btn){
       body:JSON.stringify({prompt,resources:[],files:[],temperature:0.6,models:ytModels('post'),onBusy:'stop'})});
     const data=await res.json();if(!data.ok)throw new Error(ytAiErr(data,'post'));
     ytEl('post').value=data.text||'';saveState();
-    // 反映できたら、株価分析のバックアップ（横動画の音声・スライド・割り当て・出典の画像も入る）を書き出す
-    if(ytPostApply()!==false){const st=ytEl('post-status'),msg=st?st.textContent:'';await exportTabData('price');ytStatus(`${msg}　💾 バックアップを書き出しました`,'ok','post-status');}
+    // 反映できたら、バックアップ（横動画の音声・スライド・割り当て・出典の画像も入る）を書き出す。株価分析の動画は株価分析のタブごと、YT動画はYT動画のタブを
+    if(ytPostApply()!==false){const st=ytEl('post-status'),msg=st?st.textContent:'';await exportTabData(ytGen()?'yt':'price');ytStatus(`${msg}　💾 バックアップを書き出しました`,'ok','post-status');}
   }catch(e){ytStatus('❌ '+e.message,'error','post-status');}
   finally{if(btn)btn.disabled=false;}
 }
@@ -9116,6 +9116,7 @@ function ytBuildTabHtml(){
 <div class="sa-card">
   <h2>1. 調査・動画資料</h2>
   <div class="yt-only-gen" style="display:none;">
+    <div style="display:flex;gap:4px;justify-content:flex-end;"><button class="btn-sm" onclick="exportTabData('yt')" title="このタブの内容（音声・スライド・割り当て・出典の画像も）をJSONで保存" style="flex:none;padding:4px 10px;font-size:11px;background:#e0f2fe;color:#075985;">📤 エクスポート</button><button class="btn-sm" onclick="importTabDataPick('yt')" title="保存したJSONを読み込んで続きから再開" style="flex:none;padding:4px 10px;font-size:11px;background:#dcfce7;color:#166534;">📥 インポート</button></div>
     <div class="sa-sub">▼ テーマ</div>
     <input type="text" id="yt-g-theme" placeholder="この動画のテーマ（何が分かる動画か）" oninput="saveState()" style="width:100%;font-size:12px;">
     <div class="sa-sub">▼ レポート（ChatGPTと調べた内容を、レポートにまとめてもらって貼る。形は自由）</div>
@@ -11440,6 +11441,8 @@ const TAB_IO={
   earnings:{label:'決算分析',  roots:['#mode-earnings','#capture-area','#earn-video-view'], codeId:'p-code',        nameId:'p-name'},
   stock:   {label:'個別銘柄分析',roots:['#mode-stock','#capture-area-stock'],                 codeId:'sa-code-input', nameId:'sa-name-input'},
   price:   {label:'株価分析',  roots:['#mode-price','#capture-area-price'],                 codeId:'inp-ticker',    nameId:'inp-name'},
+  // YT動画：横動画のパネル（#yt-root）は、このタブを開いている間だけ #mode-yt の中にある。右側（サムネイルなど）は株価分析と共用なので roots に入れない
+  yt:      {label:'YT動画',    roots:['#mode-yt'],                                           codeId:null,            nameId:'yt-g-theme'},
 };
 // タブ内のフォーム要素をすべて集める（動画サブタブなど JS で作った欄も含む）
 function tabIoElements(tab){
@@ -11475,6 +11478,11 @@ function tabIoApplyFields(tab,fields,radios){
   });
 }
 function tabIoHidden(tab){
+  if(tab==='yt'){
+    // サムネイルの文言と型は、欄が株価分析と共用なので、ここで別に持つ
+    const pr=(document.querySelector('input[name="th-preset"]:checked')||{}).value||'youtube';
+    return{ytctx:'gen',th:{text:(document.getElementById('th-input')||{}).value||'',preset:pr}};
+  }
   if(tab==='earnings')return{
     fetched:window._earnFetched||null,
     files:window._earnFiles||[],
@@ -11522,11 +11530,11 @@ async function tabIoYtRestore(y){
 }
 function tabIoFileName(tab){
   const cfg=TAB_IO[tab];
-  const code=((document.getElementById(cfg.codeId)||{}).value||'').trim().replace(/[\\\/:*?"<>|\s]/g,'')||'銘柄';
-  const name=((document.getElementById(cfg.nameId)||{}).value||'').trim().replace(/[\\\/:*?"<>|\s]/g,'');
+  const code=cfg.codeId?(((document.getElementById(cfg.codeId)||{}).value||'').trim().replace(/[\\\/:*?"<>|\s]/g,'')||'銘柄'):'';
+  const name=((document.getElementById(cfg.nameId)||{}).value||'').trim().replace(/[\\\/:*?"<>|\s]/g,'').slice(0,30);
   const d=new Date(),p=n=>String(n).padStart(2,'0');
   const stamp=`${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
-  return `${stamp}_${cfg.label}_${code}${name?'_'+name:''}.json`;
+  return `${stamp}_${cfg.label}${code?'_'+code:''}${name?'_'+name:''}.json`;
 }
 // opt.light＝横動画の重いデータ（音声・スライド画像など）を入れない（記事生成後の自動エクスポート用）
 async function exportTabData(tab,opt){
@@ -11535,7 +11543,9 @@ async function exportTabData(tab,opt){
     if(typeof saveStateNow==='function')saveStateNow();
     const {fields,radios}=tabIoCollectFields(tab);
     const hidden=tabIoHidden(tab);
-    if(tab==='price'&&!(opt&&opt.light)){
+    if(tab==='yt'&&!ytGen()){alert('「🎬 YT動画」タブを開いてから書き出してください');return;}
+    if((tab==='price'&&!(opt&&opt.light))||tab==='yt'){
+      await _ytCtxChain;   // 種類の切り替えの途中で集めない
       try{hidden.yt=await tabIoYtCollect();}
       catch(e){console.error(e);if(!confirm('横動画のデータ（音声・スライドなど）を書き出せませんでした：'+((e&&e.message)||e)+'\nそれ以外だけを書き出しますか？'))return;}
     }
@@ -11607,6 +11617,8 @@ function renderPriceFetchInfo(){
 }
 async function importTabData(tab,data){
   const fields=data.fields||{},radios=data.radios||{},hidden=data.hidden||{};
+  // 横動画のデータは、開いているタブの側の保存先に入る。読み込む先のタブを先に開き、保存先の切り替えが終わるのを待つ
+  if(tab==='yt'||tab==='price'){switchMode(tab);await _ytCtxChain;}
   // 1) 入力欄・ラジオを戻す
   tabIoApplyFields(tab,fields,radios);
 
@@ -11626,6 +11638,16 @@ async function importTabData(tab,data){
   }else if(tab==='stock'){
     window._saFetched=hidden.fetched||null;
     if(typeof switchSaCompareMode==='function')switchSaCompareMode(getSaCompareMode());
+  }else if(tab==='yt'){
+    if(hidden.yt)await tabIoYtRestore(hidden.yt);
+    const th=hidden.th;
+    if(th){
+      const ta=document.getElementById('th-input');if(ta)ta.value=th.text||'';
+      const r=document.querySelector(`input[name="th-preset"][value="${th.preset||'youtube'}"]`);
+      if(r&&!r.checked){r.checked=true;if(typeof applyThumbPreset==='function')try{applyThumbPreset(r.value);}catch(e){}}
+      if(typeof renderThumbPreview==='function')try{renderThumbPreview();}catch(e){}
+    }
+    ytCtxApplyUi();ytFixedMigrate();
   }else{
     window._fetched=hidden.fetched||null;
     await tabIoRestoreTts('vd',hidden.tts);
