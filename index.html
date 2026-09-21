@@ -8549,7 +8549,7 @@ const YT_POST_RULES=`あなたはYouTubeチャンネルの成長戦略顧問で�
 　関連動画・メンバーシップ・使用ツール・AI注意喚起の文は、ツールが後ろに付けるので書かない。
 ・概要欄の最後に付けるハッシュタグを tags に出す。3〜5個。銘柄名と証券コードは必ず入れ、あとは、この会社やこの動画の内容を探す人が検索窓に実際に打ち込みそうな言葉にする。
 　どの銘柄の動画にも付けられる汎用的な言葉は使わない。開発番号や型番のように、一般の人が検索に使わない言葉も使わない。
-・X投稿案の1行目「【#銘柄名（証券コード）】」と、その直下の動画のURLは、ツールが付けるので書かない。本文から書き始める。
+・X投稿案の1行目「【#銘柄名（証券コード）】」と、最終行の動画のURLは、ツールが付けるので書かない。本文から書き始める。
 　1行目とURLの分があるので、本文はハッシュタグを含めて全角100字以内にする。
 ・X投稿案の最後のハッシュタグには、銘柄名と証券コードを入れない（1行目に入っているため）。言葉の選び方は tags と同じ。
 ・CTR／SEO最適化ポイント、動画管理表は出力しない。
@@ -8638,8 +8638,8 @@ function ytPostUrlSet(){
   if(!el.value.trim()){ytPostBuild();return;}
   const lines=el.value.split(/\r?\n/);
   const k=lines.findIndex(s=>/^https?:\/\/\S+$/.test(s.trim()));
-  if(k>=0){if(yt)lines[k]=yt;else lines.splice(k,1);}
-  else if(yt)lines.splice(/^【/.test((lines[0]||'').trim())?1:0,0,yt);
+  if(k>=0)lines.splice(k,1);   // 前のURLの行は外し、最終行に置き直す
+  if(yt){while(lines.length&&!lines[lines.length-1].trim())lines.pop();lines.push(yt);}   // 無ければ最終行に足す
   el.value=lines.join('\n');saveState();
 }
 // ハッシュタグを変えたとき：概要欄の文面はそのままに、末尾のタグだけを差し替える
@@ -8657,12 +8657,12 @@ function ytPostBuild(){
     ytEl('p-desc').value=[body,url?`▼ さらに詳しい分析はこちら（note）\n${url}`:'',fixed,tags].filter(Boolean).join('\n\n');
   }
   if(xbody){
-    // 1行目＝【#銘柄名（コード）】、その直下に動画のURL、本文、ハッシュタグ（空行は入れない）
+    // 1行目＝【#銘柄名（コード）】、本文、ハッシュタグ、最終行に動画のURL（記事タブのX告知文と同じ。空行は入れない）
     const head=`【#${(getName()||'').replace(/\s+/g,'')}（${getTicker()||''}）】`,yt=ytVal('p-yturl');
     const lines=xbody.split(/\r?\n/).map(s=>s.trim()).filter(Boolean).filter(s=>!/^【\s*#/.test(s)&&!/^https?:/.test(s));
     const dup=[(getName()||'').replace(/\s+/g,''),String(getTicker()||'')].filter(Boolean);
     const body=lines.map(s=>s.replace(/[#＃]([^\s#＃]+)/g,(m,w)=>dup.includes(w)?'':m).replace(/[ 　]{2,}/g,' ').trim()).filter(Boolean);
-    ytEl('p-x').value=[head,yt,...body].filter(Boolean).join('\n');
+    ytEl('p-x').value=[head,...body,yt].filter(Boolean).join('\n');
   }
   saveState();
 }
@@ -8795,7 +8795,7 @@ ${yaBuildPaneHtml()}</div>
   ${row(b('📋 概要欄をコピー',"copyText(ytVal('p-desc'),this)",'background:#0d9488;color:#fff;'),b('↻ 組み立て直す',"if(confirm('概要欄とXを、AIの本文から作り直します。手で直した分は消えます。よろしいですか？'))ytPostBuild()"))}
   <div style="font-size:10px;color:var(--text-sub);">本文 → noteの記事リンク（記事タブの記事URL）→ 定型文（設定タブ）→ ハッシュタグ の順に組み立てます。「↻ 組み立て直す」は、手で直した分を捨てて、AIの本文から作り直します。</div>
   <div class="sa-sub">▼ X（旧Twitter）（このまま貼れる全文）</div>
-  <textarea id="yt-p-x" placeholder="【#銘柄名（コード）】／YouTubeのURL／本文／ハッシュタグ" oninput="saveState()" style="min-height:90px;font-size:11px;"></textarea>
+  <textarea id="yt-p-x" placeholder="【#銘柄名（コード）】／本文／ハッシュタグ／YouTubeのURL" oninput="saveState()" style="min-height:90px;font-size:11px;"></textarea>
   ${row(b('📋 Xをコピー',"copyText(ytVal('p-x'),this)"))}
 </div>
 </div>
