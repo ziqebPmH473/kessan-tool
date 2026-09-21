@@ -439,6 +439,7 @@
 .yn-tline{position:absolute;border:1px dashed #f97316;pointer-events:none;}
 .yn-tline span{position:absolute;right:100%;top:-1px;font-size:9px;line-height:11px;padding:0 2px;background:#f97316;color:#fff;border-radius:2px;margin-right:1px;}
 .sa select.yn-col,select.yn-col{flex:none;width:34px;height:18px;font-size:10px;line-height:18px;padding:0 2px;border:none;border-radius:9px;color:#fff;font-weight:700;appearance:none;-webkit-appearance:none;text-align:center;cursor:pointer;}
+.sa select.yn-srcsel,select.yn-srcsel{flex:0 1 180px;min-width:90px;width:auto;height:20px;font-size:10px;padding:0 4px;}
 .yn-warn{flex:none;font-size:10px;color:#b45309;background:#fef3c7;border-radius:6px;padding:0 4px;cursor:help;}
 .yn-zone span{position:absolute;left:0;top:0;background:rgba(37,99,235,.9);color:#fff;font-size:10px;line-height:1.4;padding:0 4px;}
 .yn-plan{font-size:11px;color:#334155;padding:4px 8px;border-top:1px solid var(--border);background:#f8fafc;}
@@ -9779,11 +9780,13 @@ ${nums(kind,i,z)}${tail(kind,i,z)}</div>`;};
       rows.sort((a,b)=>a[0]-b[0]);
       const first=(sents.find(q=>q.n===x.from)||{}).text||'';
       const si=YN.plan.slides.indexOf(x);
+      const srcOpts=ytSources().map(s=>`<option value="${esc(String(s.no))}">出典${esc(String(s.no))}：${esc(s.name||'')}${s.kind==='chart'?'（チャート）':''}</option>`).join('')||'<option value="">出典一覧がありません</option>';
       el.insertAdjacentHTML('afterend',`<div class="yn-plan"><div class="yn-hd2"><button class="ya-nd yn-addbtn" onclick="ynAddOpen(${x.no},true)" title="このスライドに演出を足す">＋ 追加</button> 表示 ${yaTc(te(x.s))}〜${yaTc(te(x.e))}（${ynEditLen(x.s,x.e).toFixed(1)}秒・カット後）／文 ${x.from}〜${x.to}${x.corner?`／テロップ「${esc(x.corner)}」`:''}</div>
 <div class="yn-it"><span class="yn-k" style="background:#f59e0b;">切替</span><span class="yn-nn"><button class="yn-go" onclick="yaJumpTo(${x.from})" title="右の一覧でこの文を表示">文</button> ${x.from}</span><span class="yn-sd" title="${esc(first)}">ここから：「${esc(first.slice(0,50))}」</span>
 ${si>0?`<span class="yn-ed"><span class="yn-lb">切り替える文</span><button class="ya-nd" title="切り替えを1文前へ" onclick="ynSlideShift(${si},-1)">◀ 前へ</button><button class="ya-nd" title="切り替えを1文後へ" onclick="ynSlideShift(${si},1)">後へ ▶</button></span>`:''}</div>
 ${rows.map(r=>r[1]).join('')}
-<div class="yn-it yn-add" id="yn-add-row${x.no}" style="display:none;"><select class="yn-sel t-zoom" id="yn-add-t${x.no}" onchange="this.className='yn-sel t-'+this.value">${TYPES.map(o=>`<option value="${o[0]}">${o[1]}</option>`).join('')}</select>
+<div class="yn-it yn-add" id="yn-add-row${x.no}" style="display:none;"><select class="yn-sel t-zoom" id="yn-add-t${x.no}" onchange="this.className='yn-sel t-'+this.value;ynAddType(${x.no})">${TYPES.concat([['source','出典']]).map(o=>`<option value="${o[0]}">${o[1]}</option>`).join('')}</select>
+<select class="yn-in yn-srcsel" id="yn-add-s${x.no}" style="display:none;">${srcOpts}</select>
 <select class="yn-col" id="yn-add-c${x.no}" title="強調の色（自動＝そのまとまりで控えめに見える色）"><option value="">自動</option>${YN_COLS.map(o=>`<option value="${o[0]}" style="background:${o[0]}">${o[1]}</option>`).join('')}</select>
 <span class="yn-lb">枠</span><input class="yn-in yn-zn" id="yn-add-z${x.no}" placeholder="2+3/T1">
 <span class="yn-nn"><span class="yn-lb">文</span><input class="yn-in" type="number" id="yn-add-f${x.no}" placeholder="${x.from}">〜<input class="yn-in" type="number" id="yn-add-e${x.no}" placeholder="${x.to}"></span>
@@ -9998,9 +10001,26 @@ function ynAddOpen(no,on){
   r.style.display=on?'':'none';
   if(on){const z=document.getElementById('yn-add-z'+no);if(z)z.focus();}
 }
-// 演出を足す（種類・枠・始まりと終わりの文）
+// 追加の行で種類を変えたとき：出典なら出典の選択欄、ほかは色と枠の欄を出す
+function ynAddType(slide){
+  const g=id=>document.getElementById(id+slide),src=g('yn-add-t').value==='source';
+  g('yn-add-s').style.display=src?'':'none';g('yn-add-z').style.display=src?'none':'';g('yn-add-c').style.display=src?'none':'';
+  const lb=g('yn-add-z').previousElementSibling;if(lb&&lb.classList.contains('yn-lb'))lb.style.display=src?'none':'';
+}
+// 演出を足す（種類・枠・始まりと終わりの文）。出典も、演出として差し込める（出典一覧から選ぶ。出典そのものは増やさない）
 function ynFxAdd(slide){
   const g=id=>document.getElementById(id+slide),type=g('yn-add-t').value;
+  if(type==='source'){
+    const s=ytSources().find(y=>String(y.no)===g('yn-add-s').value);if(!s){alert('出典を選んでください（調査タブの動画資料の出典一覧から出ます）');return;}
+    const sl=YN.plan.slides.find(x=>x.no===slide),ns=ynKeptSents().map(x=>x.n);
+    const pick=v=>{let n=+v;if(!v||!ns.length)return null;return ns.includes(n)?n:ns.reduce((a,b)=>Math.abs(b-n)<Math.abs(a-n)?b:a,ns[0]);};
+    let f=pick(g('yn-add-f').value)||sl.from,e=pick(g('yn-add-e').value)||f;if(e<f)e=f;
+    const seg=ynSeg(f,e);if(!seg){alert('文の番号を確かめてください');return;}
+    (YN.plan.sources=YN.plan.sources||[]).push({no:String(s.no),label:s.label||s.name,name:s.name,interval:'',start:'',end:'',from:f,to:e,...seg});
+    YN.plan.sources.sort((a,b)=>a.s-b.s);
+    ynPut('plan',YN.plan);ynRender();if(typeof ysRender==='function')ysRender();
+    return;
+  }
   const zv=g('yn-add-z').value,S=YN.slides[slide-1]||{};
   const tn=type!=='zoom'&&/^\s*[tTｔＴ]\s*\d+/.test(zv)?+zv.replace(/[^0-9]/g,''):0;
   if(tn&&!(S.texts||[])[tn-1]){alert('そのスライドに無い文字の番号です（上の画像の T の番号）');return;}
