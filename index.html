@@ -7530,7 +7530,7 @@ function earnPrevMode(m){
 }
 
 // ============================================================
-// YouTube 横動画（株価分析・シリーズ「私が知らなかった実力株」）  接頭辞 yt
+// YouTube 横動画（株価分析。シリーズ名は音声タブの欄）  接頭辞 yt
 // 設計：docs/design/2026-09-20_YouTube横動画.md
 // ・ChatGPT に渡すのはレポートの 1〜2章（無料範囲）だけ。3章以降（将来予測・シナリオ・リスク）は渡さない
 // ・スライドは「スライド作成」タブの6枚を土台に組み直す（1280×720 で組み、1.5倍で 1920×1080 に画像化）
@@ -7583,9 +7583,7 @@ function ytResearchPrompt(withReport=true){
 個人投資家向けYouTube番組のリサーチャー兼構成作家です。企業IRや決算説明資料などの一次情報を読み込み、会社の事業と競争力を分かりやすく整理します。
 
 ## 目的
-YouTubeシリーズ「私が知らなかった実力株」の動画資料を作ります。
-株価が大きく${up?'上昇':'下落'}した銘柄を入口に、「この会社は何者なのか」「なぜ強いのか」「その強さは続くのか」「今後何を確認すればよいか」を掘り下げます。株価予想の動画ではありません。
-銘柄を取り上げる理由は「大きく${up?'上昇':'下落'}した銘柄を調べていたところ、事業内容に興味を持った」程度にとどめ、「評価が高いから紹介する」のような説明はしません。
+${ytIntent()}を作成します。そのための動画資料を作ります。
 
 ## 入力の使い方
 下に【基本情報】と【株価分析レポート（1〜2章）】を貼ります。
@@ -8155,7 +8153,7 @@ function ytSlideParts(){
   const fr=ytFreeReport();
   const ch=YT_CHAPTERS.map(c=>`${c.no} ${up&&c.whatUp?c.whatUp:c.what}`).join('\n');
   const plan=`【内部用の企画方針｜この方針文は画像に表示しない】
-${ytTheme()?`・今回のテーマ：${ytTheme()}\n`:''}・動画の目的：株価の予想ではなく、会社の事業と競争力を掘り下げること
+・どういう動画か：${ytIntent()}
 ・章の並びと、その章で扱う内容（内部用。章番号は画像に描かない）：
 ${ch.split('\n').map(s=>'　'+s).join('\n')}
 ・各スライドの見出しは、その章の音声とレポートの内容から付けてください。
@@ -8248,24 +8246,25 @@ function ytNoteUrl(){
     ||((document.getElementById('art-url')||{}).value||'').trim()
     ||vdVal('vd','note-url')||'';
 }
-// 今回のテーマ（音声タブで直せる）。空欄なら、テーマの言い方を入れない
-function ytThemeDefault(){return `株価が大きく${getDir()==='up'?'上昇':'下落'}した銘柄`;}
-function ytTheme(){return ((document.getElementById('yt-theme')||{}).value||'').trim();}
-function ytThemeReset(){const el=document.getElementById('yt-theme');if(!el)return;el.value=ytThemeDefault();saveState();}
+// シリーズ名（音声タブで直せる）。空欄なら、シリーズ無しとして扱う
+const YT_SERIES_DEFAULT='私が知らない実力株';
+function ytSeries(){const el=document.getElementById('yt-series');return el?(el.value||'').trim():YT_SERIES_DEFAULT;}
+function ytSeriesReset(){const el=document.getElementById('yt-series');if(!el)return;el.value=YT_SERIES_DEFAULT;saveState();}
+// どういう動画か（意図だけ）。調査・音声・スライド・投稿文のプロンプトで同じ文を使う。細かいことは構成と資料が伝える
+function ytIntent(){
+  const s=ytSeries();
+  return `${getName()||'この会社'}の株価${getDir()==='up'?'上昇':'下落'}の原因と強み、今後見るべき点を分析する動画${s?`（「${s}」というシリーズで）`:''}`;
+}
 function ytNotebookPrompt(){
   const up=getDir()==='up',name=getName()||'この会社',min=ytVal('nlm-min')||'12';
   const yomi=ytYomi();
   if(!yomi){ytEl('yomi')?.focus();throw new Error('銘柄名の読みがなを入れてください（NotebookLMは銘柄名を読み間違えやすいため必須）');}
-  return `根拠資料をもとに、約${min}分のYouTube解説動画用の音声を作成してください。
-
-テーマは、
-「${name}は何者なのか。この会社の事業と競争力を掘り下げる」
-です。シリーズ「私が知らなかった実力株」の1本で、株価予想ではなく会社そのものを主役にします。${ytTheme()?`
-今回は「${ytTheme()}」として取り上げます。`:''}
+  return `${ytIntent()}を作成します。
+根拠資料をもとに、以下の構成で動画に使用する音声（約${min}分）を生成してください。
 
 話し手はアナリスト（専門家）、聞き手は投資に詳しいMCです。MCは視聴者と同じ目線の質問係ではなく、論点を整理して引き出し、視聴者に投資判断の材料を渡す役です。
 
-大まかな構成は以下です。時間配分は厳密に守る必要はありません。
+構成は以下です。時間配分は厳密に守る必要はありません。
 1. なぜ今この銘柄？
    株価がいつの高値からどれだけ${up?'上昇':'下落'}したかを入口に、この会社を調べる理由を提示する。
 2. そもそも何の会社？
@@ -8440,7 +8439,7 @@ function ytFixClear(){
 
 // ---- 投稿文（タイトル・サムネ・概要欄・X）----
 // 土台は docs/prompts/gem-youtube-rules.md（ユーザーが Gem で使っていたルール）。
-// 関連動画のURL・動画管理表・VOICEVOX は使わない。シリーズ名は「私が知らなかった実力株」。
+// 関連動画のURL・動画管理表・VOICEVOX は使わない。シリーズ名は音声タブの欄（ytSeries）。
 const YT_POST_RULES=`あなたはYouTubeチャンネルの成長戦略顧問です。下の【運用ルール】に厳密に従って、この動画の「タイトル案3本・サムネ案3本・概要欄・X投稿案」を作ってください。
 
 【運用ルール（原文）】
@@ -8540,7 +8539,7 @@ const YT_POST_RULES=`あなたはYouTubeチャンネルの成長戦略顧問で�
 **動画の核心的な「問いかけ」や「注目ポイント」を、絵文字を交えつつ、「空行なし（詰め）」**で120文字程度にまとめる。**文の区切りで改行する場合は必ず「1回」のみとし、見た目の空白行を作らないこと。**ハッシュタグも本文の直後の行に（空行を挟まず）配置する。
 
 【この動画での読み替え（運用ルールより優先）】
-・シリーズ名は「私が知らなかった実力株」。タイトルの末尾は「｜私が知らなかった実力株」にする（「｜銘柄分析」などは付けない）。先頭は【銘柄名（証券コード）】。
+{{SERIES_RULE}}
 ・サムネ案は、スラッシュ区切りではなく、ツールの記法「上段：中段：下段」（全角コロン区切り）で書く。
 　- 中段は銘柄名をそのまま書く（言い換えない・マーカーも付けない）。
 　- 上段と下段は、運用ルールの役割・文字数・禁止事項のとおりに作る。
@@ -8561,7 +8560,10 @@ const YT_POST_RULES=`あなたはYouTubeチャンネルの成長戦略顧問で�
 function ytPostPrompt(){
   const{plan,report}=ytSlidePartsLoose();
   const tr=ytPostTranscript();
-  return `${YT_POST_RULES}
+  const sr=ytSeries();
+  return `${YT_POST_RULES.replace('{{SERIES_RULE}}',sr
+    ?`・タイトルの末尾は「｜${sr}」にする（「｜銘柄分析」などは付けない）。先頭は【銘柄名（証券コード）】。`
+    :'・タイトルの末尾には何も付けない（「｜銘柄分析」なども付けない）。先頭は【銘柄名（証券コード）】。')}
 
 ---
 【動画の企画】
@@ -8581,9 +8583,7 @@ function ytSlidePartsLoose(){
   const doc=ytStripSources(ytVal('doc'));
   if(!doc)throw new Error('「調査」タブに ChatGPT の動画資料を貼り付けてください');
   const fr=ytFreeReport();
-  const plan=`シリーズ「私が知らなかった実力株」
-${ytTheme()?`今回のテーマ：${ytTheme()}\n`:''}会社の事業と競争力を掘り下げる解説動画。
-株価の予想をする動画ではなく、会社そのものを主役にする。
+  const plan=`${ytIntent()}です。
 
 銘柄：${getName()||''}（${getTicker()||''}）`;
   return{plan,report:`${vdBasicInfo('vd')}\n\n${doc}${fr.ok?`\n\n${fr.text}`:''}`};
@@ -8760,8 +8760,8 @@ function ytBuildTabHtml(){
 <div class="sa-card">
   <h2>1. NotebookLM で音声を作る</h2>
   ${set('銘柄名の読み','<input type="text" id="yt-yomi" placeholder="例：ちゅうがいせいやく（資料を貼ると自動で入ります）" oninput="ytYomiInput()" style="flex:1;min-width:0;font-size:11px;"><input type="hidden" id="yt-yomi-for">')}
-  ${set('今回のテーマ','<input type="text" id="yt-theme" placeholder="空欄なら書きません" oninput="saveState()" style="flex:1;min-width:0;font-size:11px;"><button class="ya-nd" onclick="ytThemeReset()" title="既定の言い方に戻す">↺</button>')}
-  <div style="font-size:10px;color:var(--text-sub);">テーマは、音声の指示・スライド・投稿文で「入口」の言い方として使います（例：株価が大きく下落した銘柄）。この回に合わないときは書き換えるか、空にしてください。</div>
+  ${set('シリーズ名','<input type="text" id="yt-series" value="'+YT_SERIES_DEFAULT+'" placeholder="空欄ならシリーズ無し" oninput="saveState()" style="flex:1;min-width:0;font-size:11px;"><button class="ya-nd" onclick="ytSeriesReset()" title="既定のシリーズ名に戻す">↺</button>')}
+  <div style="font-size:10px;color:var(--text-sub);">シリーズ名は、調査・音声・スライド・投稿文の「どういう動画か」の一文と、タイトルの末尾（｜シリーズ名）に入ります。空にすると、シリーズ無しとして作ります。</div>
   ${row(b('📄 ソース（.md）','ytDownloadSource()','background:#0d9488;color:#fff;'),b('📓 指示',"ytCopy('nlm',this)",G))}
   <div style="font-size:10px;color:var(--text-sub);">指示は約12分（守られないので、長めに作らせる目安）。NotebookLMの長さ設定は「短い」。</div>
 </div>
@@ -8782,7 +8782,7 @@ ${yaBuildPaneHtml()}</div>
 <div class="sa-card" style="margin-top:8px;">
   <h2>2. タイトル・サムネイル</h2>
   <div class="sa-sub">▼ タイトル（3案）</div>
-  ${[1,2,3].map(k=>`<div class="yp-row"><span class="yp-no">${k}</span><textarea id="yt-p-t${k}" rows="2" placeholder="【銘柄名（コード）】…｜私が知らなかった実力株" oninput="saveState()"></textarea><button class="ya-nd" onclick="copyText(ytVal('p-t${k}'),this)">コピー</button></div>`).join('')}
+  ${[1,2,3].map(k=>`<div class="yp-row"><span class="yp-no">${k}</span><textarea id="yt-p-t${k}" rows="2" placeholder="【銘柄名（コード）】…｜シリーズ名" oninput="saveState()"></textarea><button class="ya-nd" onclick="copyText(ytVal('p-t${k}'),this)">コピー</button></div>`).join('')}
   <div class="sa-sub">▼ サムネイル（3案）　上段：中段：下段、*オレンジ* #水色# %黄色%</div>
   ${[1,2,3].map(k=>`<div class="yp-row"><span class="yp-no">${k}</span><textarea id="yt-p-s${k}" rows="2" placeholder="上段：銘柄名：下段" oninput="saveState()"></textarea><span class="yp-btns"><button class="ya-nd" onclick="copyText(ytVal('p-s${k}'),this)">コピー</button><button class="ya-nd" onclick="ytThumbUse(${k})" title="右のサムネイルに入れて表示する">サムネに入れる</button></span></div>`).join('')}
 </div>
@@ -8815,7 +8815,7 @@ ${yaBuildPaneHtml()}</div>
 </div>
 </div>`;
 }
-const YT_PERSIST_IDS=['vd-orient','th-ctx','th-note-text','th-note-preset','yt-th-text','yt-th-preset','yt-doc','yt-theme','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-t1','yt-p-t2','yt-p-t3','yt-p-s1','yt-p-s2','yt-p-s3','yt-p-body','yt-p-xbody','yt-p-yturl','yt-p-tags','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-yomi','yt-yomi-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan'];
+const YT_PERSIST_IDS=['vd-orient','th-ctx','th-note-text','th-note-preset','yt-th-text','yt-th-preset','yt-doc','yt-series','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-t1','yt-p-t2','yt-p-t3','yt-p-s1','yt-p-s2','yt-p-s3','yt-p-body','yt-p-xbody','yt-p-yturl','yt-p-tags','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-yomi','yt-yomi-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan'];
 // 保存済みの定型文（使用ツール）にナレスラの行が無ければ、TradingView の行の下に足す
 function ytFixedMigrate(){
   const fx=document.getElementById('yt-p-fixed');
@@ -8825,7 +8825,7 @@ function ytRestoreFields(){
   let st=null;try{st=JSON.parse(localStorage.getItem(SA_STORAGE_KEY)||'null');}catch(e){}
   if(!st||!st.fields)return;
   YT_PERSIST_IDS.forEach(id=>{const el=document.getElementById(id);if(!el||st.fields[id]==null)return;if(el.type==='checkbox')el.checked=!!st.fields[id];else el.value=st.fields[id];});
-  const th=ytEl('theme');if(th&&(!st.fields||st.fields['yt-theme']==null))th.value=ytThemeDefault();   // 初回だけ既定の言い方を入れる（あとは空欄も尊重する）
+
   ytFixedMigrate();
   const nm=ytEl('nlm-min');if(nm&&nm.value==='8')nm.value='12';   // NotebookLMは長さを守らないので、長めに作らせる目安として12分（旧既定値8分から）
 }
