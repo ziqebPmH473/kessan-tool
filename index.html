@@ -431,7 +431,7 @@
 #yn-prev{display:flex;flex-direction:column;gap:10px;}
 .yn-item{border:1px solid var(--border);border-radius:6px;overflow:hidden;background:#fff;}
 .yn-hd{display:flex;gap:6px;align-items:center;font-size:11px;color:var(--text-sub);padding:4px 8px;background:#f8fafc;border-bottom:1px solid var(--border);}
-.yn-hd b{color:#1f2937;} .yn-hd span{margin-left:auto;}
+.yn-hd b{color:#1f2937;} .yn-hd{flex-wrap:wrap;row-gap:2px;} .yn-hd>*{flex:none;white-space:nowrap;} .yn-hd span:last-of-type{margin-left:auto;}
 .yn-img{display:flex;justify-content:center;line-height:0;background:#f1f5f9;}
 .yn-fit{position:relative;line-height:0;max-width:100%;}
 .yn-fit img{display:block;max-width:100%;max-height:calc(100vh - 190px);width:auto;}
@@ -8817,7 +8817,7 @@ function ytBuildTabHtml(){
   <h2>3. できたスライドを取り込む</h2>
   <div style="font-size:11px;color:var(--text-sub);">できた画像を読み込みます（ファイル名順）。</div>
   <input type="file" id="yn-files" accept="image/*" multiple onchange="ynLoadFiles(this.files)" style="font-size:11px;">
-  ${row(b('🔍 まとまりを読み取る','ynReadZones(this)',G),b('↻ 読み取り直す',"YN.slides.forEach(s=>{s.zones=null;s.texts=null;});ynSave();ynRender();ynReadZones()"))}
+  ${row(b('<span id="yn-read-label">🔍 まとまりを読み取る</span>','ynReadZones(this)',G),b('↻ 読み取り直す',"YN.slides.forEach(s=>{s.zones=null;s.texts=null;});ynSave();ynRender();ynReadZones()"))}
   <div id="yn-status" style="display:none;font-size:11px;"></div>
   <div class="sa-sub">▼ まとめスライドのQR</div>
   ${row(b('🔳 QRを貼る','yqStart(this)',G),b('↩ 貼る前に戻す','yqUndo()'))}
@@ -9752,7 +9752,7 @@ async function ynReadZones(btn,only){
     if(!ytNoteUrl())ynStatus('⚠ QRの飛び先がありません。「記事」タブの記事URL、または設定タブの「QR用URL」を入れてください','error','qr-status');
   }catch(e){
     const done=YN.slides.filter(s=>s.zones&&s.zones.length).length;
-    ynStatus('❌ '+esc(e.message)+(only==null&&done?`<br>（読み取れた ${done}枚はそのまま残っています。「🔍 まとまりを読み取る」をもう一度押すと、読み取れていない枚から続けます）`:''),'error');
+    ynStatus('❌ '+esc(e.message)+(only==null&&done?`<br>（読み取れた ${done}枚はそのまま残っています。「🔍 続きから」を押すと、読み取れていない枚から続けます）`:''),'error');
   }
   finally{if(btn)btn.disabled=false;}
 }
@@ -9777,7 +9777,14 @@ function ynShortName(i){
   let n=0;while(n<me.length&&names.every(x=>x[n]===me[n]))n++;
   return n>3?'…'+me.slice(n):me;
 }
+function ynReadLabel(){
+  const el=document.getElementById('yn-read-label');if(!el)return;
+  const n=YN.slides.length,done=YN.slides.filter(s=>s.zones&&s.zones.length).length;
+  const next=YN.slides.findIndex(s=>!(s.zones&&s.zones.length));
+  el.textContent=!n||!done?'🔍 まとまりを読み取る':done<n?`🔍 続きから（${next+1}枚目〜）`:`✅ 全${n}枚 読み取り済み`;
+}
 function ynRender(){
+  ynReadLabel();
   const area=document.getElementById('yn-prev');if(!area)return;
   if(!YN.slides.length){area.innerHTML='<div style="font-size:11px;color:var(--text-sub);padding:8px;">「ナレスラ」タブでスライド画像を読み込むと、ここに表示されます</div>';return;}
   area.innerHTML=YN.slides.map((s,i)=>`<div class="yn-item"><div class="yn-hd"><b>${i+1}</b> <b>${esc(ynSlideTitle(i))}</b> <span title="${esc(s.name)}">${esc(ynShortName(i))}</span> <span>${s.zones?`${s.zones.length}か所`:'未読み取り'}</span>
