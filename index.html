@@ -7687,10 +7687,81 @@ ${vdBasicInfo('vd')}
 【株価分析レポート（1〜2章）】
 ${withReport?fr.text:'（生成時に貼ったレポートの1〜2章。確認済みなので、ここでは省略しています）'}`;
 }
+// ---- YT動画：レポートに、構成と出典を付けるプロンプト ----
+// 調べる段階はChatGPTとの会話に任せ、ツールは後工程が読む形（構成の表・［出典n］の印・出典一覧）だけを足させる。
+// 本文は書き換えさせない（調べた内容が変わり、ファクトチェックの対象も増えるため）。
+function ygStructPrompt(withReport=true){
+  const theme=ytTheme(),rep=ytVal('g-report');
+  if(withReport){
+    if(!theme)throw new Error('先にテーマを入力してください');
+    if(!rep)throw new Error('先にChatGPTのレポートを貼り付けてください');
+  }
+  return `# 命令書
+
+## あなたの役割
+${ytAud()}の構成作家です。
+
+## 目的
+${ytIntent()}を作成します。下の【レポート】を、そのための動画資料に仕上げます。
+
+## やること
+【レポート】の本文は書き換えず、次の3つだけを足す。
+1. 構成：この動画で話す順に章を分け、表にする。章の数は内容に合わせて決める。最後の章はまとめにする。
+   各章に「章の名前」（視聴者への問いかけの形の短い言葉）と「扱う内容」（その章で何を話すかを1〜2文）を書く。【レポート】に無い内容は入れない。
+2. 出典の印：重要な事実（数字、固有名詞、日付、順位、会社や公的機関の発表）には、本文の該当箇所に［出典1］のように番号を付ける。1本あたり4〜8か所。
+3. 出典一覧：末尾に、番号・資料名・URL・ページ・ページ内の位置・表示用の出典表記を書く。
+・本文の文章・数字・見出し・並び順は、そのまま残す。要約しない。削らない。書き足さない。
+・この会話で調べた内容なら、そのとき実際に開いた資料を出典にする。
+
+## 出典
+・優先する情報源：企業IR、決算説明資料、有価証券報告書、官公庁・業界団体の一次資料、信頼できる報道。
+・URLとページは、実際に確認できたものだけを書く。確認できない場合は「要確認」と書く。
+・決算短信・決算説明資料・有価証券報告書・統計の報告書など、元がPDFの資料は、そのPDFのURLと、根拠が載っているページ番号を書く。
+　案内ページ（HTML）で代用しない。「Webページ」と書くのは、元がHTMLのページしか無い場合だけにする。
+・表示用の出典表記は「出典：発行元「資料名」p.ページ」の形にする。
+
+## 出力形式
+Markdownで、次の見出しをこの順番で出力する。
+・出力全体をコードブロック1つ（\`\`\`markdown 〜 \`\`\`）に入れる。前置き・感想は不要。
+・出典は、本文の［出典1］と末尾の出典一覧だけに書く。リンクのカード・脚注・本文へのURLの貼り付けはしない。
+## 企画
+- 読みがな：（音声で読み間違えやすい言葉を「言葉＝よみ」の形で、読点で区切って。無ければ「なし」）
+- 動画コンセプト：1〜2文
+- 視聴者に伝える核心：1文
+## 構成
+（表：章｜章の名前｜扱う内容）
+## 本文
+（【レポート】の本文に、［出典n］の印だけを足したもの）
+## 出典一覧
+（表：番号｜資料名｜URL｜ページ｜ページ内の位置｜表示用の出典表記）
+
+【テーマ】
+${theme}
+
+【レポート】
+${withReport?rep:'（元のレポート。下の動画資料の「本文」に全文が入っているので、ここでは省略しています）'}`;
+}
 // ファクトチェックは別のチャットで行う（生成したチャットの先入観を持ち込まない）。株価分析レポートの②〜④と同じ運用：
 // 貼り付けた資料＋生成時の指示を渡して指摘させる → 修正版を貼り直す → もう一度②
 function ytFactCheckPrompt(){
   const doc=ytVal('doc');if(!doc)throw new Error('先にChatGPTの動画資料を貼り付けてください');
+  if(ytGen())return `以下の動画資料は、以下の指示でAIが生成したものです（レポートに、構成の表・出典の印・出典一覧を足したもの）。
+動画資料のファクトチェックを行い、誤っている箇所と指示に沿っていない箇所のみを指摘してください。
+本文の内容そのものも、確認の対象です。
+特に、数値・固有名詞・日付・順位・出典のURLとページ、構成の表（本文に無い内容が入っていないか）、売買を促す表現・視聴者への行動要求が無いことを確認してください。
+指摘がある場合には、指摘箇所・指摘内容・修正後内容を記載してください。
+
+出典一覧のURLは、1件ずつ実際に開いて、次の3点を確認してください（確認せずに「問題なし」としない）。
+・そのURLが開けること（開けない・別のページに飛ぶものは、正しいURLに直す）
+・開いた先が、資料名のとおりの資料であること
+・書かれているページ・位置に、本文の該当の記述の根拠があること
+結果は、出典の番号ごとに「開けた／根拠を確認できた」を表にして最初に示してください。
+
+--指示--
+${ygStructPrompt(false)}
+
+--動画資料--
+${doc}${ytLinkBlock()}`;
   return `以下の動画資料は、以下の指示でAIが生成したものです。
 動画資料のファクトチェックを行い、誤っている箇所と指示に沿っていない箇所のみを指摘してください。
 指示の中の「株価分析レポート（1〜2章）」は確認済みのため省いています。レポートから引き写した内容（第1章の値動き・第2章の事業の説明など）は確認しなくてよいので、追加で調べた内容を中心に確認してください。
@@ -8289,8 +8360,12 @@ const YT_SERIES_DEFAULT='私が知らない実力株';
 function ytSeries(){const el=document.getElementById('yt-series');return el?(el.value||'').trim():YT_SERIES_DEFAULT;}
 function ytSeriesReset(){const el=document.getElementById('yt-series');if(!el)return;el.value=YT_SERIES_DEFAULT;saveState();}
 // どういう動画か（意図だけ）。調査・音声・スライド・投稿文のプロンプトで同じ文を使う。細かいことは構成と資料が伝える
+const YT_G_AUD_DEFAULT='個人投資家向けのYouTube番組';
+const ytTheme=()=>ytVal('g-theme');
+const ytAud=()=>ytVal('g-aud')||YT_G_AUD_DEFAULT;
 function ytIntent(){
   const s=ytSeries();
+  if(ytGen())return `「${ytTheme()||'（テーマ未入力）'}」というテーマの動画${s?`（「${s}」というシリーズで）`:''}`;
   return `${getName()||'この会社'}の株価${getDir()==='up'?'上昇':'下落'}の原因と強み、今後見るべき点などを分析する動画${s?`（「${s}」というシリーズで）`:''}`;
 }
 function ytNotebookPrompt(){
@@ -8399,7 +8474,7 @@ ${pdfLike.map(x=>`・出典${x.no} ${x.name}\n　${x.url}`).join('\n')}`:''}`;
 // ---- 操作 ----
 function ytCopy(kind,btn){
   try{
-    const t=kind==='research'?'@iterative-fact-check-and-revise\n\n'+ytResearchPrompt()
+    const t=kind==='research'?(ytGen()?ygStructPrompt():'@iterative-fact-check-and-revise\n\n'+ytResearchPrompt())
       :kind==='fc'?ytFactCheckPrompt()
       :kind==='recheck'?'修正後内容が正しいか確認して'
       :kind==='fix'?'指摘箇所を指示の内容に沿って修正し、全文出力してください。\nただし、指摘していない箇所は一切変更しないでください。\n出力は、最初と同じ見出し構成のMarkdownを、コードブロック1つ（```markdown 〜 ```）に入れてください。出典は本文の［出典n］と末尾の出典一覧だけに書き、リンクのカード・脚注・本文へのURLの貼り付けはしないでください。'
@@ -8791,13 +8866,21 @@ function ytBuildTabHtml(){
 <div id="yt-pane-research">
 <div class="sa-card">
   <h2>1. 調査・動画資料</h2>
-  <details>
+  <div class="yt-only-gen" style="display:none;">
+    <div class="sa-sub">▼ テーマ</div>
+    <input type="text" id="yt-g-theme" placeholder="この動画のテーマ（何が分かる動画か）" oninput="saveState()" style="width:100%;font-size:12px;">
+    <div class="sa-sub">▼ レポート（ChatGPTと調べた内容を、レポートにまとめてもらって貼る。形は自由）</div>
+    <textarea id="yt-g-report" placeholder="ChatGPTのレポートをここに貼り付け" oninput="saveState()" style="min-height:36px;"></textarea>
+    ${row(b('📋 貼り付け',"ytPaste('g-report')"),`<button class="btn-danger" onclick="if(confirm('レポートを消しますか？')){ytEl('g-report').value='';saveState();}" style="flex:1;">✕ クリア</button>`)}
+    <div style="font-size:10px;color:var(--text-sub);margin-top:4px;">①は、調べたのと同じチャットに貼るのがおすすめです（実際に見た資料のURLが出典に入ります）。②〜④は新しいチャットで。</div>
+  </div>
+  <details class="yt-only-stock">
     <summary id="yt-free-info" style="font-size:11px;color:var(--text-sub);cursor:pointer;"></summary>
     <textarea id="yt-free-box" readonly style="min-height:36px;font-size:11px;margin-top:4px;"></textarea>
     <div style="font-size:10px;color:var(--text-sub);">3章「将来予測」以降（シナリオ・リスク）は渡しません。</div>
   </details>
-  <div class="sa-sub">▼ ChatGPT 調査プロンプト</div>
-  ${row(b('💬 ①調査',"ytCopy('research',this)",G),b('✅ ②ファクト',"ytCopy('fc',this)",G),b('🔁 ③再CK',"ytCopy('recheck',this)",G),b('🔧 ④修正',"ytCopy('fix',this)",G))}
+  <div class="sa-sub">▼ ChatGPT <span class="yt-only-stock">調査</span>プロンプト</div>
+  ${row(b('💬 <span class="yt-only-stock">①調査</span><span class="yt-only-gen" style="display:none;">①構成･出典</span>',"ytCopy('research',this)",G),b('✅ ②ファクト',"ytCopy('fc',this)",G),b('🔁 ③再CK',"ytCopy('recheck',this)",G),b('🔧 ④修正',"ytCopy('fix',this)",G))}
   <textarea id="yt-doc" placeholder="ChatGPTの動画資料をここに貼り付け（②〜④を誤りがなくなるまで繰り返す）" style="min-height:36px;"></textarea>
   ${row(b('🔗 出典のリンクを確認','ytCheckLinks(this)'))}
   <div id="yt-link-status" style="display:none;font-size:11px;"></div>
@@ -8908,6 +8991,8 @@ ${yaBuildPaneHtml()}</div>
   <div class="sa-sub">▼ Geminiのモデル（作業ごと）</div>
   <div style="font-size:10px;color:var(--text-sub);">回数の上限のときは、選んだモデルから一覧の順に下のモデルへ自動で切り替えます（Lite には切り替えません。読み取りの位置が大きくずれて使えなかったため）。混雑のときは切り替えずに止まるので、ここで別のモデルを選んでもう一度押してください。</div>
   ${YT_AI_TASKS.map(([k,n,d])=>set(n,`<select id="yt-m-${k}" onchange="saveState()" style="flex:1;min-width:0;font-size:11px;padding:3px;">${YT_MODEL_LIST.map(([v,l])=>`<option value="${v}"${v===d?' selected':''}>${l}</option>`).join('')}</select>`)).join('')}
+  <div class="yt-only-gen" style="display:none;">${set('番組の説明','<input type="text" id="yt-g-aud" value="'+YT_G_AUD_DEFAULT+'" oninput="saveState()" style="flex:1;min-width:0;font-size:11px;padding:4px;">','')}
+  <div style="font-size:10px;color:var(--text-sub);">ChatGPTへの指示の「あなたの役割」に入れる、番組の説明です。</div></div>
   ${set('NotebookLMの長さ','<input type="number" id="yt-nlm-min" value="12" min="3" max="30" style="width:60px;flex:none;font-size:11px;padding:4px;">','分（指示文に書く目安）')}
   <div class="sa-sub">▼ 概要欄の定型文（使用ツール・AIの注意書き）</div>
   <textarea id="yt-p-fixed" style="min-height:90px;font-size:11px;">${esc(YT_POST_FIXED)}</textarea>
@@ -8917,7 +9002,7 @@ ${yaBuildPaneHtml()}</div>
 </div>
 </div>`;
 }
-const YT_PERSIST_IDS=['vd-orient','th-ctx','th-note-text','th-note-preset','yt-th-text','yt-th-preset','yg-th-text','yg-th-preset','yt-doc','yt-series','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-t1','yt-p-t2','yt-p-t3','yt-p-s1','yt-p-s2','yt-p-s3','yt-p-body','yt-p-xbody','yt-p-hook','yt-p-points','yt-p-xtags','yt-p-yptags','yt-p-igtags','yt-p-tttags','yt-p-l8title','yt-p-l8intro','yt-p-l8tags','yt-p-yp','yt-p-ig','yt-p-l8t','yt-p-l8','yt-p-tt','yt-f-yp','yt-f-ig','yt-f-l8','yt-f-tt','yt-p-yturl','yt-p-tags','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-m-cut','yt-m-read','yt-m-plan','yt-m-post','yt-m-qr','yt-yomi','yt-yomi-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan'];
+const YT_PERSIST_IDS=['vd-orient','th-ctx','th-note-text','th-note-preset','yt-th-text','yt-th-preset','yg-th-text','yg-th-preset','yt-g-theme','yt-g-report','yt-g-aud','yt-doc','yt-series','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-t1','yt-p-t2','yt-p-t3','yt-p-s1','yt-p-s2','yt-p-s3','yt-p-body','yt-p-xbody','yt-p-hook','yt-p-points','yt-p-xtags','yt-p-yptags','yt-p-igtags','yt-p-tttags','yt-p-l8title','yt-p-l8intro','yt-p-l8tags','yt-p-yp','yt-p-ig','yt-p-l8t','yt-p-l8','yt-p-tt','yt-f-yp','yt-f-ig','yt-f-l8','yt-f-tt','yt-p-yturl','yt-p-tags','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-m-cut','yt-m-read','yt-m-plan','yt-m-post','yt-m-qr','yt-yomi','yt-yomi-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan'];
 // ---- 動画の種類：株価分析の横動画＝stock ／ YT動画タブ＝gen ----
 // 画面と関数は1組だけ。種類を切り替えると、作品ごとの欄（localStorage）と IndexedDB のキーを入れ替える。
 // 株価分析の側は今までのキーのまま、YT動画の側は前に 'gen:' を付ける。設計：docs/design/2026-09-21_YT動画タブ.md
@@ -8925,7 +9010,7 @@ let YT_CTX=(()=>{try{return localStorage.getItem('kt-yt-ctx')==='gen'?'gen':'sto
 const ytGen=()=>YT_CTX==='gen';
 const ytKey=k=>(ytGen()&&k!=='tpl')?'gen:'+k:k;   // ナレスラのひな形（tpl）は共通
 // 種類を切り替えても入れ替えない欄：縦横の切り替え・サムネイルの文言（別の仕組みで入れ替える）・設定タブの共通の設定
-const YT_SHARED_IDS=['vd-orient','th-ctx','th-note-text','th-note-preset','yt-th-text','yt-th-preset','yg-th-text','yg-th-preset','yt-p-fixed','ya-ctx','yt-months','yt-nlm-min','yt-m-cut','yt-m-read','yt-m-plan','yt-m-post','yt-m-qr'];
+const YT_SHARED_IDS=['yt-g-aud','vd-orient','th-ctx','th-note-text','th-note-preset','yt-th-text','yt-th-preset','yg-th-text','yg-th-preset','yt-p-fixed','ya-ctx','yt-months','yt-nlm-min','yt-m-cut','yt-m-read','yt-m-plan','yt-m-post','yt-m-qr'];
 const ytWorkIds=()=>YT_PERSIST_IDS.filter(id=>!YT_SHARED_IDS.includes(id));
 const YT_FIELD_DEFAULTS={};   // 画面を組み立てた直後の値。まだ何も保存していない種類に切り替えたときの出発点
 function ytCaptureDefaults(){ytWorkIds().forEach(id=>{const el=document.getElementById(id);if(el)YT_FIELD_DEFAULTS[id]=el.type==='checkbox'?el.checked:el.value;});}
@@ -8936,6 +9021,12 @@ async function ytReloadAll(links){
   if(typeof YL!=='undefined'){YL.res=links||null;if(typeof ytRenderLinks==='function')ytRenderLinks();}
   const tn=document.getElementById('yn-tpl-name');if(tn)tn.textContent='';
   await yaRestore();await ynRestore();await ysRestore();
+}
+// 株価分析の横動画だけ／YT動画だけ、の部品の出し分け（class で指定）
+function ytCtxApplyUi(){
+  const g=ytGen();
+  document.querySelectorAll('#yt-root .yt-only-gen').forEach(el=>{el.style.display=g?'':'none';});
+  document.querySelectorAll('#yt-root .yt-only-stock').forEach(el=>{el.style.display=g?'none':'';});
 }
 // 切り替えは「保留中の保存を書き出す → 欄をしまう → 種類を変える → 欄と保存データを読み直す」を1つずつ順に行う
 let _ytCtxChain=Promise.resolve();
@@ -8955,6 +9046,7 @@ function ytSetCtx(ctx){
       if(el.type==='checkbox')el.checked=!!v;else el.value=v==null?'':v;
     });
     if(typeof saveStateNow==='function')saveStateNow();
+    ytCtxApplyUi();
     await ytReloadAll(null);
     if(typeof ytUpdateFreeInfo==='function')ytUpdateFreeInfo();
   }).catch(e=>console.warn('[yt] 種類の切り替えに失敗',e));
@@ -11043,6 +11135,7 @@ async function ynRestore(){
   PERSIST_IDS.push(...YT_PERSIST_IDS);
   ytCaptureDefaults();
   ytRestoreFields();
+  ytCtxApplyUi();
   window._thCtxReady=true;ytSyncTabs();
   yaRestore();
   ynRestore();ysRestore();
