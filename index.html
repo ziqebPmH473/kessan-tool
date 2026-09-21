@@ -9229,13 +9229,13 @@ function ytBuildTabHtml(){
   <div class="yt-only-gen" style="display:none;">${row(`<button class="btn-sm" onclick="ygReportDownload(this)" title="レポートをファイル（レポート.md）に保存します。ChatGPTに添付してください" style="flex:1;min-width:0;background:#0d9488;color:#fff;">💾 添付</button>`,b('💬 ①構成',"ytCopy('research',this)",G))}</div>
   <div id="yt-doc-box" class="yt-col">
     <textarea id="yt-doc" placeholder="ChatGPTの動画資料をここに貼り付け（②〜④を誤りがなくなるまで繰り返す）" style="min-height:36px;"></textarea>
+    <div id="yt-doc-paste">${row(b('📋 貼り付け',"ytPasteDoc(this)"),`<button class="btn-danger" onclick="if(confirm('動画資料を消しますか？')){ytEl('doc').value='';saveState();}" style="flex:1;">✕ クリア</button>`)}</div>
     <div id="yt-doc-links" class="yt-col">
       ${row(b('🔗 出典のリンクを確認','ytCheckLinks(this)'))}
       <div class="yt-only-gen" style="display:none;font-size:10px;color:var(--text-sub);">②〜④が終わったら、最後に1回押します（全部が問題なしになるまで、音声から先へは進めません）。問題があったら、もう一度②を押すと、その内容がプロンプトに入ります。</div>
       <div id="yt-link-status" style="display:none;font-size:11px;"></div><input type="hidden" id="yt-link-state">
       <div id="yt-link-list"></div>
     </div>
-    <div id="yt-doc-paste">${row(b('📋 貼り付け',"ytPasteDoc(this)"),`<button class="btn-danger" onclick="if(confirm('動画資料を消しますか？')){ytEl('doc').value='';saveState();}" style="flex:1;">✕ クリア</button>`)}</div>
   </div>
   <div class="yt-only-gen" id="yt-g-fcrow" style="display:none;">${row(`<button class="btn-sm" onclick="ygReportDownload(this)" title="レポートをファイル（レポート.md）に保存します。ChatGPTに添付してください" style="flex:1;min-width:0;background:#0d9488;color:#fff;">💾 添付</button>`,b('✅ ②ファクト',"ytCopy('fc',this)",G),b('🔁 ③再CK',"ytCopy('recheck',this)",G),b('🔧 ④修正',"ytCopy('fix',this)",G))}</div>
 </div>
@@ -9406,9 +9406,9 @@ function ytCtxApplyUi(){
   document.querySelectorAll('#yt-root .yt-only-stock').forEach(el=>{el.style.display=g?'none':'';});
   if(!g&&ytEl('itab-article')?.classList.contains('active'))ytInnerTab('research');
   // ボタンの文字は、コピーのあと textContent で戻されるので、ボタンの中に出し分け用の部品を入れない（ボタンごと出し分ける）
-  // YT動画は操作の順（貼り付け → 貼る欄 → ②③④ → リンク確認）。株価分析は今までの並び（貼る欄 → リンク確認 → 貼り付け）
+  // YT動画は操作の順（貼り付け → 貼る欄 → ②③④ → リンク確認）。株価分析は ①②③④ → 貼る欄 → 貼り付け → リンク確認（貼ってから確かめる）
   const dp=ytEl('doc-paste'),dl=ytEl('doc-links'),fr=ytEl('g-fcrow'),bx=ytEl('doc-box');
-  if(dp&&dl&&fr&&bx){dp.style.order=g?'-1':'';if(g)fr.after(dl);else bx.insertBefore(dl,dp);}
+  if(dp&&dl&&fr&&bx){dp.style.order=g?'-1':'';if(g)fr.after(dl);else bx.appendChild(dl);}
   if(typeof ytRenderLinks==='function')ytRenderLinks();
   const dc=ytEl('doc');if(dc)dc.placeholder=g?'①の結果（構成と出典）をここに貼り付け（②〜④を誤りがなくなるまで繰り返す）':'ChatGPTの動画資料をここに貼り付け（②〜④を誤りがなくなるまで繰り返す）';
 }
