@@ -459,11 +459,12 @@ select.yn-sel option{color:#0f172a;background:#fff;font-weight:400;}
 .yn-tm{flex:none;color:#475569;} .yn-wh{flex:none;max-width:34%;overflow:hidden;text-overflow:ellipsis;}
 .yn-sd{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;color:#64748b;} .yn-ed{flex:none;display:flex;gap:2px;align-items:center;} .yn-lb{font-size:10px;color:#64748b;margin-left:4px;}
 /* 出典（根拠資料）の画像 */
-.ys-row{display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--border);}
+.ys-row{padding:6px 6px;border-bottom:1px solid var(--border);}
+.ys-top{display:flex;gap:6px;align-items:center;margin-bottom:3px;}
 .ys-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ys-th{width:64px;height:40px;flex:none;object-fit:cover;border:1px solid var(--border);border-radius:3px;background:#fff;}
 .ys-none{display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--text-sub);background:#f1f5f9;}
-.ys-info{flex:1;min-width:0;font-size:11px;line-height:1.4;}
+.ys-info{min-width:0;font-size:11px;line-height:1.4;}
 .ys-url{font-size:10px;color:var(--text-sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ys-url a{color:#2563eb;}
 .yp-row{display:flex;gap:4px;align-items:flex-start;margin-top:3px;}
@@ -484,14 +485,14 @@ select.yn-sel option{color:#0f172a;background:#fff;font-weight:400;}
 .ys-tag.ok{background:#16a34a;} .ys-tag.ng{background:#dc2626;}
 .ys-sum{font-size:11px;padding:3px 8px;border-radius:4px;margin:4px 0;}
 .ys-sum.ok{background:#dcfce7;color:#166534;} .ys-sum.ng{background:#fee2e2;color:#991b1b;}
-.ys-row{cursor:pointer;} .ys-row.ys-sel{background:#eff6ff;box-shadow:inset 3px 0 0 #2563eb;}
+.ys-row{cursor:pointer;}   .ys-row.ys-cur{background:#eff6ff;box-shadow:inset 3px 0 0 #2563eb;}
 .ys-paste{background:#0d9488!important;color:#fff!important;border-color:#0d9488!important;}
 .ys-tv{font-size:11px;color:#92400e;background:#fef3c7;border-radius:4px;padding:1px 6px;margin:2px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ys-url.on a{font-weight:700;}
 .ys-ty{display:inline-block;font-size:9px;line-height:13px;padding:0 5px;border-radius:6px;background:#e2e8f0;color:#334155;}
 .ys-tag{display:inline-block;font-size:9px;line-height:14px;padding:0 6px;border-radius:7px;color:#fff;vertical-align:1px;}
 .ys-tag.chart{background:#d97706;} .ys-tag.off{background:#64748b;}
-.ys-btns{display:flex;flex-wrap:wrap;gap:3px;margin-top:3px;}
+.ys-btns{flex:1;min-width:0;display:flex;flex-wrap:wrap;gap:3px;}
 /* スライドの直し：チェックの並び */
 .yt-fixes{display:flex;flex-wrap:wrap;gap:2px 10px;margin:4px 0;}
 .yt-fixes label{flex:0 0 calc(50% - 5px);display:flex;align-items:center;gap:4px;font-size:11px;line-height:1.7;cursor:pointer;}
@@ -10117,7 +10118,7 @@ function ysItem(i){const a=ysRows();return a[i]||null;}
 // 行を選ぶ（Ctrl+V の貼り付け先）。ボタンやリンクを押したときは選択を変えるだけで、邪魔はしない
 function ysSelect(i,ev){
   YS.sel=i;
-  document.querySelectorAll('#yn-src-list .ys-row').forEach((r,k)=>r.classList.toggle('ys-sel',k===i));
+  document.querySelectorAll('#yn-src-list .ys-row').forEach((r,k)=>r.classList.toggle('ys-cur',k===i));
 }
 // Ctrl+V：出典の一覧が見えていて、クリップボードに画像があれば、選んでいる行に貼る
 document.addEventListener('paste',ev=>{
@@ -10166,13 +10167,22 @@ function ysRender(){
   box.innerHTML=sum+list.map((s,i)=>{
     const g=YS.imgs[s.no];let th='<div class="ys-th ys-none">画像<br>なし</div>';
     if(g&&g.blob){const u=URL.createObjectURL(g.blob);YS.urls.push(u);th=`<img class="ys-th" src="${u}">`;}
-    const pdf=/\.pdf(\?|#|$)/i.test(s.url||'');
+    const pdf=/\.pdf(\?|#|$)/i.test(s.url||''),canGrab=pdf||/\.(png|jpe?g|gif|webp)(\?|#|$)/i.test(s.url||'');
     const w=ysWhere(s.no);
     const unused=!!YN.plan&&!w;                       // 割り当て済みなのに、どこにも差し込まれていない
     const has=!!(g&&g.blob),need=!unused&&!has;       // 使うのに、まだ画像が無い
     const chart=s.isChart||s.kind==='chart';
     const link=chart&&s.tv?s.tv:s.url;
-    return `<div class="ys-row${unused?' ys-unused':''}${need?' ys-need':''}${has?' ys-has':''}${YS.sel===i?' ys-sel':''}" onclick="ysSelect(${i},event)">${th}
+    return `<div class="ys-row${unused?' ys-unused':''}${need?' ys-need':''}${has?' ys-has':''}${YS.sel===i?' ys-cur':''}" onclick="ysSelect(${i},event)"><div class="ys-top">${th}
+<div class="ys-btns">
+${canGrab&&!chart&&!unused?`<button class="ya-nd" onclick="ysGrab(${i},this)" title="${pdf?ysPageNo(s.page)+'ページを取り直す':'URLから取り直す'}">⬇ 取得</button>`:''}
+${s.isChart?'':`<button class="ya-nd" onclick="ysKind(${i})" title="種類を切り替える（資料 ⇄ チャート）">${chart?'資料にする':'チャートにする'}</button>`}
+${s.isChart?'':`<button class="ya-nd" onclick="ysEdit(${i})" title="資料名・URL・ページ・表記を直す">直す</button>`}
+<button class="ya-nd ys-paste" onclick="ysPasteImg(${i})" title="撮ったキャプチャ（クリップボードの画像）を貼り付ける。行を押して選んでから Ctrl+V でも貼れます">貼り付け</button>
+<button class="ya-nd" onclick="ysPick(${i})" title="画像ファイルを選ぶ">ファイル</button>
+${g&&g.orig?`<button class="ya-nd" onclick="ysReCrop(${i})" title="使う範囲を選び直す">範囲</button>`:''}
+${g?`<button class="ya-nd" onclick="ysDrop(${i})" title="画像を消す">消す</button>`:''}
+</div></div>
 <div class="ys-info"><div class="ys-name" title="${esc(s.name)}${s.note?'／'+esc(s.note):''}">${s.isChart?'':`<b>${esc(s.no)}</b> `}${esc(s.name)}${s.page&&!chart?` <span style="color:var(--text-sub);">${esc(s.page)}</span>`:''}${chart?' <span class="ys-tag chart">チャート</span>':''}${unused?' <span class="ys-tag off">未使用</span>':has?' <span class="ys-tag ok">画像あり</span>':' <span class="ys-tag ng">画像なし</span>'}</div>
 ${chart||!(s.urls&&s.urls.length>1)
   ?`<div class="ys-url">${link?`<a href="${esc(link)}" target="_blank" rel="noopener" title="${esc(link)}">${chart?'TradingView で開く：':''}${esc(link)}</a>${!chart&&s.urls&&s.urls[0]?` <span class="ys-ty">${s.urls[0].pdf?'PDF':'ページ'}</span>`:''}`:'URLなし'}</div>`
@@ -10180,15 +10190,7 @@ ${chart||!(s.urls&&s.urls.length>1)
 ${!chart&&(s.page||s.posUse)?`<div class="ys-pos"><b>撮る場所</b>　${s.page?`${esc(s.page)}`:''}${s.page&&s.posUse?'／':''}${esc(s.posUse||'')}</div>`:''}
 ${chart&&s.tvSpec?`<div class="ys-tv">TradingView：<b>${esc(s.tvSpec.ticker)}</b>／${s.tvSpec.interval?`<b>${esc(s.tvSpec.interval)}</b>`:'足は未定'}／${s.tvSpec.start||s.tvSpec.end?`<b>${esc(s.tvSpec.start)}〜${esc(s.tvSpec.end)}</b>`:'期間は未定（割り当てで決まります）'}</div>`:''}
 <div class="ys-when" title="${w?`カット後 ${yaTc(yaToEdit(w.s,yaKeep()))}〜${yaTc(yaToEdit(w.e,yaKeep()))}／${esc(w.text)}`:''}"${w&&w.from!=null?` style="cursor:pointer;" onclick="yaJumpTo(${w.from})"`:''}>${w?`差し込み 文${w.from!=null?`${w.from}〜${w.to}`:'?'}${w.text?`：${esc(w.text.slice(0,40))}`:''}`:'差し込み位置は未定（先に「1. 演出の割り当て」）'}</div>
-<div class="ys-btns">
-${s.url&&!chart&&!unused?`<button class="ya-nd" onclick="ysGrab(${i},this)" title="${pdf?ysPageNo(s.page)+'ページを取り直す':'URLから取り直す'}">⬇ 取得</button>`:''}
-${s.isChart?'':`<button class="ya-nd" onclick="ysKind(${i})" title="種類を切り替える（資料 ⇄ チャート）">${chart?'資料にする':'チャートにする'}</button>`}
-${s.isChart?'':`<button class="ya-nd" onclick="ysEdit(${i})" title="資料名・URL・ページ・表記を直す">直す</button>`}
-<button class="ya-nd ys-paste" onclick="ysPasteImg(${i})" title="撮ったキャプチャ（クリップボードの画像）を貼り付ける。行を押して選んでから Ctrl+V でも貼れます">貼り付け</button>
-<button class="ya-nd" onclick="ysPick(${i})" title="画像ファイルを選ぶ">ファイル</button>
-${g&&g.orig?`<button class="ya-nd" onclick="ysReCrop(${i})" title="使う範囲を選び直す">範囲</button>`:''}
-${g?`<button class="ya-nd" onclick="ysDrop(${i})" title="画像を消す">消す</button>`:''}
-</div></div></div>`;
+</div></div>`;
   }).join('');
 }
 
@@ -10230,7 +10232,7 @@ function ysEditReset(i){
 
 // ---- まとめて取得（まだ画像が無い行だけ。範囲は全体のままなので、あとで ✂ で詰める）----
 async function ysGrabAll(btn){
-  const list=ysSources().filter(s=>s.url&&!YS.imgs[s.no]&&s.kind!=='chart'&&(!YN.plan||ysWhere(s.no)));
+  const list=ysSources().filter(s=>/\.(pdf|png|jpe?g|gif|webp)(\?|#|$)/i.test(s.url||'')&&!YS.imgs[s.no]&&s.kind!=='chart'&&(!YN.plan||ysWhere(s.no)));
   if(!list.length){ynStatus('取得するものがありません（差し込まれている資料で、まだ画像が無い行が対象です。チャートは TradingView で撮って 📁／📋 で入れます）','','src-status');return;}
   if(btn)btn.disabled=true;
   let ok=0,ng=[];
