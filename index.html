@@ -569,6 +569,7 @@ select.yn-sel option{color:#0f172a;background:#fff;font-weight:400;}
 .ya-sw{background:#eff6ff;color:#1e3a8a;font-weight:700;font-size:12px;padding:3px 8px;border-top:2px solid #3b82f6;border-bottom:1px solid #dbeafe;}
 .ya-swb{display:flex;flex-wrap:wrap;gap:3px;font-weight:400;margin-top:2px;}   /* 帯の2行目に置く（1行に並べると、幅が狭いとき右にはみ出して見えなくなる） */
 .ya-sw{white-space:normal;word-break:break-all;}
+.yn-twice{display:inline-block;margin-left:3px;padding:0 5px;border-radius:8px;background:#f59e0b;color:#fff;font-size:10px;font-weight:700;}
 .yn-item.yn-now{outline:3px solid #f59e0b;outline-offset:-3px;}
 /* ===== VERTICAL SLIDES (1080×1920, SNS動画用) =====
    ナレーションの補助資料なので文字量は控えめ（見出し1つ＋「結論＋短い補足」×3）。
@@ -10230,7 +10231,7 @@ function yaRender(keepScroll){
     const box=mc?`<input type="checkbox" data-k="${mk}" ${mc.on?'checked':''} title="${esc(mc.reason||'')}">`:`<input type="checkbox" data-sent="${n}" title="削る">`;
     const parts=ids.filter(k=>YA.cuts[k].kind==='part').map(k=>{const c=YA.cuts[k];return `<label class="ya-part" title="${esc(c.reason||'')}"><input type="checkbox" data-k="${k}" ${c.on?'checked':''}>一部${c.approx?'≈':''}</label>${c.on?adj(k,c):''}`;}).join('');
     const es=yaToEdit(s.s,K);
-    const sw=swStart[n]?`<div class="ya-sw" data-goslide="${swStart[n].no}" title="押すと、左のスライドがこの1枚に移ります" style="cursor:pointer;">■ スライド${swStart[n].no}　${esc(ynSlideTitle(swStart[n].no-1))}${YN.slides[swStart[n].no-1]?` <span style="font-weight:400;opacity:.7;" title="${esc(YN.slides[swStart[n].no-1].name)}">${esc(ynShortName(swStart[n].no-1))}</span>`:''}${swStart[n].corner?`／テロップ「${esc(swStart[n].corner)}」`:''}<span data-swsum="${swStart[n].k}"></span>${swStart[n].k>0?`<span class="ya-swb"><button class="ya-nd" data-sw="${swStart[n].k},-1" title="切り替えを1文前へ">▲ 前の文へ</button><button class="ya-nd" data-sw="${swStart[n].k},1" title="切り替えを1文後へ">▼ 後の文へ</button></span>`:''}</div>`:'';
+    const sw=swStart[n]?`<div class="ya-sw" data-goslide="${swStart[n].k+1}" title="押すと、左のスライドがこの1枚に移ります" style="cursor:pointer;">■ スライド${swStart[n].no}　${esc(ynSlideTitle(swStart[n].no-1))}${YN.slides[swStart[n].no-1]?` <span style="font-weight:400;opacity:.7;" title="${esc(YN.slides[swStart[n].no-1].name)}">${esc(ynShortName(swStart[n].no-1))}</span>`:''}${swStart[n].corner?`／テロップ「${esc(swStart[n].corner)}」`:''}<span data-swsum="${swStart[n].k}"></span>${swStart[n].k>0?`<span class="ya-swb"><button class="ya-nd" data-sw="${swStart[n].k},-1" title="切り替えを1文前へ">▲ 前の文へ</button><button class="ya-nd" data-sw="${swStart[n].k},1" title="切り替えを1文後へ">▼ 後の文へ</button></span>`:''}</div>`:'';
     // 帯は1種類。割り当てが済んでいればスライドの帯、まだならAIの章分けの帯
     const head=hasPlan?sw:(secStart[n]?`<div class="ya-sec">■ ${esc(secStart[n].title)}（${secStart[n].from}〜${secStart[n].to}）<span data-secsum="${n}"></span></div>`:'');
     return `${head}<div class="ya-ln${whole?' cut':''}" data-es="${whole?'':es.toFixed(2)}"><span class="ya-no">${n}</span><span class="ya-tc" data-seek="${es.toFixed(2)}" title="元の時刻 ${yaTc(s.s)}${whole?'':'（押すとカット後の音声をここから再生）'}">${whole?'—':yaTc(es)}</span><span class="ya-sp sp${s.sp}">${s.sp?(s.sp===1?'A':'B'):''}</span>${badge}${box}<button class="ya-go" data-go="${n}" title="${whole?'つなぎ目を再生':'この文を再生'}（カットは飛ばす。もう一度押すと停止）">▶</button><span class="ya-ctl">${tags}${mc&&mc.on?adj(mk,mc):''}${parts}</span><span class="ya-tx" data-n="${n}">${tx}</span></div>`;
@@ -10739,7 +10740,7 @@ function ynShortName(i){
 // ---- 選んだ枚（右のスライドの見出しのチェック）。選んでいなければ全部の枚が対象 ----
 function ynSelIdx(){const a=YN.slides.map((s,i)=>i).filter(i=>YN.sel.has(YN.slides[i].name));return a;}
 function ynTargets(){const a=ynSelIdx();return a.length?a:YN.slides.map((s,i)=>i);}
-function ynSelToggle(i,on){const s=YN.slides[i];if(!s)return;if(on)YN.sel.add(s.name);else YN.sel.delete(s.name);_ynWebFrom=0;ynSelInfo();}
+function ynSelToggle(i,on){const s=YN.slides[i];if(!s)return;if(on)YN.sel.add(s.name);else YN.sel.delete(s.name);document.querySelectorAll(`.yn-pick[data-i="${i}"]`).forEach(c=>c.checked=on);_ynWebFrom=0;ynSelInfo();}
 function ynSelAll(on){YN.sel=new Set(on?YN.slides.map(s=>s.name):[]);_ynWebFrom=0;ynRender();}
 function ynSelInfo(){
   const el=document.getElementById('yn-sel-info');if(!el)return;
@@ -10762,9 +10763,13 @@ function ynRender(){
   const sc=ynScrollBox(area),top0=sc?sc.scrollTop:0,hs={};
   area.querySelectorAll('.yn-item[data-n]').forEach(it=>{hs[it.dataset.n]=it.offsetHeight;});
   if(!YN.slides.length){area.innerHTML='<div style="font-size:11px;color:var(--text-sub);padding:8px;">「スライド」タブでスライド画像を読み込むと、ここに表示されます</div>';return;}
-  area.innerHTML=YN.slides.map((s,i)=>`<div class="yn-item" data-n="${esc(s.name)}"><div class="yn-hd"><input type="checkbox" class="yn-pick" ${YN.sel.has(s.name)?'checked':''} onchange="ynSelToggle(${i},this.checked)" title="選ぶ（読み取り直す・位置を補正・リセット・Web版の読み取りを、選んだ枚だけにする）"><b>${i+1}</b> <b>${esc(ynSlideTitle(i))}</b> <span title="${esc(s.name)}">${esc(ynShortName(i))}</span> <span>${s.zones?`${s.zones.length}か所`:'未読み取り'}</span>
+  // 割り当て済みなら、音声で出てくる順（右の一覧と同じ順）に、使う回ごとに1つずつ並べる。使わない枚は後ろ
+  const occ=YN.plan&&YN.plan.slides&&YN.plan.slides.length?YN.plan.slides.map((x,k)=>({i:x.no-1,k})).filter(o=>YN.slides[o.i]):[];
+  const order=occ.concat(YN.slides.map((s,i)=>({i,k:-1})).filter(o=>!occ.some(q=>q.i===o.i)));
+  const nth=(p)=>order.slice(0,p+1).filter(o=>o.i===order[p].i).length,times=i=>order.filter(o=>o.i===i).length;
+  area.innerHTML=order.map((o,p)=>{const i=o.i,s=YN.slides[i];return `<div class="yn-item" data-n="${esc(s.name)}${o.k>=0?'#'+o.k:''}"><div class="yn-hd"><input type="checkbox" class="yn-pick" data-i="${i}" ${YN.sel.has(s.name)?'checked':''} onchange="ynSelToggle(${i},this.checked)" title="選ぶ（読み取り直す・位置を補正・リセット・Web版の読み取りを、選んだ枚だけにする）"><b>${i+1}</b>${times(i)>1?`<span class="yn-twice">${nth(p)}回目</span>`:''}${o.k<0&&occ.length?'<span class="yn-twice" style="background:#94a3b8;">使わない</span>':''} <b>${esc(ynSlideTitle(i))}</b> <span title="${esc(s.name)}">${esc(ynShortName(i))}</span> <span>${s.zones?`${s.zones.length}か所`:'未読み取り'}</span>
 <button class="ya-nd" onclick="ynSnapAll(this,${i})" title="この1枚の枠を、画像の縁や文字に合わせる">🪄</button><button class="ya-nd" onclick="ynZonesUndo(this,${i},'p')" title="この1枚のまとまりを、前の状態に戻す">↶</button><button class="ya-nd" onclick="ynZonesUndo(this,${i},'f')" title="戻したのを取り消す">↷</button><button class="ya-nd" onclick="ynReadOne(${i})" title="この1枚だけ、まとまりを読み取る（読み取り直す）">${s.zones&&s.zones.length?'↻ 読み直す':'🔍 読み取る'}</button><button class="ya-nd" onclick="ynMove(${i},-1)">↑</button><button class="ya-nd" onclick="ynMove(${i},1)">↓</button><button class="ya-nd" onclick="if(confirm('この画像を外しますか？'))ynRemove(${i})">✕</button></div>
-<div class="yn-img" id="yn-img-${i}"></div></div>`).join('');
+<div class="yn-img" id="yn-img-${p}"></div></div>`;}).join('');
   // 割り当て済みなら、スライドごとの表示時間・ズーム・強調・出典・チャートを下に出す（時刻はカット後）
   if(YN.plan){
     const K=yaKeep(),te=v=>yaToEdit(v,K),sents=ynKeptSents();
@@ -10789,8 +10794,8 @@ function ynRender(){
 <span class="yn-lb">${z.text?'文字':'枠'}</span><input class="yn-in yn-zn" value="${tgt}" title="${esc(tip)}（枠は 2+3、文字は T1 のように書く）" onchange="ynFxSet('${kind}',${i},'zones',this.value)">${out?'<span class="yn-warn" title="読み取った文字の位置が、入っているまとまりの枠から外れています。書き出しには入ります。ナレスラで位置を確かめてください">⚠位置</span>':''}
 ${nums(kind,i,z)}${tail(kind,i,z)}</div>`;};
     const fixLine=(kind,i,z,what)=>`<div class="yn-it"><span class="yn-k k-${kind}">${ynKinds[kind]}</span><span class="yn-wh" title="${esc(what)}">${esc(what)}</span>${nums(kind,i,z)}${tail(kind,i,z)}</div>`;
-    YN.plan.slides.forEach(x=>{
-      const el=document.getElementById('yn-img-'+(x.no-1));if(!el||!el.parentElement)return;
+    YN.plan.slides.forEach((x,si)=>{
+      const p=order.findIndex(o=>o.k===si),el=p<0?null:document.getElementById('yn-img-'+p);if(!el||!el.parentElement)return;
       const zn=k=>((((YN.slides[x.no-1]||{}).zones||[])[k-1]||{}).label||('まとまり'+k));
       const tl=k=>{const q=(((YN.slides[x.no-1]||{}).texts||[])[k-1])||{};return `${YN_TKIND[q.kind]||'文字'}：${q.label||''}`;};
       const inS=z=>z.s>=x.s-0.01&&z.s<x.e-0.01;   // 境目ちょうどのものは、後ろのスライド側にだけ出す
@@ -10802,23 +10807,22 @@ ${nums(kind,i,z)}${tail(kind,i,z)}</div>`;};
       (YN.plan.charts||[]).forEach((z,i)=>{if(inS(z))rows.push([z.s,fixLine('charts',i,z,`${z.ticker} ${z.interval} ${z.start}〜${z.end}${z.note?`（${z.note}）`:''}`)]);});
       rows.sort((a,b)=>a[0]-b[0]);
       const first=(sents.find(q=>q.n===x.from)||{}).text||'';
-      const si=YN.plan.slides.indexOf(x);
       const srcOpts=ytSources().map(s=>`<option value="${esc(String(s.no))}">出典${esc(String(s.no))}：${esc(s.name||'')}${s.kind==='chart'?'（チャート）':''}</option>`).join('')||'<option value="">出典一覧がありません</option>';
-      el.insertAdjacentHTML('afterend',`<div class="yn-plan"><div class="yn-hd2"><button class="ya-nd yn-addbtn" onclick="ynAddOpen(${x.no},true)" title="このスライドに演出を足す">＋ 追加</button> 表示 ${yaTc(te(x.s))}〜${yaTc(te(x.e))}（${ynEditLen(x.s,x.e).toFixed(1)}秒・カット後）／文 ${x.from}〜${x.to}${x.corner?`／テロップ「${esc(x.corner)}」`:''}</div>
+      el.insertAdjacentHTML('afterend',`<div class="yn-plan"><div class="yn-hd2"><button class="ya-nd yn-addbtn" onclick="ynAddOpen(${si},true)" title="このスライドに演出を足す">＋ 追加</button> 表示 ${yaTc(te(x.s))}〜${yaTc(te(x.e))}（${ynEditLen(x.s,x.e).toFixed(1)}秒・カット後）／文 ${x.from}〜${x.to}${x.corner?`／テロップ「${esc(x.corner)}」`:''}</div>
 <div class="yn-it"><span class="yn-k" style="background:#f59e0b;">切替</span><span class="yn-nn"><button class="yn-go" onclick="yaJumpTo(${x.from})" title="右の一覧でこの文を表示">文</button> ${x.from}</span><span class="yn-sd" title="${esc(first)}">ここから：「${esc(first.slice(0,50))}」</span>
 ${si>0?`<span class="yn-ed"><span class="yn-lb">切り替える文</span><button class="ya-nd" title="切り替えを1文前へ" onclick="ynSlideShift(${si},-1)">◀ 前へ</button><button class="ya-nd" title="切り替えを1文後へ" onclick="ynSlideShift(${si},1)">後へ ▶</button></span>`:''}</div>
 ${rows.map(r=>r[1]).join('')}
-<div class="yn-it yn-add" id="yn-add-row${x.no}" style="display:none;"><select class="yn-sel t-zoom" id="yn-add-t${x.no}" onchange="this.className='yn-sel t-'+this.value;ynAddType(${x.no})">${TYPES.concat([['source','出典']]).map(o=>`<option value="${o[0]}">${o[1]}</option>`).join('')}</select>
-<select class="yn-in yn-srcsel" id="yn-add-s${x.no}" style="display:none;">${srcOpts}</select>
-<select class="yn-col" id="yn-add-c${x.no}" title="強調の色（自動＝そのまとまりで控えめに見える色）"><option value="">自動</option>${YN_COLS.map(o=>`<option value="${o[0]}" style="background:${o[0]}">${o[1]}</option>`).join('')}</select>
-<span class="yn-lb">枠</span><input class="yn-in yn-zn" id="yn-add-z${x.no}" placeholder="2+3/T1">
-<span class="yn-nn"><span class="yn-lb">文</span><input class="yn-in" type="number" id="yn-add-f${x.no}" placeholder="${x.from}">〜<input class="yn-in" type="number" id="yn-add-e${x.no}" placeholder="${x.to}"></span>
-<button class="ya-nd" style="background:#0d9488;color:#fff;border-color:#0d9488;" onclick="ynFxAdd(${x.no})">保存</button><button class="ya-nd" onclick="ynAddOpen(${x.no},false)">やめる</button><span class="yn-sd">枠＝上の画像の番号（文字はT1）、文＝右の一覧の番号</span></div></div>`);
+<div class="yn-it yn-add" id="yn-add-row${si}" style="display:none;"><select class="yn-sel t-zoom" id="yn-add-t${si}" onchange="this.className='yn-sel t-'+this.value;ynAddType(${si})">${TYPES.concat([['source','出典']]).map(o=>`<option value="${o[0]}">${o[1]}</option>`).join('')}</select>
+<select class="yn-in yn-srcsel" id="yn-add-s${si}" style="display:none;">${srcOpts}</select>
+<select class="yn-col" id="yn-add-c${si}" title="強調の色（自動＝そのまとまりで控えめに見える色）"><option value="">自動</option>${YN_COLS.map(o=>`<option value="${o[0]}" style="background:${o[0]}">${o[1]}</option>`).join('')}</select>
+<span class="yn-lb">枠</span><input class="yn-in yn-zn" id="yn-add-z${si}" placeholder="2+3/T1">
+<span class="yn-nn"><span class="yn-lb">文</span><input class="yn-in" type="number" id="yn-add-f${si}" placeholder="${x.from}">〜<input class="yn-in" type="number" id="yn-add-e${si}" placeholder="${x.to}"></span>
+<button class="ya-nd" style="background:#0d9488;color:#fff;border-color:#0d9488;" onclick="ynFxAdd(${si})">保存</button><button class="ya-nd" onclick="ynAddOpen(${si},false)">やめる</button><span class="yn-sd">枠＝上の画像の番号（文字はT1）、文＝右の一覧の番号</span></div></div>`);
     });
   }
   ynPos();
-  YN.slides.forEach((s,i)=>{
-    const box=document.getElementById('yn-img-'+i);if(!box)return;
+  order.forEach((o,p)=>{
+    const s=YN.slides[o.i],box=document.getElementById('yn-img-'+p);if(!box||!s)return;
     const url=URL.createObjectURL(s.blob);
     box.innerHTML=`<div class="yn-fit"><img src="${url}">`+
       (s.zones||[]).map((z,k)=>{const [y0,x0,y1,x1]=z.box.map(v=>v/10);
@@ -11080,7 +11084,7 @@ function ynFxSet(kind,i,field,v){
   ynPut('plan',YN.plan);ynRender();if(typeof ysRender==='function')ysRender();
 }
 // 追加の入力行を出す／しまう
-function ynAddOpen(no,on){
+function ynAddOpen(no,on){   // no＝何番目の表示か（YN.plan.slides の位置）
   const r=document.getElementById('yn-add-row'+no);if(!r)return;
   r.style.display=on?'':'none';
   if(on){const z=document.getElementById('yn-add-z'+no);if(z)z.focus();}
@@ -11092,11 +11096,12 @@ function ynAddType(slide){
   const lb=g('yn-add-z').previousElementSibling;if(lb&&lb.classList.contains('yn-lb'))lb.style.display=src?'none':'';
 }
 // 演出を足す（種類・枠・始まりと終わりの文）。出典も、演出として差し込める（出典一覧から選ぶ。出典そのものは増やさない）
-function ynFxAdd(slide){
-  const g=id=>document.getElementById(id+slide),type=g('yn-add-t').value;
+function ynFxAdd(si){
+  const g=id=>document.getElementById(id+si),type=g('yn-add-t').value,sl0=YN.plan.slides[si];if(!sl0)return;
+  const slide=sl0.no;
   if(type==='source'){
     const s=ytSources().find(y=>String(y.no)===g('yn-add-s').value);if(!s){alert('出典を選んでください（分析タブの動画資料の出典一覧から出ます）');return;}
-    const sl=YN.plan.slides.find(x=>x.no===slide),ns=ynKeptSents().map(x=>x.n);
+    const sl=sl0,ns=ynKeptSents().map(x=>x.n);
     const pick=v=>{let n=+v;if(!v||!ns.length)return null;return ns.includes(n)?n:ns.reduce((a,b)=>Math.abs(b-n)<Math.abs(a-n)?b:a,ns[0]);};
     let f=pick(g('yn-add-f').value)||sl.from,e=pick(g('yn-add-e').value)||f;if(e<f)e=f;
     const seg=ynSeg(f,e);if(!seg){alert('文の番号を確かめてください');return;}
@@ -11110,7 +11115,7 @@ function ynFxAdd(slide){
   if(tn&&!(S.texts||[])[tn-1]){alert('そのスライドに無い文字の番号です（上の画像の T の番号）');return;}
   const zs=tn?[]:ynParseZones(zv,slide);
   if(!tn&&!zs.length){alert('枠の番号を入れてください（画像に出ている番号。複数は 2+3。文字は T1）');return;}
-  const sl=YN.plan.slides.find(x=>x.no===slide),ns=ynKeptSents().map(x=>x.n);
+  const sl=sl0,ns=ynKeptSents().map(x=>x.n);
   const pick=v=>{let n=+v;if(!v||!ns.length)return null;return ns.includes(n)?n:ns.reduce((a,b)=>Math.abs(b-n)<Math.abs(a-n)?b:a,ns[0]);};
   let f=pick(g('yn-add-f').value)||sl.from,e=pick(g('yn-add-e').value)||f;if(e<f)e=f;
   const seg=ynSeg(f,e);if(!seg){alert('文の番号を確かめてください');return;}
@@ -11389,8 +11394,8 @@ function ytParseSources(){
 
 // 表示するスライドを送る（右ペイン）
 function ynGo(d){
-  if(!YN.slides.length)return;
-  YN.cur=Math.min(YN.slides.length-1,Math.max(0,(YN.cur||0)+d));
+  const n=ynItemCount();if(!n)return;
+  YN.cur=Math.min(n-1,Math.max(0,(YN.cur||0)+d));
   const el=document.getElementById('yn-img-'+YN.cur),it=el&&el.parentElement;
   if(it){
     // 左のスライドの一覧が入っている、縦に動かせる入れ物の中で動かす（ページごと動かさない）
@@ -11401,9 +11406,10 @@ function ynGo(d){
   }
   ynPos();
 }
+function ynItemCount(){return document.querySelectorAll('#yn-prev .yn-item').length;}
 function ynPos(){
   const el=document.getElementById('yn-pos');if(!el)return;
-  el.textContent=YN.slides.length?`${Math.min((YN.cur||0)+1,YN.slides.length)} / ${YN.slides.length}`:'-';
+  const n=ynItemCount();el.textContent=n?`${Math.min((YN.cur||0)+1,n)} / ${n}`:'-';
 }
 
 // ============================================================
