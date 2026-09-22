@@ -9284,12 +9284,15 @@ function ytBuildTabHtml(){
 <div class="sa-card" style="margin-top:8px;">
   <h2>3. できたスライドを取り込む</h2>
   <div style="font-size:11px;color:var(--text-sub);">できた画像を読み込みます（ファイル名順）。</div>
-  <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;"><input type="file" id="yn-files" accept="image/*" multiple onchange="ynLoadFiles(this.files)" style="font-size:11px;flex:1;min-width:0;"><button class="ya-nd" onclick="ynResetMenu(this)" title="スライドの取り込みを最初からにする">🗑 リセット</button><button class="ya-nd" onclick="ynSlidesUndo(this,'p')" title="リセットや画像の読み込みの前に戻す">↶</button><button class="ya-nd" onclick="ynSlidesUndo(this,'f')" title="戻したのを取り消す">↷</button></div>
-  ${row(b('<span id="yn-read-label">🔍 まとまりを読み取る</span>','ynReadZones(this)',G),b('↻ 読み取り直す',"ynReadAllAgain()"),b('🪄 位置を補正','ynSnapAll(this)'))}
+  <input type="file" id="yn-files" accept="image/*" multiple onchange="ynLoadFiles(this.files)" style="font-size:11px;width:100%;">
+  ${row(b('<span id="yn-read-label">🔍 まとまりを読み取る</span>','ynReadZones(this)',G))}
+  <div class="row" style="flex-wrap:wrap;gap:4px;align-items:center;font-size:11px;color:var(--text-sub);"><span id="yn-sel-info" style="flex:1;min-width:0;"></span><button class="ya-nd" onclick="ynSelAll(true)">全部選ぶ</button><button class="ya-nd" onclick="ynSelAll(false)">選ぶのをやめる</button></div>
+  ${row(b('↻ 読み取り直す',"ynReadAgain()"),b('🪄 位置を補正','ynSnapAll(this)'),b('🗑 リセット','ynResetMenu(this)'))}
+  <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;font-size:10px;color:var(--text-sub);"><span style="flex:1;min-width:0;">リセット・画像の読み込みの前に戻す</span><button class="ya-nd" onclick="ynSlidesUndo(this,'p')" title="リセットや画像の読み込みの前に戻す">↶ 戻す</button><button class="ya-nd" onclick="ynSlidesUndo(this,'f')" title="戻したのを取り消す">↷ やり直す</button></div>
   <div style="font-size:10px;color:var(--text-sub);">読み取ったあと、ツールが枠を画像の縁や文字に合わせます（自動）。まとまりは、枚ごとに右の「↶」で前の状態に戻せます。</div>
   <details class="yt-col" style="margin-top:4px;">
     <summary style="font-size:11px;color:var(--text-sub);cursor:pointer;">Gemini（Web版）で読み取る（APIが混んでいるとき）</summary>
-    <div style="font-size:10px;color:var(--text-sub);">「💾 添付」で保存したZIPを開き、中の画像を全部Geminiに添付し、「💬 プロンプト」を貼って送ります。返ってきたJSONを貼り付けてください。全部の枚が対象です（読み取り済みの枚も読み直します）。1回に10枚までなので、11枚以上あるときは、貼り付けたあと、もう一度「💾 添付」と「💬 プロンプト」を押すと続きの枚になります。</div>
+    <div style="font-size:10px;color:var(--text-sub);">「💾 添付」で保存したZIPを開き、中の画像を全部Geminiに添付し、「💬 プロンプト」を貼って送ります。返ってきたJSONを貼り付けてください。対象は、選んだ枚（選んでいなければ全部の枚）です（読み取り済みの枚も読み直します）。1回に10枚までなので、11枚以上あるときは、貼り付けたあと、もう一度「💾 添付」と「💬 プロンプト」を押すと続きの枚になります。</div>
     ${row(`<button class="btn-sm" onclick="ynWebDownload(this)" title="プロンプトの対象の枚の画像を、添付する順の番号を付けて保存します" style="flex:1;min-width:0;background:#0d9488;color:#fff;">💾 添付</button>`,b('💬 プロンプト',"ynWebCopy(this)",G),b('📋 貼り付け',"ynWebPaste()"))}
     <textarea id="yn-webread" placeholder="GeminiのJSONをここに貼り付け（貼ると反映します）" oninput="ynWebApply(this.value,true)" style="min-height:36px;font-size:11px;"></textarea>
   </details>
@@ -10340,7 +10343,7 @@ async function yaRestore(){
 //  4. .svpz を書き出す（元の音声＋カット＋字幕＋演出＋出典の枠）
 // 画像とその読み取り結果は IndexedDB（kessanTool-ytNare）に保存する
 // ============================================================
-const YN={slides:[],plan:null,cur:0};
+const YN={slides:[],plan:null,cur:0,sel:new Set()};   // sel＝選んだスライド（ファイル名）
 const ynEl=id=>document.getElementById('yn-'+id);
 const ynVal=id=>((ynEl(id)||{}).value||'').trim();
 function ynStatus(msg,cls,id){const el=ynEl(id||'status');if(!el)return;el.style.display=msg?'block':'none';el.innerHTML=msg||'';el.style.color=cls==='error'?'#dc2626':cls==='ok'?'#059669':'var(--text-sub)';}
@@ -10421,12 +10424,13 @@ async function ynBlobToPart(blob,max){
 async function ynReadZones(btn,only){
   if(!YN.slides.length){alert('先にスライド画像を読み込んでください');return;}
   if(btn)btn.disabled=true;
+  const onl=only==null?null:new Set([].concat(only));   // only＝読み直す枚（番号か、番号の配列）
   let cur=-1;
   try{
     for(let i=0;i<YN.slides.length;i++){
       const s=YN.slides[i];
-      if(only!=null&&i!==only)continue;
-      if(only==null&&s.zones&&s.zones.length){continue;}
+      if(onl&&!onl.has(i))continue;
+      if(!onl&&s.zones&&s.zones.length){continue;}
       cur=i;
       ynStatus(`まとまりを読み取り中… ${i+1}/${YN.slides.length}`);
       const part=await ynBlobToPart(s.blob,1024);
@@ -10442,7 +10446,7 @@ async function ynReadZones(btn,only){
       try{await ynSnapApply(i,'補正の前（AIの読み取りのまま）');}catch(e){console.warn('[yn] 補正できませんでした',e);}
       await ynSave();ynRender();
     }
-    ynStatus(only!=null?`✅ ${only+1}枚目を読み取り直しました（${YN.slides[only].model||''}）`:`✅ ${YN.slides.length}枚のまとまりを読み取りました（${YN.slides[0].model||''}）。枠は右のプレビューで確認できます`,'ok');
+    ynStatus(onl?`✅ ${[...onl].map(i=>i+1).join('・')}枚目を読み取り直しました（${(YN.slides[[...onl][0]]||{}).model||''}）`:`✅ ${YN.slides.length}枚のまとまりを読み取りました（${YN.slides[0].model||''}）。枠は右のプレビューで確認できます`,'ok');
     if(!ytNoteUrl())ynStatus('⚠ QRの飛び先がありません。「記事」タブの記事URL、または設定タブの「QR用URL」を入れてください','error','qr-status');
   }catch(e){
     const done=YN.slides.filter(s=>s.zones&&s.zones.length).length;
@@ -10455,8 +10459,8 @@ async function ynReadZones(btn,only){
 // 対象は全部の枚（読み取り済みの枚も、読み直す）。Gemini（Web版）に1回で添付できるのは10枚までなので、11枚以上は、貼り付けたあとに続きの枚へ進む
 let _ynWebFrom=0;
 function ynWebTargets(){
-  if(_ynWebFrom>=YN.slides.length)_ynWebFrom=0;
-  return YN.slides.map((s,i)=>i).slice(_ynWebFrom,_ynWebFrom+10);
+  const base=ynTargets();if(_ynWebFrom>=base.length)_ynWebFrom=0;   // 選んだ枚（選んでいなければ全部）を、10枚ずつ
+  return base.slice(_ynWebFrom,_ynWebFrom+10);
 }
 function ynWebPrompt(){
   if(!YN.slides.length)throw new Error('先にスライド画像を読み込んでください');
@@ -10464,14 +10468,15 @@ function ynWebPrompt(){
   const body=YN_VISION_PROMPT.replace('この画像は、YouTube動画で使うスライドです。','').split('【出力】')[0].trim();
   return `添付した画像${t.length}枚は、YouTube動画で使うスライドの${nos.join('・')}枚目です。ファイル名とスライドの対応は次のとおりです。
 ${t.map(i=>`・${ynWebFileName(i)}：${i+1}枚目`).join('\n')}
+添付の順番は、この並びと違うことがあります。画像ごとに、添付されたファイル名を見て、どの枚かを決めてください。
 
 1枚ずつ、次の指示どおりに読み取ってください。
 
 ${body}
 
 【出力】JSONだけを出力する。説明文・コードフェンスの外の文字は不要。
-・no は、上の「何枚目か」の番号（${nos.join('・')}）。
-{"slides":[{"no":${nos[0]},"zones":[{"label":"","text":"","box":[0,0,0,0],"strong":"","soft":""}],"texts":[{"label":"","kind":"","zone":0,"lines":[[0,0,0,0]]}]}]}`;
+・file は、その画像の添付されたファイル名（そのまま書く）。no は、上の対応で決まる「何枚目か」の番号（${nos.join('・')}）。
+{"slides":[{"file":"${ynWebFileName(t[0])}","no":${nos[0]},"zones":[{"label":"","text":"","box":[0,0,0,0],"strong":"","soft":""}],"texts":[{"label":"","kind":"","zone":0,"lines":[[0,0,0,0]]}]}]}`;
 }
 function ynWebCopy(btn){
   try{const t=ynWebTargets();copyText(ynWebPrompt(),btn);ynStatus(`プロンプトをコピーしました。Geminiに、${t.map(i=>i+1).join('・')}枚目の画像をこの順に添付してください`,'ok');}
@@ -10505,21 +10510,28 @@ async function ynWebApply(text,typing){
   catch(e){if(!typing)ynStatus('❌ JSONとして読めませんでした。Geminiの返事をまるごと貼り付けてください','error');return;}
   const list=Array.isArray(j.slides)?j.slides:null;
   if(!list){ynStatus('❌ 「slides」が見つかりません。このツールのプロンプトで作った返事を貼り付けてください','error');return;}
-  const done=[],bad=[];
+  const done=[],bad=[],notes=[];
+  // どの枚の結果かは、ファイル名で決める（添付の順とツールの並びが違うと、番号では別の画像に付いてしまうため）。ファイル名が無いときだけ番号で
+  const byFile=f=>{const n=String(f||'').trim().split(/[\\/]/).pop();if(!n)return -2;let k=YN.slides.findIndex((q,m)=>ynWebFileName(m)===n);if(k<0)k=YN.slides.findIndex(q=>q.name===n);if(k<0){const mm=n.match(/スライド0*(\d+)\./);if(mm&&YN.slides[+mm[1]-1])k=+mm[1]-1;}return k;};
   for(const x of list){
-    const i=(+x.no||0)-1,sl=YN.slides[i];
+    let i=byFile(x.file);
+    if(i===-1){bad.push(`${x.file}（このファイル名のスライドがありません）`);continue;}
+    if(i===-2){i=(+x.no||0)-1;notes.push(`${x.no}枚目はファイル名が返ってこなかったので番号で合わせました`);}
+    else if(x.no&&+x.no-1!==i)notes.push(`${x.file} は番号（${x.no}）ではなく、ファイル名で${i+1}枚目に合わせました`);
+    const sl=YN.slides[i];
     if(!sl){bad.push(x.no);continue;}
     try{const vr=ynParseVision(JSON.stringify({zones:x.zones||[],texts:x.texts||[]}));if(!vr.zones.length){bad.push(x.no);continue;}
       await ynZonesKeep(i,'貼り付けの前');
       sl.zones=vr.zones;sl.texts=vr.texts;sl.model='Gemini（Web版）';done.push(i+1);
       try{await ynSnapApply(i,'補正の前（AIの読み取りのまま）');}catch(e){console.warn('[yn] 補正できませんでした',e);}}
-    catch(e){bad.push(x.no);}
+    catch(e){bad.push(x.file||x.no);}
   }
   if(done.length){await ynSave();ynRender();}
+  if(notes.length)console.info('[yn] Web版の読み取り',notes);
   // 今回の10枚の先に続きがあれば、次のプロンプト・添付はその枚から。全部終われば最初に戻す
-  const last=Math.max(-1,...done.map(n=>n-1));_ynWebFrom=last+1<YN.slides.length?last+1:0;
+  { const base=ynTargets();const tgt=ynWebTargets();_ynWebFrom=(_ynWebFrom+tgt.length<base.length)?_ynWebFrom+tgt.length:0; }
   const rest=YN.slides.filter(sl=>!(sl.zones&&sl.zones.length)).length;
-  ynStatus(`${done.length?`✅ ${done.join('・')}枚目を反映しました。`:''}${bad.length?`⚠ ${bad.join('・')}枚目は読めませんでした。`:''}${_ynWebFrom?` 続きの${_ynWebFrom+1}枚目からがあります（もう一度「💾 添付」と「💬 プロンプト」を押すと、その枚になります）`:rest?` まだ読み取れていない枚が${rest}枚あります`:' 全部の枚を読み取りました'}`,done.length&&!bad.length?'ok':'error');
+  ynStatus(`${done.length?`✅ ${done.join('・')}枚目を反映しました。`:''}${bad.length?`⚠ 読めなかったもの：${bad.join('・')}。`:''}${notes.length?`（${notes.join('／')}）`:''}${_ynWebFrom?` 続きの枚があります（もう一度「💾 添付」と「💬 プロンプト」を押すと、${ynWebTargets().map(i=>i+1).join('・')}枚目になります）`:rest?` まだ読み取れていない枚が${rest}枚あります`:' 全部の枚を読み取りました'}`,done.length&&!bad.length?'ok':'error');
 }
 // ---- まとまりの控え（1枚ごと）と、戻す ----
 async function ynZonesKeep(i,why){const s=YN.slides[i];if(!s||!(s.zones&&s.zones.length))return;await yhPush('zones:'+s.name,{zones:s.zones,texts:s.texts||[]},why);}
@@ -10541,29 +10553,34 @@ function ynSlidesUndo(btn,dir){
   yhMenu(btn,'slidesAll','スライドの取り込み',dir,()=>ynSlidesSnap(),async v=>{await ynSlidesApply(v);ynStatus(dir==='f'?'↷ スライドの取り込みをやり直しました':'↶ スライドの取り込みを戻しました','ok');});
 }
 function ynResetMenu(btn){
+  if(!YN.slides.length){alert('リセットするスライドがありません');return;}
   yhClose();
+  const t=ynTargets(),all=t.length===YN.slides.length,sc=all?`全部の${t.length}枚`:`選んだ${t.map(i=>i+1).join('・')}枚目`;
   const m=document.createElement('div');m.id='yh-menu';m.className='yh-menu';document.body.appendChild(m);
   const r=btn.getBoundingClientRect();m.style.left=Math.max(8,Math.min(innerWidth-300,r.right-290))+'px';m.style.top=Math.min(innerHeight-160,r.bottom+4)+'px';
-  m.innerHTML=`<div class="yh-hd">何をリセットしますか（前の状態は「↶」で戻せます）</div>
-<button type="button" class="yh-it" data-k="all"><b>画像ごと全部</b><span>スライドの画像・まとまりの読み取り・QRの貼り付けを消す</span></button>
-<button type="button" class="yh-it" data-k="read"><b>まとまりの読み取りだけ</b><span>画像は残し、全部の枚の読み取りを消す</span></button>`;
-  m.querySelectorAll('.yh-it').forEach(b=>b.onclick=()=>{yhClose();ynReset(b.dataset.k);});
+  m.innerHTML=`<div class="yh-hd">${esc(sc)}の、何をリセットしますか（前の状態は「↶ 戻す」で戻せます）</div>
+<button type="button" class="yh-it" data-k="all"><b>画像ごと</b><span>${all?'スライドの画像・まとまりの読み取り・QRの貼り付けを消す':'その枚の画像を外す（読み取りも一緒に消える）'}</span></button>
+<button type="button" class="yh-it" data-k="read"><b>まとまりの読み取りだけ</b><span>画像は残し、読み取りを消す</span></button>`;
+  m.querySelectorAll('.yh-it').forEach(b=>b.onclick=()=>{yhClose();ynReset(b.dataset.k,t);});
   setTimeout(()=>document.addEventListener('mousedown',yhOutside),0);
 }
-async function ynReset(kind){
+async function ynReset(kind,t){
   if(!YN.slides.length){alert('リセットするスライドがありません');return;}
-  const plan=kind==='all'&&YN.plan&&YN.plan.slides?confirm('演出の割り当ても消しますか？\n（スライドを入れ直すと、割り当てが指す枠の番号が合わなくなります）\n\nOK＝割り当ても消す／キャンセル＝割り当ては残す'):false;
-  await yhPush('slidesAll',ynSlidesSnap(),kind==='all'?'リセット（画像ごと）の前':'リセット（読み取りだけ）の前');
-  if(kind==='all'){YN.slides=[];YN.cur=0;const f=ynEl('files');if(f)f.value='';}
-  else YN.slides.forEach(x=>{x.zones=null;x.texts=null;});
+  t=t||YN.slides.map((s,i)=>i);const all=t.length===YN.slides.length,sc=all?'全部の枚':`${t.map(i=>i+1).join('・')}枚目`;
+  const plan=kind==='all'&&YN.plan&&YN.plan.slides?confirm('演出の割り当ても消しますか？\n（スライドを外すと、割り当てが指すスライドや枠の番号が合わなくなります）\n\nOK＝割り当ても消す／キャンセル＝割り当ては残す'):false;
+  await yhPush('slidesAll',ynSlidesSnap(),kind==='all'?`リセット（${sc}の画像ごと）の前`:`リセット（${sc}の読み取り）の前`);
+  if(kind==='all'){const rm=new Set(t);YN.slides=YN.slides.filter((x,i)=>!rm.has(i));YN.cur=0;if(!YN.slides.length){const f=ynEl('files');if(f)f.value='';}}
+  else t.forEach(i=>{YN.slides[i].zones=null;YN.slides[i].texts=null;});
   if(plan){YN.plan=null;_ynPlanSkip=true;await ynPut('plan',null);}
   await ynSave();ynRender();if(typeof ysRender==='function')ysRender();
-  ynStatus(`🗑 ${kind==='all'?'スライドの画像ごと':'まとまりの読み取りを'}リセットしました${plan?'（演出の割り当ても消しました）':''}。戻すときは「🗑 リセット」の横の「↶」`,'ok');
+  ynStatus(`🗑 ${sc}の${kind==='all'?'画像を外しました':'まとまりの読み取りを消しました'}${plan?'（演出の割り当ても消しました）':''}。戻すときは「↶ 戻す」`,'ok');
 }
-async function ynReadAllAgain(){
-  if(!confirm('全部の枚のまとまりを読み取り直しますか？（今の読み取りは控えるので、あとで戻せます）'))return;
-  for(let i=0;i<YN.slides.length;i++){await ynZonesKeep(i,'読み取り直す前');YN.slides[i].zones=null;YN.slides[i].texts=null;}
-  await ynSave();ynRender();ynReadZones();
+async function ynReadAgain(){
+  if(!YN.slides.length){alert('先にスライド画像を読み込んでください');return;}
+  const t=ynTargets(),all=t.length===YN.slides.length;
+  if(!confirm(`${all?`全部の${t.length}枚`:`${t.map(i=>i+1).join('・')}枚目`}のまとまりを読み取り直しますか？（今の読み取りは控えるので、あとで「↶」で戻せます）`))return;
+  for(const i of t){await ynZonesKeep(i,'読み取り直す前');YN.slides[i].zones=null;YN.slides[i].texts=null;}
+  await ynSave();ynRender();ynReadZones(null,t);
 }
 
 // ---- 補正：AIが返したまとまり・文字の行の位置を、画像の実際の縁や文字に合わせる ----
@@ -10683,14 +10700,13 @@ async function ynSnapAll(btn,only){
   if(!YN.slides.some(s=>s.zones&&s.zones.length)){alert('先にまとまりを読み取ってください');return;}
   if(btn)btn.disabled=true;
   try{
-    const a={okL:0,ngL:0,okZ:0,ngZ:0};
-    for(let i=0;i<YN.slides.length;i++){
-      if(only!=null&&i!==only)continue;
-      ynStatus(`位置を補正中… ${i+1}/${YN.slides.length}`);
+    const a={okL:0,ngL:0,okZ:0,ngZ:0},list=only!=null?[only]:ynTargets();
+    for(const i of list){
+      ynStatus(`位置を補正中… ${i+1}枚目`);
       const r=await ynSnapApply(i,'補正の前');if(r)['okL','ngL','okZ','ngZ'].forEach(k=>a[k]+=r[k]);
     }
     await ynSave();ynRender();
-    ynStatus(`🪄 ${only!=null?`${only+1}枚目の`:''}${ynSnapMsg(a)}。戻すときは、右のスライドの見出しの「↶」`,'ok');
+    ynStatus(`🪄 ${list.length<YN.slides.length?`${list.map(i=>i+1).join('・')}枚目の`:''}${ynSnapMsg(a)}。戻すときは、右のスライドの見出しの「↶」`,'ok');
   }catch(e){ynStatus('❌ 補正できませんでした：'+esc(e.message),'error');}
   finally{if(btn)btn.disabled=false;}
 }
@@ -10717,6 +10733,16 @@ function ynShortName(i){
   let n=0;while(n<me.length&&names.every(x=>x[n]===me[n]))n++;
   return n>3?'…'+me.slice(n):me;
 }
+// ---- 選んだ枚（右のスライドの見出しのチェック）。選んでいなければ全部の枚が対象 ----
+function ynSelIdx(){const a=YN.slides.map((s,i)=>i).filter(i=>YN.sel.has(YN.slides[i].name));return a;}
+function ynTargets(){const a=ynSelIdx();return a.length?a:YN.slides.map((s,i)=>i);}
+function ynSelToggle(i,on){const s=YN.slides[i];if(!s)return;if(on)YN.sel.add(s.name);else YN.sel.delete(s.name);_ynWebFrom=0;ynSelInfo();}
+function ynSelAll(on){YN.sel=new Set(on?YN.slides.map(s=>s.name):[]);_ynWebFrom=0;ynRender();}
+function ynSelInfo(){
+  const el=document.getElementById('yn-sel-info');if(!el)return;
+  const a=ynSelIdx();
+  el.textContent=!YN.slides.length?'':a.length?`選んだ枚：${a.map(i=>i+1).join('・')}枚目（${a.length}枚）。下のボタンは、選んだ枚だけに効きます`:`選んだ枚：なし（下のボタンは全部の${YN.slides.length}枚に効きます。右のスライドの見出しのチェックで選べます）`;
+}
 function ynReadLabel(){
   const el=document.getElementById('yn-read-label');if(!el)return;
   const n=YN.slides.length,done=YN.slides.filter(s=>s.zones&&s.zones.length).length;
@@ -10725,9 +10751,10 @@ function ynReadLabel(){
 }
 function ynRender(){
   ynReadLabel();
+  [...YN.sel].forEach(n=>{if(!YN.slides.some(s=>s.name===n))YN.sel.delete(n);});ynSelInfo();
   const area=document.getElementById('yn-prev');if(!area)return;
   if(!YN.slides.length){area.innerHTML='<div style="font-size:11px;color:var(--text-sub);padding:8px;">「ナレスラ」タブでスライド画像を読み込むと、ここに表示されます</div>';return;}
-  area.innerHTML=YN.slides.map((s,i)=>`<div class="yn-item"><div class="yn-hd"><b>${i+1}</b> <b>${esc(ynSlideTitle(i))}</b> <span title="${esc(s.name)}">${esc(ynShortName(i))}</span> <span>${s.zones?`${s.zones.length}か所`:'未読み取り'}</span>
+  area.innerHTML=YN.slides.map((s,i)=>`<div class="yn-item"><div class="yn-hd"><input type="checkbox" class="yn-sel" ${YN.sel.has(s.name)?'checked':''} onchange="ynSelToggle(${i},this.checked)" title="選ぶ（読み取り直す・位置を補正・リセット・Web版の読み取りを、選んだ枚だけにする）"><b>${i+1}</b> <b>${esc(ynSlideTitle(i))}</b> <span title="${esc(s.name)}">${esc(ynShortName(i))}</span> <span>${s.zones?`${s.zones.length}か所`:'未読み取り'}</span>
 <button class="ya-nd" onclick="ynSnapAll(this,${i})" title="この1枚の枠を、画像の縁や文字に合わせる">🪄</button><button class="ya-nd" onclick="ynZonesUndo(this,${i},'p')" title="この1枚のまとまりを、前の状態に戻す">↶</button><button class="ya-nd" onclick="ynZonesUndo(this,${i},'f')" title="戻したのを取り消す">↷</button><button class="ya-nd" onclick="ynReadOne(${i})" title="この1枚だけ、まとまりを読み取る（読み取り直す）">${s.zones&&s.zones.length?'↻ 読み直す':'🔍 読み取る'}</button><button class="ya-nd" onclick="ynMove(${i},-1)">↑</button><button class="ya-nd" onclick="ynMove(${i},1)">↓</button><button class="ya-nd" onclick="if(confirm('この画像を外しますか？'))ynRemove(${i})">✕</button></div>
 <div class="yn-img" id="yn-img-${i}"></div></div>`).join('');
   // 割り当て済みなら、スライドごとの表示時間・ズーム・強調・出典・チャートを下に出す（時刻はカット後）
