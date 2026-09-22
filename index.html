@@ -9538,9 +9538,9 @@ ${[['n','note記事（無料）','表なしで作ります。動画のURLは最�
   ${row(b('💬 プロンプト',"try{copyText(ygArticlePrompt('"+k+"'),this)}catch(e){alert(e.message)}",G),b('📋 貼り付け',"ygArtPaste('"+k+"')"))}
   </details>
   <textarea id="yt-a-${k}-raw" style="display:none;"></textarea>
-  <div class="yp-shd"><span>▼ 記事</span><span class="yp-slot" id="yh-slot-a${k}"></span><span class="yp-sbtn"><button class="ya-nd" onclick="copyText(ytVal('a-${k}-title'),this)">タイトル</button><button class="ya-nd" onclick="copyText(ytVal('a-${k}-body'),this)">本文</button><button class="ya-nd" onclick="copyText(ytVal('a-${k}-tags'),this)">ハッシュタグ</button>${k==='n'?`<button class="ya-nd" onclick="ygArtUrlApply(true)" title="本文の最初の段落のあとに、YouTubeのURLを入れ直す">動画URL入れ直し</button>`:`<button class="ya-nd" onclick="ytVal('p-yturl')?copyText(ytVal('p-yturl'),this):alert('SNSタブの「YouTubeのURL」が空です')" title="ブログの管理画面の「YouTube の URL」の欄に入れる">動画URL</button>`}</span></div>
+  <div class="yp-shd"><span>▼ 記事</span><span class="yp-slot" id="yh-slot-a${k}"></span><span class="yp-sbtn"><button class="ya-nd" onclick="copyText(ytVal('a-${k}-title'),this)">タイトル</button><button class="ya-nd" onclick="copyText(ytVal('a-${k}-body'),this)">本文</button><button class="ya-nd" onclick="copyText(ytVal('a-${k}-tags'),this)">ハッシュタグ</button>${k==='n'?`<button class="ya-nd" onclick="ygArtUrlApply(true)" title="本文の最初の段落のあとに、YouTubeのURL（SNSタブの「YouTubeのURL」）を入れ直す">URL差替</button>`:`<button class="ya-nd" onclick="ytVal('p-yturl')?copyText(ytVal('p-yturl'),this):alert('SNSタブの「YouTubeのURL」が空です')" title="ブログの管理画面の「YouTube の URL」の欄に入れる">動画URL</button>`}</span></div>
   <input type="text" id="yt-a-${k}-title" oninput="saveState()" placeholder="タイトル" style="width:100%;box-sizing:border-box;font-size:11px;">
-  <textarea id="yt-a-${k}-body" data-yh-slot="yh-slot-a${k}" oninput="saveState()" placeholder="本文" style="min-height:0;height:38px;font-size:11px;width:100%;box-sizing:border-box;"></textarea>
+  <textarea id="yt-a-${k}-body" data-yh-slot="yh-slot-a${k}" oninput="saveState()" placeholder="本文" style="min-height:0;height:96px;font-size:11px;width:100%;box-sizing:border-box;"></textarea>
   <input type="text" id="yt-a-${k}-tags" oninput="saveState()" placeholder="ハッシュタグ" style="width:100%;box-sizing:border-box;font-size:11px;">
   <div id="yt-a-${k}-status" style="display:none;font-size:11px;"></div>
 </div>`).join('')}
