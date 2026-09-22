@@ -46,7 +46,10 @@
     mediaRunning: false,
     status: 'local',
     conflict: null,
+    readyResolve: null,
   };
+  // 画面の初期化（vdInit など）は onload より前に走り、そこでファイルを読みに来る。ready() が終わるまで待たせる
+  S.readyWait = new Promise(res => { S.readyResolve = res; });
 
   // ---- 小物 ----
   const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
@@ -295,6 +298,7 @@
     const full = (key, create) => { const k = kindOf(key); const pid = k === '_common' ? '_common' : pidFor(k, create); return pid ? pid + '/' + key : null; };
     return {
       async get(key) {
+        await S.readyWait;
         const fk = full(key, false); if (!fk) return null;
         if (S.mode !== 'server' || S.mediaQueue[ns + '/' + fk]) return local.get(fk);   // 送る途中のものは端末内の方が新しい
         try {
@@ -307,12 +311,14 @@
         } catch (e) { return local.get(fk); }
       },
       async put(key, val) {
+        await S.readyWait;
         const fk = full(key, true);
         await local.put(fk, val);
         if (S.mode !== 'server') return;
         S.mediaQueue[ns + '/' + fk] = 1; metaSave(); runMedia();
       },
       async del(key) {
+        await S.readyWait;
         const fk = full(key, false); if (!fk) return;
         await local.del(fk);
         if (S.mode !== 'server') return;
@@ -320,6 +326,7 @@
       },
       // sample：どの PJ のものかを決めるための代表のキー（'ev:' など）。返すキーは pid 抜き
       async list(sample) {
+        await S.readyWait;
         const k = kindOf(sample || ''); const pid = k === '_common' ? '_common' : pidFor(k, false);
         if (!pid) return [];
         const prefix = pid + '/';
@@ -445,7 +452,11 @@
   // opts.collect(tab, state) → {fields, radios, title}（どの欄がどの種別かを知るため。値は state から取る）
   function ready(opts) {
     if (S.ready) return S.ready;
-    S.ready = (async () => {
+    S.ready = readyInner(opts).catch(e => { console.warn('[store] 起動に失敗', e); S.mode = 'local'; setStatus('error', String(e && e.message || e)); }).then(() => { S.readyResolve(); });
+    return S.ready;
+  }
+  function readyInner(opts) {
+    return (async () => {
       metaLoad();
       S.cur = parse(ssGet(CUR_KEY)) || null;
       const localState = parse(lsGet(LS_KEY));
@@ -560,7 +571,6 @@
       if (Object.keys(S.pending).length) { setStatus('saving'); schedulePush(300); } else setStatus('saved');
       if (Object.keys(S.mediaQueue).length) runMedia();
     })();
-    return S.ready;
   }
 
   window.KTStore = {
