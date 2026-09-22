@@ -10761,6 +10761,7 @@ function ynRender(){
   const area=document.getElementById('yn-prev');if(!area)return;
   // 描き直すと中身の高さが一度0になり、見ていた位置が一番上へ飛ぶ。前の位置と、枚ごとの高さを覚えておく
   const sc=ynScrollBox(area),top0=sc?sc.scrollTop:0,hs={};
+  const fk=ynFocusKey(area);
   area.querySelectorAll('.yn-item[data-n]').forEach(it=>{hs[it.dataset.n]=it.offsetHeight;});
   if(!YN.slides.length){area.innerHTML='<div style="font-size:11px;color:var(--text-sub);padding:8px;">「スライド」タブでスライド画像を読み込むと、ここに表示されます</div>';return;}
   // 割り当て済みなら、音声で出てくる順（右の一覧と同じ順）に、使う回ごとに1つずつ並べる。使わない枚は後ろ
@@ -10778,20 +10779,20 @@ function ynRender(){
     ['zooms','marks','sources','charts'].forEach(k=>(YN.plan[k]||[]).forEach(fix));
     const said=z=>{const a=sents.filter(x=>x.n>=z.from&&x.n<=z.to).map(x=>x.text).join(' ');return a.length>46?a.slice(0,46)+'…':a;};
     const TYPES=[['zoom','ズーム'],['rect','四角枠'],['highlight','ハイライト'],['underline','下線']];
-    const typeSel=(cur,on)=>`<select class="yn-sel t-${cur}" onchange="${on}">${TYPES.map(o=>`<option value="${o[0]}"${o[0]===cur?' selected':''}>${o[1]}</option>`).join('')}</select>`;
+    const typeSel=(cur,on,fk)=>`<select class="yn-sel t-${cur}" data-fk="${fk}" onchange="${on}">${TYPES.map(o=>`<option value="${o[0]}"${o[0]===cur?' selected':''}>${o[1]}</option>`).join('')}</select>`;
     // 文番号の欄：押すと右の文の一覧がその文まで送られる。元の時刻とカット後の時刻はマウスを重ねると出る
     const nums=(kind,i,z)=>`<span class="yn-nn" title="カット後 ${yaTc(te(z.s))}〜${yaTc(te(z.e))}（${ynEditLen(z.s,z.e).toFixed(1)}秒）／元の音声 ${yaTc(z.s)}〜${yaTc(z.e)}">
-<button class="yn-go" onclick="yaJumpTo(${z.from})" title="右の一覧でこの文を表示">文</button><input class="yn-in" type="number" value="${z.from}" onchange="ynFxSet('${kind}',${i},'from',this.value)">〜<input class="yn-in" type="number" value="${z.to}" onchange="ynFxSet('${kind}',${i},'to',this.value)"></span>`;
+<button class="yn-go" onclick="yaJumpTo(${z.from})" title="右の一覧でこの文を表示">文</button><input class="yn-in" type="number" value="${z.from}" data-fk="${kind}:${i}:from" onchange="ynFxSet('${kind}',${i},'from',this.value)">〜<input class="yn-in" type="number" value="${z.to}" data-fk="${kind}:${i}:to" onchange="ynFxSet('${kind}',${i},'to',this.value)"></span>`;
     const tail=(kind,i,z)=>`<span class="yn-sd" title="${esc(sents.filter(x=>x.n>=z.from&&x.n<=z.to).map(x=>x.text).join(' '))}">${said(z)?`「${esc(said(z))}」`:''}</span>
 <span class="yn-ed"><button class="ya-nd" title="この演出を消す" onclick="ynPlanDel('${kind}',${i})">消す</button></span>`;
     // 並び：種類 → 枠 → 文番号 → 話している文 → 消す
-    const colSel=(cur,on)=>`<select class="yn-col" style="background:${cur||'#94a3b8'}" onchange="${on}" title="強調の色">${YN_COLS.map(o=>`<option value="${o[0]}"${o[0]===cur?' selected':''} style="background:${o[0]}">${o[1]}</option>`).join('')}</select>`;
+    const colSel=(cur,on,fk)=>`<select class="yn-col" data-fk="${fk||''}" style="background:${cur||'#94a3b8'}" onchange="${on}" title="強調の色">${YN_COLS.map(o=>`<option value="${o[0]}"${o[0]===cur?' selected':''} style="background:${o[0]}">${o[1]}</option>`).join('')}</select>`;
     const fxLine=(kind,i,z,cur,zn,tl)=>{
       const tgt=z.text?`T${z.text}`:(z.zones||[z.zone]).join('+');
       const tip=z.text?tl(z.text):(z.zones||[z.zone]).map(zn).join(' ＋ ');
       const out=z.text&&ynTextOut(z.slide,z.text);
-      return `<div class="yn-it">${typeSel(cur,`ynPlanKind('${kind}',${i},this.value)`)}${kind==='marks'?colSel(z.color||ynMarkColor(z,'soft'),`ynFxSet('marks',${i},'color',this.value)`):''}
-<span class="yn-lb">${z.text?'文字':'枠'}</span><input class="yn-in yn-zn" value="${tgt}" title="${esc(tip)}（枠は 2+3、文字は T1 のように書く）" onchange="ynFxSet('${kind}',${i},'zones',this.value)">${out?'<span class="yn-warn" title="読み取った文字の位置が、入っているまとまりの枠から外れています。書き出しには入ります。ナレスラで位置を確かめてください">⚠位置</span>':''}
+      return `<div class="yn-it">${typeSel(cur,`ynPlanKind('${kind}',${i},this.value)`,`${kind}:${i}:type`)}${kind==='marks'?colSel(z.color||ynMarkColor(z,'soft'),`ynFxSet('marks',${i},'color',this.value)`,`marks:${i}:color`):''}
+<span class="yn-lb">${z.text?'文字':'枠'}</span><input class="yn-in yn-zn" value="${tgt}" title="${esc(tip)}（枠は 2+3、文字は T1 のように書く）" data-fk="${kind}:${i}:zones" onchange="ynFxSet('${kind}',${i},'zones',this.value)">${out?'<span class="yn-warn" title="読み取った文字の位置が、入っているまとまりの枠から外れています。書き出しには入ります。ナレスラで位置を確かめてください">⚠位置</span>':''}
 ${nums(kind,i,z)}${tail(kind,i,z)}</div>`;};
     const fixLine=(kind,i,z,what)=>`<div class="yn-it"><span class="yn-k k-${kind}">${ynKinds[kind]}</span><span class="yn-wh" title="${esc(what)}">${esc(what)}</span>${nums(kind,i,z)}${tail(kind,i,z)}</div>`;
     YN.plan.slides.forEach((x,si)=>{
@@ -10833,6 +10834,20 @@ ${rows.map(r=>r[1]).join('')}
   // 前の高さを仮に保ち、元の位置へ戻す（画像が読めたら仮の高さは外す）
   area.querySelectorAll('.yn-item[data-n]').forEach(it=>{const hh=hs[it.dataset.n];if(!hh)return;it.style.minHeight=hh+'px';const im=it.querySelector('img');if(im)im.addEventListener('load',()=>{it.style.minHeight='';},{once:true});});
   if(sc)sc.scrollTop=top0;
+  if(fk){const e=[...area.querySelectorAll('[data-fk]')].find(x=>x.dataset.fk===fk);if(e){e.focus({preventScroll:true});if(e.select)e.select();}}
+}
+// 欄を直して Tab で次へ移ると、直した値の保存で一覧を描き直すため、移った先の欄が消えてカーソルが一番上へ飛んでいた。
+// 描き直す前に、カーソルのある欄（Tab で欄でない所へ来たときは、その向きで次の欄）を覚えておく
+let _ynTab={t:0,back:false};
+function ynFocusKey(area){
+  if(!area._ynTabHook){area._ynTabHook=true;area.addEventListener('keydown',e=>{if(e.key==='Tab')_ynTab={t:Date.now(),back:e.shiftKey};},true);}
+  const ae=document.activeElement;if(!ae||!area.contains(ae))return null;
+  if(ae.dataset.fk)return ae.dataset.fk;
+  if(Date.now()-_ynTab.t>1000)return null;
+  const all=[...area.querySelectorAll('[data-fk]')].filter(e=>e.dataset.fk&&e.offsetParent);
+  const F=Node.DOCUMENT_POSITION_FOLLOWING,P=Node.DOCUMENT_POSITION_PRECEDING;
+  const nx=_ynTab.back?all.reverse().find(e=>ae.compareDocumentPosition(e)&P):all.find(e=>ae.compareDocumentPosition(e)&F);
+  return nx?nx.dataset.fk:null;
 }
 
 // ---- 2. 演出の割り当て（音声の文字起こし × スライドのまとまり） ----
@@ -11090,7 +11105,7 @@ function ynFxSet(kind,i,field,v){
     if(!g){ynStatus(`文${it.from}〜${it.to}は全部「削る」にしている文なので、演出を付けられません`,'error','status2');Object.assign(it,keep);ynRender();return;}
     Object.assign(it,g);
   }
-  ynPut('plan',YN.plan);ynRender();if(typeof ysRender==='function')ysRender();
+  ynPut('plan',YN.plan);setTimeout(()=>{ynRender();if(typeof ysRender==='function')ysRender();},0);   // カーソルが次の欄へ移ってから描き直す
 }
 // 追加の入力行を出す／しまう
 function ynAddOpen(no,on){   // no＝何番目の表示か（YN.plan.slides の位置）
