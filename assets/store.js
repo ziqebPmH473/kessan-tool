@@ -34,7 +34,9 @@
     cur: {},                // kind → id（このタブ）
     created: {},            // id → 作成時刻（新しく作った行）
     sub: {},                // id → 用途（株価分析のその後 など。今は入れ物だけ）
-    base: {},               // kind → 空で開いたときの JSON（これと違ったら行を作る）
+    base: {},               // kind → 空で開いているときの、いちばん最近の JSON（ユーザーが触るまで追いかける）
+    touched: {},            // kind → 'input'（欄を打った・貼った）| 'click'（何か押した）。空の PJ に行を作る合図
+    titleOf: null,          // (kind, fields) → 見出し。行の中身（持ち越し込み）から作る
     force: {},              // kind → true（ファイルを入れたので行を作る）
     versions: {},           // id → サーバーの version
     last: {},               // id → 最後にサーバーと合った JSON 文字列
@@ -145,16 +147,29 @@
     const kd = buildKindDocs(state, byTab);
     let changed = false;
     TABS.forEach(t => {
-      const d = kd[t]; const j = JSON.stringify(d.json);
+      const d = kd[t];
       let id = S.cur[t];
+      if (id) {
+        // 持ち越し：いま画面に無い欄（別の種別の側に移っている横動画の欄など）は、前に保存した値を残す。
+        // 行の json は丸ごと置き換わるので、こうしないと消えてしまう
+        const prev = S.last[id] ? parse(S.last[id]) : (S.pending[id] && S.pending[id].json);
+        if (prev && prev.fields) d.json.fields = Object.assign({}, prev.fields, d.json.fields);
+        if (prev && prev.radios) d.json.radios = Object.assign({}, prev.radios, d.json.radios);
+      }
+      const j = JSON.stringify(d.json);
       if (!id) {
-        if (S.base[t] === undefined) { S.base[t] = j; return; }
-        if (j === S.base[t] && !S.force[t]) return;
-        id = newId(t); S.cur[t] = id; S.created[id] = nowIso(); curSave();
+        // 空で開いている：ユーザーが触るまでは行を作らない（初期化や描き直しで欄が変わっても増やさない）
+        const touched = S.touched[t];
+        if (!S.force[t]) {
+          if (!touched) { S.base[t] = j; return; }
+          if (touched === 'click' && j === S.base[t]) return;
+        }
+        id = newId(t); S.cur[t] = id; S.created[id] = nowIso(); delete S.touched[t]; delete S.base[t]; curSave();
       }
       delete S.force[t];
       if (j === S.last[id]) return;
-      S.pending[id] = { kind: t, title: d.title, meta: metaOf(id, d.title), json: d.json, jsonStr: j }; changed = true;
+      const title = (typeof S.titleOf === 'function') ? (S.titleOf(t, d.json.fields || {}) || '') : d.title;
+      S.pending[id] = { kind: t, title, meta: metaOf(id, title), json: d.json, jsonStr: j }; changed = true;
     });
     const sj = JSON.stringify(kd.shared.json);
     if (sj !== S.last.shared) { S.pending.shared = { kind: 'shared', title: '', meta: {}, json: kd.shared.json, jsonStr: sj, force: true }; changed = true; }
@@ -429,7 +444,7 @@
   // その kind で開く PJ を切り替える（行の中身を返す。画面への反映は呼ぶ側）。id=null で空の PJ
   async function openProject(kind, id) {
     await flush();
-    S.cur[kind] = id || null; delete S.base[kind]; delete S.force[kind]; curSave();
+    S.cur[kind] = id || null; delete S.base[kind]; delete S.force[kind]; delete S.touched[kind]; curSave();
     if (!id) return null;
     if (S.mode !== 'server') return null;
     const docs = await fetchDocs([id]); const d = docs[id];
@@ -449,7 +464,7 @@
     }
     Object.keys(S.mediaQueue).forEach(q => { if (q.includes('/' + id + '/')) delete S.mediaQueue[q]; });
     delete S.rows[id]; delete S.versions[id]; delete S.last[id]; delete S.pending[id];
-    if (kind && S.cur[kind] === id) { S.cur[kind] = null; delete S.base[kind]; curSave(); }
+    if (kind && S.cur[kind] === id) { S.cur[kind] = null; delete S.base[kind]; delete S.touched[kind]; curSave(); }
     metaSave(); pendingSave();
   }
   function flush() { clearTimeout(S.timer); return push(false); }
@@ -586,7 +601,10 @@
 
   window.KTStore = {
     ready, saveState, mediaNs, flush,
-    pidFor, openProject, deleteProject, listProjects, refreshRows,
+    pidFor, openProject, deleteProject, listProjects, refreshRows, fetchDocs,
+    // ユーザーが触った合図（空の PJ に行を作る）。'input'＝欄を打った・貼った・ファイルを選んだ、'click'＝何か押した（欄が変わっていれば作る）
+    touch(kind, type) { if (!kind || S.cur[kind]) return; if (type === 'input' || !S.touched[kind]) S.touched[kind] = type === 'input' ? 'input' : 'click'; },
+    set titleOf(fn) { S.titleOf = fn; },
     get cur() { return Object.assign({}, S.cur); },
     get rows() { return S.rows; },
     get mode() { return S.mode; },
