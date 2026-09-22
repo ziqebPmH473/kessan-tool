@@ -2146,10 +2146,21 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
                 list: () => tx('readonly', st => st.getAllKeys()).then(ks => (ks || []).map(String)),
             };
         }
-        const KT_FILES = KTStore.mediaNs('files', ktIdbNs('kessanToolFiles', 'files'));       // 決算資料PDF・サムネ背景
-        const KT_TTS   = KTStore.mediaNs('tts',   ktIdbNs('kessanTool-vdTts', 'parts'));      // スライドごとの音声
-        const KT_YA    = KTStore.mediaNs('ya',    ktIdbNs('kessanTool-ytAudio', 'kv'));       // 横動画：ナレーション音声と作業状態
-        const KT_YN    = KTStore.mediaNs('yn',    ktIdbNs('kessanTool-ytNare', 'kv'));        // 横動画：スライド画像・割り当て・ひな形・素材
+        // キーは PJ ごと（'<pid>/<名前>'）。どの PJ かは kindOf で決める：横動画まわりは「YT動画を開いているか」（ytGen）で株価分析／YT動画を分ける。
+        // legacy は フェーズ1までの pid 無しキー（'gen:audio' など）の行き先。
+        const ktYtKind = () => (typeof ytGen === 'function' && ytGen()) ? 'yt' : 'price';
+        const ktLegacyYt = k => (k.startsWith('gen:') ? { kind: 'yt', key: k.slice(4) } : { kind: 'price', key: k });
+        const KT_FILES = KTStore.mediaNs('files', ktIdbNs('kessanToolFiles', 'files'), {        // 決算資料PDF・サムネ背景
+            kindOf: k => (k === 'earn' ? 'earnings' : ktYtKind()),
+            legacy: k => ({ kind: k === 'earn' ? 'earnings' : 'price', key: k }) });
+        const KT_TTS   = KTStore.mediaNs('tts',   ktIdbNs('kessanTool-vdTts', 'parts'), {       // スライドごとの音声（ev:＝決算の動画、vd:＝横動画）
+            kindOf: k => (k.startsWith('ev:') ? 'earnings' : ktYtKind()),
+            legacy: k => ({ kind: k.startsWith('ev:') ? 'earnings' : 'price', key: k }) });
+        const KT_YA    = KTStore.mediaNs('ya',    ktIdbNs('kessanTool-ytAudio', 'kv'), {        // 横動画：ナレーション音声と作業状態
+            kindOf: () => ktYtKind(), legacy: ktLegacyYt });
+        const KT_YN    = KTStore.mediaNs('yn',    ktIdbNs('kessanTool-ytNare', 'kv'), {         // 横動画：スライド画像・割り当て・素材。ひな形（tpl）は PJ をまたいで共通
+            kindOf: k => (k === 'tpl' ? '_common' : ktYtKind()),
+            legacy: k => (k === 'tpl' ? { kind: '_common', key: k } : ktLegacyYt(k)) });
         function idbPut(key, val) { return KT_FILES.put(key, val); }
         function idbGet(key) { return KT_FILES.get(key); }
         function persistEarnFiles() { idbPut('earn', window._earnFiles).catch(e => console.warn('ファイル保存に失敗', e)); }
@@ -7015,8 +7026,11 @@ async function vdDbPut(key,obj){try{await KT_TTS.put(key,obj);}catch(e){console.
 async function vdDbDel(key){try{await KT_TTS.del(key);}catch(e){console.warn('vdDbDel',e);}}
 async function vdDbLoad(){
   try{
-    const keys=await KT_TTS.list();const out={};
-    for(const k of keys){const v=await KT_TTS.get(k);if(v)out[k]=v;}
+    const out={};
+    for(const pre of ['ev:','vd:']){
+      const keys=(await KT_TTS.list(pre)).filter(k=>k.startsWith(pre));
+      for(const k of keys){const v=await KT_TTS.get(k);if(v)out[k]=v;}
+    }
     return out;
   }catch(e){console.warn('vdDbLoad',e);return{};}
 }
@@ -9876,8 +9890,8 @@ function yaStatus(id,msg,cls){const el=yaEl(id);if(!el)return;el.style.display=m
 
 // ---- 保存（IndexedDB） ----
 // 保存先は KT_YA（端末内＋サーバー）
-async function yaPut(k,v){k=ytKey(k);try{await KT_YA.put(k,v);}catch(e){console.warn('[ya] 保存失敗',e);}}
-async function yaGet(k){k=ytKey(k);try{return await KT_YA.get(k);}catch(e){return null;}}
+async function yaPut(k,v){try{await KT_YA.put(k,v);}catch(e){console.warn('[ya] 保存失敗',e);}}
+async function yaGet(k){try{return await KT_YA.get(k);}catch(e){return null;}}
 let _yaSaveTimer=null;
 let _yaCutsBase=null;   // 前に保存したときのカット（変わっていたら、前のものを控える）
 function yaCutsKeep(){const cj=JSON.stringify(YA.cuts||[]);if(_yaCutsBase!=null&&cj!==_yaCutsBase)yhPush('cuts',JSON.parse(_yaCutsBase),'カットを変える前',true);_yaCutsBase=cj;}
@@ -10552,8 +10566,8 @@ function ynStatus(msg,cls,id){const el=ynEl(id||'status');if(!el)return;el.style
 let _ynPlanWhy='',_ynPlanSkip=false;   // 割り当てを保存するときの理由（空なら手で直したもの）／戻す・やり直すで保存するときは控えない
 async function ynPut(k,v){
   if(k==='plan'){const why=_ynPlanWhy,skip=_ynPlanSkip;_ynPlanWhy='';_ynPlanSkip=false;if(!skip){const old=await ynGet('plan');if(old&&old.slides)await yhPush('plan',old,why||'手で直す前',!why);}}
-  k=ytKey(k);try{await KT_YN.put(k,v);}catch(e){console.warn('[yn] 保存失敗',e);}}
-async function ynGet(k){k=ytKey(k);try{return await KT_YN.get(k);}catch(e){return null;}}
+  try{await KT_YN.put(k,v);}catch(e){console.warn('[yn] 保存失敗',e);}}
+async function ynGet(k){try{return await KT_YN.get(k);}catch(e){return null;}}
 function ynSave(){ynPut('slides',YN.slides.map(s=>({name:s.name,blob:s.blob,zones:s.zones||null,texts:s.texts||null,qrOrig:s.qrOrig||null,qrRect:s.qrRect||null})));}
 
 // ---- スライド画像の読み込み（ファイル名順） ----
