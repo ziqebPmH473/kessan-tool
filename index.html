@@ -567,7 +567,9 @@ select.yn-sel option{color:#0f172a;background:#fff;font-weight:400;}
 .ya-pri.p4{background:#bfdbfe;color:#1e40af;} .ya-pri.p5{background:#1e3a8a;color:#fff;}
 .ya-sec{background:#eff6ff;color:#1e3a8a;font-weight:700;font-size:12px;padding:3px 8px;border-bottom:1px solid #dbeafe;}
 .ya-sw{background:#eff6ff;color:#1e3a8a;font-weight:700;font-size:12px;padding:3px 8px;border-top:2px solid #3b82f6;border-bottom:1px solid #dbeafe;}
-.ya-swb{margin-left:10px;display:inline-flex;gap:3px;font-weight:400;}
+.ya-swb{display:flex;flex-wrap:wrap;gap:3px;font-weight:400;margin-top:2px;}   /* 帯の2行目に置く（1行に並べると、幅が狭いとき右にはみ出して見えなくなる） */
+.ya-sw{white-space:normal;word-break:break-all;}
+.yn-item.yn-now{outline:3px solid #f59e0b;outline-offset:-3px;}
 /* ===== VERTICAL SLIDES (1080×1920, SNS動画用) =====
    ナレーションの補助資料なので文字量は控えめ（見出し1つ＋「結論＋短い補足」×3）。
    テロップは入れない前提で、スマホ全画面で読める大きさにする。
@@ -10759,7 +10761,7 @@ function ynRender(){
   const sc=ynScrollBox(area),top0=sc?sc.scrollTop:0,hs={};
   area.querySelectorAll('.yn-item[data-n]').forEach(it=>{hs[it.dataset.n]=it.offsetHeight;});
   if(!YN.slides.length){area.innerHTML='<div style="font-size:11px;color:var(--text-sub);padding:8px;">「スライド」タブでスライド画像を読み込むと、ここに表示されます</div>';return;}
-  area.innerHTML=YN.slides.map((s,i)=>`<div class="yn-item" data-n="${esc(s.name)}"><div class="yn-hd"><input type="checkbox" class="yn-sel" ${YN.sel.has(s.name)?'checked':''} onchange="ynSelToggle(${i},this.checked)" title="選ぶ（読み取り直す・位置を補正・リセット・Web版の読み取りを、選んだ枚だけにする）"><b>${i+1}</b> <b>${esc(ynSlideTitle(i))}</b> <span title="${esc(s.name)}">${esc(ynShortName(i))}</span> <span>${s.zones?`${s.zones.length}か所`:'未読み取り'}</span>
+  area.innerHTML=YN.slides.map((s,i)=>`<div class="yn-item" data-n="${esc(s.name)}"><div class="yn-hd"><input type="checkbox" class="yn-pick" ${YN.sel.has(s.name)?'checked':''} onchange="ynSelToggle(${i},this.checked)" title="選ぶ（読み取り直す・位置を補正・リセット・Web版の読み取りを、選んだ枚だけにする）"><b>${i+1}</b> <b>${esc(ynSlideTitle(i))}</b> <span title="${esc(s.name)}">${esc(ynShortName(i))}</span> <span>${s.zones?`${s.zones.length}か所`:'未読み取り'}</span>
 <button class="ya-nd" onclick="ynSnapAll(this,${i})" title="この1枚の枠を、画像の縁や文字に合わせる">🪄</button><button class="ya-nd" onclick="ynZonesUndo(this,${i},'p')" title="この1枚のまとまりを、前の状態に戻す">↶</button><button class="ya-nd" onclick="ynZonesUndo(this,${i},'f')" title="戻したのを取り消す">↷</button><button class="ya-nd" onclick="ynReadOne(${i})" title="この1枚だけ、まとまりを読み取る（読み取り直す）">${s.zones&&s.zones.length?'↻ 読み直す':'🔍 読み取る'}</button><button class="ya-nd" onclick="ynMove(${i},-1)">↑</button><button class="ya-nd" onclick="ynMove(${i},1)">↓</button><button class="ya-nd" onclick="if(confirm('この画像を外しますか？'))ynRemove(${i})">✕</button></div>
 <div class="yn-img" id="yn-img-${i}"></div></div>`).join('');
   // 割り当て済みなら、スライドごとの表示時間・ズーム・強調・出典・チャートを下に出す（時刻はカット後）
@@ -10792,8 +10794,9 @@ ${nums(kind,i,z)}${tail(kind,i,z)}</div>`;};
       const tl=k=>{const q=(((YN.slides[x.no-1]||{}).texts||[])[k-1])||{};return `${YN_TKIND[q.kind]||'文字'}：${q.label||''}`;};
       const inS=z=>z.s>=x.s-0.01&&z.s<x.e-0.01;   // 境目ちょうどのものは、後ろのスライド側にだけ出す
       const rows=[];
-      YN.plan.zooms.forEach((z,i)=>{if(z.slide===x.no)rows.push([z.s,fxLine('zooms',i,z,'zoom',zn,tl)]);});
-      YN.plan.marks.forEach((z,i)=>{if(z.slide===x.no)rows.push([z.s,fxLine('marks',i,z,z.type,zn,tl)]);});
+      const twice=YN.plan.slides.filter(y=>y.no===x.no).length>1;   // 同じスライドを2回使うときは、その回の時間のものだけ
+      YN.plan.zooms.forEach((z,i)=>{if(z.slide===x.no&&(!twice||inS(z)))rows.push([z.s,fxLine('zooms',i,z,'zoom',zn,tl)]);});
+      YN.plan.marks.forEach((z,i)=>{if(z.slide===x.no&&(!twice||inS(z)))rows.push([z.s,fxLine('marks',i,z,z.type,zn,tl)]);});
       (YN.plan.sources||[]).forEach((z,i)=>{if(inS(z))rows.push([z.s,fixLine('sources',i,z,`出典${String(z.no)}：${z.name||''}`)]);});
       (YN.plan.charts||[]).forEach((z,i)=>{if(inS(z))rows.push([z.s,fixLine('charts',i,z,`${z.ticker} ${z.interval} ${z.start}〜${z.end}${z.note?`（${z.note}）`:''}`)]);});
       rows.sort((a,b)=>a[0]-b[0]);
@@ -10853,7 +10856,7 @@ function ynPlanPrompt(){
   return `あなたは動画編集者です。完成した音声（2人の会話）に、スライドの表示とズーム・強調を割り当ててください。
 
 【前提】
-・スライドは音声の流れに合わせて作ってあります。基本は音声の順にスライドを表示します。
+・話している内容に合うスライドを表示します。スライドの番号の順とは限りません（音声の話す順が、スライドの順と違うことがあります）。離れた箇所で同じ内容に戻るときは、同じスライドをもう一度表示します。
 ・1枚のスライドを表示している間、話している箇所にズームしたり、四角枠やハイライトで強調したりします。
 ・ずっとズームはしません。スライドに切り替えた直後と、話題の切れ目、スライドの最後は全体表示に戻します。
 
@@ -11026,7 +11029,8 @@ function ynPlanNorm(){
   const P=YN.plan;if(!P||!P.slides||!P.slides.length)return;
   ['zooms','marks'].forEach(k=>(P[k]||[]).forEach(it=>{if(it.zones&&it.zones.length>1)it.zones=ynTrimNested(it.zones,it.slide);}));
   P.slides.sort((a,b)=>(a.from-b.from)||(a.no-b.no));
-  P.slides=P.slides.filter((x,i,a)=>a.findIndex(y=>y.no===x.no)===i);   // 同じスライドが2回出てきたら、最初の1回だけにする（ナレスラは1枚1区間）
+  // 同じスライドを2回以上使ってよい（離れた箇所で同じ内容に戻るとき）。ナレスラへは、使う回ごとに1枚ずつ置く
+  P.slides=P.slides.filter((x,i,a)=>!(i>0&&a[i-1].no===x.no));   // 続けて同じスライドは1つにまとめる
   const ns=ynKeptSents().map(x=>x.n);if(!ns.length)return;
   P.slides.forEach((x,i)=>{
     const nx=P.slides[i+1];
@@ -11233,20 +11237,22 @@ async function ynExport(btn){
     let id=(p.decIdCtr||0)+1000;
     // スライド画像
     ynPlanNorm();
-    const order=YN.plan.slides.map(x=>x.no).filter((n,i,a)=>a.indexOf(n)===i);          // 音声で出てくる順
-    const seq=order.concat(YN.slides.map((_,i)=>i+1).filter(n=>!order.includes(n)));      // 使わないスライドは後ろ
-    const byNo={},posOf=no=>seq.indexOf(no)+1;
+    // 音声で出てくる順に、使う回ごとに1枚ずつ置く（同じスライドを2回使うときは2枚）。使わないスライドは後ろ
+    const occ=YN.plan.slides.map((x,i)=>({no:x.no,s:x.s,e:(YN.plan.slides[i+1]||{}).s??Infinity}));
+    const used=new Set(occ.map(o=>o.no));
+    const seq=occ.map(o=>o.no).concat(YN.slides.map((_,i)=>i+1).filter(n=>!used.has(n)));
     const outSlides=[];
     seq.forEach((no,i)=>{
       const s=YN.slides[no-1],ext=(s.name.match(/\.(\w+)$/)||[,'png'])[1].toLowerCase();
       zip.file(`slides/slide-${i}.${ext}`,s.blob);
-      byNo[no]={name:s.name,file:`slides/slide-${i}.${ext}`,zoomKeyframes:[],id:++id,kind:'image',narMute:0};
-      outSlides.push(byNo[no]);
+      outSlides.push({name:s.name,file:`slides/slide-${i}.${ext}`,zoomKeyframes:[],id:++id,kind:'image',narMute:0});
     });
+    // そのスライドの、その時刻に表示している回（見つからなければ最初の回）
+    const slideAt=(no,t)=>{let k=occ.findIndex(o=>o.no===no&&t>=o.s-0.01&&t<o.e-0.01);if(k<0)k=occ.findIndex(o=>o.no===no);return k<0?null:outSlides[k];};
     const slides=outSlides;
     // ズーム（原音時刻）
     for(const z of YN.plan.zooms){
-      const sl=byNo[z.slide],zs=(z.zones||[z.zone]).map(k=>(((YN.slides[z.slide-1]||{}).zones)||[])[k-1]).filter(Boolean);
+      const sl=slideAt(z.slide,z.s),zs=(z.zones||[z.zone]).map(k=>(((YN.slides[z.slide-1]||{}).zones)||[])[k-1]).filter(Boolean);
       if(!sl||!zs.length)continue;   // まとまりが無い＝読み取り前や番号違いは飛ばす
       // 複数のまとまりは、全部を囲む枠にする
       const zone={box:[Math.min(...zs.map(q=>Math.min(q.box[0],q.box[2]))),Math.min(...zs.map(q=>Math.min(q.box[1],q.box[3]))),Math.max(...zs.map(q=>Math.max(q.box[0],q.box[2]))),Math.max(...zs.map(q=>Math.max(q.box[1],q.box[3])))]};
@@ -11337,7 +11343,7 @@ async function ynExport(btn){
     }
     // 切り替え・テロップ・字幕・カット
     const switchPoints=YN.plan.slides.slice(1).map(x=>+x.s.toFixed(2));
-    const cornerTelops=YN.plan.slides.filter(x=>x.corner).map(x=>({id:++id,text:x.corner,accentColor:'#e91e8c',startSlide:posOf(x.no),endSlide:posOf(x.no),animIn:.5,animOut:.5,sizeMul:1,posX:73,posY:-85,minChars:6}));
+    const cornerTelops=YN.plan.slides.map((x,i)=>[x,i]).filter(([x])=>x.corner).map(([x,i])=>({id:++id,text:x.corner,accentColor:'#e91e8c',startSlide:i+1,endSlide:i+1,animIn:.5,animOut:.5,sizeMul:1,posX:73,posY:-85,minChars:6}));
     const kept=ynKeptSents().map(x=>({text:x.text,s:x.s,e:x.e})).sort((a,b)=>a.s-b.s);
     kept.forEach((x,i)=>{
       if(x.e<x.s+0.3)x.e=x.s+0.6;                                  // 終わりが始まりより前／短すぎる
@@ -11383,8 +11389,14 @@ function ytParseSources(){
 function ynGo(d){
   if(!YN.slides.length)return;
   YN.cur=Math.min(YN.slides.length-1,Math.max(0,(YN.cur||0)+d));
-  const el=document.getElementById('yn-img-'+YN.cur);
-  if(el&&el.parentElement)el.parentElement.scrollIntoView({behavior:'smooth',block:'start'});
+  const el=document.getElementById('yn-img-'+YN.cur),it=el&&el.parentElement;
+  if(it){
+    // 左のスライドの一覧が入っている、縦に動かせる入れ物の中で動かす（ページごと動かさない）
+    const sc=ynScrollBox(it);
+    if(sc&&sc!==document.scrollingElement)sc.scrollTo({top:sc.scrollTop+(it.getBoundingClientRect().top-sc.getBoundingClientRect().top),behavior:'smooth'});
+    else it.scrollIntoView({behavior:'smooth',block:'start'});
+    document.querySelectorAll('.yn-item.yn-now').forEach(x=>x.classList.remove('yn-now'));it.classList.add('yn-now');setTimeout(()=>it.classList.remove('yn-now'),1500);
+  }
   ynPos();
 }
 function ynPos(){
