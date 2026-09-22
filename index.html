@@ -8256,7 +8256,7 @@ QRコード用のスペースは、淡い無地の正方形（白〜ごく淡い
 # 背景
 
 背景は、本文・数字・図解の読みやすさを優先してください。
-白〜ごく淡いブルー、淡いグレーを基調としますが、完全な無地にする必要はありません。
+完全な無地にする必要はありません。
 写真風のモチーフ、淡いグラデーション、抽象的な装飾は使って構いません。
 
 ・本文や重要数字の背後には、複雑な背景を置かない
@@ -8272,10 +8272,9 @@ QRコード用のスペースは、淡い無地の正方形（白〜ごく淡い
 # デザイン
 
 ・16:9横長
-・白〜淡いブルー／グレーを基調とし、必要に応じて淡い写真・グラデーション・抽象モチーフを使ってよい
-・濃紺の大きな見出し
-・青をメインのアクセント、強み＝緑、注意点やリスク＝赤、補足＝グレー
-・領域の背景には、その色のごく淡い塗りを使う
+・{基調色}を基調とし、必要に応じて淡い写真・グラデーション・抽象モチーフを使ってよい
+・{見出し}の大きな見出し
+・文字は{書体}にする
 ・重要数字は大きく
 ・投資の資料としての信頼感があり、過度な装飾はしない
 ・背景より、本文・図解・数字が主役になる見た目にする
@@ -8383,10 +8382,16 @@ PowerPoint、PPTX、プレゼンテーションファイルは作成しないで
 
 // YT動画のときのスライド用プロンプト。株価分析の動画の文面（YT_SLIDE_DESIGNER）を土台に、銘柄・7章固定・noteの案内の箇所だけを置き換える。
 // 置き換える元の文が見つからないとき（土台の文面を直したとき）は、コンソールに知らせる。
+// 色・書体は設定（ytSlideColors）から入れる。欄が空なら、その行ごと入れない
+function ytSlideStyleApply(t){
+  const c=ytSlideColors(),v={'{基調色}':c.base,'{見出し}':c.head,'{書体}':c.font};
+  return t.split('\n').filter(l=>!Object.keys(v).some(k=>l.includes(k)&&!String(v[k]).trim()))
+    .map(l=>l.replace(/\{基調色\}|\{見出し\}|\{書体\}/g,k=>String(v[k]).trim())).join('\n');
+}
 function ytSlideDesignerText(){
-  if(!ytGen())return YT_SLIDE_DESIGNER;
+  if(!ytGen())return ytSlideStyleApply(YT_SLIDE_DESIGNER);
   const ch=ytChapters(),n=ch.length+1,qr=!!ytNoteUrl();
-  let t=YT_SLIDE_DESIGNER;
+  let t=ytSlideStyleApply(YT_SLIDE_DESIGNER);
   const sw=(a,b,all)=>{if(!t.includes(a)){console.warn('[yt] スライド用プロンプトの置き換え元がありません：',a.slice(0,30));return;}t=all?t.split(a).join(b):t.replace(a,b);};
   sw('あなたは、投資系YouTube動画で使用する',`あなたは、${ytAud()}で使用する`);
   sw('「スライド画像」を8枚生成',`「スライド画像」を${n}枚生成`);
