@@ -10925,9 +10925,12 @@ function ynTvTicker(name){const cs=ytChartSpec(name);if(cs&&cs.ticker)return cs.
 function ynTicker(){if(ytGen())return '';const c=(getTicker()||'').trim();return /^[0-9][0-9A-Z]{3}$/i.test(c)?`TSE:${c.toUpperCase()}`:c;}
 const ynKinds={zooms:'ズーム',marks:'強調',sources:'出典',charts:'チャート'};
 // 文番号（from〜to）から、元の音声の時刻を出す
+// 文 f〜t の時刻。削る文は飛ばす（範囲の中で残る最初の文〜最後の文）。始まり・終わりに削る文の番号を入れてもよい
 function ynSeg(f,t){
-  const sents=ynKeptSents(),at=n=>sents.find(x=>x.n===+n)||null;
-  const a=at(f),b=at(t)||a;return a?{s:a.s,e:Math.max(a.e,(b||a).e)}:null;
+  const lo=Math.min(+f,+(t??f)),hi=Math.max(+f,+(t??f));
+  const inr=ynKeptSents().filter(x=>x.n>=lo&&x.n<=hi);
+  if(!inr.length)return null;
+  const a=inr[0],b=inr[inr.length-1];return{s:a.s,e:Math.max(a.e,b.e)};
 }
 // カット後の長さ（秒）
 function ynEditLen(s,e){const K=yaKeep();return Math.max(0,yaToEdit(e,K)-yaToEdit(s,K));}
@@ -11079,13 +11082,13 @@ function ynFxSet(kind,i,field,v){
     it.zones=zs;delete it.zone;delete it.text;
   }else{
     const ns=ynKeptSents().map(x=>x.n);let n=+v;
-    // 削った文の番号なら、動かした向きの次の残る文へ（近い方へ寄せると、広げたのに元へ戻ってしまう）
-    if(!ns.includes(n)){
-      const up=n>(+it[field]||0),near=(up?ns.find(x=>x>n):[...ns].reverse().find(x=>x<n))??ns.reduce((a,b)=>Math.abs(b-n)<Math.abs(a-n)?b:a,ns[0]);
-      ynStatus(`文${n}は「削る」にしている文なので、文${near}にしました`,'ok','status2');n=near;
-    }
+    // 削る文の番号もそのまま入れてよい（▲▼で1つずつ動かせるように）。時刻は、範囲の中で残る文から決まる
+    if(!ns.length||!(n>=1&&n<=YA.sents.length)){ynRender();return;}
+    const keep={from:it.from,to:it.to};
     if(field==='from'){it.from=n;if(it.to<n)it.to=n;}else{it.to=n;if(it.from>n)it.from=n;}
-    Object.assign(it,ynSeg(it.from,it.to)||{});
+    const g=ynSeg(it.from,it.to);
+    if(!g){ynStatus(`文${it.from}〜${it.to}は全部「削る」にしている文なので、演出を付けられません`,'error','status2');Object.assign(it,keep);ynRender();return;}
+    Object.assign(it,g);
   }
   ynPut('plan',YN.plan);ynRender();if(typeof ysRender==='function')ysRender();
 }
