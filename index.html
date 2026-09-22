@@ -9427,13 +9427,11 @@ function ytBuildTabHtml(){
 
 <div id="yt-pane-audio" style="display:none;">
 <div class="sa-card">
-  <h2>1. NotebookLM で音声を作る</h2>
+  <h2>1. NotebookLM で音声を作る <span style="font-size:10px;font-weight:400;color:var(--text-sub);">長さの設定は「短い」</span></h2>
+  ${set('シリーズ','<input type="text" id="yt-series" value="'+YT_SERIES_DEFAULT+'" placeholder="空欄ならシリーズ無し" title="調査・音声・スライド・投稿文の「どういう動画か」の一文と、タイトルの末尾（｜シリーズ名）に入ります。空欄ならシリーズ無し" oninput="saveState()" style="flex:1;min-width:0;font-size:11px;"><button class="ya-nd" onclick="ytSeriesReset()" title="既定のシリーズ名に戻す">↺</button>')}
   ${set('<span class="yt-only-stock">銘柄名の読み</span><span class="yt-only-gen" style="display:none;">読みがな</span>','<input type="text" id="yt-yomi" placeholder="資料を貼ると自動で入ります" oninput="ytYomiInput()" style="flex:1;min-width:0;font-size:11px;"><input type="hidden" id="yt-yomi-for">')}
-  <div class="yt-only-gen" style="display:none;">${set('冒頭のやりとり','<textarea id="yt-open" rows="2" placeholder="構成と出典を貼ると自動で入ります。空欄なら、NotebookLMの指示に冒頭の指定を入れません" oninput="ytOpenInput()" style="flex:1;min-width:0;font-size:11px;"></textarea><input type="hidden" id="yt-open-for">')}</div>
-  ${set('シリーズ名','<input type="text" id="yt-series" value="'+YT_SERIES_DEFAULT+'" placeholder="空欄ならシリーズ無し" oninput="saveState()" style="flex:1;min-width:0;font-size:11px;"><button class="ya-nd" onclick="ytSeriesReset()" title="既定のシリーズ名に戻す">↺</button>')}
-  <div style="font-size:10px;color:var(--text-sub);">シリーズ名は、調査・音声・スライド・投稿文の「どういう動画か」の一文と、タイトルの末尾（｜シリーズ名）に入ります。空にすると、シリーズ無しとして作ります。</div>
+  <div class="yt-only-gen" style="display:none;">${set('冒頭','<textarea id="yt-open" rows="2" placeholder="分析の3.を貼ると自動で入ります（空欄なら指定なし）" title="音声の冒頭のやりとり。入っているときだけ、NotebookLMの指示に「音声の冒頭は、必ず「〜」のやりとりから始めてください。」を入れます" oninput="ytOpenInput()" style="flex:1;min-width:0;font-size:11px;"></textarea><input type="hidden" id="yt-open-for">')}</div>
   ${row(b('📄 ソース（.md）','ytDownloadSource()','background:#0d9488;color:#fff;'),b('📓 指示',"ytCopy('nlm',this)",G))}
-  <div style="font-size:10px;color:var(--text-sub);">NotebookLMの長さ設定は「短い」。</div>
 </div>
 ${yaBuildPaneHtml()}
 <div style="margin-top:8px;">${yaBuildCutHtml()}</div></div>
@@ -10401,13 +10399,11 @@ function yaBuildPaneHtml(){
   return `
 <div class="sa-card" style="margin-top:8px;">
   <h2>2. 音声の読み込み・文字起こし</h2>
-  <input type="file" id="ya-file" accept="audio/*,.m4a" onchange="yaLoadFile(this.files[0])" style="font-size:11px;">
-  ${row(b('📝 文字起こし','yaTranscribe(this)',G))}
+  <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;"><input type="file" id="ya-file" accept="audio/*,.m4a" onchange="yaLoadFile(this.files[0])" style="font-size:11px;flex:1;min-width:0;">${b('📝 文字起こし','yaTranscribe(this)',G)}</div>
   <div id="ya-st-tr" style="display:none;font-size:11px;"></div>
-  <div class="sa-sub">▼ Gemini（Web版）の文字起こし</div>
-  <div style="font-size:10px;color:var(--text-sub);">Whisperは相槌を落とし話者も分からないので、Geminiで起こした文章と時刻を突き合わせます。</div>
+  <div style="font-size:10px;color:var(--text-sub);" title="Whisperは相槌を落とし話者も分からないので、Geminiで起こした文章と時刻を突き合わせます">Gemini（Web版）の文字起こしで、相槌と話者を補う</div>
   ${row(b('💬 プロンプト',"copyText(YA_G_PROMPT,this)",G),b('📋 貼り付け',"yaPaste('gtext',yaAlignFromBox)"),b('↻ 突き合わせ','yaAlignFromBox()'))}
-  <textarea id="ya-gtext" placeholder="A: …&#10;B: …（Geminiの文字起こし）" style="min-height:36px;font-size:11px;"></textarea>
+  <textarea id="ya-gtext" placeholder="A: …&#10;B: …（Geminiの文字起こし）" style="min-height:26px;height:26px;font-size:11px;"></textarea>
   <div id="ya-st-g" style="display:none;font-size:11px;"></div>
 </div>`;
 }
@@ -10418,30 +10414,24 @@ function yaBuildCutHtml(){
   const row=(...x)=>`<div class="row" style="flex-wrap:nowrap;">${x.join('')}</div>`;
   return `
 <div class="sa-card">
-  <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;"><h2>3. 削る箇所の判定</h2><span style="flex:none;"><button class="ya-nd" onclick="yaCutsUndo(this,'p')" title="カットを前の状態に戻す">↶ 戻す</button><button class="ya-nd" onclick="yaCutsUndo(this,'f')" title="戻したのを取り消す">↷ やり直す</button></span></div>
-  <div style="font-size:11px;color:var(--text-sub);">基本はNG（売買推奨・言い間違い・資料と食い違う話）だけを削ります。</div>
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;"><h2 title="文の一覧と試聴は、右の「🎙 音声カット」">3. 削る箇所の判定</h2><span style="flex:none;"><button class="ya-nd" onclick="yaCutsUndo(this,'p')" title="カットを前の状態に戻す">↶ 戻す</button><button class="ya-nd" onclick="yaCutsUndo(this,'f')" title="戻したのを取り消す">↷ やり直す</button></span></div>
   <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;">
     <label style="font-size:11px;color:var(--text-sub);flex:none;">目標の長さ</label>
     <input type="number" id="ya-target" value="8" min="1" step="0.5" style="width:60px;flex:none;font-size:11px;padding:4px;"><span style="font-size:11px;color:var(--text-sub);">分</span>
     <label style="font-size:11px;color:var(--text-sub);margin-left:auto;"><input type="checkbox" id="ya-use-parts" checked onchange="yaAutoSelect()"> 文の一部も削る</label>
   </div>
   ${row(b('💬 判定',"try{copyText(yaPrompt(),this)}catch(e){alert(e.message)}",G),b('📋 貼り付け',"yaPaste('plan',yaApplyPasted)"),b('↻ 反映','yaApplyPasted()'))}
-  <textarea id="ya-plan" placeholder="Gemini／ChatGPTに判定プロンプトを投げ、返ってきたJSONを貼り付け" style="min-height:36px;font-size:11px;font-family:monospace;"></textarea>
+  <textarea id="ya-plan" placeholder="判定プロンプトの結果（JSON）を貼り付け" style="min-height:26px;height:26px;font-size:11px;font-family:monospace;"></textarea>
   ${row(b('🤖 Gemini APIで判定','yaAiJudge(this)','background:#4f46e5;color:#fff;'),b('🎯 選び直す','yaAutoSelect()'))}
   <div id="ya-st-ai" style="display:none;font-size:11px;"></div>
   <div style="font-size:11px;" id="ya-sum2">-</div>
-  <div style="font-size:10px;color:var(--text-sub);">文の一覧と試聴は右の「🎙 音声カット」。点数の低い順に、同じ点数なら残りの割合が大きい章から削る。「必須」は自動では削らない（手動なら可）。</div>
+  <div style="font-size:10px;color:var(--text-sub);" title="NG（売買推奨・言い間違い・資料と食い違う話）は必ず削る。そのあと、点数の低い順に、同じ点数なら残りの割合が大きい章から、目標の長さまで削る。「必須」は自動では削らない（手動なら可）">NGと点数の低い文から、目標の長さまで削る（一覧は右）</div>
 </div>
 
 <div class="sa-card" style="margin-top:8px;">
-  <h2>4. カット後の音声</h2>
-  <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;">
-    <label style="font-size:11px;color:var(--text-sub);flex:none;">形式</label>
-    <select id="ya-fmt" style="flex:none;font-size:11px;padding:4px;"><option value="mp3">MP3</option><option value="wav">WAV</option></select>
-  </div>
-  ${row(b('▶ 通しで聴く','yaPlayCut()'),b('💾 音声','yaDownloadCut(this)','background:#0d9488;color:#fff;'),b('📄 文字起こし','yaDownloadText()'))}
+  <h2 title="ナレスラ用のプロジェクトでは、元の音声とカットの位置をそのまま渡します（ナレスラで調整できるように）">4. カット後の音声</h2>
+  <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;">${b('▶ 通しで聴く','yaPlayCut()')}${b('💾 音声','yaDownloadCut(this)','background:#0d9488;color:#fff;')}<select id="ya-fmt" title="保存する形式" style="flex:none;font-size:11px;padding:4px;"><option value="mp3">MP3</option><option value="wav">WAV</option></select>${b('📄 文字起こし','yaDownloadText()')}</div>
   <div id="ya-st-out" style="display:none;font-size:11px;"></div>
-  <div style="font-size:10px;color:var(--text-sub);">ナレスラ用のプロジェクトでは、元の音声とカットの位置をそのまま渡します（ナレスラで調整できるように）。</div>
 </div>`;
 }
 function yaAlignFromBox(){try{yaAlign(yaVal('gtext'));}catch(e){yaStatus('st-g','❌ '+esc(e.message),'error');}}
