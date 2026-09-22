@@ -1476,7 +1476,7 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
   <div id="yt-duo" style="display:contents;">
   <!-- 横動画のナレスラ（スライド画像と読み取った位置） -->
   <div id="yn-view" style="display:none;flex-direction:column;gap:6px;flex:1;">
-    <div style="font-size:11px;color:var(--text-sub);">スライド画像と、Geminiが読み取ったまとまりの位置（枠）。ズーム・四角枠・ハイライトの位置に使います。</div>
+    <div style="display:flex;gap:6px;align-items:center;"><button class="btn-sm" onclick="ynSelAll(true)" style="flex:none;">全選択</button><button class="btn-sm" onclick="ynSelAll(false)" style="flex:none;">選択解除</button><span style="font-size:11px;color:var(--text-sub);">スライド画像と、Geminiが読み取ったまとまりの位置（枠）。ズーム・四角枠・ハイライトの位置に使います。</span></div>
     <div class="row" id="yn-nav" style="flex-wrap:nowrap;gap:6px;align-items:center;position:fixed;top:8px;right:28px;z-index:60;width:auto;background:#fff;padding:4px 8px;border:1px solid var(--border);border-radius:16px;box-shadow:0 2px 8px rgba(15,23,42,.18);">
       <button class="btn-sm" onclick="ynGo(-1)" style="flex:none;">◀ 前</button>
       <span id="yn-pos" style="font-size:11px;color:var(--text-sub);">-</span>
@@ -7588,7 +7588,7 @@ function earnPrevMode(m){
 // ---- 横動画：Gemini のモデル（作業ごとに設定タブで選ぶ）----
 // 回数の上限のときは、選んだモデルから一覧の順に下のモデルへ切り替える（Lite は除く）。混雑のときは切り替えずに止める（下も混んでいることが多い）
 const YT_MODEL_LIST=[['gemini-3.8-flash','Gemini 3.8 Flash（20回/日）'],['gemini-3.7-flash','Gemini 3.7 Flash（20回/日）'],['gemini-3.6-flash','Gemini 3.6 Flash（20回/日）'],['gemini-3.5-flash','Gemini 3.5 Flash（20回/日）'],['gemini-3-flash-preview','Gemini 3 Flash（20回/日）'],['gemini-3.5-flash-lite','Gemini 3.5 Flash Lite（500回/日）'],['gemini-3.1-flash-lite','Gemini 3.1 Flash Lite（500回/日）'],['gemini-2.5-flash','Gemini 2.5 Flash（20回/日）'],['gemini-2.5-flash-lite','Gemini 2.5 Flash Lite（20回/日）']];
-const YT_AI_TASKS=[['cut','カットの判定','gemini-3.8-flash'],['read','まとまりの読み取り','gemini-3.8-flash'],['plan','演出の割り当て','gemini-3.8-flash'],['post','投稿文','gemini-3.8-flash'],['qr','QRの位置','gemini-3.8-flash']];
+const YT_AI_TASKS=[['cut','カットの判定','gemini-3.8-flash'],['read','まとまりの読み取り','gemini-3.8-flash'],['qr','QRの位置','gemini-3.8-flash'],['plan','演出の割り当て','gemini-3.8-flash'],['post','記事・投稿文','gemini-3.8-flash']];   // 画面の並び＝使う順（音声 → スライド → 演出 → 記事・SNS）
 const ytModelName=m=>((YT_MODEL_LIST.find(x=>x[0]===m)||[])[1]||m).replace(/（.*$/,'');
 function ytModels(task){
   const def=(YT_AI_TASKS.find(x=>x[0]===task)||[])[2]||'gemini-3.8-flash';
@@ -9400,13 +9400,12 @@ function ytBuildTabHtml(){
   <h2>3. できたスライドを取り込む</h2>
   <div style="font-size:11px;color:var(--text-sub);">できた画像を読み込みます（ファイル名順）。</div>
   <input type="file" id="yn-files" accept="image/*" multiple onchange="ynLoadFiles(this.files)" style="font-size:11px;width:100%;">
-  ${row(b('<span id="yn-read-label">🔍 まとまりを読み取る</span>','ynReadZones(this)','background:#4f46e5;color:#fff;'))}
+  ${row(b('🔍 まとまりを読み取る','ynReadZones(this)','background:#4f46e5;color:#fff;'))}
+  <div id="yn-read-state" style="font-size:11px;color:var(--text-sub);"></div>
   <div id="yn-sel-info" style="font-size:11px;color:var(--text-sub);"></div>
-  <div class="row" style="flex-wrap:nowrap;gap:4px;"><button class="ya-nd" onclick="ynSelAll(true)">全部選ぶ</button><button class="ya-nd" onclick="ynSelAll(false)">選ぶのをやめる</button></div>
   ${row(b('↻ 読み取り直す',"ynReadAgain()"),b('🪄 位置を補正','ynSnapAll(this)'),b('🗑 リセット','ynResetMenu(this)'))}
-  <div style="font-size:10px;color:var(--text-sub);">リセット・画像の読み込みの前に戻す</div>
-  <div class="row" style="flex-wrap:nowrap;gap:4px;"><button class="ya-nd" onclick="ynSlidesUndo(this,'p')" title="リセットや画像の読み込みの前に戻す">↶ 戻す</button><button class="ya-nd" onclick="ynSlidesUndo(this,'f')" title="戻したのを取り消す">↷ やり直す</button></div>
-  <div style="font-size:10px;color:var(--text-sub);" title="読み取ったあと、ツールが枠を画像の縁や文字に合わせます（自動）。まとまりは、枚ごとに右の「↶」で前の状態に戻せます。">枠は自動で画像に合わせます。枚ごとの「↶」で戻せます。</div>
+  ${row(b('↶ 読取・補正を戻す',"ynSlidesUndo(this,'p')"),b('↷ やり直す',"ynSlidesUndo(this,'f')"))}
+  <div style="font-size:10px;color:var(--text-sub);" title="読み取ったあと、ツールが枠を画像の縁や文字に合わせます（自動）。「↶ 読取・補正を戻す」は全部の枚（変わった枚）を、直前の読み取り・補正・リセット・画像の読み込みの前に戻します。1枚だけ戻すときは、右のスライドの見出しの「↶」">枠は自動で画像に合わせます。1枚だけ戻すときは、右の見出しの「↶」。</div>
   <details class="yt-col" style="margin-top:4px;">
     <summary style="font-size:11px;color:var(--text-sub);cursor:pointer;">Gemini（Web版）で読み取る（APIが混んでいるとき）</summary>
     <div style="font-size:10px;color:var(--text-sub);" title="「💾 添付」で保存したZIPを開き、中の画像を全部Geminiに添付し、「💬 プロンプト」を貼って送ります。返ってきたJSONを貼り付けてください。対象は、選んだ枚（選んでいなければ全部の枚）です（読み取り済みの枚も読み直します）。1回に10枚までなので、11枚以上あるときは、貼り付けたあと、もう一度「💾 添付」と「💬 プロンプト」を押すと続きの枚になります。">「💾 添付」のZIPの画像を全部添付し、「💬 プロンプト」を貼って送り、JSONを貼る。10枚ずつ（11枚目からは、貼ったあともう一度）。</div>
@@ -9522,12 +9521,12 @@ ${[['n','note記事（無料）','表なしで作ります。動画のURLは最�
   <div style="font-size:10px;color:var(--text-sub);">noteの記事のURL（まとめのスライドのQRにも使います）は、「SNS」タブの「YouTubeのURL」の下の欄で入れます。</div>
   ${set('チャート期間','<input type="number" id="yt-months" value="12" min="1" max="60" style="width:60px;flex:none;font-size:11px;padding:4px;">','ヶ月')}
   ${set('試聴の前後','<input type="number" id="ya-ctx" value="2" min="0" max="10" step="0.5" style="width:60px;flex:none;font-size:11px;padding:4px;">','秒（音声カットの▶・試聴で、前後に足す長さ）')}
-  <div class="sa-sub">▼ Geminiのモデル（作業ごと）</div>
-  <div style="font-size:10px;color:var(--text-sub);" title="回数の上限のときは、選んだモデルから一覧の順に下のモデルへ自動で切り替えます（Lite には切り替えません。読み取りの位置が大きくずれて使えなかったため）。混雑のときは切り替えずに止まるので、ここで別のモデルを選んでもう一度押してください。">上限のときは下のモデルへ自動で切り替え（Lite除く）。混雑で止まったら、別のモデルを選んでもう一度。</div>
-  ${YT_AI_TASKS.map(([k,n,d])=>set(n,`<select id="yt-m-${k}" onchange="saveState()" style="flex:1;min-width:0;font-size:11px;padding:3px;">${YT_MODEL_LIST.map(([v,l])=>`<option value="${v}"${v===d?' selected':''}>${l}</option>`).join('')}</select>`)).join('')}
   <div class="yt-only-gen" style="display:none;">${set('番組の説明','<input type="text" id="yt-g-aud" value="'+YT_G_AUD_DEFAULT+'" oninput="saveState()" style="flex:1;min-width:0;font-size:11px;padding:4px;">','')}
   <div style="font-size:10px;color:var(--text-sub);">ChatGPTへの指示の「あなたの役割」に入れる、番組の説明です。</div></div>
   ${set('動画の長さ','<input type="number" id="yt-nlm-min" value="12" min="3" max="30" oninput="saveState()" style="width:60px;flex:none;font-size:11px;padding:4px;">','分（構成と音声の指示に入ります）')}
+  <div class="sa-sub">▼ Geminiのモデル（作業ごと）</div>
+  <div style="font-size:10px;color:var(--text-sub);" title="回数の上限のときは、選んだモデルから一覧の順に下のモデルへ自動で切り替えます（Lite には切り替えません。読み取りの位置が大きくずれて使えなかったため）。混雑のときは切り替えずに止まるので、ここで別のモデルを選んでもう一度押してください。">上限のときは下のモデルへ自動で切り替え（Lite除く）。混雑で止まったら、別のモデルを選んでもう一度。</div>
+  ${YT_AI_TASKS.map(([k,n,d])=>set(n,`<select id="yt-m-${k}" onchange="saveState()" style="flex:1;min-width:0;font-size:11px;padding:3px;">${YT_MODEL_LIST.map(([v,l])=>`<option value="${v}"${v===d?' selected':''}>${l}</option>`).join('')}</select>`)).join('')}
   <div class="sa-sub">▼ 概要欄の定型文（使用ツール・AIの注意書き）</div>
   <textarea id="yt-p-fixed" style="min-height:90px;font-size:11px;">${esc(YT_POST_FIXED)}</textarea>
   <div class="sa-sub">▼ SNSの投稿文の定型文（誘導とnoteの案内）</div>
@@ -10550,6 +10549,7 @@ async function ynReadZones(btn,only){
   if(!YN.slides.length){alert('先にスライド画像を読み込んでください');return;}
   if(btn)btn.disabled=true;
   const onl=only==null?null:new Set([].concat(only));   // only＝読み直す枚（番号か、番号の配列）
+  if(YN.slides.some((s,i)=>onl?onl.has(i):!(s.zones&&s.zones.length)))await yhPush('slidesAll',ynSlidesSnap(),'読み取りの前');
   let cur=-1;
   try{
     for(let i=0;i<YN.slides.length;i++){
@@ -10635,6 +10635,7 @@ async function ynWebApply(text,typing){
   catch(e){if(!typing)ynStatus('❌ JSONとして読めませんでした。Geminiの返事をまるごと貼り付けてください','error');return;}
   const list=Array.isArray(j.slides)?j.slides:null;
   if(!list){ynStatus('❌ 「slides」が見つかりません。このツールのプロンプトで作った返事を貼り付けてください','error');return;}
+  if(!typing||list.length)await yhPush('slidesAll',ynSlidesSnap(),'Web版の読み取りの前');
   const done=[],bad=[],notes=[];
   // どの枚の結果かは、ファイル名で決める（添付の順とツールの並びが違うと、番号では別の画像に付いてしまうため）。ファイル名が無いときだけ番号で
   const byFile=f=>{const n=String(f||'').trim().split(/[\\/]/).pop();if(!n)return -2;let k=YN.slides.findIndex((q,m)=>ynWebFileName(m)===n);if(k<0)k=YN.slides.findIndex(q=>q.name===n);if(k<0){const mm=n.match(/スライド0*(\d+)\./);if(mm&&YN.slides[+mm[1]-1])k=+mm[1]-1;}return k;};
@@ -10826,6 +10827,7 @@ async function ynSnapAll(btn,only){
   if(btn)btn.disabled=true;
   try{
     const a={okL:0,ngL:0,okZ:0,ngZ:0},list=only!=null?[only]:ynTargets();
+    await yhPush('slidesAll',ynSlidesSnap(),'位置の補正の前');
     for(const i of list){
       ynStatus(`位置を補正中… ${i+1}枚目`);
       const r=await ynSnapApply(i,'補正の前');if(r)['okL','ngL','okZ','ngZ'].forEach(k=>a[k]+=r[k]);
@@ -10866,13 +10868,14 @@ function ynSelAll(on){YN.sel=new Set(on?YN.slides.map(s=>s.name):[]);_ynWebFrom=
 function ynSelInfo(){
   const el=document.getElementById('yn-sel-info');if(!el)return;
   const a=ynSelIdx();
-  el.textContent=!YN.slides.length?'':a.length?`選んだ枚：${a.map(i=>i+1).join('・')}枚目（${a.length}枚）。下のボタンは、選んだ枚だけに効きます`:`選んだ枚：なし（下のボタンは全部の${YN.slides.length}枚に効きます。右のスライドの見出しのチェックで選べます）`;
+  el.textContent=!YN.slides.length?'':a.length?`下のボタンの対象：選んだ ${a.map(i=>i+1).join('・')}枚目`:`下のボタンの対象：全部の${YN.slides.length}枚（右のチェックで選べます）`;
 }
+// 読み取りの状態（ボタンの名前は変えず、ボタンの下の行に出す）
 function ynReadLabel(){
-  const el=document.getElementById('yn-read-label');if(!el)return;
+  const el=document.getElementById('yn-read-state');if(!el)return;
   const n=YN.slides.length,done=YN.slides.filter(s=>s.zones&&s.zones.length).length;
   const next=YN.slides.findIndex(s=>!(s.zones&&s.zones.length));
-  el.textContent=!n||!done?'🔍 まとまりを読み取る':done<n?`🔍 続きから（${next+1}枚目〜）`:`✅ 全${n}枚 読み取り済み`;
+  el.textContent=!n?'':!done?`読み取り：まだ（${n}枚）`:done<n?`読み取り済み：${done}/${n}枚（押すと${next+1}枚目から続きを読み取ります）`:`読み取り済み：${n}/${n}枚`;
 }
 // いちばん近い、縦に動かせる入れ物（無ければページ）
 function ynScrollBox(el){for(let p=el.parentElement;p;p=p.parentElement){const o=getComputedStyle(p).overflowY;if((o==='auto'||o==='scroll')&&p.scrollHeight>p.clientHeight)return p;}return document.scrollingElement;}
