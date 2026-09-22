@@ -18,7 +18,8 @@
 (function () {
   'use strict';
   const LS_KEY = 'kessanTool:v1';
-  const LS_SYNC = ['kt-yt-ctx', 'kt-yt-fields-stock', 'kt-yt-fields-gen', 'yt-m-def38', 'kt-rel-days-365'];
+  const LS_SYNC = ['kt-yt-ctx', 'yt-m-def38', 'kt-rel-days-365'];
+  const LS_OLD = ['kt-yt-fields-stock', 'kt-yt-fields-gen'];   // フェーズ1までの控え。もう使わないので消す
   const META_KEY = 'kt-sync-meta';       // localStorage：{versions, media}
   const CUR_KEY = 'kt-cur';              // sessionStorage：このタブが開いている PJ {kind: id}／localStorage：最後に開いた PJ
   const PENDING_KEY = 'kt-pending';      // sessionStorage：送れていない行（リロードで拾う）
@@ -473,6 +474,7 @@
   // opts.collect(tab, state) → {fields, radios, title}（どの欄がどの種別かを知るため。値は state から取る）
   function ready(opts) {
     if (S.ready) return S.ready;
+    LS_OLD.forEach(k => lsSet(k, null));
     S.ready = readyInner(opts).catch(e => { console.warn('[store] 起動に失敗', e); S.mode = 'local'; setStatus('error', String(e && e.message || e)); }).then(() => { S.readyResolve(); });
     return S.ready;
   }

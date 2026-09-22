@@ -975,7 +975,6 @@ select.yn-sel option{color:#0f172a;background:#fff;font-weight:400;}
             </select>
             <button type="button" class="kt-pjbtn" onclick="ktPjNew()" title="この種別で新しいPJを始める">＋新規</button>
             <button type="button" class="kt-pjbtn kt-pjdel" onclick="ktPjDelete()" title="開いているPJを消す（確認あり）">削除</button>
-            <button type="button" class="kt-pjbtn" id="kt-recover" style="display:none;margin-left:auto;" onclick="ktYtRecover()" title="横動画の文章が消えていたときに、控えから戻す">復旧</button>
             <select id="kt-pj" class="kt-pjsel kt-pjlist" title="開くPJ（作成日 名前）。続きはここから選ぶ" onchange="ktPjChange(this.value)"></select>
         </div>
 
@@ -4466,7 +4465,6 @@ risk_3=`;
             if (typeof ytModeApply === 'function' && !(ui && ui.mode === 'yt')) ytModeApply(false);
             window._ktKind = ktMode0; ktPjFill();
             KTStore.titleOf = (kind, fields) => ktTabTitle(kind, fields);
-            ktRecoverButton();
             try { await KTStore.refreshRows(); } catch (e) {}
             ktPjFill();
             KTStore.onChange = () => ktPjFill();
@@ -12384,36 +12382,6 @@ async function ktOpen(kind,id){
   finally{KTStore.suspended=false;window._ktSwitching=false;}
   if(typeof saveStateNow==='function')saveStateNow();
   ktPjFill();ktPjRefresh();
-}
-// ---- 横動画の文章の復旧 ----
-// 2026-09-23 の切り替え（2b）で、横動画の欄が株価分析とYT動画で同じ id のため、片方の行の文章が消えることがあった。
-// 控え（フェーズ1までの入れ替え用 kt-yt-fields-gen / -stock）と、いまの両方の行から選んで、開いている PJ に入れる。
-function ktRecoverButton(){const b=document.getElementById('kt-recover');if(!b)return;let has=false;try{has=!!(localStorage.getItem('kt-yt-fields-gen')||localStorage.getItem('kt-yt-fields-stock'));}catch(e){}b.style.display=has?'':'none';}
-async function ktYtRecover(){
-  const kind=window._ktKind;
-  if(kind!=='yt'&&kind!=='price'){alert('YT動画か株価のPJを開いてから押してください。');return;}
-  const cands=[];
-  const add=(label,fields)=>{if(!fields||typeof fields!=='object')return;const n=id=>String(fields[id]||'').length;const th=fields['yt-g-theme']||'',nt=fields['yt-a-n-title']||'';const filled=ytWorkIds().filter(id=>String(fields[id]||'').trim()).length;if(!filled)return;cands.push({label,fields,desc:'テーマ: '+(th||'（なし）')+' ／ レポート '+n('yt-g-report')+'字 ／ 構成 '+n('yt-doc')+'字 ／ note: '+(nt||'（なし）')+' 本文 '+n('yt-a-n-body')+'字 ／ 入っている欄 '+filled+'個'});};
-  try{add('控え（YT動画側）',JSON.parse(localStorage.getItem('kt-yt-fields-gen')||'null'));}catch(e){}
-  try{add('控え（株価分析側）',JSON.parse(localStorage.getItem('kt-yt-fields-stock')||'null'));}catch(e){}
-  try{
-    const ids=['yt','price'].map(k=>KTStore.cur[k]).filter(Boolean);
-    const docs=await KTStore.fetchDocs(ids);
-    ids.forEach(id=>{const d=docs[id];if(d&&d.json)add('いまの行（'+(id.startsWith('p:yt')?'YT動画':'株価')+'）',d.json.fields);});
-  }catch(e){}
-  if(!cands.length){alert('戻せる控えが見つかりませんでした。');return;}
-  const ov=document.createElement('div');ov.id='kt-modal';
-  ov.innerHTML='<div class="box"><div class="msg">横動画の文章を、どれから戻しますか？（開いている '+(kind==='yt'?'YT動画':'株価')+' のPJに入ります）</div><div class="list" style="margin-top:10px;display:flex;flex-direction:column;gap:6px;"></div><div class="btns"><button type="button" class="cancel">やめる</button><button type="button" class="danger ok">この内容で戻す</button></div></div>';
-  const list=ov.querySelector('.list');
-  cands.forEach((c,i)=>{const l=document.createElement('label');l.style.cssText='display:flex;gap:8px;align-items:flex-start;font-size:13px;cursor:pointer;';l.innerHTML='<input type="radio" name="kt-rec" value="'+i+'"'+(i===0?' checked':'')+'><span><b>'+esc(c.label)+'</b><br>'+esc(c.desc)+'</span>';list.appendChild(l);});
-  document.body.appendChild(ov);
-  const pick=await new Promise(res=>{ov.querySelector('.cancel').onclick=()=>res(null);ov.querySelector('.ok').onclick=()=>{const r=ov.querySelector('input[name=kt-rec]:checked');res(r?cands[+r.value]:null);};});
-  ov.remove();if(!pick)return;
-  ytWorkIds().forEach(id=>{const el=document.getElementById(id);if(!el||!(id in pick.fields))return;const v=pick.fields[id];if(el.type==='checkbox')el.checked=!!v;else el.value=v==null?'':v;});
-  KTStore.touch(kind,'input');
-  if(typeof saveStateNow==='function')saveStateNow();
-  try{ytFixedMigrate();ytCtxApplyUi();ytSyncTabs();ytUpdateFreeInfo();if(typeof ytRenderLinks==='function'){ytLinkLoad();ytRenderLinks();}}catch(e){}
-  ktPjFill();
 }
 // 種別ごとの見出し（サーバーの PJ 一覧に出す）：コードと名前をつなぐ
 function ktTabTitle(tab,fields){
