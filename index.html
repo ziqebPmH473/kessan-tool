@@ -482,6 +482,9 @@ select.yn-sel option{color:#0f172a;background:#fff;font-weight:400;}
 .yp-row textarea{flex:1;min-width:0;min-height:34px;font-size:11px;padding:3px 5px;}
 .yp-no{flex:none;width:16px;text-align:center;font-size:11px;font-weight:700;color:var(--text-sub);line-height:24px;}
 .yp-btns{flex:none;display:flex;flex-direction:column;gap:2px;}
+.yp-item{margin-top:4px;}
+.yp-head{display:flex;gap:4px;align-items:center;}
+.yp-item textarea{width:100%;box-sizing:border-box;min-height:0;font-size:11px;padding:3px 5px;resize:vertical;}
 .yl-row{display:flex;gap:6px;align-items:center;font-size:10px;line-height:1.6;white-space:nowrap;overflow:hidden;}
 .yl-row a{color:#2563eb;overflow:hidden;text-overflow:ellipsis;min-width:0;}
 .yl-st{flex:none;width:44px;text-align:center;border-radius:8px;font-size:10px;}
@@ -8925,7 +8928,7 @@ function ytPostRulesGen(){
   return `${base}【この動画での読み替え（運用ルールより優先）】
 ・この動画は、1つの銘柄を分析する動画ではない。この動画の主題は「${ytTheme()}」。
 　運用ルールの「銘柄名」「銘柄固有」「対象銘柄」は、「この動画の主題」に読み替える。「優先フックの定義（具体性の担保）」は、この主題に固有の内容で満たす。
-・タイトルの先頭に【銘柄名（証券コード）】は付けない。${sr?`末尾は「｜${sr}」にする（「｜銘柄分析」などは付けない）。`:'末尾には何も付けない（「｜銘柄分析」なども付けない）。'}
+・タイトルの先頭は、【】で囲んだキーワードにする。この動画の主題を表し、視聴者がクリックしたくなる言葉（全角4〜10字）。【銘柄名（証券コード）】は付けない。${sr?`末尾は「｜${sr}」にする（「｜銘柄分析」などは付けない）。`:'末尾には何も付けない（「｜銘柄分析」なども付けない）。'}
 ・サムネ案は、スラッシュ区切りではなく、ツールの記法「上段：中段：下段」（全角コロン区切り）で書く。
 　- 中段は、この動画の主題（何が分かる動画か・何を分析する動画か）を、視聴者が見たくなる言葉で短く言い表す。全角6〜9文字。マーカーは付けない。
 　　動画の中で取り上げる個別の材料・指標・要因は、中段に書かない。
@@ -9448,9 +9451,10 @@ ${yaBuildPaneHtml()}
 <div class="sa-card" style="margin-top:8px;">
   <h2>2. タイトル・サムネイル</h2>
   <div class="sa-sub">▼ タイトル（3案）</div>
-  ${[1,2,3].map(k=>`<div class="yp-row"><span class="yp-no">${k}</span><textarea id="yt-p-t${k}" rows="2" placeholder="【銘柄名（コード）】…｜シリーズ名" oninput="saveState()"></textarea><button class="ya-nd" onclick="copyText(ytVal('p-t${k}'),this)">コピー</button></div>`).join('')}
-  <div class="sa-sub">▼ サムネイル（3案）　上段：中段：下段、*オレンジ* #水色# %黄色%</div>
-  ${[1,2,3].map(k=>`<div class="yp-row"><span class="yp-no">${k}</span><textarea id="yt-p-s${k}" rows="2" placeholder="上段：銘柄名：下段" oninput="saveState()"></textarea><span class="yp-btns"><button class="ya-nd" onclick="copyText(ytVal('p-s${k}'),this)">コピー</button><button class="ya-nd" onclick="ytThumbUse(${k})" title="右のサムネイルに入れて表示する">サムネに入れる</button></span></div>`).join('')}
+  ${[1,2,3].map(k=>`<div class="yp-item"><div class="yp-head"><span class="yp-no">${k}</span><button class="ya-nd" onclick="copyText(ytVal('p-t${k}'),this)">コピー</button></div><textarea id="yt-p-t${k}" rows="2" placeholder="タイトル案" oninput="saveState()" style="height:38px;"></textarea></div>`).join('')}
+  <div class="sa-sub">▼ サムネイル（3案）</div>
+  <div style="font-size:10px;color:var(--text-sub);">上段：中段：下段、*オレンジ* #水色# %黄色%</div>
+  ${[1,2,3].map(k=>`<div class="yp-item"><div class="yp-head"><span class="yp-no">${k}</span><button class="ya-nd" onclick="copyText(ytVal('p-s${k}'),this)">コピー</button><button class="ya-nd" onclick="ytThumbUse(${k})" title="右のサムネイルの文を、この案で上書きして表示する">サムネに上書き</button></div><textarea id="yt-p-s${k}" rows="1" placeholder="上段：中段：下段" oninput="saveState()" style="height:24px;"></textarea></div>`).join('')}
 </div>
 
 <div class="sa-card" style="margin-top:8px;">
@@ -9463,27 +9467,27 @@ ${yaBuildPaneHtml()}
   <input type="hidden" id="yt-p-xtags"><input type="hidden" id="yt-p-yptags"><input type="hidden" id="yt-p-igtags"><input type="hidden" id="yt-p-tttags">
   <input type="hidden" id="yt-p-l8title"><textarea id="yt-p-l8intro" style="display:none;"></textarea><input type="hidden" id="yt-p-l8tags">
   <div class="sa-sub">▼ 概要欄（このまま貼れる全文）</div>
-  <textarea id="yt-p-desc" placeholder="本文／noteの記事リンク／使用ツール／AIの注意書き／ハッシュタグ" oninput="saveState()" style="min-height:150px;font-size:11px;"></textarea>
+  <textarea id="yt-p-desc" placeholder="本文／noteの記事リンク／使用ツール／AIの注意書き／ハッシュタグ" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;"></textarea>
   ${row(b('📋 概要欄をコピー',"copyText(ytVal('p-desc'),this)",'background:#0d9488;color:#fff;'),b('↻ 組み立て直す',"if(confirm('概要欄とSNSの投稿文を、AIの文から作り直します。手で直した分は消えます。よろしいですか？'))ytPostBuild()"))}
   <div style="font-size:10px;color:var(--text-sub);" title="本文 → noteの記事リンク（記事タブの記事URL）→ 定型文（設定タブ）→ ハッシュタグ の順に組み立てます。「↻ 組み立て直す」は、手で直した分を捨てて、AIの文から作り直します（概要欄とSNSの全部）。">「↻ 組み立て直す」は、手で直した分も作り直します（概要欄とSNSの全部）。</div>
   ${row(b('🤖 SNSだけ作り直す',"ytPostAi(this,true)",'background:#4f46e5;color:#fff;'))}
   <div style="font-size:10px;color:var(--text-sub);">概要欄・タイトル・サムネイルは変えずに、下のSNSの投稿文だけを作り直します（登録済みの動画用）。</div>
   <div class="sa-sub">▼ X（旧Twitter）（このまま貼れる全文）</div>
-  <textarea id="yt-p-x" placeholder="【#銘柄名（コード）】／本文／ハッシュタグ／YouTubeのURL" oninput="saveState()" style="min-height:90px;font-size:11px;"></textarea>
+  <textarea id="yt-p-x" placeholder="【#銘柄名（コード）】／本文／ハッシュタグ／YouTubeのURL" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;"></textarea>
   ${row(b('📋 Xをコピー',"copyText(ytVal('p-x'),this)"))}
   <div style="font-size:10px;color:var(--text-sub);" title="ここから下の4つは、Xと同じ1行目（問いかけ）と「この動画で確かめること」を使い、誘導とnoteの案内は設定タブの定型文を付けます。">下の4つの、見る場所とnoteの案内は、設定タブの定型文です。</div>
   <div class="sa-sub">▼ YouTubeの投稿（投稿の種類で「動画」を選び、この動画を選ぶ）</div>
-  <textarea id="yt-p-yp" oninput="saveState()" style="min-height:120px;font-size:11px;"></textarea>
+  <textarea id="yt-p-yp" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;"></textarea>
   ${row(b('📋 YouTubeの投稿をコピー',"copyText(ytVal('p-yp'),this)"))}
   <div class="sa-sub">▼ Instagram（縦のサムネを添付）</div>
-  <textarea id="yt-p-ig" oninput="saveState()" style="min-height:140px;font-size:11px;"></textarea>
+  <textarea id="yt-p-ig" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;"></textarea>
   ${row(b('📋 Instagramをコピー',"copyText(ytVal('p-ig'),this)"))}
   <div class="sa-sub">▼ Lemon8（縦のサムネを添付）</div>
   ${set('見出し','<input type="text" id="yt-p-l8t" oninput="saveState()" style="flex:1;min-width:0;font-size:11px;"><button class="ya-nd" onclick="copyText(ytVal(\'p-l8t\'),this)">コピー</button>')}
-  <textarea id="yt-p-l8" oninput="saveState()" style="min-height:200px;font-size:11px;"></textarea>
+  <textarea id="yt-p-l8" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;"></textarea>
   ${row(b('📋 Lemon8の本文をコピー',"copyText(ytVal('p-l8'),this)"))}
   <div class="sa-sub">▼ TikTok（縦のサムネを添付）</div>
-  <textarea id="yt-p-tt" oninput="saveState()" style="min-height:120px;font-size:11px;"></textarea>
+  <textarea id="yt-p-tt" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;"></textarea>
   ${row(b('📋 TikTokをコピー',"copyText(ytVal('p-tt'),this)"))}
 </div>
 </div>
