@@ -9069,16 +9069,16 @@ function ytPostApply(){
   ytStatus(`✅ 反映しました（タイトル${(j.titles||[]).length}案・サムネ${(j.thumbs||[]).length}案・概要欄${d.length}字・X${x.length}字${j.hook||j.yt_post?'・SNS4つ':'・SNSの部品なし（古い形のJSON）'}）`,'ok','post-status');
 }
 async function ytPostAi(btn,sns){
-  let prompt;try{prompt=sns?ytPostPromptSns():ytPostPrompt();}catch(e){ytStatus('❌ '+e.message,'error','post-status');return;}
-  if(btn)btn.disabled=true;ytStatus('作成中…（数十秒かかります）','','post-status');
+  let prompt;try{prompt=sns?ytPostPromptSns():ytPostPrompt();}catch(e){ytStatus('❌ '+e.message,'error','post3-status');return;}
+  if(btn)btn.disabled=true;ytStatus('作成中…（数十秒かかります）','','post3-status');
   try{
     const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({prompt,resources:[],files:[],temperature:0.6,models:ytModels('post'),onBusy:'stop'})});
     const data=await res.json();if(!data.ok)throw new Error(ytAiErr(data,'post'));
     ytEl('post').value=data.text||'';saveState();
     // 反映できたら、バックアップ（横動画の音声・スライド・割り当て・出典の画像も入る）を書き出す。株価分析の動画は株価分析のタブごと、YT動画はYT動画のタブを
-    if(ytPostApply()!==false){const st=ytEl('post-status'),msg=st?st.textContent:'';await exportTabData(ytGen()?'yt':'price');ytStatus(`${msg}　💾 バックアップを書き出しました`,'ok','post-status');}
-  }catch(e){ytStatus('❌ '+e.message,'error','post-status');}
+    if(ytPostApply()!==false){const st=ytEl('post-status'),msg=st?st.textContent:'';await exportTabData(ytGen()?'yt':'price');ytStatus(`${msg}　💾 バックアップを書き出しました`,'ok','post3-status');}
+  }catch(e){ytStatus('❌ '+e.message,'error','post3-status');}
   finally{if(btn)btn.disabled=false;}
 }
 // ---- YT動画：記事（note・ブログ）。元は、ファクトチェック済みの動画資料 ----
@@ -9487,7 +9487,6 @@ ${yaBuildPaneHtml()}
 <div id="yt-pane-post" style="display:none;">
 <div class="sa-card">
   <h2 title="材料は、動画資料・レポートの無料範囲・音声の文字起こし（カット後に残る文）です">1. 投稿文を作る</h2>
-  ${row(b('🤖 Gemini APIで作る','ytPostAi(this)','background:#4f46e5;color:#fff;'))}
   <details class="yt-col" style="margin-top:4px;"><summary style="font-size:11px;color:var(--text-sub);cursor:pointer;">手動で作る（ChatGPT など。APIが混んでいるとき）</summary>
   ${row(b('💬 プロンプト',"try{copyText(ytPostPrompt(),this)}catch(e){alert(e.message)}",G),b('💬 SNSだけのプロンプト',"try{copyText(ytPostPromptSns(),this)}catch(e){alert(e.message)}",G))}
   ${row(b('📋 貼り付け',"ytPaste('post',ytPostApply)"),b('↻ 反映','ytPostApply()'))}
