@@ -25,7 +25,7 @@
   const TABS = ['earnings', 'stock', 'price', 'yt'];
   const EXTRA = { earnings: 'earnFetched', stock: 'fetched', price: 'priceFetched' };
   const PUSH_DELAY = 900;
-  const OPEN_LAST_ON_NEW_TAB = true;     // 新しいタブで「最後に開いた PJ」を開く（フェーズ2b で false にし、空で始める）
+  const OPEN_LAST_ON_NEW_TAB = false;    // 新しいタブは空で始める（続きは PJ の一覧から選ぶ）。true にすると「最後に開いた PJ」を開く
   const LEGACY_ID = /^p:(earnings|stock|price|yt)$/;
 
   const S = {
@@ -47,6 +47,8 @@
     status: 'local',
     conflict: null,
     readyResolve: null,
+    suspended: false,       // PJ の切り替え中：欄の値を行に写さない（古い欄の値を新しい行に入れないため）
+    onChange: null,         // 行の一覧が変わったとき（保存で見出しが変わった等）に呼ぶ
   };
   // 画面の初期化（vdInit など）は onload より前に走り、そこでファイルを読みに来る。ready() が終わるまで待たせる
   S.readyWait = new Promise(res => { S.readyResolve = res; });
@@ -117,7 +119,9 @@
   // docs：id → {kind, json}。kind ごとの行と shared を合わせて、restoreState() が読む形にする
   function docsToState(docs) {
     const state = { fields: {}, radios: {}, fetched: null, earnFetched: null, priceFetched: null, ui: null };
-    Object.keys(docs).forEach(id => {
+    const mode = ssGet('kt-mode');
+    const ordered = Object.keys(docs).sort((a, b) => ((docs[a] && docs[a].kind) === mode ? 1 : 0) - ((docs[b] && docs[b].kind) === mode ? 1 : 0));
+    ordered.forEach(id => {
       const d = docs[id]; if (!d || !d.json || d.kind === 'shared') return;
       const t = d.kind || kindOfId(id); if (!TABS.includes(t)) return;
       Object.assign(state.fields, d.json.fields || {}); Object.assign(state.radios, d.json.radios || {});
@@ -137,6 +141,7 @@
   // ---- 入力内容の保存 ----
   function saveState(state, byTab) {
     lsSet(LS_KEY, JSON.stringify(state));
+    if (S.suspended) return;
     const kd = buildKindDocs(state, byTab);
     let changed = false;
     TABS.forEach(t => {
@@ -184,6 +189,7 @@
         });
         metaSave(); pendingSave();
         if (!Object.keys(S.pending).length && !S.mediaRunning) setStatus('saved');
+        try { if (typeof S.onChange === 'function') S.onChange(); } catch (e) {}
       }
     } catch (e) {
       restore(); if (!e.login) { setStatus('error'); schedulePush(8000); }
@@ -579,6 +585,8 @@
     get cur() { return Object.assign({}, S.cur); },
     get rows() { return S.rows; },
     get mode() { return S.mode; },
+    get suspended() { return S.suspended; }, set suspended(v) { S.suspended = !!v; },
+    set onChange(fn) { S.onChange = fn; },
     get status() { return S.status; },
     setSub(kind, sub) { const id = S.cur[kind]; if (!id) return; S.sub[id] = sub || ''; S.force[kind] = true; try { if (typeof window.saveStateNow === 'function') window.saveStateNow(); } catch (e) {} },
   };

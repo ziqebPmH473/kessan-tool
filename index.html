@@ -207,6 +207,18 @@
 
         /* ===== モード切替タブ ===== */
         .mode-tabs { display: flex; gap: 6px; margin-bottom: 8px; }
+        .kt-pjbar { align-items: center; flex-wrap: wrap; }
+        .kt-pjsel { height: 34px; padding: 0 6px; border: 2px solid var(--border); border-radius: 6px; background: #fff; font-size: 13px; font-weight: bold; color: var(--text-main); max-width: 100%; }
+        #kt-kind { flex: none; }
+        .kt-pjlist { flex: 1; min-width: 140px; font-weight: normal; }
+        .kt-pjbtn { flex: none; height: 34px; padding: 0 10px; border: 2px solid var(--border); border-radius: 6px; background: #f1f5f9; color: var(--text-sub); font-size: 13px; font-weight: bold; cursor: pointer; }
+        .kt-pjbtn:hover { background: #e2e8f0; }
+        .kt-pjdel { color: #b91c1c; }
+        #kt-modal { position: fixed; inset: 0; z-index: 100000; background: rgba(0,0,0,.35); display: flex; align-items: center; justify-content: center; padding: 16px; }
+        #kt-modal .box { background: #fff; border-radius: 10px; padding: 18px 20px; max-width: 420px; width: 100%; box-shadow: 0 8px 30px rgba(0,0,0,.25); font-size: 14px; line-height: 1.6; white-space: pre-wrap; }
+        #kt-modal .btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+        #kt-modal button { padding: 8px 14px; border-radius: 6px; border: 1px solid var(--border); background: #fff; cursor: pointer; font-size: 13px; }
+        #kt-modal button.danger { background: #b91c1c; border-color: #b91c1c; color: #fff; }
         .mode-tab { flex: 1; padding: 10px 4px; border: 2px solid var(--border); border-radius: 6px; background: #f1f5f9; color: var(--text-sub); font-size: 13px; font-weight: bold; cursor: pointer; text-align: center; transition: 0.15s; }
         .mode-tab.active { border-color: var(--accent); background: var(--accent); color: white; }
         .mode-tab:hover:not(.active) { background: #e2e8f0; }
@@ -953,11 +965,17 @@ select.yn-sel option{color:#0f172a;background:#fff;font-weight:400;}
 
     <div class="control-panel">
 
-        <div class="mode-tabs">
-            <button class="mode-tab active" data-mode="earnings" onclick="switchMode('earnings')">📊 決算</button>
-            <button class="mode-tab" data-mode="stock" onclick="switchMode('stock')">📈 個別銘柄</button>
-            <button class="mode-tab" data-mode="price" onclick="switchMode('price')">📉 株価</button>
-            <button class="mode-tab" data-mode="yt" onclick="switchMode('yt')">🎬 YT動画</button>
+        <!-- 種別 ＞ PJ（作成日 名前）。種別を変えると空のPJで開く。続きはPJのプルダウンから -->
+        <div class="mode-tabs kt-pjbar">
+            <select id="kt-kind" class="kt-pjsel" title="種別" onchange="ktKindChange(this.value)">
+                <option value="earnings">📊 決算</option>
+                <option value="stock">📈 個別銘柄</option>
+                <option value="price">📉 株価</option>
+                <option value="yt">🎬 YT動画</option>
+            </select>
+            <select id="kt-pj" class="kt-pjsel kt-pjlist" title="開くPJ（作成日 名前）" onchange="ktPjChange(this.value)" onfocus="ktPjRefresh()"></select>
+            <button type="button" class="kt-pjbtn" onclick="ktPjNew()" title="この種別で新しいPJを始める">＋新規</button>
+            <button type="button" class="kt-pjbtn kt-pjdel" onclick="ktPjDelete()" title="開いているPJを消す（確認あり）">削除</button>
         </div>
 
         <div id="mode-earnings">
@@ -3170,6 +3188,8 @@ point_2=`;
         }
         window.addEventListener('resize',()=>ktStickyTops());window.addEventListener('load',()=>ktStickyTops());
         function switchMode(mode) {
+            try { sessionStorage.setItem('kt-mode', mode); } catch (e) {}
+            if (typeof ktPjFill === 'function') { window._ktKind = mode; ktPjFill(); }
             document.body.classList.toggle('kt-yt',mode==='yt');   // YT動画は、タブの中身だけをスクロールする（広い画面）
             setTimeout(ktStickyTops,0);
             document.querySelectorAll('.mode-tab').forEach(tab => {
@@ -4368,7 +4388,9 @@ risk_3=`;
         window.onload = () => { window._ktInitDone = (async () => {
             // サーバー（D1/R2）に保存があれば localStorage に写す。無ければ今までどおり。終わるまで待つ。
             await KTStore.ready({ collect: (tab, st) => { const c = tabIoCollectFields(tab); c.title = ktTabTitle(tab, (st && st.fields) || {}); return c; } });
-            try { YT_CTX = localStorage.getItem('kt-yt-ctx') === 'gen' ? 'gen' : 'stock'; } catch (e) {}
+            let ktMode0 = 'earnings'; try { ktMode0 = sessionStorage.getItem('kt-mode') || 'earnings'; } catch (e) {}
+            if (!['earnings', 'stock', 'price', 'yt'].includes(ktMode0)) ktMode0 = 'earnings';
+            YT_CTX = ktMode0 === 'yt' ? 'gen' : 'stock';
             setupDateSync();
 
             const dateInput = document.getElementById('p-date');
@@ -4426,8 +4448,8 @@ risk_3=`;
                 try { renderImageStock(); } catch (e) { /* データ不備でも起動継続 */ }
             }
 
-            // 開いていたタブ・サブタブへ戻す（プレビューは表示してから描き直される）
-            const ui = window._restoredUi;
+            // 開いていたタブ・サブタブへ戻す（プレビューは表示してから描き直される）。種別はこのタブが覚えているもの
+            const ui = Object.assign({}, window._restoredUi || {}, { mode: ktMode0 });
             if (ui) {
                 if (ui.earnTab === 'video') window._earnTab = 'video';
                 if (ui.mode && ui.mode !== 'earnings') switchMode(ui.mode);
@@ -4437,6 +4459,10 @@ risk_3=`;
             }
             // 前回 YT動画を開いたまま閉じたあと、別のタブで開き直したときに、保存先を株価分析の側へ戻す
             if (typeof ytModeApply === 'function' && !(ui && ui.mode === 'yt')) ytModeApply(false);
+            window._ktKind = ktMode0; ktPjFill();
+            try { await KTStore.refreshRows(); } catch (e) {}
+            ktPjFill();
+            KTStore.onChange = () => ktPjFill();
         })(); };
 
 // 株価分析：サイドバーのサブタブ切替（1.2.＝スライド作成 / 3.＝記事・SNS）
@@ -9752,21 +9778,10 @@ function ytSetCtx(ctx){
     try{if(typeof yaStop==='function')yaStop();}catch(e){}
     await yaFlush();
     yhScan();_yhMute=true;
-    const keep={};ytWorkIds().forEach(id=>{const el=document.getElementById(id);if(el)keep[id]=el.type==='checkbox'?el.checked:el.value;});
-    try{localStorage.setItem('kt-yt-fields-'+YT_CTX,JSON.stringify(keep));}catch(e){}
+    // 欄の中身は PJ の行から入る（ktOpen が入れ替える）。ここでは種類の印と出し分けだけ
     YT_CTX=ctx;try{localStorage.setItem('kt-yt-ctx',ctx);}catch(e){}
-    let next=null;try{next=JSON.parse(localStorage.getItem('kt-yt-fields-'+ctx)||'null');}catch(e){}
-    ytWorkIds().forEach(id=>{
-      const el=document.getElementById(id);if(!el)return;
-      // まだ保存の無い種類へ切り替えたときの出発点。YT動画は、シリーズ名は空、SNSの定型文はYT動画用
-      const gd=ctx==='gen'?(id==='yt-series'?'':/^yt-f-(yp|ig|l8|tt)$/.test(id)?YT_SNS_FIXED_GEN[id.slice(5)]:undefined):undefined;
-      const v=(next&&next[id]!=null)?next[id]:gd!==undefined?gd:YT_FIELD_DEFAULTS[id];
-      if(el.type==='checkbox')el.checked=!!v;else el.value=v==null?'':v;
-    });
-    ytFixedMigrate();
-    if(typeof saveStateNow==='function')saveStateNow();
     ytCtxApplyUi();
-    await ytReloadAll(null);
+    if(!window._ktSwitching){await ytReloadAll(null);}   // PJ の切り替え中は ktOpen 側で読み直す
     if(typeof ytUpdateFreeInfo==='function')ytUpdateFreeInfo();
   }).catch(e=>console.warn('[yt] 種類の切り替えに失敗',e)).then(()=>{if(_yhMute){yhRebase();_yhMute=false;}});
   return _ytCtxChain;
@@ -12248,6 +12263,121 @@ const TAB_IO={
   // YT動画：横動画のパネル（#yt-root）は、このタブを開いている間だけ #mode-yt の中にある。右側（サムネイルなど）は株価分析と共用なので roots に入れない
   yt:      {label:'YT動画',    roots:['#mode-yt'],                                           codeId:null,            nameId:'yt-g-theme'},
 };
+// ============================================================
+// PJ の一覧・切り替え・新規・削除（上の1行）
+// 開いている種別（window._ktKind）と PJ（KTStore.cur[kind]）はタブごと。種別を変えると空で開く
+// ============================================================
+window._ktKind=window._ktKind||'earnings';window._ktSwitching=false;
+function ktFmtDate(iso){const d=new Date(iso||'');if(isNaN(d))return '';const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'/'+p(d.getMonth()+1)+'/'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());}
+function ktPjLabel(row){const m=row.meta||{};const t=m.title||row.title||'';const sub=m.sub?'['+m.sub+'] ':'';return (ktFmtDate(m.created||row.createdAt)+' '+sub+(t||'（名前なし）')).trim();}
+function ktPjFill(){
+  const sel=document.getElementById('kt-pj'),ks=document.getElementById('kt-kind');if(!sel||!ks||typeof KTStore==='undefined')return;
+  const kind=window._ktKind;ks.value=kind;
+  const cur=KTStore.cur[kind]||'';const list=KTStore.listProjects(kind);
+  let h='';
+  if(!cur||!list.some(r=>r.id===cur))h+='<option value="">（新規：まだ保存していません）</option>';
+  list.forEach(r=>{h+='<option value="'+esc(r.id)+'">'+esc(ktPjLabel(r))+'</option>';});
+  sel.innerHTML=h;sel.value=(cur&&list.some(r=>r.id===cur))?cur:'';
+}
+async function ktPjRefresh(){try{await KTStore.refreshRows();}catch(e){}ktPjFill();}
+function ktKindChange(kind){ktOpen(kind,null);}
+function ktPjChange(id){ktOpen(window._ktKind,id||null);}
+function ktPjNew(){if(!KTStore.cur[window._ktKind]){alert('いま開いているのが新規のPJです。何か入力すると一覧に入ります。');return;}ktOpen(window._ktKind,null);}
+async function ktPjDelete(){
+  const kind=window._ktKind,id=KTStore.cur[kind];
+  if(!id){alert('まだ保存していないPJなので、消すものがありません。');return;}
+  const row=KTStore.rows[id];
+  const ok=await ktModal('このPJを削除しますか？\n\n'+(row?ktPjLabel(row):id)+'\n\n入力した内容と、PDF・音声・画像も消えます。元に戻せません。','削除する');
+  if(!ok)return;
+  try{await KTStore.deleteProject(id);}catch(e){alert('削除できませんでした：'+(e&&e.message||e));return;}
+  await ktOpen(kind,null);
+}
+function ktModal(msg,okLabel){
+  return new Promise(res=>{
+    const ov=document.createElement('div');ov.id='kt-modal';
+    ov.innerHTML='<div class="box"><div class="msg"></div><div class="btns"><button type="button" class="cancel">やめる</button><button type="button" class="danger ok"></button></div></div>';
+    ov.querySelector('.msg').textContent=msg;ov.querySelector('.ok').textContent=okLabel||'OK';
+    const done=v=>{ov.remove();res(v);};
+    ov.querySelector('.cancel').onclick=()=>done(false);ov.querySelector('.ok').onclick=()=>done(true);
+    ov.addEventListener('click',e=>{if(e.target===ov)done(false);});
+    document.body.appendChild(ov);ov.querySelector('.cancel').focus();
+  });
+}
+// 種別の欄を、画面を組み立てた直後の値に戻す（空のPJ）
+function ktResetKindFields(kind){
+  tabIoElements(kind).forEach(el=>{
+    const t=(el.type||'').toLowerCase();
+    if(t==='radio'||t==='checkbox'){el.checked=el.defaultChecked;return;}
+    if(el.tagName==='SELECT'){let any=false;for(const o of el.options){o.selected=o.defaultSelected;if(o.defaultSelected)any=true;}if(!any&&el.options.length)el.selectedIndex=0;return;}
+    el.value=el.defaultValue||'';
+  });
+  if(kind==='yt'||kind==='price'){ytWorkIds().forEach(id=>{const el=document.getElementById(id);if(!el||!(id in YT_FIELD_DEFAULTS))return;const v=YT_FIELD_DEFAULTS[id];if(el.type==='checkbox')el.checked=!!v;else el.value=v==null?'':v;});
+    if(kind==='yt'){const sr=document.getElementById('yt-series');if(sr)sr.value='';['yp','ig','l8','tt'].forEach(k=>{const el=document.getElementById('yt-f-'+k);if(el&&YT_SNS_FIXED_GEN[k]!=null)el.value=YT_SNS_FIXED_GEN[k];});}
+  }
+}
+// 種別ごとの「欄を入れたあとの描き直し」（起動時の後半と同じこと）
+function ktKindAfterOpen(kind,json){
+  const j=json||{};
+  if(kind==='earnings'){
+    window._earnFetched=j.earnFetched||null;
+    if(!json){const p=document.getElementById('p-date');if(p){p.value=new Date().toISOString().split('T')[0];p.dispatchEvent(new Event('change'));}const ah=document.getElementById('p-post-after-hours');if(ah)ah.checked=true;}
+    try{const c=document.getElementById('ev-count-auto');if(c&&typeof evAutoCount==='function')c.textContent=evAutoCount()+'枚';}catch(e){}
+    try{vdBuildScriptBoxes('ev',true);vdRestoreFields('ev');vdUpdateScriptStats('ev');}catch(e){}
+    try{renderImage();}catch(e){}
+  }else if(kind==='stock'){
+    window._saFetched=j.fetched||null;
+    if(!json)try{initSaDates();}catch(e){}
+    try{switchSaCompareMode(getSaCompareMode());}catch(e){}
+    try{renderImageStock();}catch(e){}
+  }else if(kind==='price'){
+    window._fetched=j.priceFetched||null;
+    try{renderPriceFetchInfo();}catch(e){}
+    try{thumbSyncFromControls();}catch(e){}
+    try{vdBuildScriptBoxes('vd',true);vdRestoreFields('vd');vdUpdateScriptStats('vd');}catch(e){}
+    requestAnimationFrame(()=>{try{if((document.getElementById('ta-data').value||'').trim())renderPrev();else if(typeof renderPrev==='function')renderPrev();}catch(e){}try{renderThumbPreview();}catch(e){}});
+  }
+  if(kind==='price'||kind==='yt'){
+    try{ytFixedMigrate();}catch(e){}
+    try{ytCtxApplyUi();ytSyncTabs();ytUpdateFreeInfo();}catch(e){}
+  }
+}
+// 種別ごとのファイル（PDF・音声・スライド・サムネ背景）を読み直す
+async function ktKindReload(kind){
+  if(kind==='earnings'){
+    window._earnFiles=[];await restoreEarnFiles();
+  }
+  if(kind==='earnings'||kind==='price'||kind==='yt'){
+    window._vdTts={vd:{},ev:{}};
+    ['vd','ev'].forEach(P=>{for(let i=1;i<=5;i++){const p=vdEl(P,'p'+i);if(p)p.textContent='未生成';}const pa=vdEl(P,'p-all');if(pa)pa.innerHTML='';});
+    await vdRestoreTts();
+  }
+  if(kind==='price'||kind==='yt'){
+    try{const bg=await idbGet('thumbBg');tabIoSetThBg(bg&&bg.dataUrl?bg:null);}catch(e){}
+    await ytReloadAll(null);
+    if(kind==='price')requestAnimationFrame(()=>{try{renderThumbPreview();}catch(e){}});
+  }
+}
+// PJ を開く（id=null なら空）。いまの内容を送り切ってから、欄とファイルを入れ替える
+async function ktOpen(kind,id){
+  if(window._ktSwitching)return;
+  window._ktSwitching=true;
+  try{
+    if(typeof saveStateNow==='function')saveStateNow();
+    KTStore.suspended=true;
+    await KTStore.flush();
+    const json=await KTStore.openProject(kind,id);
+    window._ktKind=kind;
+    switchMode(kind);
+    if(typeof _ytCtxChain!=='undefined')await _ytCtxChain;
+    ktResetKindFields(kind);
+    if(json)tabIoApplyFields(kind,json.fields||{},json.radios||{});
+    ktKindAfterOpen(kind,json);
+    await ktKindReload(kind);
+  }catch(e){console.warn('[pj] 開けませんでした',e);alert('PJを開けませんでした：'+(e&&e.message||e));}
+  finally{KTStore.suspended=false;window._ktSwitching=false;}
+  if(typeof saveStateNow==='function')saveStateNow();
+  ktPjFill();
+}
 // 種別ごとの見出し（サーバーの PJ 一覧に出す）：コードと名前をつなぐ
 function ktTabTitle(tab,fields){
   const t=TAB_IO[tab];if(!t)return '';
