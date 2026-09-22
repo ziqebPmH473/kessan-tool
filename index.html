@@ -482,6 +482,8 @@ select.yn-sel option{color:#0f172a;background:#fff;font-weight:400;}
 .yp-row textarea{flex:1;min-width:0;min-height:34px;font-size:11px;padding:3px 5px;}
 .yp-no{flex:none;width:16px;text-align:center;font-size:11px;font-weight:700;color:var(--text-sub);line-height:24px;}
 .yp-btns{flex:none;display:flex;flex-direction:column;gap:2px;}
+.yp-shd{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:6px;font-size:11px;font-weight:700;color:var(--text-sub);}
+.yp-sbtn{display:flex;gap:3px;flex:none;}
 .yp-item{margin-top:4px;}
 .yp-head{display:flex;gap:4px;align-items:center;}
 .yp-item textarea{width:100%;box-sizing:border-box;min-height:0;font-size:11px;padding:3px 5px;resize:vertical;}
@@ -9466,29 +9468,20 @@ ${yaBuildPaneHtml()}
   <input type="hidden" id="yt-p-body"><input type="hidden" id="yt-p-xbody"><input type="hidden" id="yt-p-hook"><input type="hidden" id="yt-p-announce"><input type="hidden" id="yt-p-ypbody"><input type="hidden" id="yt-p-igbody"><input type="hidden" id="yt-p-ttbody"><textarea id="yt-p-points" style="display:none;"></textarea>
   <input type="hidden" id="yt-p-xtags"><input type="hidden" id="yt-p-yptags"><input type="hidden" id="yt-p-igtags"><input type="hidden" id="yt-p-tttags">
   <input type="hidden" id="yt-p-l8title"><textarea id="yt-p-l8intro" style="display:none;"></textarea><input type="hidden" id="yt-p-l8tags">
-  <div class="sa-sub">▼ 概要欄（このまま貼れる全文）</div>
-  <textarea id="yt-p-desc" placeholder="本文／noteの記事リンク／使用ツール／AIの注意書き／ハッシュタグ" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;"></textarea>
-  ${row(b('📋 概要欄をコピー',"copyText(ytVal('p-desc'),this)",'background:#0d9488;color:#fff;'),b('↻ 組み立て直す',"if(confirm('概要欄とSNSの投稿文を、AIの文から作り直します。手で直した分は消えます。よろしいですか？'))ytPostBuild()"))}
-  <div style="font-size:10px;color:var(--text-sub);" title="本文 → noteの記事リンク（記事タブの記事URL）→ 定型文（設定タブ）→ ハッシュタグ の順に組み立てます。「↻ 組み立て直す」は、手で直した分を捨てて、AIの文から作り直します（概要欄とSNSの全部）。">「↻ 組み立て直す」は、手で直した分も作り直します（概要欄とSNSの全部）。</div>
+  <div class="yp-shd"><span title="本文 → noteの記事リンク → 定型文（設定タブ）→ ハッシュタグ">▼ 概要欄</span><span class="yp-sbtn"><button class="ya-nd" onclick="downloadThumb()" title="横のサムネをダウンロード（サムネイルのタブの文から作ります）">サムネ</button><button class="ya-nd" onclick="copyText(ytVal('p-desc'),this)">概要欄</button><button class="ya-nd" onclick="if(confirm('概要欄とSNSの投稿文を、AIの文から作り直します。手で直した分は消えます。よろしいですか？'))ytPostBuild()" title="概要欄とSNSの全部を、AIの文から作り直します（手で直した分も）">組み立て直す</button></span></div>
+  <textarea id="yt-p-desc" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;width:100%;box-sizing:border-box;"></textarea>
   ${row(b('🤖 SNSだけ作り直す',"ytPostAi(this,true)",'background:#4f46e5;color:#fff;'))}
-  <div style="font-size:10px;color:var(--text-sub);">概要欄・タイトル・サムネイルは変えずに、下のSNSの投稿文だけを作り直します（登録済みの動画用）。</div>
-  <div class="sa-sub">▼ X（旧Twitter）（このまま貼れる全文）</div>
-  <textarea id="yt-p-x" placeholder="【#銘柄名（コード）】／本文／ハッシュタグ／YouTubeのURL" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;"></textarea>
-  ${row(b('📋 Xをコピー',"copyText(ytVal('p-x'),this)"))}
-  <div style="font-size:10px;color:var(--text-sub);" title="ここから下の4つは、Xと同じ1行目（問いかけ）と「この動画で確かめること」を使い、誘導とnoteの案内は設定タブの定型文を付けます。">下の4つの、見る場所とnoteの案内は、設定タブの定型文です。</div>
-  <div class="sa-sub">▼ YouTubeの投稿（投稿の種類で「動画」を選び、この動画を選ぶ）</div>
-  <textarea id="yt-p-yp" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;"></textarea>
-  ${row(b('📋 YouTubeの投稿をコピー',"copyText(ytVal('p-yp'),this)"))}
-  <div class="sa-sub">▼ Instagram（縦のサムネを添付）</div>
-  <textarea id="yt-p-ig" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;"></textarea>
-  ${row(b('📋 Instagramをコピー',"copyText(ytVal('p-ig'),this)"))}
-  <div class="sa-sub">▼ Lemon8（縦のサムネを添付）</div>
-  ${set('見出し','<input type="text" id="yt-p-l8t" oninput="saveState()" style="flex:1;min-width:0;font-size:11px;"><button class="ya-nd" onclick="copyText(ytVal(\'p-l8t\'),this)">コピー</button>')}
-  <textarea id="yt-p-l8" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;"></textarea>
-  ${row(b('📋 Lemon8の本文をコピー',"copyText(ytVal('p-l8'),this)"))}
-  <div class="sa-sub">▼ TikTok（縦のサムネを添付）</div>
-  <textarea id="yt-p-tt" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;"></textarea>
-  ${row(b('📋 TikTokをコピー',"copyText(ytVal('p-tt'),this)"))}
+  <div class="yp-shd"><span>▼ X</span><span class="yp-sbtn"><button class="ya-nd" onclick="copyText(ytVal('p-x'),this)">投稿文</button></span></div>
+  <textarea id="yt-p-x" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;width:100%;box-sizing:border-box;"></textarea>
+  <div class="yp-shd"><span title="投稿の種類で「動画」を選び、この動画を選ぶ">▼ YouTubeの投稿</span><span class="yp-sbtn"><button class="ya-nd" onclick="copyText(ytVal('p-yp'),this)">投稿文</button></span></div>
+  <textarea id="yt-p-yp" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;width:100%;box-sizing:border-box;"></textarea>
+  <div class="yp-shd"><span>▼ Instagram</span><span class="yp-sbtn"><button class="ya-nd" onclick="downloadThumbV()" title="縦のサムネをダウンロード（サムネイルのタブの文から作ります）">サムネ</button><button class="ya-nd" onclick="copyText(ytVal('p-ig'),this)">投稿文</button></span></div>
+  <textarea id="yt-p-ig" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;width:100%;box-sizing:border-box;"></textarea>
+  <div class="yp-shd"><span>▼ Lemon8</span><span class="yp-sbtn"><button class="ya-nd" onclick="downloadThumbV()" title="縦のサムネをダウンロード（サムネイルのタブの文から作ります）">サムネ</button><button class="ya-nd" onclick="copyText(ytVal('p-l8t'),this)">見出し</button><button class="ya-nd" onclick="copyText(ytVal('p-l8'),this)">投稿文</button></span></div>
+  <input type="text" id="yt-p-l8t" oninput="saveState()" placeholder="見出し" style="width:100%;box-sizing:border-box;font-size:11px;">
+  <textarea id="yt-p-l8" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;width:100%;box-sizing:border-box;"></textarea>
+  <div class="yp-shd"><span>▼ TikTok</span><span class="yp-sbtn"><button class="ya-nd" onclick="downloadThumbV()" title="縦のサムネをダウンロード（サムネイルのタブの文から作ります）">サムネ</button><button class="ya-nd" onclick="copyText(ytVal('p-tt'),this)">投稿文</button></span></div>
+  <textarea id="yt-p-tt" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;width:100%;box-sizing:border-box;"></textarea>
 </div>
 </div>
 
