@@ -563,6 +563,11 @@
       try { docs = await fetchDocs(want); } catch (e) { setStatus('error', '読み込みに失敗'); }
       restorePending();
       // 送れていなかった行（同じタブのリロード）：サーバーが進んでいなければ送る。進んでいたら選ぶ
+      // 閉じる直前に送った分は、サーバーには入ったのに手元の版が進んでいないことがある。中身が同じなら食い違いではない
+      Object.keys(S.pending).forEach(id => {
+        if (id === 'shared' || !docs[id]) return;
+        if ((S.versions[id] || 0) !== docs[id].version && JSON.stringify(S.pending[id].json) === JSON.stringify(docs[id].json)) { S.versions[id] = docs[id].version; delete S.pending[id]; }
+      });
       const clash = Object.keys(S.pending).filter(id => id !== 'shared' && docs[id] && (S.versions[id] || 0) !== docs[id].version);
       let useLocalForClash = false;
       if (clash.length) {
