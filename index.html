@@ -12393,7 +12393,7 @@ async function ktYtRecover(){
   const kind=window._ktKind;
   if(kind!=='yt'&&kind!=='price'){alert('YT動画か株価のPJを開いてから押してください。');return;}
   const cands=[];
-  const add=(label,fields)=>{if(!fields||typeof fields!=='object')return;const th=fields['yt-g-theme']||'',nt=fields['yt-a-n-title']||'',body=fields['yt-a-n-body']||'';if(!th&&!nt&&!body)return;cands.push({label,fields,desc:(th||'（テーマなし）')+' ／ note: '+(nt||'（なし）')+' ／ 本文 '+String(body).length+'字'});};
+  const add=(label,fields)=>{if(!fields||typeof fields!=='object')return;const n=id=>String(fields[id]||'').length;const th=fields['yt-g-theme']||'',nt=fields['yt-a-n-title']||'';const filled=ytWorkIds().filter(id=>String(fields[id]||'').trim()).length;if(!filled)return;cands.push({label,fields,desc:'テーマ: '+(th||'（なし）')+' ／ レポート '+n('yt-g-report')+'字 ／ 構成 '+n('yt-doc')+'字 ／ note: '+(nt||'（なし）')+' 本文 '+n('yt-a-n-body')+'字 ／ 入っている欄 '+filled+'個'});};
   try{add('控え（YT動画側）',JSON.parse(localStorage.getItem('kt-yt-fields-gen')||'null'));}catch(e){}
   try{add('控え（株価分析側）',JSON.parse(localStorage.getItem('kt-yt-fields-stock')||'null'));}catch(e){}
   try{
