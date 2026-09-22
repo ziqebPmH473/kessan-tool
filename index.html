@@ -887,6 +887,11 @@ select.yn-sel option{color:#0f172a;background:#fff;font-weight:400;}
 @media (min-width: 1620px){
   body{height:100vh;box-sizing:border-box;overflow:hidden;}
   .control-panel{overflow-y:auto;}
+  /* YT動画：上のタブ・エクスポートの行・2段目のタブは動かさず、その下（タブの中身）だけをスクロールする */
+  body.kt-yt .control-panel{overflow:hidden;}
+  body.kt-yt #mode-yt{flex:1;min-height:0;display:flex!important;flex-direction:column;}
+  body.kt-yt #yt-root{flex:1;min-height:0;display:flex;flex-direction:column;}
+  body.kt-yt #yt-root>[id^="yt-pane-"]{flex:1;min-height:0;overflow-y:auto;}
 }
 /* 株価分析のカード/見出し/ボタンを kessan のコンポーネントに合わせる */
 .sa .ctrl{gap:12px;}
@@ -3151,6 +3156,7 @@ point_2=`;
         }
         window.addEventListener('resize',()=>ktStickyTops());window.addEventListener('load',()=>ktStickyTops());
         function switchMode(mode) {
+            document.body.classList.toggle('kt-yt',mode==='yt');   // YT動画は、タブの中身だけをスクロールする（広い画面）
             setTimeout(ktStickyTops,0);
             document.querySelectorAll('.mode-tab').forEach(tab => {
                 tab.classList.toggle('active', tab.dataset.mode === mode);
@@ -8461,6 +8467,7 @@ IFRS：イファース
 ・１文の直後に2秒程度の無音の間を置いてから終了する（無音の指示自体は読み上げない）`;
 // いま使われる note の URL を設定タブに出す
 function ytNoteInfo(){
+  {const a=ytEl('a-noteurl'),n=ytEl('note-url');if(a&&n&&a!==document.activeElement)a.value=n.value;}   // 記事タブの欄にも入れる
   const el=ytEl('note-info');if(!el)return;
   const u=ytNoteUrl();
   const from=ytVal('note-url')?'この欄':((document.getElementById('art-url')||{}).value||'').trim()?'「記事」タブの記事URL':vdVal('vd','note-url')?'縦動画の設定':'';
@@ -9198,6 +9205,8 @@ function ytThumbUse(k){
 }
 // 概要欄＝AIの本文＋noteの案内＋定型文（使用ツール・AIの注意書き）
 // YouTubeのURLを入れたとき：いま欄にあるXの文面はそのままに、URLの行だけを差し替える（手で直した文面を戻さない）
+// 記事タブの noteの記事URLの欄：SNSタブの欄と中身をそろえる（決めたら、概要欄とSNSの note の箇所も差し替える）
+function ytArtNoteInput(inp,done){const el=ytEl('note-url');if(!el)return;el.value=inp.value.trim();ytNoteInfo();if(done)ytNoteUrlSet(el);else saveState();}
 // 記事タブのYouTubeのURLの欄：SNSタブの欄と中身をそろえる
 function ytArtUrlInput(inp){const el=ytEl('p-yturl');if(el){el.value=inp.value.trim();ytPostUrlSet();}}
 function ytPostUrlSet(){
@@ -9383,7 +9392,7 @@ function ytInnerTab(t){
   });
   if(t==='research')ytUpdateFreeInfo();
   if(t==='settings')ytNoteInfo();
-  if(t==='article'){const a=ytEl('a-yturl');if(a)a.value=ytVal('p-yturl');}
+  if(t==='article'){const a=ytEl('a-yturl');if(a)a.value=ytVal('p-yturl');const b=ytEl('a-noteurl');if(b)b.value=ytVal('note-url');}
   if(t==='audio')try{ytOpening();}catch(e){}
   if(t==='naresla')ysRender();
   const want=(t==='slides'||t==='naresla')?'ytnare':(t==='audio'||t==='cut')?'ytaudio':'';
@@ -9561,7 +9570,7 @@ ${[['n','note記事（無料）','表なしで作ります。動画のURLは最�
   <textarea id="yt-a-${k}-body" data-yh-slot="yh-slot-a${k}" oninput="saveState()" placeholder="本文" style="min-height:0;height:96px;font-size:11px;width:100%;box-sizing:border-box;"></textarea>
   <input type="text" id="yt-a-${k}-tags" oninput="saveState()" placeholder="ハッシュタグ" style="width:100%;box-sizing:border-box;font-size:11px;">
   <div id="yt-a-${k}-status" style="display:none;font-size:11px;"></div>
-</div>`).join('')}
+</div>${i===0?`<div class="sa-card" style="margin-top:8px;">${set('noteの記事URL','<input type="text" id="yt-a-noteurl" placeholder="noteに公開したあとのURL（SNSタブの欄と同じ）" oninput="ytArtNoteInput(this,false)" onchange="ytArtNoteInput(this,true)" style="flex:1;min-width:0;font-size:11px;"><button class="ya-nd" onclick="ytPaste(\'a-noteurl\',()=>ytArtNoteInput(ytEl(\'a-noteurl\'),true))">📋 貼付</button>')}</div>`:''}`).join('')}
 <div class="sa-card" style="margin-top:8px;">
   <h2>3. 売買をすすめる表現のチェック</h2>
   <div style="font-size:11px;color:var(--text-sub);" title="Gemini APIで作ったときは自動で行います。貼り付けた記事は、下のボタンで。">APIで作ると自動。手動で貼った記事だけ押す。</div>
