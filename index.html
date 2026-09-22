@@ -7803,6 +7803,7 @@ Markdownで、次の見出しをこの順番で出力する。
 ・リンクのカード・脚注は付けない。URLは出典一覧の表の中だけに書く。
 ## 企画
 - 読みがな：（音声で読み間違えやすい言葉を「言葉＝よみ」の形で、読点で区切って。無ければ「なし」）
+- 冒頭のやりとり：（音声の最初の、聞き手とアナリストのやりとりを1行で。見る人が、冒頭ですぐ「今の自分に影響がある」と分かるやりとりにする。答えは言わない）
 - 動画コンセプト：1〜2文
 - 視聴者に伝える核心：1文
 ## 構成
@@ -8519,7 +8520,7 @@ function ytNotebookPrompt(){
 構成は以下です。時間配分は厳密に守る必要はありません。
 ${ytChapters().map(c=>`${c.no}. ${c.name}\n   ${c.what}`).join('\n')}
 全体として、${ytChapters().map(c=>`「${c.name}」`).join('→')}の順番で話してください。章の順番を入れ替えないでください。後の章で扱う内容を、前の章で先に話さないでください。
-
+${ytOpening()?`音声の冒頭は、必ず「${ytOpening()}」のやりとりから始めてください。\n`:''}
 根拠資料の全項目を均等に紹介する必要はありません。
 細かな数字の羅列や各論の説明に偏らず、動画全体の流れと分かりやすさを優先してください。
 視聴者は個人投資家です。技術面ではなく、投資に関する内容をメインにしてください。
@@ -8585,6 +8586,18 @@ function ytYomi(){
   return d;
 }
 function ytYomiInput(){ytEl('yomi-for').value=ytWorkName();}
+// 冒頭のやりとり（YT動画）。構成と出典の「冒頭のやりとり：」から入れ、貼り直したら入れ直す。
+// 手で直したら（同じテーマの間は）その値を使う。空欄なら、NotebookLMの指示に冒頭の指定を入れない
+function ytOpening(){
+  if(!ytGen())return'';
+  const el=ytEl('open');if(!el)return'';
+  if(ytVal('open-for')==='手:'+ytWorkName())return el.value.trim();
+  const m=ytVal('doc').match(/冒頭のやりとり\s*[:：]\s*([^\n]+)/);
+  const d=m?m[1].replace(/^[（(]|[）)]$/g,'').trim():'';
+  if(el.value!==d||ytVal('open-for')!==ytWorkName()){el.value=d;ytEl('open-for').value=ytWorkName();saveState();}
+  return d;
+}
+function ytOpenInput(){ytEl('open-for').value='手:'+ytWorkName();saveState();}
 
 // ---- 出典のリンク確認（AIに任せず、実際に開けるかを機械的に確かめる）----
 const YL={res:null,seen:{}};   // [{no,name,url,ok,status,type,error}]
@@ -9309,6 +9322,7 @@ function ytInnerTab(t){
   });
   if(t==='research')ytUpdateFreeInfo();
   if(t==='settings')ytNoteInfo();
+  if(t==='audio')try{ytOpening();}catch(e){}
   if(t==='naresla')ysRender();
   const want=(t==='slides'||t==='naresla')?'ytnare':(t==='audio'||t==='cut')?'ytaudio':'';
   const cur=document.getElementById('tab-yb')?.classList.contains('active')?'ytboth'
@@ -9413,6 +9427,7 @@ function ytBuildTabHtml(){
 <div class="sa-card">
   <h2>1. NotebookLM で音声を作る</h2>
   ${set('<span class="yt-only-stock">銘柄名の読み</span><span class="yt-only-gen" style="display:none;">読みがな</span>','<input type="text" id="yt-yomi" placeholder="資料を貼ると自動で入ります" oninput="ytYomiInput()" style="flex:1;min-width:0;font-size:11px;"><input type="hidden" id="yt-yomi-for">')}
+  <div class="yt-only-gen" style="display:none;">${set('冒頭のやりとり','<textarea id="yt-open" rows="2" placeholder="構成と出典を貼ると自動で入ります。空欄なら、NotebookLMの指示に冒頭の指定を入れません" oninput="ytOpenInput()" style="flex:1;min-width:0;font-size:11px;"></textarea><input type="hidden" id="yt-open-for">')}</div>
   ${set('シリーズ名','<input type="text" id="yt-series" value="'+YT_SERIES_DEFAULT+'" placeholder="空欄ならシリーズ無し" oninput="saveState()" style="flex:1;min-width:0;font-size:11px;"><button class="ya-nd" onclick="ytSeriesReset()" title="既定のシリーズ名に戻す">↺</button>')}
   <div style="font-size:10px;color:var(--text-sub);">シリーズ名は、調査・音声・スライド・投稿文の「どういう動画か」の一文と、タイトルの末尾（｜シリーズ名）に入ります。空にすると、シリーズ無しとして作ります。</div>
   ${row(b('📄 ソース（.md）','ytDownloadSource()','background:#0d9488;color:#fff;'),b('📓 指示',"ytCopy('nlm',this)",G))}
@@ -9520,7 +9535,7 @@ ${[['n','note記事（無料）','noteは表を表示できないので、表を
 </div>
 </div>`;
 }
-const YT_PERSIST_IDS=['vd-orient','th-ctx','th-note-text','th-note-preset','yt-th-text','yt-th-preset','yg-th-text','yg-th-preset','yt-g-theme','yt-g-report','yt-g-aud','yt-a-n-raw','yt-a-n-title','yt-a-n-body','yt-a-n-tags','yt-a-b-raw','yt-a-b-title','yt-a-b-body','yt-a-b-tags','yt-a-check','yt-link-state','yt-doc','yt-series','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-t1','yt-p-t2','yt-p-t3','yt-p-s1','yt-p-s2','yt-p-s3','yt-p-body','yt-p-xbody','yt-p-hook','yt-p-announce','yt-p-ypbody','yt-p-igbody','yt-p-ttbody','yt-p-points','yt-p-xtags','yt-p-yptags','yt-p-igtags','yt-p-tttags','yt-p-l8title','yt-p-l8intro','yt-p-l8tags','yt-p-yp','yt-p-ig','yt-p-l8t','yt-p-l8','yt-p-tt','yt-f-yp','yt-f-ig','yt-f-l8','yt-f-tt','yt-p-yturl','yt-p-tags','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-m-cut','yt-m-read','yt-m-plan','yt-m-post','yt-m-qr','yt-yomi','yt-yomi-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan'];
+const YT_PERSIST_IDS=['vd-orient','th-ctx','th-note-text','th-note-preset','yt-th-text','yt-th-preset','yg-th-text','yg-th-preset','yt-g-theme','yt-g-report','yt-g-aud','yt-a-n-raw','yt-a-n-title','yt-a-n-body','yt-a-n-tags','yt-a-b-raw','yt-a-b-title','yt-a-b-body','yt-a-b-tags','yt-a-check','yt-link-state','yt-doc','yt-series','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-t1','yt-p-t2','yt-p-t3','yt-p-s1','yt-p-s2','yt-p-s3','yt-p-body','yt-p-xbody','yt-p-hook','yt-p-announce','yt-p-ypbody','yt-p-igbody','yt-p-ttbody','yt-p-points','yt-p-xtags','yt-p-yptags','yt-p-igtags','yt-p-tttags','yt-p-l8title','yt-p-l8intro','yt-p-l8tags','yt-p-yp','yt-p-ig','yt-p-l8t','yt-p-l8','yt-p-tt','yt-f-yp','yt-f-ig','yt-f-l8','yt-f-tt','yt-p-yturl','yt-p-tags','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-m-cut','yt-m-read','yt-m-plan','yt-m-post','yt-m-qr','yt-yomi','yt-yomi-for','yt-open','yt-open-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan'];
 // ---- 動画の種類：株価分析の横動画＝stock ／ YT動画タブ＝gen ----
 // 画面と関数は1組だけ。種類を切り替えると、作品ごとの欄（localStorage）と IndexedDB のキーを入れ替える。
 // 株価分析の側は今までのキーのまま、YT動画の側は前に 'gen:' を付ける。設計：docs/design/2026-09-21_YT動画タブ.md
