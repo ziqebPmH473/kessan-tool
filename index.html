@@ -9532,20 +9532,16 @@ ${yaBuildPaneHtml()}
 <div id="yt-pane-article" style="display:none;">
 ${[['n','note記事（無料）','表なしで作ります。動画のURLは最初の段落のあと（noteでURLの行末でEnter→動画のカード）。'],['b','ブログ記事','表ありで作ります。動画は管理画面の「YouTube の URL」の欄へ（本文には入れない）。']].map(([k,title,note],i)=>`
 <div class="sa-card"${i?' style="margin-top:8px;"':''}>
-  <h2>${i+1}. ${title}</h2>
-  <div style="font-size:11px;color:var(--text-sub);">${note}</div>
+  <h2 title="${note}">${i+1}. ${title}</h2>
   ${row(b('🤖 Gemini APIで作る',"ygArtAi('"+k+"',this)",'background:#4f46e5;color:#fff;'))}
   <details class="yt-col" style="margin-top:4px;"><summary style="font-size:11px;color:var(--text-sub);cursor:pointer;">手動で作る（ChatGPT など。APIが混んでいるとき）</summary>
   ${row(b('💬 プロンプト',"try{copyText(ygArticlePrompt('"+k+"'),this)}catch(e){alert(e.message)}",G),b('📋 貼り付け',"ygArtPaste('"+k+"')"))}
   </details>
   <textarea id="yt-a-${k}-raw" style="display:none;"></textarea>
-  <div class="sa-sub">▼ タイトル</div>
-  <div class="row" style="flex-wrap:nowrap;gap:4px;"><input type="text" id="yt-a-${k}-title" oninput="saveState()" style="flex:1;min-width:0;font-size:12px;"><button class="ya-nd" onclick="copyText(ytVal('a-${k}-title'),this)">コピー</button></div>
-  <div class="sa-sub">▼ 本文</div>
-  <textarea id="yt-a-${k}-body" oninput="saveState()" style="min-height:120px;font-size:11px;"></textarea>
-  ${row(b('📄 本文をコピー',"copyText(ytVal('a-"+k+"-body'),this)"),k==='n'?b('🎬 動画のURLを入れ直す','ygArtUrlApply(true)'):b('🎬 動画のURLをコピー',"ytVal('p-yturl')?copyText(ytVal('p-yturl'),this):alert('SNSタブの「YouTubeのURL」が空です')"))}
-  <div class="sa-sub">▼ ハッシュタグ</div>
-  <div class="row" style="flex-wrap:nowrap;gap:4px;"><input type="text" id="yt-a-${k}-tags" oninput="saveState()" style="flex:1;min-width:0;font-size:11px;"><button class="ya-nd" onclick="copyText(ytVal('a-${k}-tags'),this)">コピー</button></div>
+  <div class="yp-shd"><span>▼ 記事</span><span class="yp-slot" id="yh-slot-a${k}"></span><span class="yp-sbtn"><button class="ya-nd" onclick="copyText(ytVal('a-${k}-title'),this)">タイトル</button><button class="ya-nd" onclick="copyText(ytVal('a-${k}-body'),this)">本文</button><button class="ya-nd" onclick="copyText(ytVal('a-${k}-tags'),this)">ハッシュタグ</button>${k==='n'?`<button class="ya-nd" onclick="ygArtUrlApply(true)" title="本文の最初の段落のあとに、YouTubeのURLを入れ直す">動画URL入れ直し</button>`:`<button class="ya-nd" onclick="ytVal('p-yturl')?copyText(ytVal('p-yturl'),this):alert('SNSタブの「YouTubeのURL」が空です')" title="ブログの管理画面の「YouTube の URL」の欄に入れる">動画URL</button>`}</span></div>
+  <input type="text" id="yt-a-${k}-title" oninput="saveState()" placeholder="タイトル" style="width:100%;box-sizing:border-box;font-size:11px;">
+  <textarea id="yt-a-${k}-body" data-yh-slot="yh-slot-a${k}" oninput="saveState()" placeholder="本文" style="min-height:0;height:38px;font-size:11px;width:100%;box-sizing:border-box;"></textarea>
+  <input type="text" id="yt-a-${k}-tags" oninput="saveState()" placeholder="ハッシュタグ" style="width:100%;box-sizing:border-box;font-size:11px;">
   <div id="yt-a-${k}-status" style="display:none;font-size:11px;"></div>
 </div>`).join('')}
 <div class="sa-card" style="margin-top:8px;">
