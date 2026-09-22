@@ -9163,12 +9163,46 @@ function ytPostTagsSet(inp){
   if(prev&&v.endsWith(prev))v=v.slice(0,v.length-prev.length).replace(/\s+$/,'');
   el.value=[v,now].filter(Boolean).join('\n\n');saveState();
 }
+// noteの記事URLを入れた・変えた・消したとき：概要欄の「▼ …（note）」の箇所と、SNSの投稿文のnoteの行だけを差し替える
+// （手で直したほかの文面はそのまま。YouTubeのURLの差し替えと同じ考え方）
+function ytNoteUrlSet(inp,manual){
+  const url=ytNoteUrl();
+  ytNoteInfo();
+  const msg=[];
+  // 概要欄
+  const d=ytEl('p-desc');
+  if(d&&d.value.trim()){
+    const label=ytGen()?'▼ 記事で読む（note）':'▼ さらに詳しい分析はこちら（note）';
+    const blocks=d.value.replace(/\r\n/g,'\n').split(/\n{2,}/);
+    const at=blocks.findIndex(b=>/^▼[^\n]*（note）/.test(b.trim()));
+    if(at>=0){if(url)blocks[at]=`${label}\n${url}`;else blocks.splice(at,1);}
+    else if(url){
+      const fx=ytVal('p-fixed').replace(/\r\n/g,'\n').trim(),fi=fx?blocks.findIndex(b=>b.trim()===fx.split(/\n{2,}/)[0].trim()):-1;
+      blocks.splice(fi>=0?fi:Math.max(1,blocks.length-1),0,`${label}\n${url}`);
+    }
+    d.value=blocks.join('\n\n');msg.push('概要欄');
+  }
+  // SNSの投稿文（YT動画：noteの行はURLがあるときだけ）
+  if(ytGen()){
+    // いまの文面に、noteありの定型文・なしの定型文のどちらが入っているかを見て入れ替える（ありの方が長いので先に探す）
+    const has=!!url;
+    [['yp','p-yp'],['ig','p-ig'],['l8','p-l8'],['tt','p-tt']].forEach(([k,id])=>{
+      const el=ytEl(id);if(!el||!el.value.trim())return;
+      const n=ygPostFixed(k,has),v=el.value.replace(/\r\n/g,'\n');
+      if(has&&v.includes(n))return;
+      const o=[ygPostFixed(k,true),ygPostFixed(k,false)].find(x=>x&&x!==n&&v.includes(x));
+      if(o){el.value=v.replace(o,n);msg.push({yp:'YouTubeの投稿',ig:'Instagram',l8:'Lemon8',tt:'TikTok'}[k]);}
+    });
+  }
+  saveState();
+  if(manual)ytStatus(msg.length?`✅ noteの箇所を差し替えました（${msg.join('・')}）`:'差し替える箇所がありませんでした（投稿文がまだ無いか、noteの行を手で消しています）',msg.length?'ok':'','post-status');
+}
 // SNSの定型文（設定タブ）。{下値/上値} は株価の向きで入れ替える
 // YT動画の定型文：noteの記事のURL（設定タブ）が無いときは、noteの行を外す。
 // Lemon8 は「noteの記事の中で動画を見る」案内なので、URLが無いときは YouTube の検索に切り替える
-function ygPostFixed(k){
+function ygPostFixed(k,has){
   let t=ytPostFixedText(k);
-  if(!ytNoteUrl()){
+  if(!(has==null?ytNoteUrl():has)){
     t=t.split(/\r?\n/).filter(l=>!/note/i.test(l)).join('\n').trim();
     if(k==='l8'&&!t)t='▶ 動画は、YouTubeで「すみっこマネー大学」と検索してご覧ください';
   }
@@ -9390,6 +9424,8 @@ ${yaBuildPaneHtml()}</div>
 <div class="sa-card" style="margin-top:8px;">
   <h2>3. 概要欄・SNS</h2>
   ${set('YouTubeのURL','<input type="text" id="yt-p-yturl" placeholder="動画を上げたあとのURL（Xの投稿文に入ります）" oninput="ytPostUrlSet()" style="flex:1;min-width:0;font-size:11px;">')}
+  ${set('noteの記事URL','<input type="text" id="yt-note-url" placeholder="noteの記事のURL（概要欄・SNS・まとめのスライドのQRに入ります）" oninput="ytNoteInfo()" onchange="ytNoteUrlSet(this)" style="flex:1;min-width:0;font-size:11px;"><button class="ya-nd" onclick="ytNoteUrlSet(document.getElementById(\'yt-note-url\'),true)" title="概要欄とSNSの投稿文の、noteの箇所だけを差し替える">↻ 差し替え</button>')}
+  <div id="yt-note-info" style="font-size:10px;color:var(--text-sub);"></div>
   ${set('ハッシュタグ','<input type="text" id="yt-p-tags" placeholder="#銘柄名 #証券コード ほか（概要欄の最後に付きます）" onfocus="this.dataset.prev=this.value" oninput="ytPostTagsSet(this)" style="flex:1;min-width:0;font-size:11px;">')}
   <input type="hidden" id="yt-p-body"><input type="hidden" id="yt-p-xbody"><input type="hidden" id="yt-p-hook"><input type="hidden" id="yt-p-announce"><input type="hidden" id="yt-p-ypbody"><input type="hidden" id="yt-p-igbody"><input type="hidden" id="yt-p-ttbody"><textarea id="yt-p-points" style="display:none;"></textarea>
   <input type="hidden" id="yt-p-xtags"><input type="hidden" id="yt-p-yptags"><input type="hidden" id="yt-p-igtags"><input type="hidden" id="yt-p-tttags">
@@ -9445,8 +9481,7 @@ ${[['n','note記事（無料）','noteは表を表示できないので、表を
 <div id="yt-pane-settings" style="display:none;">
 <div class="sa-card">
   <h2>設定</h2>
-  ${set('QR用URL','<input type="text" id="yt-note-url" placeholder="空なら「記事」タブの記事URL→縦動画の設定の順に使う" oninput="ytNoteInfo()" style="flex:1;min-width:0;font-size:11px;">')}
-  <div id="yt-note-info" style="font-size:10px;color:var(--text-sub);"></div>
+  <div style="font-size:10px;color:var(--text-sub);">noteの記事のURL（まとめのスライドのQRにも使います）は、「SNS」タブの「YouTubeのURL」の下の欄で入れます。</div>
   ${set('チャート期間','<input type="number" id="yt-months" value="12" min="1" max="60" style="width:60px;flex:none;font-size:11px;padding:4px;">','ヶ月')}
   ${set('試聴の前後','<input type="number" id="ya-ctx" value="2" min="0" max="10" step="0.5" style="width:60px;flex:none;font-size:11px;padding:4px;">','秒（音声カットの▶・試聴で、前後に足す長さ）')}
   <div class="sa-sub">▼ Geminiのモデル（作業ごと）</div>
