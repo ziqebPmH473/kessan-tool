@@ -8928,14 +8928,18 @@ function ytPostRulesGen(){
 　どの動画にも付けられる汎用的な言葉は使わない。一般の人が検索に使わない言葉も使わない。
 ・SNSの投稿文は、X・YouTubeの投稿・Instagram・Lemon8・TikTok の5つを作る。どれも、この動画を見てもらうための告知。
 　運用ルールのX投稿案の「目的」「内容」「禁止」は、5つすべてに当てはめる。
-　いちばん大事なこと：投稿を読んだだけで、動画の答えが分かってはいけない。どの部品にも、動画で話す答え・結論・分析で分かった事実や数字は書かない。書くのは、見る人が持つ疑問と、動画で何を取り上げるかだけ。
-　5つは、次の部品をツールが組み合わせて作るので、部品だけを書く。
-　- hook：共感の問いかけ。見る人が持っている疑問や気持ちに寄りそう1文。何の動画かが分かる言葉を入れる。全角30字以内。
-　- announce：告知。「〇〇を解説する動画を公開しました」の形で、何を解説する動画かを1文で書く。全角40字以内。
+　いちばん大事なこと：投稿を読んだだけで、動画の答えが分かってはいけない。どの投稿にも、動画で話す答え・結論・分析で分かった事実や数字は書かない。書くのは、見る人が持つ疑問と、動画で何を取り上げるかだけ。
+　投稿は、ツールが「本文 → この動画で分かること → 動画を見る場所の案内 → noteの案内 → ハッシュタグ」の順に組み立てる。AIが書くのは、SNSごとの本文と、points と、lemon8_title だけ。
+　本文は、見る人の疑問や気持ちに寄りそう共感と、「〇〇を解説する動画を公開しました」という告知で作る。SNSごとの書き方と長さは次のとおり（長さは本文だけの字数）。
+　- x：共感の問いかけ → 告知。空行を入れない。全角100字以内。
+　- yt_post：告知 → 共感。チャンネル登録者に、新しい動画が出たことを知らせる言い方。全角80〜150字。
+　- insta：共感と告知を最初の2行に入れる（「続きを読む」の前に見えるのは最初の2行だけ）。全角80〜150字。
+　- lemon8：共感 → 告知 → 疑問の背景と、動画でどういう順に何を確かめるか。ほかより詳しく書く。全角300〜500字。
+　- tiktok：1行目に、検索されそうな言葉を入れる。共感 → 告知。全角60〜120字。
 　- points：この動画で分かること。動画で話す順に3〜5個。何が分かるかだけを書き、答えは書かない。各全角20字以内。
 　- lemon8_title：Lemon8の見出し。共感の言葉で、読む人を引きつける。全角30字以内。
-　どの部品も、運用ルールの「優先フックの定義（具体性の担保）」と、概要欄の禁止「汎用的すぎる説明文」に従う（この動画の主題に固有の焦点を書く）。
-　動画を見る場所の案内、noteの案内、URLは、ツールが付けるので書かない。
+　どの本文も、運用ルールの「優先フックの定義（具体性の担保）」と、概要欄の禁止「汎用的すぎる説明文」に従う（この動画の主題に固有の焦点を書く）。
+　動画を見る場所の案内、noteの案内、URL、ハッシュタグは、ツールが付けるので本文に書かない。
 ・SNSのハッシュタグ
 　- x_tags：3個。yt_post_tags：3個。言葉の選び方は tags と同じ。
 　- insta_tags：5個。lemon8_tags：5個。tiktok_tags：5〜8個。
@@ -8944,7 +8948,7 @@ function ytPostRulesGen(){
 ・CTR／SEO最適化ポイント、動画管理表は出力しない。
 
 【出力】次の形のJSONだけを出力する。説明文やコードフェンスは不要。
-{"titles":["","",""],"thumbs":["上段：中段：下段","",""],"desc":"","tags":["","",""],"hook":"","announce":"","points":["","",""],"x_tags":[],"yt_post_tags":[],"insta_tags":[],"lemon8_title":"","lemon8_tags":[],"tiktok_tags":[]}`;
+{"titles":["","",""],"thumbs":["上段：中段：下段","",""],"desc":"","tags":["","",""],"x":"","yt_post":"","insta":"","lemon8_title":"","lemon8":"","tiktok":"","points":["","",""],"x_tags":[],"yt_post_tags":[],"insta_tags":[],"lemon8_tags":[],"tiktok_tags":[]}`;
 }
 function ytPostPrompt(){
   const{plan,report}=ytSlidePartsLoose();
@@ -9017,12 +9021,13 @@ function ytPostApply(){
   const pts=(Array.isArray(j.points)?j.points:String(j.points||'').split(/\n/)).map(s=>String(s).replace(/^[・\-－•●\s]+/,'').replace(/^[①-⑳]\s*/,'').trim()).filter(Boolean);
   set('p-hook',String(j.hook||'').trim());set('p-points',pts.join('\n'));set('p-announce',String(j.announce||'').trim());
   set('p-xtags',tl(j.x_tags));set('p-yptags',tl(j.yt_post_tags));set('p-igtags',tl(j.insta_tags));set('p-tttags',tl(j.tiktok_tags));
-  set('p-l8title',String(j.lemon8_title||'').trim());set('p-l8intro',String(j.lemon8_intro||'').trim());set('p-l8tags',tl(j.lemon8_tags));
+  set('p-l8title',String(j.lemon8_title||'').trim());set('p-l8intro',String(j.lemon8||j.lemon8_intro||'').trim());
+  set('p-ypbody',String(j.yt_post||'').trim());set('p-igbody',String(j.insta||'').trim());set('p-ttbody',String(j.tiktok||'').trim());set('p-l8tags',tl(j.lemon8_tags));
   const tg=Array.isArray(j.tags)?j.tags:String(j.tags||'').split(/\s+/);
   set('p-tags',tg.map(s=>String(s).trim()).filter(Boolean).map(s=>s.startsWith('#')?s:'#'+s).join(' '));
   ytPostBuild();
   const d=String(j.desc||''),x=String(j.x||'');
-  ytStatus(`✅ 反映しました（タイトル${(j.titles||[]).length}案・サムネ${(j.thumbs||[]).length}案・概要欄${d.length}字・X${x.length}字${j.hook?'・SNS4つ':'・SNSの部品なし（古い形のJSON）'}）`,'ok','post-status');
+  ytStatus(`✅ 反映しました（タイトル${(j.titles||[]).length}案・サムネ${(j.thumbs||[]).length}案・概要欄${d.length}字・X${x.length}字${j.hook||j.yt_post?'・SNS4つ':'・SNSの部品なし（古い形のJSON）'}）`,'ok','post-status');
 }
 async function ytPostAi(btn){
   let prompt;try{prompt=ytPostPrompt();}catch(e){ytStatus('❌ '+e.message,'error','post-status');return;}
@@ -9157,6 +9162,16 @@ function ytPostTagsSet(inp){
   el.value=[v,now].filter(Boolean).join('\n\n');saveState();
 }
 // SNSの定型文（設定タブ）。{下値/上値} は株価の向きで入れ替える
+// YT動画の定型文：noteの記事のURL（設定タブ）が無いときは、noteの行を外す。
+// Lemon8 は「noteの記事の中で動画を見る」案内なので、URLが無いときは YouTube の検索に切り替える
+function ygPostFixed(k){
+  let t=ytPostFixedText(k);
+  if(!ytNoteUrl()){
+    t=t.split(/\r?\n/).filter(l=>!/note/i.test(l)).join('\n').trim();
+    if(k==='l8'&&!t)t='▶ 動画は、YouTubeで「すみっこマネー大学」と検索してご覧ください';
+  }
+  return t;
+}
 function ytPostFixedText(k){return (ytVal('f-'+k)||'').replace(/\{下値\/上値\}/g,getDir()==='up'?'上値':'下値').trim();}
 function ytPostBuild(){
   const body=ytVal('p-body'),xbody=ytVal('p-xbody'),hook=ytVal('p-hook');
@@ -9167,27 +9182,29 @@ function ytPostBuild(){
   if(hook||xbody){
     // 1行目＝【#銘柄名（コード）】、hook、続きの文、ハッシュタグ、最終行に動画のURL（記事タブのX告知文と同じ。空行は入れない）
     const head=ytGen()?'':`【#${(getName()||'').replace(/\s+/g,'')}（${getTicker()||''}）】`,yt=ytVal('p-yturl');   // YT動画は1つの銘柄の動画ではないので、1行目の銘柄名は付けない
-    const src=ytGen()?[hook,ytVal('p-announce'),ytVal('p-xtags')]:hook?[hook,xbody,ytVal('p-xtags')]:[xbody];   // YT動画：共感 → 告知 → タグ → URL   // hook が無いのは、SNSの部品が入る前の形のJSON
+    const src=ytGen()?[xbody,ytVal('p-xtags')]:hook?[hook,xbody,ytVal('p-xtags')]:[xbody];   // YT動画：本文（共感 → 告知）→ タグ → URL   // hook が無いのは、SNSの部品が入る前の形のJSON
     const lines=src.filter(Boolean).join('\n').split(/\r?\n/).map(s=>s.trim()).filter(Boolean).filter(s=>!/^【\s*#/.test(s)&&!/^https?:/.test(s));
     const dup=ytGen()?[]:[(getName()||'').replace(/\s+/g,''),String(getTicker()||'')].filter(Boolean);
     const body=lines.map(s=>s.replace(/[#＃]([^\s#＃]+)/g,(m,w)=>dup.includes(w)?'':m).replace(/[ 　]{2,}/g,' ').trim()).filter(Boolean);
     ytEl('p-x').value=[head,...body,yt].filter(Boolean).join('\n');
+  }
+  // YT動画：SNSごとの本文 → この動画で分かること → 見てね（定型文）→ noteの案内（URLがあるときだけ）→ タグ
+  if(ytGen()&&(ytVal('p-ypbody')||ytVal('p-igbody')||ytVal('p-l8intro')||ytVal('p-ttbody'))){
+    const pts=ytVal('p-points').split(/\n/).map(s=>s.trim()).filter(Boolean);
+    const L2='この動画で分かること',bul=pts.map(s=>'・'+s).join('\n'),num=pts.map((s,i)=>('①②③④⑤⑥⑦⑧⑨⑩'[i]||'・')+' '+s).join('\n');
+    const J=a=>a.filter(Boolean).join('\n\n');
+    ytEl('p-yp').value=J([ytVal('p-ypbody'),pts.length?L2+'\n'+bul:'',ygPostFixed('yp'),ytVal('p-yptags')]);
+    ytEl('p-ig').value=J([ytVal('p-igbody'),pts.length?L2+'\n'+bul:'',ygPostFixed('ig'),ytVal('p-igtags')]);
+    ytEl('p-l8t').value=ytVal('p-l8title').replace(/^【[^】]*】\s*/,'');
+    ytEl('p-l8').value=J([ytVal('p-l8intro'),pts.length?L2+'\n'+num:'',ygPostFixed('l8'),ytVal('p-l8tags')]);
+    ytEl('p-tt').value=J([ytVal('p-ttbody'),pts.length?L2+'\n'+bul:'',ygPostFixed('tt'),ytVal('p-tttags')]);
+    saveState();return;
   }
   // YouTubeの投稿・Instagram・Lemon8・TikTok：同じ hook と「この動画で確かめること」を使い、誘導とnoteの案内は定型文
   if(hook){
     const pts=ytVal('p-points').split(/\n/).map(s=>s.trim()).filter(Boolean);
     const L='この動画で確かめること',bul=pts.map(s=>'・'+s).join('\n'),num=pts.map((s,i)=>('①②③④⑤⑥⑦⑧⑨⑩'[i]||'・')+' '+s).join('\n');
     const J=a=>a.filter(Boolean).join('\n\n');
-    if(ytGen()){
-      // YT動画：告知の投稿。共感 → 告知 → この動画で分かること → 見てね（定型文）→ タグ。YouTubeの投稿は動画が付くので告知から
-      const an=ytVal('p-announce'),top=[hook,an].filter(Boolean).join('\n'),L2='この動画で分かること';
-      ytEl('p-yp').value=J([[an,hook].filter(Boolean).join('\n'),pts.length?L2+'\n'+bul:'',ytPostFixedText('yp'),ytVal('p-yptags')]);
-      ytEl('p-ig').value=J([top,pts.length?L2+'\n'+bul:'',ytPostFixedText('ig'),ytVal('p-igtags')]);
-      ytEl('p-l8t').value=ytVal('p-l8title').replace(/^【[^】]*】\s*/,'');
-      ytEl('p-l8').value=J([top,pts.length?L2+'\n'+num:'',ytPostFixedText('l8'),ytVal('p-l8tags')]);
-      ytEl('p-tt').value=J([top,pts.length?L2+'\n'+bul:'',ytPostFixedText('tt'),ytVal('p-tttags')]);
-      saveState();return;
-    }
     ytEl('p-yp').value=J([hook,pts.length?L+'\n'+bul:'',ytPostFixedText('yp'),ytVal('p-yptags')]);
     ytEl('p-ig').value=J([hook,pts.length?L+'\n'+bul:'',ytPostFixedText('ig'),ytVal('p-igtags')]);
     // 見出し＝【#銘柄名（コード）】＋AIの言葉（Xの1行目と同じ書き方）
@@ -9372,7 +9389,7 @@ ${yaBuildPaneHtml()}</div>
   <h2>3. 概要欄・SNS</h2>
   ${set('YouTubeのURL','<input type="text" id="yt-p-yturl" placeholder="動画を上げたあとのURL（Xの投稿文に入ります）" oninput="ytPostUrlSet()" style="flex:1;min-width:0;font-size:11px;">')}
   ${set('ハッシュタグ','<input type="text" id="yt-p-tags" placeholder="#銘柄名 #証券コード ほか（概要欄の最後に付きます）" onfocus="this.dataset.prev=this.value" oninput="ytPostTagsSet(this)" style="flex:1;min-width:0;font-size:11px;">')}
-  <input type="hidden" id="yt-p-body"><input type="hidden" id="yt-p-xbody"><input type="hidden" id="yt-p-hook"><input type="hidden" id="yt-p-announce"><textarea id="yt-p-points" style="display:none;"></textarea>
+  <input type="hidden" id="yt-p-body"><input type="hidden" id="yt-p-xbody"><input type="hidden" id="yt-p-hook"><input type="hidden" id="yt-p-announce"><input type="hidden" id="yt-p-ypbody"><input type="hidden" id="yt-p-igbody"><input type="hidden" id="yt-p-ttbody"><textarea id="yt-p-points" style="display:none;"></textarea>
   <input type="hidden" id="yt-p-xtags"><input type="hidden" id="yt-p-yptags"><input type="hidden" id="yt-p-igtags"><input type="hidden" id="yt-p-tttags">
   <input type="hidden" id="yt-p-l8title"><textarea id="yt-p-l8intro" style="display:none;"></textarea><input type="hidden" id="yt-p-l8tags">
   <div class="sa-sub">▼ 概要欄（このまま貼れる全文）</div>
@@ -9444,7 +9461,7 @@ ${[['n','note記事（無料）','noteは表を表示できないので、表を
 </div>
 </div>`;
 }
-const YT_PERSIST_IDS=['vd-orient','th-ctx','th-note-text','th-note-preset','yt-th-text','yt-th-preset','yg-th-text','yg-th-preset','yt-g-theme','yt-g-report','yt-g-aud','yt-a-n-raw','yt-a-n-title','yt-a-n-body','yt-a-n-tags','yt-a-b-raw','yt-a-b-title','yt-a-b-body','yt-a-b-tags','yt-a-check','yt-link-state','yt-doc','yt-series','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-t1','yt-p-t2','yt-p-t3','yt-p-s1','yt-p-s2','yt-p-s3','yt-p-body','yt-p-xbody','yt-p-hook','yt-p-announce','yt-p-points','yt-p-xtags','yt-p-yptags','yt-p-igtags','yt-p-tttags','yt-p-l8title','yt-p-l8intro','yt-p-l8tags','yt-p-yp','yt-p-ig','yt-p-l8t','yt-p-l8','yt-p-tt','yt-f-yp','yt-f-ig','yt-f-l8','yt-f-tt','yt-p-yturl','yt-p-tags','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-m-cut','yt-m-read','yt-m-plan','yt-m-post','yt-m-qr','yt-yomi','yt-yomi-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan'];
+const YT_PERSIST_IDS=['vd-orient','th-ctx','th-note-text','th-note-preset','yt-th-text','yt-th-preset','yg-th-text','yg-th-preset','yt-g-theme','yt-g-report','yt-g-aud','yt-a-n-raw','yt-a-n-title','yt-a-n-body','yt-a-n-tags','yt-a-b-raw','yt-a-b-title','yt-a-b-body','yt-a-b-tags','yt-a-check','yt-link-state','yt-doc','yt-series','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-t1','yt-p-t2','yt-p-t3','yt-p-s1','yt-p-s2','yt-p-s3','yt-p-body','yt-p-xbody','yt-p-hook','yt-p-announce','yt-p-ypbody','yt-p-igbody','yt-p-ttbody','yt-p-points','yt-p-xtags','yt-p-yptags','yt-p-igtags','yt-p-tttags','yt-p-l8title','yt-p-l8intro','yt-p-l8tags','yt-p-yp','yt-p-ig','yt-p-l8t','yt-p-l8','yt-p-tt','yt-f-yp','yt-f-ig','yt-f-l8','yt-f-tt','yt-p-yturl','yt-p-tags','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-m-cut','yt-m-read','yt-m-plan','yt-m-post','yt-m-qr','yt-yomi','yt-yomi-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan'];
 // ---- 動画の種類：株価分析の横動画＝stock ／ YT動画タブ＝gen ----
 // 画面と関数は1組だけ。種類を切り替えると、作品ごとの欄（localStorage）と IndexedDB のキーを入れ替える。
 // 株価分析の側は今までのキーのまま、YT動画の側は前に 'gen:' を付ける。設計：docs/design/2026-09-21_YT動画タブ.md
