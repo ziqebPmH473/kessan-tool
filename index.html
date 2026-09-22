@@ -8950,6 +8950,19 @@ function ytPostRulesGen(){
 【出力】次の形のJSONだけを出力する。説明文やコードフェンスは不要。
 {"titles":["","",""],"thumbs":["上段：中段：下段","",""],"desc":"","tags":["","",""],"x":"","yt_post":"","insta":"","lemon8_title":"","lemon8":"","tiktok":"","points":["","",""],"x_tags":[],"yt_post_tags":[],"insta_tags":[],"lemon8_tags":[],"tiktok_tags":[]}`;
 }
+// SNSの投稿文だけを作り直すとき：タイトル・サムネ・概要欄・概要欄のタグは出させない（登録済みの概要欄を変えないため）
+function ytPostPromptSns(){
+  const keys=ytGen()
+    ?'{"x":"","yt_post":"","insta":"","lemon8_title":"","lemon8":"","tiktok":"","points":["","",""],"x_tags":[],"yt_post_tags":[],"insta_tags":[],"lemon8_tags":[],"tiktok_tags":[]}'
+    :'{"hook":"","points":["","",""],"x":"","x_tags":[],"yt_post_tags":[],"insta_tags":[],"lemon8_title":"","lemon8_intro":"","lemon8_tags":[],"tiktok_tags":[]}';
+  return `${ytPostPrompt()}
+
+---
+【今回の出力（SNSの投稿文だけ）】
+今回は、SNSの投稿文だけを作り直す。タイトル案・サムネ案・概要欄（desc）・概要欄のハッシュタグ（tags）は作らない。
+上の【出力】の形ではなく、次の形のJSONだけを出力する。説明文やコードフェンスは不要。
+${keys}`;
+}
 function ytPostPrompt(){
   const{plan,report}=ytSlidePartsLoose();
   const tr=ytPostTranscript();
@@ -9013,8 +9026,11 @@ function ytPostApply(){
   const set=(id,v)=>{const el=ytEl(id);if(el)el.value=v;};
   // サムネは「上段：中段：下段」の形にそろえる（／や半角:で返ってきても直す）
   const thumb=s=>String(s||'').trim().replace(/\s*[\/／]\s*/g,'：').replace(/:/g,'：');
-  [1,2,3].forEach(k=>{set('p-t'+k,String((j.titles||[])[k-1]||'').trim());set('p-s'+k,thumb((j.thumbs||[])[k-1]));});
-  set('p-body',String(j.desc||'').trim());
+  const sns=!j.desc&&!(Array.isArray(j.titles)&&j.titles.length);   // SNSだけを作り直したJSON（概要欄・タイトル・サムネはそのまま）
+  if(!sns){
+    [1,2,3].forEach(k=>{set('p-t'+k,String((j.titles||[])[k-1]||'').trim());set('p-s'+k,thumb((j.thumbs||[])[k-1]));});
+    set('p-body',String(j.desc||'').trim());
+  }
   set('p-xbody',String(j.x||'').trim());
   // SNSの部品（5つのSNSで共通に使う）
   const tl=v=>(Array.isArray(v)?v:String(v||'').split(/\s+/)).map(s=>String(s).trim().replace(/^[#＃]/,'')).filter(Boolean).map(s=>'#'+s).join(' ');
@@ -9023,14 +9039,17 @@ function ytPostApply(){
   set('p-xtags',tl(j.x_tags));set('p-yptags',tl(j.yt_post_tags));set('p-igtags',tl(j.insta_tags));set('p-tttags',tl(j.tiktok_tags));
   set('p-l8title',String(j.lemon8_title||'').trim());set('p-l8intro',String(j.lemon8||j.lemon8_intro||'').trim());
   set('p-ypbody',String(j.yt_post||'').trim());set('p-igbody',String(j.insta||'').trim());set('p-ttbody',String(j.tiktok||'').trim());set('p-l8tags',tl(j.lemon8_tags));
-  const tg=Array.isArray(j.tags)?j.tags:String(j.tags||'').split(/\s+/);
-  set('p-tags',tg.map(s=>String(s).trim()).filter(Boolean).map(s=>s.startsWith('#')?s:'#'+s).join(' '));
-  ytPostBuild();
+  if(!sns){
+    const tg=Array.isArray(j.tags)?j.tags:String(j.tags||'').split(/\s+/);
+    set('p-tags',tg.map(s=>String(s).trim()).filter(Boolean).map(s=>s.startsWith('#')?s:'#'+s).join(' '));
+  }
+  ytPostBuild(sns);
+  if(sns){ytStatus(`✅ SNSの投稿文だけを作り直しました（概要欄・タイトル・サムネイルはそのまま）`,'ok','post-status');return;}
   const d=String(j.desc||''),x=String(j.x||'');
   ytStatus(`✅ 反映しました（タイトル${(j.titles||[]).length}案・サムネ${(j.thumbs||[]).length}案・概要欄${d.length}字・X${x.length}字${j.hook||j.yt_post?'・SNS4つ':'・SNSの部品なし（古い形のJSON）'}）`,'ok','post-status');
 }
-async function ytPostAi(btn){
-  let prompt;try{prompt=ytPostPrompt();}catch(e){ytStatus('❌ '+e.message,'error','post-status');return;}
+async function ytPostAi(btn,sns){
+  let prompt;try{prompt=sns?ytPostPromptSns():ytPostPrompt();}catch(e){ytStatus('❌ '+e.message,'error','post-status');return;}
   if(btn)btn.disabled=true;ytStatus('作成中…（数十秒かかります）','','post-status');
   try{
     const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},
@@ -9209,9 +9228,9 @@ function ygPostFixed(k,has){
   return t;
 }
 function ytPostFixedText(k){return (ytVal('f-'+k)||'').replace(/\{下値\/上値\}/g,getDir()==='up'?'上値':'下値').trim();}
-function ytPostBuild(){
+function ytPostBuild(snsOnly){
   const body=ytVal('p-body'),xbody=ytVal('p-xbody'),hook=ytVal('p-hook');
-  if(body){
+  if(body&&!snsOnly){
     const url=ytNoteUrl(),fixed=ytVal('p-fixed'),tags=ytVal('p-tags');
     ytEl('p-desc').value=[body,url?`${ytGen()?'▼ 記事で読む（note）':'▼ さらに詳しい分析はこちら（note）'}\n${url}`:'',fixed,tags].filter(Boolean).join('\n\n');
   }
@@ -9410,6 +9429,9 @@ ${yaBuildPaneHtml()}</div>
   ${row(b('💬 プロンプト',"try{copyText(ytPostPrompt(),this)}catch(e){alert(e.message)}",G),b('📋 貼り付け',"ytPaste('post',ytPostApply)"),b('↻ 反映','ytPostApply()'))}
   <textarea id="yt-post" placeholder="ChatGPT／Geminiに投げて、返ってきたJSONを貼り付け" style="min-height:36px;font-size:11px;font-family:monospace;"></textarea>
   ${row(b('🤖 Gemini APIで作る','ytPostAi(this)','background:#4f46e5;color:#fff;'))}
+  <div class="sa-sub">▼ SNSの投稿文だけを作り直す（概要欄・タイトル・サムネイルは変えない）</div>
+  ${row(b('💬 SNSだけのプロンプト',"try{copyText(ytPostPromptSns(),this)}catch(e){alert(e.message)}",G),b('🤖 SNSだけGemini APIで',"ytPostAi(this,true)",'background:#4f46e5;color:#fff;'))}
+  <div style="font-size:10px;color:var(--text-sub);">プロンプトで作ったときは、返ってきたJSONを上の欄に貼って「📋 貼り付け」。SNSだけのJSONなら、概要欄・タイトル・サムネイルには触りません。</div>
   <div id="yt-post-status" style="display:none;font-size:11px;"></div>
 </div>
 
