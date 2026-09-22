@@ -9441,12 +9441,14 @@ ${yaBuildPaneHtml()}
 <div class="sa-card">
   <h2>1. 投稿文を作る</h2>
   <div style="font-size:11px;color:var(--text-sub);">材料は、動画資料・レポートの無料範囲・音声の文字起こし（カット後に残る文）です。</div>
-  ${row(b('💬 プロンプト',"try{copyText(ytPostPrompt(),this)}catch(e){alert(e.message)}",G),b('📋 貼り付け',"ytPaste('post',ytPostApply)"),b('↻ 反映','ytPostApply()'))}
+  ${row(b('🤖 Gemini APIで作る','ytPostAi(this)','background:#4f46e5;color:#fff;'),b('🤖 SNSだけ作り直す',"ytPostAi(this,true)",'background:#4f46e5;color:#fff;'))}
+  <div style="font-size:10px;color:var(--text-sub);">「SNSだけ作り直す」は、概要欄・タイトル・サムネイルを変えません（登録済みの動画用）。</div>
+  <details class="yt-col" style="margin-top:4px;"><summary style="font-size:11px;color:var(--text-sub);cursor:pointer;">手動で作る（ChatGPT など。APIが混んでいるとき）</summary>
+  ${row(b('💬 プロンプト',"try{copyText(ytPostPrompt(),this)}catch(e){alert(e.message)}",G),b('💬 SNSだけのプロンプト',"try{copyText(ytPostPromptSns(),this)}catch(e){alert(e.message)}",G))}
+  ${row(b('📋 貼り付け',"ytPaste('post',ytPostApply)"),b('↻ 反映','ytPostApply()'))}
   <textarea id="yt-post" placeholder="ChatGPT／Geminiに投げて、返ってきたJSONを貼り付け" style="min-height:36px;font-size:11px;font-family:monospace;"></textarea>
-  ${row(b('🤖 Gemini APIで作る','ytPostAi(this)','background:#4f46e5;color:#fff;'))}
-  <div class="sa-sub">▼ SNSの投稿文だけを作り直す（概要欄・タイトル・サムネイルは変えない）</div>
-  ${row(b('💬 SNSだけのプロンプト',"try{copyText(ytPostPromptSns(),this)}catch(e){alert(e.message)}",G),b('🤖 SNSだけGemini APIで',"ytPostAi(this,true)",'background:#4f46e5;color:#fff;'))}
-  <div style="font-size:10px;color:var(--text-sub);">プロンプトで作ったときは、返ってきたJSONを上の欄に貼って「📋 貼り付け」。SNSだけのJSONなら、概要欄・タイトル・サムネイルには触りません。</div>
+  <div style="font-size:10px;color:var(--text-sub);">返ってきたJSONを貼って「📋 貼り付け」。SNSだけのJSONなら、概要欄・タイトル・サムネイルには触りません。</div>
+  </details>
   <div id="yt-post-status" style="display:none;font-size:11px;"></div>
 </div>
 
@@ -9496,7 +9498,10 @@ ${[['n','note記事（無料）','noteは表を表示できないので、表を
 <div class="sa-card"${i?' style="margin-top:8px;"':''}>
   <h2>${i+1}. ${title}</h2>
   <div style="font-size:11px;color:var(--text-sub);">${note}</div>
-  ${row(b('💬 プロンプト',"try{copyText(ygArticlePrompt('"+k+"'),this)}catch(e){alert(e.message)}",G),b('📋 貼り付け',"ygArtPaste('"+k+"')"),b('🤖 Gemini APIで作る',"ygArtAi('"+k+"',this)",'background:#0d9488;color:#fff;'))}
+  ${row(b('🤖 Gemini APIで作る',"ygArtAi('"+k+"',this)",'background:#0d9488;color:#fff;'))}
+  <details class="yt-col" style="margin-top:4px;"><summary style="font-size:11px;color:var(--text-sub);cursor:pointer;">手動で作る（ChatGPT など。APIが混んでいるとき）</summary>
+  ${row(b('💬 プロンプト',"try{copyText(ygArticlePrompt('"+k+"'),this)}catch(e){alert(e.message)}",G),b('📋 貼り付け',"ygArtPaste('"+k+"')"))}
+  </details>
   <textarea id="yt-a-${k}-raw" style="display:none;"></textarea>
   <div class="sa-sub">▼ タイトル</div>
   <div class="row" style="flex-wrap:nowrap;gap:4px;"><input type="text" id="yt-a-${k}-title" oninput="saveState()" style="flex:1;min-width:0;font-size:12px;"><button class="ya-nd" onclick="copyText(ytVal('a-${k}-title'),this)">コピー</button></div>
@@ -10420,9 +10425,11 @@ function yaBuildCutHtml(){
     <input type="number" id="ya-target" value="8" min="1" step="0.5" style="width:60px;flex:none;font-size:11px;padding:4px;"><span style="font-size:11px;color:var(--text-sub);">分</span>
     <label style="font-size:11px;color:var(--text-sub);margin-left:auto;"><input type="checkbox" id="ya-use-parts" checked onchange="yaAutoSelect()"> 文の一部も削る</label>
   </div>
+  ${row(b('🤖 Gemini APIで判定','yaAiJudge(this)','background:#4f46e5;color:#fff;'),b('🎯 選び直す','yaAutoSelect()'))}
+  <details class="yt-col" style="margin-top:4px;"><summary style="font-size:11px;color:var(--text-sub);cursor:pointer;">手動で判定する（ChatGPT など。APIが混んでいるとき）</summary>
   ${row(b('💬 判定',"try{copyText(yaPrompt(),this)}catch(e){alert(e.message)}",G),b('📋 貼り付け',"yaPaste('plan',yaApplyPasted)"),b('↻ 反映','yaApplyPasted()'))}
   <textarea id="ya-plan" placeholder="判定プロンプトの結果（JSON）を貼り付け" style="min-height:26px;height:26px;font-size:11px;font-family:monospace;"></textarea>
-  ${row(b('🤖 Gemini APIで判定','yaAiJudge(this)','background:#4f46e5;color:#fff;'),b('🎯 選び直す','yaAutoSelect()'))}
+  </details>
   <div id="ya-st-ai" style="display:none;font-size:11px;"></div>
   <div style="font-size:11px;" id="ya-sum2">-</div>
   <div style="font-size:10px;color:var(--text-sub);" title="NG（売買推奨・言い間違い・資料と食い違う話）は必ず削る。そのあと、点数の低い順に、同じ点数なら残りの割合が大きい章から、目標の長さまで削る。「必須」は自動では削らない（手動なら可）">NGと点数の低い文から、目標の長さまで削る（一覧は右）</div>
@@ -12044,10 +12051,12 @@ function ynBuildPaneHtml(){
 <div class="sa-card">
   <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;"><h2>1. 演出の割り当て</h2><span style="flex:none;"><button class="ya-nd" onclick="ynPlanUndo(this,'p')" title="割り当ての前の状態に戻す">↶ 戻す</button><button class="ya-nd" onclick="ynPlanUndo(this,'f')" title="戻したのを取り消す">↷ やり直す</button></span></div>
   <div style="font-size:11px;color:var(--text-sub);">音声（③でカットした後に残る文）とスライドのまとまりを突き合わせ、切り替え・ズーム・強調・根拠資料の差し込みを決めます。</div>
+  ${row(b('🤖 Gemini APIで割り当て','ynAiPlan(this)','background:#4f46e5;color:#fff;'))}
+  <details class="yt-col" style="margin-top:4px;"><summary style="font-size:11px;color:var(--text-sub);cursor:pointer;">手動で割り当てる（ChatGPT など。APIが混んでいるとき）</summary>
   ${row(b('💬 プロンプト',"try{copyText(ynPlanPrompt(),this)}catch(e){alert(e.message)}",G),b('🖼 番号入り画像','ynAnnotatedZip(this)'),b('📋 貼り付け',"ynPaste('plan',ynApplyPasted)"),b('↻ 反映','ynApplyPasted()'))}
   <div style="font-size:10px;color:var(--text-sub);">ChatGPTで割り当てるときは、プロンプトと一緒に「🖼 番号入り画像」のZIPの中の画像を添付してください（Gemini APIは自動で送ります）。</div>
   <textarea id="yn-plan" placeholder="Gemini／ChatGPTに投げて、返ってきたJSONを貼り付け" style="min-height:36px;font-size:11px;font-family:monospace;"></textarea>
-  ${row(b('🤖 Gemini APIで割り当て','ynAiPlan(this)','background:#4f46e5;color:#fff;'))}
+  </details>
   <div id="yn-status2" style="display:none;font-size:11px;"></div>
 </div>
 
