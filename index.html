@@ -9316,7 +9316,8 @@ const YT_POST_FIXED=`■使用ツール
 function ytInnerTab(t){
   try{sessionStorage.setItem('yt-itab',t);}catch(e){}   // リロードで戻すため（新しく開いたタブには引き継がない）
   if(t==='article'&&!ytGen())t='research';   // 記事タブは YT動画だけ
-  ['research','audio','slides','cut','naresla','post','article','settings'].forEach(k=>{
+  if(t==='cut')t='audio';   // カットは音声タブにまとめた
+  ['research','audio','slides','naresla','post','article','settings'].forEach(k=>{
     const b=ytEl('itab-'+k),p=ytEl('pane-'+k);
     if(b)b.classList.toggle('active',k===t);if(p)p.style.display=k===t?'':'none';
   });
@@ -9339,7 +9340,6 @@ function ytBuildTabHtml(){
 <div class="sa-subtabs" style="margin-top:6px;">
   <button class="sa-subtab active" id="yt-itab-research" onclick="ytInnerTab('research')">分析</button>
   <button class="sa-subtab" id="yt-itab-audio" onclick="ytInnerTab('audio')">音声</button>
-  <button class="sa-subtab" id="yt-itab-cut" onclick="ytInnerTab('cut')">カット</button>
   <button class="sa-subtab" id="yt-itab-slides" onclick="ytInnerTab('slides')">スライド</button>
   <button class="sa-subtab" id="yt-itab-naresla" onclick="ytInnerTab('naresla')">演出</button>
   <button class="sa-subtab yt-only-gen" id="yt-itab-article" onclick="ytInnerTab('article')" style="display:none;">記事</button>
@@ -9405,9 +9405,11 @@ function ytBuildTabHtml(){
   <div style="font-size:11px;color:var(--text-sub);">できた画像を読み込みます（ファイル名順）。</div>
   <input type="file" id="yn-files" accept="image/*" multiple onchange="ynLoadFiles(this.files)" style="font-size:11px;width:100%;">
   ${row(b('<span id="yn-read-label">🔍 まとまりを読み取る</span>','ynReadZones(this)',G))}
-  <div class="row" style="flex-wrap:wrap;gap:4px;align-items:center;font-size:11px;color:var(--text-sub);"><span id="yn-sel-info" style="flex:1;min-width:0;"></span><button class="ya-nd" onclick="ynSelAll(true)">全部選ぶ</button><button class="ya-nd" onclick="ynSelAll(false)">選ぶのをやめる</button></div>
+  <div id="yn-sel-info" style="font-size:11px;color:var(--text-sub);"></div>
+  <div class="row" style="flex-wrap:nowrap;gap:4px;"><button class="ya-nd" onclick="ynSelAll(true)">全部選ぶ</button><button class="ya-nd" onclick="ynSelAll(false)">選ぶのをやめる</button></div>
   ${row(b('↻ 読み取り直す',"ynReadAgain()"),b('🪄 位置を補正','ynSnapAll(this)'),b('🗑 リセット','ynResetMenu(this)'))}
-  <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;font-size:10px;color:var(--text-sub);"><span style="flex:1;min-width:0;">リセット・画像の読み込みの前に戻す</span><button class="ya-nd" onclick="ynSlidesUndo(this,'p')" title="リセットや画像の読み込みの前に戻す">↶ 戻す</button><button class="ya-nd" onclick="ynSlidesUndo(this,'f')" title="戻したのを取り消す">↷ やり直す</button></div>
+  <div style="font-size:10px;color:var(--text-sub);">リセット・画像の読み込みの前に戻す</div>
+  <div class="row" style="flex-wrap:nowrap;gap:4px;"><button class="ya-nd" onclick="ynSlidesUndo(this,'p')" title="リセットや画像の読み込みの前に戻す">↶ 戻す</button><button class="ya-nd" onclick="ynSlidesUndo(this,'f')" title="戻したのを取り消す">↷ やり直す</button></div>
   <div style="font-size:10px;color:var(--text-sub);">読み取ったあと、ツールが枠を画像の縁や文字に合わせます（自動）。まとまりは、枚ごとに右の「↶」で前の状態に戻せます。</div>
   <details class="yt-col" style="margin-top:4px;">
     <summary style="font-size:11px;color:var(--text-sub);cursor:pointer;">Gemini（Web版）で読み取る（APIが混んでいるとき）</summary>
@@ -9433,8 +9435,8 @@ function ytBuildTabHtml(){
   ${row(b('📄 ソース（.md）','ytDownloadSource()','background:#0d9488;color:#fff;'),b('📓 指示',"ytCopy('nlm',this)",G))}
   <div style="font-size:10px;color:var(--text-sub);">NotebookLMの長さ設定は「短い」。</div>
 </div>
-${yaBuildPaneHtml()}</div>
-<div id="yt-pane-cut" style="display:none;">${yaBuildCutHtml()}</div>
+${yaBuildPaneHtml()}
+<div style="margin-top:8px;">${yaBuildCutHtml()}</div></div>
 <div id="yt-pane-naresla" style="display:none;">${ynBuildPaneHtml()}</div>
 
 <div id="yt-pane-post" style="display:none;">
@@ -10416,7 +10418,7 @@ function yaBuildCutHtml(){
   const row=(...x)=>`<div class="row" style="flex-wrap:nowrap;">${x.join('')}</div>`;
   return `
 <div class="sa-card">
-  <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;"><h2>1. 削る箇所の判定</h2><span style="flex:none;"><button class="ya-nd" onclick="yaCutsUndo(this,'p')" title="カットを前の状態に戻す">↶ 戻す</button><button class="ya-nd" onclick="yaCutsUndo(this,'f')" title="戻したのを取り消す">↷ やり直す</button></span></div>
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;"><h2>3. 削る箇所の判定</h2><span style="flex:none;"><button class="ya-nd" onclick="yaCutsUndo(this,'p')" title="カットを前の状態に戻す">↶ 戻す</button><button class="ya-nd" onclick="yaCutsUndo(this,'f')" title="戻したのを取り消す">↷ やり直す</button></span></div>
   <div style="font-size:11px;color:var(--text-sub);">基本はNG（売買推奨・言い間違い・資料と食い違う話）だけを削ります。</div>
   <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;">
     <label style="font-size:11px;color:var(--text-sub);flex:none;">目標の長さ</label>
@@ -10432,7 +10434,7 @@ function yaBuildCutHtml(){
 </div>
 
 <div class="sa-card" style="margin-top:8px;">
-  <h2>2. カット後の音声</h2>
+  <h2>4. カット後の音声</h2>
   <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;">
     <label style="font-size:11px;color:var(--text-sub);flex:none;">形式</label>
     <select id="ya-fmt" style="flex:none;font-size:11px;padding:4px;"><option value="mp3">MP3</option><option value="wav">WAV</option></select>
