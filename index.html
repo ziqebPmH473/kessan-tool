@@ -486,6 +486,10 @@ select.yn-sel option{color:#0f172a;background:#fff;font-weight:400;}
 .yp-shd .yp-sbtn{margin-left:auto;}
 .yp-sbtn{display:flex;gap:3px;flex:none;}
 #thumb-view.th-yt .th-noteonly{display:none!important;}
+/* 上のタブ・エクスポートの行・2段目のタブは画面の上に止める（その下だけがスクロールする）。高さは ktStickyTops で測る */
+.control-panel>.mode-tabs{position:sticky;top:0;z-index:40;background:#e5e7eb;margin-bottom:0!important;padding-bottom:8px;}
+#mode-yt>.yt-exprow{position:sticky;top:var(--kt-tabs-h,51px);z-index:39;background:#e5e7eb;}
+#yt-root>.sa-subtabs{position:sticky;top:calc(var(--kt-tabs-h,51px) + var(--kt-exp-h,32px));z-index:38;background:#e5e7eb;margin-top:0!important;padding-bottom:4px;}
 .yp-item{margin-top:4px;}
 .yp-head{display:flex;gap:4px;align-items:center;}
 .yp-slot{display:flex;gap:2px;}
@@ -1218,7 +1222,7 @@ select.yn-sel option{color:#0f172a;background:#fff;font-weight:400;}
         </div><!-- /mode-stock -->
 
         <!-- YT動画（テーマを問わない横動画）。中身は、株価分析の横動画のパネル（#yt-root）をそのままここへ移して使う -->
-        <div id="mode-yt" class="sa" style="display:none;"><div style="display:flex;gap:4px;justify-content:flex-end;margin-bottom:6px;"><button class="btn-sm" onclick="exportTabData('yt')" title="このタブの内容（音声・スライド・割り当て・出典の画像も）をJSONで保存" style="flex:none;padding:4px 10px;font-size:11px;background:#e0f2fe;color:#075985;">📤 エクスポート</button><button class="btn-sm" onclick="importTabDataPick('yt')" title="保存したJSONを読み込んで続きから再開" style="flex:none;padding:4px 10px;font-size:11px;background:#dcfce7;color:#166534;">📥 インポート</button></div></div>
+        <div id="mode-yt" class="sa" style="display:none;"><div class="yt-exprow" style="display:flex;gap:4px;justify-content:flex-end;padding:6px 0;"><button class="btn-sm" onclick="exportTabData('yt')" title="このタブの内容（音声・スライド・割り当て・出典の画像も）をJSONで保存" style="flex:none;padding:2px 8px;font-size:10px;background:#e0f2fe;color:#075985;">📤 エクスポート</button><button class="btn-sm" onclick="importTabDataPick('yt')" title="保存したJSONを読み込んで続きから再開" style="flex:none;padding:2px 8px;font-size:10px;background:#dcfce7;color:#166534;">📥 インポート</button></div></div>
         <div id="mode-price" class="sa" style="display:none;">
 <div class="ctrl">
   <div class="sa-subtabs">
@@ -3139,7 +3143,15 @@ point_2=`;
         // 個別銘柄分析モード
         // =====================================================
 
+        // 画面の上に止める部品の高さ（上のタブ → エクスポートの行 → 2段目のタブの順に重ねる）
+        function ktStickyTops(){
+            const r=document.documentElement.style,mt=document.querySelector('.control-panel>.mode-tabs'),ex=document.querySelector('#mode-yt>.yt-exprow');
+            if(mt)r.setProperty('--kt-tabs-h',mt.offsetHeight+'px');
+            if(ex&&ex.offsetHeight)r.setProperty('--kt-exp-h',ex.offsetHeight+'px');
+        }
+        window.addEventListener('resize',()=>ktStickyTops());window.addEventListener('load',()=>ktStickyTops());
         function switchMode(mode) {
+            setTimeout(ktStickyTops,0);
             document.querySelectorAll('.mode-tab').forEach(tab => {
                 tab.classList.toggle('active', tab.dataset.mode === mode);
             });
@@ -9135,7 +9147,7 @@ function ygArtApply(k,text){
   ytEl('a-'+k+'-title').value=fixBoldBrackets(p.title||'');
   ytEl('a-'+k+'-body').value=fixBoldBrackets(p.body||'');
   ytEl('a-'+k+'-tags').value=p.hashtags||'';
-  if(k==='n')ygArtUrlApply(false);
+  ygArtUrlApply(false,k);
   saveState();
   ygArtStatus(k,`✅ 反映しました（本文${(p.body||'').length.toLocaleString()}字）`,'ok');
   return true;
@@ -9145,16 +9157,17 @@ async function ygArtPaste(k){
   catch(e){alert('クリップボードを読めませんでした');}
 }
 // note記事の本文に、動画のURLを入れる（最初の段落のあと。URLだけの段落にする）。何度押しても1か所だけ
-function ygArtUrlApply(manual){
-  const el=ytEl('a-n-body');if(!el||!el.value.trim()){if(manual)alert('先にnote記事を作ってください');return;}
+function ygArtUrlApply(manual,k){
+  k=k||'n';
+  const el=ytEl('a-'+k+'-body');if(!el||!el.value.trim()){if(manual)alert('先に記事を作ってください');return;}
   const url=ytVal('p-yturl');
-  if(!url){if(manual)alert('SNSタブの「YouTubeのURL」を入れてから押してください（動画を上げたあとで構いません）');return;}
+  if(!url){if(manual)alert('上の「YouTubeのURL」を入れてから押してください（動画を上げたあとで構いません）');return;}
   const isYt=l=>/^https?:\/\/(www\.|m\.)?(youtube\.com|youtu\.be)\/\S+$/.test(l.trim());
   const blocks=el.value.split(/\n{2,}/).map(x=>x.trim()).filter(x=>x&&!isYt(x));
   let i=blocks.findIndex(x=>!/^#{1,6}\s/.test(x));if(i<0)i=0;
   blocks.splice(i+1,0,url);
   el.value=blocks.join('\n\n');saveState();
-  if(manual)ygArtStatus('n','✅ 動画のURLを、最初の段落のあとに入れました','ok');
+  if(manual)ygArtStatus(k,'✅ 動画のURLを、最初の段落のあとに入れました','ok');
 }
 function ygArtCheck(k,btn){
   if(!ytVal('a-'+k+'-body')){alert('先に記事を作ってください');return Promise.resolve(null);}
@@ -9185,7 +9198,10 @@ function ytThumbUse(k){
 }
 // 概要欄＝AIの本文＋noteの案内＋定型文（使用ツール・AIの注意書き）
 // YouTubeのURLを入れたとき：いま欄にあるXの文面はそのままに、URLの行だけを差し替える（手で直した文面を戻さない）
+// 記事タブのYouTubeのURLの欄：SNSタブの欄と中身をそろえる
+function ytArtUrlInput(inp){const el=ytEl('p-yturl');if(el){el.value=inp.value.trim();ytPostUrlSet();}}
 function ytPostUrlSet(){
+  {const a=ytEl('a-yturl');if(a&&a!==document.activeElement)a.value=ytVal('p-yturl');}   // 記事タブの欄にも入れる
   const el=ytEl('p-x'),yt=ytVal('p-yturl');
   if(!el.value.trim()){ytPostBuild();return;}
   const lines=el.value.split(/\r?\n/);
@@ -9367,6 +9383,7 @@ function ytInnerTab(t){
   });
   if(t==='research')ytUpdateFreeInfo();
   if(t==='settings')ytNoteInfo();
+  if(t==='article'){const a=ytEl('a-yturl');if(a)a.value=ytVal('p-yturl');}
   if(t==='audio')try{ytOpening();}catch(e){}
   if(t==='naresla')ysRender();
   const want=(t==='slides'||t==='naresla')?'ytnare':(t==='audio'||t==='cut')?'ytaudio':'';
@@ -9530,7 +9547,8 @@ ${yaBuildPaneHtml()}
 </div>
 
 <div id="yt-pane-article" style="display:none;">
-${[['n','note記事（無料）','表なしで作ります。動画のURLは最初の段落のあと（noteでURLの行末でEnter→動画のカード）。'],['b','ブログ記事','表ありで作ります。動画は管理画面の「YouTube の URL」の欄へ（本文には入れない）。']].map(([k,title,note],i)=>`
+<div class="sa-card">${set('YouTubeのURL','<input type="text" id="yt-a-yturl" placeholder="動画を上げたあとのURL（SNSタブの欄と同じ）" oninput="ytArtUrlInput(this)" style="flex:1;min-width:0;font-size:11px;"><button class="ya-nd" onclick="ytPaste(\'a-yturl\',()=>ytArtUrlInput(ytEl(\'a-yturl\')))">📋 貼付</button>')}</div>
+${[['n','note記事（無料）','表なしで作ります。動画のURLは最初の段落のあと（noteでURLの行末でEnter→動画のカード）。'],['b','ブログ記事','表ありで作ります。動画のURLは最初の段落のあと。']].map(([k,title,note],i)=>`
 <div class="sa-card"${i?' style="margin-top:8px;"':''}>
   <h2 title="${note}">${i+1}. ${title}</h2>
   ${row(b('🤖 Gemini APIで作る',"ygArtAi('"+k+"',this)",'background:#4f46e5;color:#fff;'))}
@@ -9538,7 +9556,7 @@ ${[['n','note記事（無料）','表なしで作ります。動画のURLは最�
   ${row(b('💬 プロンプト',"try{copyText(ygArticlePrompt('"+k+"'),this)}catch(e){alert(e.message)}",G),b('📋 貼り付け',"ygArtPaste('"+k+"')"))}
   </details>
   <textarea id="yt-a-${k}-raw" style="display:none;"></textarea>
-  <div class="yp-shd"><span>▼ 記事</span><span class="yp-slot" id="yh-slot-a${k}"></span><span class="yp-sbtn"><button class="ya-nd" onclick="copyText(ytVal('a-${k}-title'),this)">タイトル</button><button class="ya-nd" onclick="copyText(ytVal('a-${k}-body'),this)">本文</button><button class="ya-nd" onclick="copyText(ytVal('a-${k}-tags'),this)">ハッシュタグ</button>${k==='n'?`<button class="ya-nd" onclick="ygArtUrlApply(true)" title="本文の最初の段落のあとに、YouTubeのURL（SNSタブの「YouTubeのURL」）を入れ直す">URL差替</button>`:`<button class="ya-nd" onclick="ytVal('p-yturl')?copyText(ytVal('p-yturl'),this):alert('SNSタブの「YouTubeのURL」が空です')" title="ブログの管理画面の「YouTube の URL」の欄に入れる">動画URL</button>`}</span></div>
+  <div class="yp-shd"><span>▼ 記事</span><span class="yp-slot" id="yh-slot-a${k}"></span><span class="yp-sbtn"><button class="ya-nd" onclick="copyText(ytVal('a-${k}-title'),this)">タイトル</button><button class="ya-nd" onclick="copyText(ytVal('a-${k}-body'),this)">本文</button><button class="ya-nd" onclick="copyText(ytVal('a-${k}-tags'),this)">ハッシュタグ</button><button class="ya-nd" onclick="ygArtUrlApply(true,'${k}')" title="本文の最初の段落のあとに、上の「YouTubeのURL」を入れる（前のURLは差し替える）">URL差替</button></span></div>
   <input type="text" id="yt-a-${k}-title" oninput="saveState()" placeholder="タイトル" style="width:100%;box-sizing:border-box;font-size:11px;">
   <textarea id="yt-a-${k}-body" data-yh-slot="yh-slot-a${k}" oninput="saveState()" placeholder="本文" style="min-height:0;height:96px;font-size:11px;width:100%;box-sizing:border-box;"></textarea>
   <input type="text" id="yt-a-${k}-tags" oninput="saveState()" placeholder="ハッシュタグ" style="width:100%;box-sizing:border-box;font-size:11px;">
@@ -9686,8 +9704,8 @@ async function ytReloadAll(links){
   await yaRestore();await ynRestore();await ysRestore();
 }
 // 株価分析の横動画だけ／YT動画だけ、の部品の出し分け（class で指定）
-function ytCtxApplyUi(){
-  const g=ytGen();
+function ytCtxApplyUi(force){
+  const g=force!=null?!!force:ytGen();
   document.querySelectorAll('#yt-root .yt-only-gen').forEach(el=>{el.style.display=g?'':'none';});
   document.querySelectorAll('#yt-root .yt-only-stock').forEach(el=>{el.style.display=g?'none':'';});
   if(!g&&ytEl('itab-article')?.classList.contains('active'))ytInnerTab('research');
@@ -9790,6 +9808,7 @@ function ytModeApply(on){
   if(on===_ytModeOn&&root.parentNode===(on?box:home)){ytSetCtx(on?'gen':'stock');return;}
   _ytModeOn=on;
   (on?box:home).appendChild(root);
+  ytCtxApplyUi(on);   // タブの出し分けは先に（保存先の切り替えは非同期で、終わるまでタブの数が変わって見えていた）
   ytSetCtx(on?'gen':'stock');
   if(on){
     setMode(ytPaneMode());ytSyncTabs();   // 右側はこの時点で表示済み。rAF を待つと、裏のタブでは実行されず文言の入れ替えが遅れる
