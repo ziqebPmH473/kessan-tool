@@ -9243,7 +9243,11 @@ const YT_FIX_TARGETS=[['desc','p-desc','概要欄'],['yp','p-yp','YouTubeの投�
 // 組み立てたときに入れた定型文を控える（あとで「定型文差替」で、その箇所だけを入れ替えるため）
 function ytFixRecord(){const el=ytEl('p-fixapplied');if(!el)return;const o={};YT_FIX_TARGETS.forEach(([k])=>{o[k]=ytFixedFor(k);});el.value=JSON.stringify(o);}
 function ytFixReplace(){
-  let a={};try{a=JSON.parse(ytVal('p-fixapplied')||'{}');}catch(e){}
+  if(!YT_FIX_TARGETS.some(([k,id])=>ytVal(id))&&!ytVal('p-x')){ytStatus('先に投稿文を作ってください','error','post3-status');return;}
+  let a={};try{a=JSON.parse(ytVal('p-fixapplied')||'{}');}catch(e){}   // 前に入れた定型文の控え（URLの差し替えで上書きされる前に読む）
+  if(ytVal('p-x'))ytPostUrlSet();          // YouTubeのURL（Xの最後の行）
+  ytTagsReplace();                         // ハッシュタグ（概要欄の最後）
+  ytNoteUrlSet(ytEl('note-url'),false);    // noteの記事URL（概要欄のnoteの2行と、SNSのnoteの行）
   const done=[],miss=[];
   YT_FIX_TARGETS.forEach(([k,id,nm])=>{
     const el=ytEl(id);if(!el||!el.value.trim())return;
@@ -9259,23 +9263,15 @@ function ytFixReplace(){
     if(o){el.value=v.replace(o,n);done.push(nm);}else miss.push(nm);
   });
   ytFixRecord();saveState();
-  ytStatus(done.length||miss.length?`${done.length?`✅ 定型文を差し替えました（${done.join('・')}）`:''}${miss.length?`　⚠ ${miss.join('・')}は、前の定型文が見つからないので差し替えていません（手で直してください）`:''}`:'定型文は変わっていません',miss.length?'':'ok','post3-status');
+  ytStatus(`✅ URL・ハッシュタグ${done.length?`・定型文（${done.join('・')}）`:''}の箇所を差し替えました${miss.length?`　⚠ ${miss.join('・')}は、前の定型文が見つからないので、定型文は差し替えていません（手で直してください）`:''}`,miss.length?'':'ok','post3-status');
 }
-// URL差替：YouTubeのURL（Xの最終行）・noteの記事URL（概要欄とSNSのnoteの箇所）・ハッシュタグ（概要欄の最後）だけを差し替える
+// 定型文差替で使う：ハッシュタグ（概要欄の最後）だけを差し替える
 function ytTagsReplace(){
   const el=ytEl('p-desc');if(!el||!el.value.trim())return;
   const now=ytVal('p-tags'),bl=el.value.replace(/\r\n/g,'\n').replace(/\s+$/,'').split(/\n{2,}/);
   if(/^([#＃][^\s#＃]+\s*)+$/.test((bl[bl.length-1]||'').trim()))bl.pop();
   if(now)bl.push(now);
   el.value=bl.join('\n\n');const t=ytEl('p-tags');if(t)t.dataset.prev=t.value;
-}
-function ytUrlTagSet(){
-  if(!ytVal('p-desc')&&!ytVal('p-x')){ytStatus('先に投稿文を作ってください','error','post3-status');return;}
-  if(ytVal('p-x'))ytPostUrlSet();
-  ytTagsReplace();
-  ytNoteUrlSet(ytEl('note-url'),false);
-  saveState();
-  ytStatus('✅ YouTubeのURL・noteの記事URL・ハッシュタグの箇所を差し替えました','ok','post3-status');
 }
 // SNSの定型文（設定タブ）。{下値/上値} は株価の向きで入れ替える
 // YT動画の定型文：noteの記事のURL（設定タブ）が無いときは、noteの行を外す。
@@ -9516,7 +9512,7 @@ ${yaBuildPaneHtml()}
   <input type="hidden" id="yt-p-l8title"><input type="hidden" id="yt-p-fixapplied"><textarea id="yt-p-l8intro" style="display:none;"></textarea><input type="hidden" id="yt-p-l8tags">
   <div class="yp-shd"><span title="本文 → noteの記事リンク → 定型文（設定タブ）→ ハッシュタグ">▼ 概要欄</span><span class="yp-slot" id="yh-slot-desc"></span><span class="yp-sbtn"><button class="ya-nd" onclick="downloadThumb()" title="横のサムネをダウンロード（サムネイルのタブの文から作ります）">サムネ</button><button class="ya-nd" onclick="copyText(ytVal('p-desc'),this)">概要欄</button></span></div>
   <textarea id="yt-p-desc" data-yh-slot="yh-slot-desc" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;width:100%;box-sizing:border-box;"></textarea>
-  ${row(b('URL差替','ytUrlTagSet()','','','YouTubeのURL・noteの記事URL・ハッシュタグの箇所だけを差し替えます（ほかの文はそのまま）'),b('🤖 再生成',"if(confirm('タイトル・サムネイル・概要欄・SNSの投稿文を、AIで全部作り直します。よろしいですか？'))ytPostAi(this)",'background:#4f46e5;color:#fff;','','タイトル・サムネイル・概要欄・SNSの投稿文を、AIで全部作り直します'),b('🤖 SNS再生成','ytPostAi(this,true)','background:#4f46e5;color:#fff;','','概要欄・タイトル・サムネイルは変えずに、SNSの投稿文だけをAIで作り直します'),b('定型文差替','ytFixReplace()','','','設定タブの定型文を直したとき、概要欄とSNSの定型文の箇所だけを差し替えます（ほかの文はそのまま）'))}
+  ${row(b('🤖 再生成',"if(confirm('タイトル・サムネイル・概要欄・SNSの投稿文を、AIで全部作り直します。よろしいですか？'))ytPostAi(this)",'background:#4f46e5;color:#fff;','','タイトル・サムネイル・概要欄・SNSの投稿文を、AIで全部作り直します'),b('🤖 SNS再生成','ytPostAi(this,true)','background:#4f46e5;color:#fff;','','概要欄・タイトル・サムネイルは変えずに、SNSの投稿文だけをAIで作り直します'),b('定型文差替','ytFixReplace()','','','欄の今の文面の中で、定型文・YouTubeのURL・noteの記事URL・ハッシュタグの箇所だけを差し替えます（ほかの文は、手で直した分もそのまま）'))}
   <div id="yt-post3-status" style="display:none;font-size:11px;"></div>
   <div class="yp-shd"><span>▼ X</span><span class="yp-slot" id="yh-slot-x"></span><span class="yp-sbtn"><button class="ya-nd" onclick="copyText(ytVal('p-x'),this)">投稿文</button></span></div>
   <textarea id="yt-p-x" data-yh-slot="yh-slot-x" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;width:100%;box-sizing:border-box;"></textarea>
