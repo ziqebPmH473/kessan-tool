@@ -484,6 +484,7 @@ select.yn-sel option{color:#0f172a;background:#fff;font-weight:400;}
 .yp-btns{flex:none;display:flex;flex-direction:column;gap:2px;}
 .yp-shd{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:6px;font-size:11px;font-weight:700;color:var(--text-sub);}
 .yp-sbtn{display:flex;gap:3px;flex:none;}
+#thumb-view.th-yt .th-noteonly{display:none!important;}
 .yp-item{margin-top:4px;}
 .yp-head{display:flex;gap:4px;align-items:center;}
 .yp-slot{display:flex;gap:2px;}
@@ -1521,17 +1522,17 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
   <div id="thumb-view" style="display:none;flex-direction:column;gap:8px;flex:1;overflow-y:auto;">
     <div class="sa-card">
       <div style="display:flex;gap:12px;align-items:flex-start;">
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;">
+        <div class="th-noteonly" style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;">
           <div class="sa-sub" style="margin-top:0;">サムネ構成案（記事・SNS生成の結果）</div>
           <textarea id="art-thumb" placeholder="「3. 記事・SNS生成」を実行するとここに入ります" style="height:52px;min-height:52px;"></textarea>
         </div>
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;">
-          <div class="sa-sub" style="margin-top:0;">テキスト入力</div>
-          <div style="display:flex;gap:14px;">
+          <div class="sa-sub" style="margin-top:0;">サムネ入力</div>
+          <div class="th-noteonly" style="display:flex;gap:14px;">
             <label style="font-size:11px;cursor:pointer;display:flex;align-items:center;gap:3px;"><input type="radio" name="th-preset" value="note" checked onchange="applyThumbPreset('note')"> note</label>
             <label style="font-size:11px;cursor:pointer;display:flex;align-items:center;gap:3px;"><input type="radio" name="th-preset" value="youtube" onchange="applyThumbPreset('youtube')"> YouTube</label>
           </div>
-          <div id="th-ctx-label" style="font-size:11px;font-weight:700;color:#0d9488;"></div>
+          <div id="th-ctx-label" class="th-noteonly" style="font-size:11px;font-weight:700;color:#0d9488;"></div>
           <input type="hidden" id="th-ctx" value="note"><input type="hidden" id="th-note-text"><input type="hidden" id="th-note-preset" value="note">
           <input type="hidden" id="yt-th-text"><input type="hidden" id="yt-th-preset" value="youtube">
           <input type="hidden" id="yg-th-text"><input type="hidden" id="yg-th-preset" value="youtube">
@@ -1540,8 +1541,8 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
       </div>
       <p style="font-size:10px;color:var(--text-sub);margin:0;">「：」で上段・中段・下段を区切る。色指定: <span style="color:#ff914d">*オレンジ*</span>　<span style="color:#5ce1e6">#水色#</span>　<span style="color:#ffde59">%黄色%</span></p>
     </div>
-    <div class="sa-card">
-      <div class="sa-sub" style="margin-top:0;">背景画像（黒帯に透過表示）</div>
+    <details class="sa-card">
+      <summary class="sa-sub" style="margin-top:0;cursor:pointer;">背景画像（黒帯に透過表示）</summary>
       <div id="th-bg-drop" class="drop-zone">
         <img id="th-bg-thumb" style="max-height:32px;max-width:80px;border-radius:3px;margin:0 auto 3px;display:none;">
         <p id="th-bg-msg" style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">ドロップ、または</p>
@@ -1554,7 +1555,7 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
         <label style="font-size:11px;color:var(--text-sub);display:flex;align-items:center;gap:6px;">透過率: <span id="th-op-val">3</span>% <input type="range" id="th-op" min="0" max="50" value="4" oninput="updateThOp(this.value)" style="width:90px;cursor:pointer;"></label>
         <label style="font-size:11px;color:var(--text-sub);display:flex;align-items:center;gap:6px;">拡大率: <span id="th-sc-val">110</span>% <input type="range" id="th-sc" min="100" max="200" value="110" oninput="updateThSc(this.value)" style="width:90px;cursor:pointer;"></label>
       </div>
-    </div>
+    </details>
     <div style="display:flex;gap:6px;">
       <button class="btn" id="th-dl-btn" onclick="downloadThumb()" style="flex:1;">⬇ 横のサムネ</button>
       <button class="btn" id="thv-dl-btn" onclick="downloadThumbV()" style="flex:1;" title="Instagram・Lemon8・TikTok に添付">⬇ 縦のサムネ</button>
@@ -9459,7 +9460,7 @@ ${yaBuildPaneHtml()}
   ${[1,2,3].map(k=>`<div class="yp-item"><div class="yp-head"><span class="yp-no">${k}</span><span class="yp-slot" id="yh-slot-t${k}"></span><span class="yp-sbtn"><button class="ya-nd" onclick="copyText(ytVal('p-t${k}'),this)">コピー</button></span></div><textarea id="yt-p-t${k}" data-yh-slot="yh-slot-t${k}" rows="2" placeholder="タイトル案" oninput="saveState()" style="field-sizing:content;min-height:44px;"></textarea></div>`).join('')}
   <div class="sa-sub">▼ サムネイル（3案）</div>
   <div style="font-size:10px;color:var(--text-sub);">上段：中段：下段、*オレンジ* #水色# %黄色%</div>
-  ${[1,2,3].map(k=>`<div class="yp-item"><div class="yp-head"><span class="yp-no">${k}</span><span class="yp-slot" id="yh-slot-s${k}"></span><span class="yp-sbtn"><button class="ya-nd" onclick="copyText(ytVal('p-s${k}'),this)">コピー</button><button class="ya-nd" onclick="ytThumbUse(${k})" title="右のサムネイルの文を、この案で上書きして表示する">サムネに上書き</button></span></div><input type="text" class="yh-field" id="yt-p-s${k}" data-yh-slot="yh-slot-s${k}" placeholder="上段：中段：下段" oninput="saveState()" style="width:100%;box-sizing:border-box;font-size:11px;padding:3px 5px;"></div>`).join('')}
+  ${[1,2,3].map(k=>`<div class="yp-item"><div class="yp-head"><span class="yp-no">${k}</span><span class="yp-slot" id="yh-slot-s${k}"></span><span class="yp-sbtn"><button class="ya-nd" onclick="copyText(ytVal('p-s${k}'),this)">コピー</button><button class="ya-nd" onclick="ytThumbUse(${k})" title="右のサムネイルの文を、この案で上書きして表示する">サムネに上書き</button></span></div><input type="text" class="yh-field" id="yt-p-s${k}" data-yh-slot="yh-slot-s${k}" placeholder="上段：中段：下段" oninput="saveState()" style="width:100%;box-sizing:border-box;font-size:11px;"></div>`).join('')}
 </div>
 
 <div class="sa-card" style="margin-top:8px;">
@@ -9727,6 +9728,7 @@ function thCtxSync(yt){
   // 場面は3つ：note用／株価分析の横動画（yt）／YT動画タブ（gen）。文言と型を、場面ごとに別の欄へしまう
   const BOX={note:['th-note-text','th-note-preset','note'],yt:['yt-th-text','yt-th-preset','youtube'],gen:['yg-th-text','yg-th-preset','youtube']};
   const want=_ytModeOn?'gen':yt?'yt':'note',cur=BOX[ctx.value]?ctx.value:'note';
+  const tv=g('thumb-view');if(tv)tv.classList.toggle('th-yt',want!=='note');   // YouTube 用は、入力・プレビュー・ダウンロードだけ
   const lab=g('th-ctx-label');if(lab)lab.textContent=want==='gen'?'YT動画用のサムネイル（note用・株価分析の動画用とは別に保存されます）':want==='yt'?'YouTube用のサムネイル（note用とは別に保存されます）':'';
   if(want===cur||!window._thCtxReady)return;   // 保存した内容を読み戻す前には入れ替えない（空で上書きしないため）
   const preset=()=>((document.querySelector('input[name="th-preset"]:checked')||{}).value||'note');
