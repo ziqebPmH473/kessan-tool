@@ -9384,7 +9384,7 @@ function ytBuildTabHtml(){
 <div class="sa-subtabs" style="margin-top:6px;">
   <button class="sa-subtab active" id="yt-itab-research" onclick="ytInnerTab('research')">分析</button>
   <button class="sa-subtab" id="yt-itab-audio" onclick="ytInnerTab('audio')">音声</button>
-  <button class="sa-subtab" id="yt-itab-slides" onclick="ytInnerTab('slides')">スライド</button>
+  <button class="sa-subtab" id="yt-itab-slides" onclick="ytInnerTab('slides')">画像</button>
   <button class="sa-subtab" id="yt-itab-naresla" onclick="ytInnerTab('naresla')">演出</button>
   <button class="sa-subtab yt-only-gen" id="yt-itab-article" onclick="ytInnerTab('article')" style="display:none;">記事</button>
   <button class="sa-subtab" id="yt-itab-post" onclick="ytInnerTab('post')">SNS</button>
@@ -10934,7 +10934,7 @@ function ynRender(){
   const sc=ynScrollBox(area),top0=sc?sc.scrollTop:0,hs={};
   const fk=ynFocusKey(area);
   area.querySelectorAll('.yn-item[data-n]').forEach(it=>{hs[it.dataset.n]=it.offsetHeight;});
-  if(!YN.slides.length){area.innerHTML='<div style="font-size:11px;color:var(--text-sub);padding:8px;">「スライド」タブでスライド画像を読み込むと、ここに表示されます</div>';return;}
+  if(!YN.slides.length){area.innerHTML='<div style="font-size:11px;color:var(--text-sub);padding:8px;">「画像」タブでスライド画像を読み込むと、ここに表示されます</div>';return;}
   // 割り当て済みなら、音声で出てくる順（右の一覧と同じ順）に、使う回ごとに1つずつ並べる。使わない枚は後ろ
   const occ=YN.plan&&YN.plan.slides&&YN.plan.slides.length?YN.plan.slides.map((x,k)=>({i:x.no-1,k})).filter(o=>YN.slides[o.i]):[];
   const order=occ.concat(YN.slides.map((s,i)=>({i,k:-1})).filter(o=>!occ.some(q=>q.i===o.i)));
@@ -11711,7 +11711,7 @@ function ysRender(){
   const st=list.map(s=>{const u=!!YN.plan&&!ysWhere(s.no);return u?'off':(YS.imgs[s.no]&&YS.imgs[s.no].blob)?'ok':'ng';});
   const nOk=st.filter(x=>x==='ok').length,nNg=st.filter(x=>x==='ng').length,nOff=st.filter(x=>x==='off').length;
   const sum=`<div class="ys-sum ${nNg?'ng':'ok'}">${YN.plan?'使う出典':'出典'} ${nOk+nNg}件：画像あり ${nOk}／<b>画像なし ${nNg}</b>${nOff?`（未使用 ${nOff}件は不要）`:''}${YN.plan?'':'　※割り当て前なので、使う・使わないはまだ分かりません'}</div>`;
-  box.innerHTML=sum+list.map((s,i)=>{
+  const rows=list.map((s,i)=>{
     const g=YS.imgs[s.no];let th='<div class="ys-th ys-none">画像<br>なし</div>';
     if(g&&g.blob){const u=URL.createObjectURL(g.blob);YS.urls.push(u);th=`<img class="ys-th" src="${u}">`;}
     const w=ysWhere(s.no);
@@ -11743,7 +11743,10 @@ ${g&&g.orig?`<button class="ya-nd" onclick="ysReCrop(${i})" title="使う範囲�
 ${g?`<button class="ya-nd" onclick="ysDrop(${i})" title="画像を消す">消す</button>`:''}
 </div></div>
 <div class="ys-info">${blocks}</div></div>`;
-  }).join('');
+  });
+  // 使っていない出典（割り当て済みで、どこにも差し込まれていない）は、最後にまとめて閉じておく
+  const used=rows.filter((h,i)=>st[i]!=='off').join(''),off=rows.filter((h,i)=>st[i]==='off').join('');
+  box.innerHTML=sum+used+(off?`<details class="ys-offbox"${YS.offOpen?' open':''} ontoggle="YS.offOpen=this.open"><summary style="font-size:11px;color:var(--text-sub);cursor:pointer;margin-top:6px;">未使用の出典（${nOff}件）</summary>${off}</details>`:'');
 }
 
 // ---- 出典の中身を直す（資料が違う・チャートはTradingViewにする等）----
