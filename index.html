@@ -34,6 +34,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"></script>
+    <script src="./assets/store.js"></script>
     <style>
         :root {
             --bg: #f8fafc;
@@ -2122,33 +2123,35 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
         // ===== 決算資料ファイルの管理（追加/削除/リロード保持） =====
         // 大きいPDFも扱うため localStorage ではなく IndexedDB に base64 を保持する。
         window._earnFiles = window._earnFiles || [];
-        const IDB_NAME = 'kessanToolFiles', IDB_STORE = 'files';
-        function idbOpen() {
-            return new Promise((resolve, reject) => {
-                const req = indexedDB.open(IDB_NAME, 1);
-                req.onupgradeneeded = () => req.result.createObjectStore(IDB_STORE);
+        // ---- ファイルの保存先 ----
+        // 端末内（IndexedDB）に書きつつ、サーバー（R2）にも送る（assets/store.js の KTStore.mediaNs）。
+        // サーバーが無いときは端末内だけ。名前空間ごとに IndexedDB の DB を分けているのは今までのまま（データを移さなくてよいように）。
+        function ktIdbNs(dbName, storeName) {
+            const open = () => new Promise((resolve, reject) => {
+                const req = indexedDB.open(dbName, 1);
+                req.onupgradeneeded = () => req.result.createObjectStore(storeName);
                 req.onsuccess = () => resolve(req.result);
                 req.onerror = () => reject(req.error);
             });
+            const tx = (mode, fn) => open().then(db => new Promise((resolve, reject) => {
+                const t = db.transaction(storeName, mode);
+                const r = fn(t.objectStore(storeName));
+                t.oncomplete = () => { db.close(); resolve(r && r.result !== undefined ? r.result : undefined); };
+                t.onerror = () => { db.close(); reject(t.error); };
+            }));
+            return {
+                get: key => tx('readonly', st => st.get(key)).then(v => (v === undefined ? null : v)),
+                put: (key, val) => (val == null ? tx('readwrite', st => st.delete(key)) : tx('readwrite', st => st.put(val, key))).then(() => {}),
+                del: key => tx('readwrite', st => st.delete(key)).then(() => {}),
+                list: () => tx('readonly', st => st.getAllKeys()).then(ks => (ks || []).map(String)),
+            };
         }
-        async function idbPut(key, val) {
-            const db = await idbOpen();
-            return new Promise((resolve, reject) => {
-                const tx = db.transaction(IDB_STORE, 'readwrite');
-                tx.objectStore(IDB_STORE).put(val, key);
-                tx.oncomplete = () => resolve();
-                tx.onerror = () => reject(tx.error);
-            });
-        }
-        async function idbGet(key) {
-            const db = await idbOpen();
-            return new Promise((resolve, reject) => {
-                const tx = db.transaction(IDB_STORE, 'readonly');
-                const req = tx.objectStore(IDB_STORE).get(key);
-                req.onsuccess = () => resolve(req.result || null);
-                req.onerror = () => reject(req.error);
-            });
-        }
+        const KT_FILES = KTStore.mediaNs('files', ktIdbNs('kessanToolFiles', 'files'));       // 決算資料PDF・サムネ背景
+        const KT_TTS   = KTStore.mediaNs('tts',   ktIdbNs('kessanTool-vdTts', 'parts'));      // スライドごとの音声
+        const KT_YA    = KTStore.mediaNs('ya',    ktIdbNs('kessanTool-ytAudio', 'kv'));       // 横動画：ナレーション音声と作業状態
+        const KT_YN    = KTStore.mediaNs('yn',    ktIdbNs('kessanTool-ytNare', 'kv'));        // 横動画：スライド画像・割り当て・ひな形・素材
+        function idbPut(key, val) { return KT_FILES.put(key, val); }
+        function idbGet(key) { return KT_FILES.get(key); }
         function persistEarnFiles() { idbPut('earn', window._earnFiles).catch(e => console.warn('ファイル保存に失敗', e)); }
 
         function escHtml(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
@@ -3694,9 +3697,11 @@ reason_4=`;
                 const state = { fields: {}, radios: {}, fetched: window._saFetched || null, earnFetched: window._earnFetched || null, priceFetched: window._fetched || null };
                 // 各タブの入力欄はエクスポートと同じ範囲（タブ内のすべての入力欄）を保持する。
                 // PERSIST_IDS に書き漏れた欄（ファクトCKのレポート等）もリロードで消えないように。
+                const byTab = {};
                 if (typeof TAB_IO !== 'undefined') Object.keys(TAB_IO).forEach(tab => {
                     const c = tabIoCollectFields(tab);
                     Object.assign(state.fields, c.fields); Object.assign(state.radios, c.radios);
+                    byTab[tab] = c;
                 });
                 const mt = document.querySelector('.mode-tab.active');
                 const pt = document.querySelector('#mode-price .sa-subtab.active[data-satab]');
@@ -3710,7 +3715,8 @@ reason_4=`;
                     const els = document.getElementsByName(name);
                     for (let r of els) { if (r.checked) { state.radios[name] = r.value; break; } }
                 });
-                localStorage.setItem(SA_STORAGE_KEY, JSON.stringify(state));
+                Object.keys(byTab).forEach(tab => { byTab[tab].title = ktTabTitle(tab, state.fields); });
+                KTStore.saveState(state, byTab);   // localStorage に書き、サーバーがあれば送る
             } catch (e) { /* localStorage不可でも動作継続 */ }
         }
         function saveState() {
@@ -4348,7 +4354,10 @@ risk_3=`;
         }
 
         // 初回読み込み時の設定
-        window.onload = () => {
+        window.onload = () => { window._ktInitDone = (async () => {
+            // サーバー（D1/R2）に保存があれば localStorage に写す。無ければ今までどおり。終わるまで待つ。
+            await KTStore.ready({ collect: (tab, st) => { const c = tabIoCollectFields(tab); c.title = ktTabTitle(tab, (st && st.fields) || {}); return c; } });
+            try { YT_CTX = localStorage.getItem('kt-yt-ctx') === 'gen' ? 'gen' : 'stock'; } catch (e) {}
             setupDateSync();
 
             const dateInput = document.getElementById('p-date');
@@ -4417,7 +4426,7 @@ risk_3=`;
             }
             // 前回 YT動画を開いたまま閉じたあと、別のタブで開き直したときに、保存先を株価分析の側へ戻す
             if (typeof ytModeApply === 'function' && !(ui && ui.mode === 'yt')) ytModeApply(false);
-        };
+        })(); };
 
 // 株価分析：サイドバーのサブタブ切替（1.2.＝スライド作成 / 3.＝記事・SNS）
 function switchPriceTab(t){
@@ -7001,20 +7010,14 @@ function vdScriptAllText(P){
 
 // ---- 音声（スライド単位で保持。IndexedDBにも保存してリロード後も残す。キーは「P:番号」） ----
 window._vdTts={vd:{},ev:{}};
-function vdDb(){
-  return new Promise((res,rej)=>{
-    const rq=indexedDB.open('kessanTool-vdTts',1);
-    rq.onupgradeneeded=()=>{rq.result.createObjectStore('parts');};
-    rq.onsuccess=()=>res(rq.result);rq.onerror=()=>rej(rq.error);
-  });
-}
-async function vdDbPut(key,obj){try{const db=await vdDb();await new Promise((res,rej)=>{const tx=db.transaction('parts','readwrite');tx.objectStore('parts').put(obj,key);tx.oncomplete=res;tx.onerror=()=>rej(tx.error);});db.close();}catch(e){console.warn('vdDbPut',e);}}
-async function vdDbDel(key){try{const db=await vdDb();await new Promise((res,rej)=>{const tx=db.transaction('parts','readwrite');tx.objectStore('parts').delete(key);tx.oncomplete=res;tx.onerror=()=>rej(tx.error);});db.close();}catch(e){console.warn('vdDbDel',e);}}
+// 保存先は KT_TTS（端末内＋サーバー）
+async function vdDbPut(key,obj){try{await KT_TTS.put(key,obj);}catch(e){console.warn('vdDbPut',e);}}
+async function vdDbDel(key){try{await KT_TTS.del(key);}catch(e){console.warn('vdDbDel',e);}}
 async function vdDbLoad(){
   try{
-    const db=await vdDb();
-    const all=await new Promise((res,rej)=>{const tx=db.transaction('parts','readonly');const st=tx.objectStore('parts');const out={};const rq=st.openCursor();rq.onsuccess=()=>{const c=rq.result;if(c){out[c.key]=c.value;c.continue();}else res(out);};rq.onerror=()=>rej(rq.error);});
-    db.close();return all;
+    const keys=await KT_TTS.list();const out={};
+    for(const k of keys){const v=await KT_TTS.get(k);if(v)out[k]=v;}
+    return out;
   }catch(e){console.warn('vdDbLoad',e);return{};}
 }
 async function vdClearAllTts(P){window._vdTts[P]={};for(let i=1;i<=5;i++){await vdDbDel(`${P}:${i}`);const p=vdEl(P,'p'+i);if(p)p.textContent='未生成';}const pa=vdEl(P,'p-all');if(pa)pa.innerHTML='';}
@@ -9872,9 +9875,9 @@ const yaYield=()=>new Promise(r=>setTimeout(r));
 function yaStatus(id,msg,cls){const el=yaEl(id);if(!el)return;el.style.display=msg?'block':'none';el.innerHTML=msg||'';el.style.color=cls==='error'?'#dc2626':cls==='ok'?'#059669':'var(--text-sub)';}
 
 // ---- 保存（IndexedDB） ----
-function yaDb(){return new Promise((res,rej)=>{const r=indexedDB.open('kessanTool-ytAudio',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
-async function yaPut(k,v){k=ytKey(k);try{const db=await yaDb();await new Promise((res,rej)=>{const tx=db.transaction('kv','readwrite');tx.objectStore('kv').put(v,k);tx.oncomplete=res;tx.onerror=()=>rej(tx.error);});}catch(e){console.warn('[ya] 保存失敗',e);}}
-async function yaGet(k){k=ytKey(k);try{const db=await yaDb();return await new Promise((res,rej)=>{const r=db.transaction('kv').objectStore('kv').get(k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}catch(e){return null;}}
+// 保存先は KT_YA（端末内＋サーバー）
+async function yaPut(k,v){k=ytKey(k);try{await KT_YA.put(k,v);}catch(e){console.warn('[ya] 保存失敗',e);}}
+async function yaGet(k){k=ytKey(k);try{return await KT_YA.get(k);}catch(e){return null;}}
 let _yaSaveTimer=null;
 let _yaCutsBase=null;   // 前に保存したときのカット（変わっていたら、前のものを控える）
 function yaCutsKeep(){const cj=JSON.stringify(YA.cuts||[]);if(_yaCutsBase!=null&&cj!==_yaCutsBase)yhPush('cuts',JSON.parse(_yaCutsBase),'カットを変える前',true);_yaCutsBase=cj;}
@@ -10545,12 +10548,12 @@ const ynVal=id=>((ynEl(id)||{}).value||'').trim();
 function ynStatus(msg,cls,id){const el=ynEl(id||'status');if(!el)return;el.style.display=msg?'block':'none';el.innerHTML=msg||'';el.style.color=cls==='error'?'#dc2626':cls==='ok'?'#059669':'var(--text-sub)';}
 
 // ---- 保存 ----
-function ynDb(){return new Promise((res,rej)=>{const r=indexedDB.open('kessanTool-ytNare',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+// 保存先は KT_YN（端末内＋サーバー）
 let _ynPlanWhy='',_ynPlanSkip=false;   // 割り当てを保存するときの理由（空なら手で直したもの）／戻す・やり直すで保存するときは控えない
 async function ynPut(k,v){
   if(k==='plan'){const why=_ynPlanWhy,skip=_ynPlanSkip;_ynPlanWhy='';_ynPlanSkip=false;if(!skip){const old=await ynGet('plan');if(old&&old.slides)await yhPush('plan',old,why||'手で直す前',!why);}}
-  k=ytKey(k);try{const db=await ynDb();await new Promise((res,rej)=>{const tx=db.transaction('kv','readwrite');tx.objectStore('kv').put(v,k);tx.oncomplete=res;tx.onerror=()=>rej(tx.error);});}catch(e){console.warn('[yn] 保存失敗',e);}}
-async function ynGet(k){k=ytKey(k);try{const db=await ynDb();return await new Promise((res,rej)=>{const r=db.transaction('kv').objectStore('kv').get(k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}catch(e){return null;}}
+  k=ytKey(k);try{await KT_YN.put(k,v);}catch(e){console.warn('[yn] 保存失敗',e);}}
+async function ynGet(k){k=ytKey(k);try{return await KT_YN.get(k);}catch(e){return null;}}
 function ynSave(){ynPut('slides',YN.slides.map(s=>({name:s.name,blob:s.blob,zones:s.zones||null,texts:s.texts||null,qrOrig:s.qrOrig||null,qrRect:s.qrRect||null})));}
 
 // ---- スライド画像の読み込み（ファイル名順） ----
@@ -12231,6 +12234,12 @@ const TAB_IO={
   // YT動画：横動画のパネル（#yt-root）は、このタブを開いている間だけ #mode-yt の中にある。右側（サムネイルなど）は株価分析と共用なので roots に入れない
   yt:      {label:'YT動画',    roots:['#mode-yt'],                                           codeId:null,            nameId:'yt-g-theme'},
 };
+// 種別ごとの見出し（サーバーの PJ 一覧に出す）：コードと名前をつなぐ
+function ktTabTitle(tab,fields){
+  const t=TAB_IO[tab];if(!t)return '';
+  const cd=t.codeId?fields[t.codeId]:'',nm=t.nameId?fields[t.nameId]:'';
+  return [cd,nm].filter(v=>v!=null&&String(v).trim()).map(v=>String(v).trim()).join(' ').slice(0,80);
+}
 // タブ内のフォーム要素をすべて集める（動画サブタブなど JS で作った欄も含む）
 function tabIoElements(tab){
   const out=[];const seen=new Set();
@@ -12742,7 +12751,7 @@ async function downloadThumb(){
 document.fonts.ready.then(()=>{if(document.getElementById('th-input').value.trim())renderThumbPreview();});
 // 関連記事：既定の対象期間を90日→365日に広げた分を、保存済みの設定にも1度だけ反映する。
 // 保存値の復元（window.onload 内の restoreState）より後に動かす必要があるため load で実行する。
-window.addEventListener('load',()=>{
+window.addEventListener('load',()=>(window._ktInitDone||Promise.resolve()).then(()=>{
 try{
   if(!localStorage.getItem('kt-rel-days-365')){
     const el=document.getElementById('art-rel-days');
@@ -12754,7 +12763,7 @@ try{
 }catch(e){}
 // 関連記事の候補はキャッシュから復元する（リロードでセレクトが空にならないように）
 try{if(typeof relCacheLoad==='function'&&relCacheLoad())relFillSelect();}catch(e){}
-});
+}));
     </script>
 <div class="sa">
 <div id="render-target" style="position:fixed;left:-9999px;top:0;pointer-events:none;"></div>

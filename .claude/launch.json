@@ -4,8 +4,34 @@
     {
       "name": "pages",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["--yes", "wrangler", "pages", "dev", ".", "--port", "8799", "--compatibility-date=2024-01-01"],
+      "runtimeArgs": [
+        "--yes",
+        "wrangler",
+        "pages",
+        "dev",
+        ".",
+        "--port",
+        "8799",
+        "--compatibility-date=2024-01-01"
+      ],
       "port": 8799
+    },
+    {
+      "name": "pages-db",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "--yes",
+        "wrangler",
+        "pages",
+        "dev",
+        ".",
+        "--port",
+        "8798",
+        "--compatibility-date=2024-01-01",
+        "--d1=DB",
+        "--r2=MEDIA"
+      ],
+      "port": 8798
     }
   ]
 }
