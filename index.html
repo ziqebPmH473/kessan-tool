@@ -9431,6 +9431,17 @@ const YT_POST_FIXED=`■使用ツール
 内容の正確性には十分配慮していますが、最終的な判断はご自身でお願いいたします。`;
 
 // ---- タブのHTML ----
+// スライドの色・書体（スライド作成の指示に入れる）。PJごとではなく全体で1つなので、欄に id を付けず（付けるとPJの行に入る）、
+// localStorage の kt-slide-style に持つ（KTStore の LS_SYNC でサーバーの shared の行にも入る）。色の初期値は今のプロンプトの色、書体はゴシック体
+const YT_COLOR_KEY='kt-slide-style';
+const YT_COLOR_DEF={base:'白〜ごく淡いブルー、淡いグレー',head:'濃紺',font:'ゴシック体'};
+function ytSlideColors(){let v=null;try{v=JSON.parse(localStorage.getItem(YT_COLOR_KEY)||'null');}catch(e){}v=v||{};const o={};Object.keys(YT_COLOR_DEF).forEach(k=>{o[k]=v[k]??YT_COLOR_DEF[k];});return o;}
+function ytColorFill(){const c=ytSlideColors();document.querySelectorAll('[data-slide-color]').forEach(el=>{el.value=c[el.dataset.slideColor]??'';});}
+function ytColorSave(){
+  const o=ytSlideColors();document.querySelectorAll('[data-slide-color]').forEach(el=>{o[el.dataset.slideColor]=el.value;});
+  try{localStorage.setItem(YT_COLOR_KEY,JSON.stringify(o));}catch(e){}
+  if(typeof saveState==='function')saveState();
+}
 function ytInnerTab(t){
   try{sessionStorage.setItem('yt-itab',t);}catch(e){}   // リロードで戻すため（新しく開いたタブには引き継がない）
   if(t==='article'&&!ytGen())t='research';   // 記事タブは YT動画だけ
@@ -9440,7 +9451,7 @@ function ytInnerTab(t){
     if(b)b.classList.toggle('active',k===t);if(p)p.style.display=k===t?'':'none';
   });
   if(t==='research')ytUpdateFreeInfo();
-  if(t==='settings')ytNoteInfo();
+  if(t==='settings'){ytNoteInfo();ytColorFill();}
   if(t==='article'){const a=ytEl('a-yturl');if(a)a.value=ytVal('p-yturl');const b=ytEl('a-noteurl');if(b)b.value=ytVal('note-url');}
   if(t==='audio')try{ytOpening();}catch(e){}
   if(t==='naresla')ysRender();
@@ -9637,6 +9648,11 @@ ${[['n','note記事（無料）','表なしで作ります。動画のURLは最�
   <div class="yt-only-gen" style="display:none;">${set('番組の説明','<input type="text" id="yt-g-aud" value="'+YT_G_AUD_DEFAULT+'" oninput="saveState()" style="flex:1;min-width:0;font-size:11px;padding:4px;">','')}
   <div style="font-size:10px;color:var(--text-sub);">ChatGPTへの指示の「あなたの役割」に入れる、番組の説明です。</div></div>
   ${set('動画の長さ','<input type="number" id="yt-nlm-min" value="12" min="3" max="30" oninput="saveState()" style="width:60px;flex:none;font-size:11px;padding:4px;">','分（構成と音声の指示に入ります）')}
+  <div class="sa-sub">▼ スライドの色・書体</div>
+  <div style="font-size:10px;color:var(--text-sub);" title="PJごとではなく、株価分析とYT動画のすべてのPJで同じ設定を使います。">スライド作成の指示の色と書体。すべてのPJで共通です。</div>
+  ${set('基調色','<input type="text" data-slide-color="base" oninput="ytColorSave()" style="flex:1;min-width:0;font-size:11px;padding:4px;">','')}
+  ${set('見出し','<input type="text" data-slide-color="head" oninput="ytColorSave()" style="flex:1;min-width:0;font-size:11px;padding:4px;">','')}
+  ${set('書体','<input type="text" data-slide-color="font" oninput="ytColorSave()" style="flex:1;min-width:0;font-size:11px;padding:4px;">','')}
   <div class="sa-sub">▼ Geminiのモデル（作業ごと）</div>
   <div style="font-size:10px;color:var(--text-sub);" title="回数の上限のときは、選んだモデルから一覧の順に下のモデルへ自動で切り替えます（Lite には切り替えません。読み取りの位置が大きくずれて使えなかったため）。混雑のときは切り替えずに止まるので、ここで別のモデルを選んでもう一度押してください。">上限のときは下のモデルへ自動で切り替え（Lite除く）。混雑で止まったら、別のモデルを選んでもう一度。</div>
   ${YT_AI_TASKS.map(([k,n,d])=>set(n,`<select id="yt-m-${k}" onchange="saveState()" style="flex:1;min-width:0;font-size:11px;padding:3px;">${YT_MODEL_LIST.map(([v,l])=>`<option value="${v}"${v===d?' selected':''}>${l}</option>`).join('')}</select>`)).join('')}
