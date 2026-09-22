@@ -9503,8 +9503,8 @@ ${yaBuildPaneHtml()}
 
 <div class="sa-card" style="margin-top:8px;">
   <h2>3. 概要欄・SNS</h2>
-  ${set('YouTubeのURL','<input type="text" id="yt-p-yturl" placeholder="動画を上げたあとのURL（Xの投稿文に入ります）" oninput="ytPostUrlSet()" style="flex:1;min-width:0;font-size:11px;">')}
-  ${set('noteの記事URL','<input type="text" id="yt-note-url" placeholder="noteの記事のURL（概要欄・SNS・まとめのスライドのQRに入ります）" oninput="ytNoteInfo()" onchange="ytNoteUrlSet(this)" style="flex:1;min-width:0;font-size:11px;">')}
+  ${set('YouTubeのURL','<input type="text" id="yt-p-yturl" placeholder="動画を上げたあとのURL（Xの投稿文に入ります）" oninput="ytPostUrlSet()" style="flex:1;min-width:0;font-size:11px;"><button class="ya-nd" onclick="ytPaste(\'p-yturl\',ytPostUrlSet)">📋 貼付</button>')}
+  ${set('noteの記事URL','<input type="text" id="yt-note-url" placeholder="noteの記事のURL（概要欄・SNS・まとめのスライドのQRに入ります）" oninput="ytNoteInfo()" onchange="ytNoteUrlSet(this)" style="flex:1;min-width:0;font-size:11px;"><button class="ya-nd" onclick="ytPaste(\'note-url\',()=>ytNoteUrlSet(ytEl(\'note-url\')))">📋 貼付</button>')}
   <div id="yt-note-info" style="font-size:10px;color:var(--text-sub);"></div>
   ${set('ハッシュタグ','<input type="text" id="yt-p-tags" placeholder="#銘柄名 #証券コード ほか（概要欄の最後に付きます）" onfocus="this.dataset.prev=this.value" oninput="ytPostTagsSet(this)" style="flex:1;min-width:0;font-size:11px;">')}
   <input type="hidden" id="yt-p-body"><input type="hidden" id="yt-p-xbody"><input type="hidden" id="yt-p-hook"><input type="hidden" id="yt-p-announce"><input type="hidden" id="yt-p-ypbody"><input type="hidden" id="yt-p-igbody"><input type="hidden" id="yt-p-ttbody"><textarea id="yt-p-points" style="display:none;"></textarea>
