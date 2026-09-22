@@ -8980,10 +8980,13 @@ function ytPostRulesGen(){
 　どの本文も、運用ルールの「優先フックの定義（具体性の担保）」と、概要欄の禁止「汎用的すぎる説明文」に従う（この動画の主題に固有の焦点を書く）。
 　動画を見る場所の案内、noteの案内、URL、ハッシュタグは、ツールが付けるので本文に書かない。
 ・SNSのハッシュタグ
-　- x_tags：3個。yt_post_tags：3個。言葉の選び方は tags と同じ。
-　- insta_tags：5個。lemon8_tags：5個。tiktok_tags：5〜8個。
-　　この動画の内容を探す人が打ち込みそうな言葉に加えて、株式投資の分野を探す人が使う言葉も入れる。
-　　一般の人が検索に使わない言葉は使わない。
+　- 5つのSNSで同じ組み合わせにしない。そのSNSで探されている言葉に合わせて変える。
+　- x_tags：2〜3個。話題として流れてくる言葉。
+　- yt_post_tags：3個。動画を探すときに打ち込む言葉。
+　- insta_tags：5個。分野のタグ（株式投資の分野を探す人が使う言葉）を多めに。
+　- lemon8_tags：5個。読み物として探されるときの言葉。
+　- tiktok_tags：5〜8個。検索されそうな言葉。
+　- 本文にはハッシュタグを書かない（ツールが付ける）。一般の人が検索に使わない言葉は使わない。
 ・CTR／SEO最適化ポイント、動画管理表は出力しない。
 
 【出力】次の形のJSONだけを出力する。説明文やコードフェンスは不要。
@@ -9062,6 +9065,8 @@ function ytPostApply(){
   let j;try{const m=t.match(/\{[\s\S]*\}/);j=JSON.parse(m?m[0]:t);}
   catch(e){ytStatus('❌ JSONの形が崩れています：'+e.message,'error','post-status');return false;}
   const set=(id,v)=>{const el=ytEl(id);if(el)el.value=v;};
+  // AIが本文にもハッシュタグを入れてくることがある。ツールが付けるぶんと二重になるので、タグだけの行は外す
+  const noTag=v=>String(v||'').replace(/\r\n/g,'\n').split('\n').filter(l=>!/^\s*[#＃][^\s#＃]+(\s+[#＃][^\s#＃]+)*\s*$/.test(l)).join('\n').trim();
   // サムネは「上段：中段：下段」の形にそろえる（／や半角:で返ってきても直す）
   const thumb=s=>String(s||'').trim().replace(/\s*[\/／]\s*/g,'：').replace(/:/g,'：');
   const sns=!j.desc&&!(Array.isArray(j.titles)&&j.titles.length);   // SNSだけを作り直したJSON（概要欄・タイトル・サムネはそのまま）
@@ -9069,14 +9074,14 @@ function ytPostApply(){
     [1,2,3].forEach(k=>{set('p-t'+k,String((j.titles||[])[k-1]||'').trim());set('p-s'+k,thumb((j.thumbs||[])[k-1]));});
     set('p-body',String(j.desc||'').trim());
   }
-  set('p-xbody',String(j.x||'').trim());
+  set('p-xbody',noTag(j.x));
   // SNSの部品（5つのSNSで共通に使う）
   const tl=v=>(Array.isArray(v)?v:String(v||'').split(/\s+/)).map(s=>String(s).trim().replace(/^[#＃]/,'')).filter(Boolean).map(s=>'#'+s).join(' ');
   const pts=(Array.isArray(j.points)?j.points:String(j.points||'').split(/\n/)).map(s=>String(s).replace(/^[・\-－•●\s]+/,'').replace(/^[①-⑳]\s*/,'').trim()).filter(Boolean);
   set('p-hook',String(j.hook||'').trim());set('p-points',pts.join('\n'));set('p-announce',String(j.announce||'').trim());
   set('p-xtags',tl(j.x_tags));set('p-yptags',tl(j.yt_post_tags));set('p-igtags',tl(j.insta_tags));set('p-tttags',tl(j.tiktok_tags));
-  set('p-l8title',String(j.lemon8_title||'').trim());set('p-l8intro',String(j.lemon8||j.lemon8_intro||'').trim());
-  set('p-ypbody',String(j.yt_post||'').trim());if(j.tiktok_title!=null)set('p-ttt',String(j.tiktok_title||'').trim());set('p-igbody',String(j.insta||'').trim());set('p-ttbody',String(j.tiktok||'').trim());set('p-l8tags',tl(j.lemon8_tags));
+  set('p-l8title',String(j.lemon8_title||'').trim());set('p-l8intro',noTag(j.lemon8||j.lemon8_intro));
+  set('p-ypbody',noTag(j.yt_post));if(j.tiktok_title!=null)set('p-ttt',String(j.tiktok_title||'').trim());set('p-igbody',noTag(j.insta));set('p-ttbody',noTag(j.tiktok));set('p-l8tags',tl(j.lemon8_tags));
   if(!sns){
     const tg=Array.isArray(j.tags)?j.tags:String(j.tags||'').split(/\s+/);
     set('p-tags',tg.map(s=>String(s).trim()).filter(Boolean).map(s=>s.startsWith('#')?s:'#'+s).join(' '));
