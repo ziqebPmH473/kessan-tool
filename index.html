@@ -1555,6 +1555,17 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
         <div id="th-preview-inner"></div>
       </div>
     </div>
+    <!-- 縦のサムネ（Instagram・Lemon8・TikTok に添付）。上と同じ文から作る。YT動画には縦動画が無いので、ここで作る -->
+    <div class="sa-card" id="thv-preview-card" style="display:none;">
+      <h2>縦のサムネ（Instagram・Lemon8・TikTok に添付。上と同じ文から作ります）</h2>
+      <div style="display:flex;gap:12px;align-items:flex-start;">
+        <div id="thv-preview-wrap" style="position:relative;overflow:hidden;border:1px solid var(--border);border-radius:4px;width:200px;flex:none;"><div id="thv-preview-inner"></div></div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <button class="btn" id="thv-dl-btn" onclick="downloadThumbV()">⬇ 縦のサムネをダウンロード</button>
+          <div id="thv-status" style="font-size:11px;color:var(--text-sub);min-height:16px;"></div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
         </div>
@@ -7182,8 +7193,8 @@ function vLogo(cls){return `<img class="v-logo ${cls||''}" src="${VD_LOGO}" alt=
 function vDisc(){return `<div class="v-disc">${esc(VIDEO_DISCLAIMER)}</div>`;}
 
 // 0 サムネ（縦）：note用サムネと同じ記法で、3段を中央に寄せる。透かしロゴは中央
-function buildVThumb(text,P){
-  const cat=(P||window._vdCurP)==='ev'?'決算分析':'株価分析';
+function buildVThumb(text,P,catOver){
+  const cat=catOver!=null?catOver:(P||window._vdCurP)==='ev'?'決算分析':'株価分析';
   const dt=new Date();
   const dateStr=`${dt.getFullYear()}.${dt.getMonth()+1}.${dt.getDate()}`;
   const parts=String(text||'').split(/[：:]/);
@@ -7193,7 +7204,7 @@ function buildVThumb(text,P){
   const H=[330,360,330];
   const top=Math.round((VSLIDE_H-H[0]-H[1]-H[2])/2)-40;
   return `<div class="vth">${vLogo('dark')}
-  <div class="vth-top"><div class="vth-cat"><i></i>${esc(cat)}</div><div class="vth-date">${esc(dateStr)}</div></div>
+  <div class="vth-top">${cat?`<div class="vth-cat"><i></i>${esc(cat)}</div>`:'<div></div>'}<div class="vth-date">${esc(dateStr)}</div></div>
   <div class="vth-cta">タップで動画を再生 ▶</div>
   <div style="position:absolute;left:0;right:0;top:${top}px;display:flex;flex-direction:column;">
     <div class="vth-band" style="height:${H[0]}px;"><div class="v-txt" style="font-size:${tF}px;font-weight:700;line-height:1;white-space:nowrap;font-family:${THUMB_FF};">${segsHtml(segs[0],'#ffffff')}</div></div>
@@ -12478,6 +12489,34 @@ function renderThumbPreview(){
   inner.style.cssText=`position:absolute;top:0;left:0;width:${SLIDE_W}px;height:${SLIDE_H}px;transform:scale(${sc});transform-origin:top left;pointer-events:none;`;
   inner.innerHTML=html;
   card.style.display='block';
+  renderThumbVPreview(text);
+}
+// 縦のサムネ：上段の分類は、YT動画ならシリーズ名、株価分析・決算分析ならそれぞれの名前
+function thumbVHtml(text){
+  const gen=((document.getElementById('th-ctx')||{}).value)==='gen';
+  return buildVThumb(text,null,gen?(typeof ytSeries==='function'?ytSeries():''):null);
+}
+function renderThumbVPreview(text){
+  const card=document.getElementById('thv-preview-card');if(!card)return;
+  if(!text){card.style.display='none';return;}
+  card.style.display='block';
+  const wrap=document.getElementById('thv-preview-wrap'),sc=(wrap.clientWidth||200)/VSLIDE_W;
+  wrap.style.height=Math.round(VSLIDE_H*sc)+'px';
+  const inner=document.getElementById('thv-preview-inner');
+  inner.style.cssText=`position:absolute;top:0;left:0;width:${VSLIDE_W}px;height:${VSLIDE_H}px;transform:scale(${sc});transform-origin:top left;pointer-events:none;`;
+  inner.innerHTML=thumbVHtml(text);
+}
+async function downloadThumbV(){
+  const text=document.getElementById('th-input').value.trim(),st=document.getElementById('thv-status'),btn=document.getElementById('thv-dl-btn');
+  if(!text){st.textContent='テキストを入力してください';return;}
+  btn.disabled=true;st.textContent='画像を作っています…';
+  try{
+    const blob=await renderVideoToBlob({html:thumbVHtml(text),thumb:true});
+    const d=new Date(),ds=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+    const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`00_サムネイル_縦_${ds}.png`;a.click();URL.revokeObjectURL(url);
+    st.textContent='✓ ダウンロードしました';setTimeout(()=>st.textContent='',3000);
+  }catch(e){st.textContent='うまく作れませんでした：'+e.message;}
+  finally{btn.disabled=false;}
 }
 window.addEventListener('resize',()=>{if(document.getElementById('thumb-view').style.display!=='none')renderThumbPreview();});
 
