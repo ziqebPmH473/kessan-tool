@@ -482,7 +482,8 @@ select.yn-sel option{color:#0f172a;background:#fff;font-weight:400;}
 .yp-row textarea{flex:1;min-width:0;min-height:34px;font-size:11px;padding:3px 5px;}
 .yp-no{flex:none;width:16px;text-align:center;font-size:11px;font-weight:700;color:var(--text-sub);line-height:24px;}
 .yp-btns{flex:none;display:flex;flex-direction:column;gap:2px;}
-.yp-shd{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:6px;font-size:11px;font-weight:700;color:var(--text-sub);}
+.yp-shd{display:flex;align-items:center;gap:6px;margin-top:6px;font-size:11px;font-weight:700;color:var(--text-sub);}
+.yp-shd .yp-sbtn{margin-left:auto;}
 .yp-sbtn{display:flex;gap:3px;flex:none;}
 #thumb-view.th-yt .th-noteonly{display:none!important;}
 .yp-item{margin-top:4px;}
@@ -8947,7 +8948,7 @@ function ytPostRulesGen(){
 ・SNSの投稿文は、X・YouTubeの投稿・Instagram・Lemon8・TikTok の5つを作る。どれも、この動画を見てもらうための告知。
 　運用ルールのX投稿案の「目的」「内容」「禁止」は、5つすべてに当てはめる。
 　いちばん大事なこと：投稿を読んだだけで、動画の答えが分かってはいけない。どの投稿にも、動画で話す答え・結論・分析で分かった事実や数字は書かない。書くのは、見る人が持つ疑問と、動画で何を取り上げるかだけ。
-　投稿は、ツールが「本文 → この動画で分かること → 動画を見る場所の案内 → noteの案内 → ハッシュタグ」の順に組み立てる。AIが書くのは、SNSごとの本文と、points と、lemon8_title だけ。
+　投稿は、ツールが「本文 → この動画で分かること → 動画を見る場所の案内 → noteの案内 → ハッシュタグ」の順に組み立てる。AIが書くのは、SNSごとの本文と、points と、lemon8_title・tiktok_title だけ。
 　本文は、見る人の疑問や気持ちに寄りそう共感と、「〇〇を解説する動画を公開しました」という告知で作る。SNSごとの書き方と長さは次のとおり（長さは本文だけの字数）。
 　- x：共感の問いかけ → 告知。空行を入れない。全角100字以内。
 　- yt_post：告知 → 共感。チャンネル登録者に、新しい動画が出たことを知らせる言い方。全角80〜150字。
@@ -8956,6 +8957,7 @@ function ytPostRulesGen(){
 　- tiktok：1行目に、検索されそうな言葉を入れる。共感 → 告知。全角60〜120字。
 　- points：この動画で分かること。動画で話す順に3〜5個。何が分かるかだけを書き、答えは書かない。各全角20字以内。
 　- lemon8_title：Lemon8の見出し。共感の言葉で、読む人を引きつける。全角30字以内。
+　- tiktok_title：TikTokの見出し。共感の言葉で、検索されそうな言葉を入れる。全角30字以内。
 　どの本文も、運用ルールの「優先フックの定義（具体性の担保）」と、概要欄の禁止「汎用的すぎる説明文」に従う（この動画の主題に固有の焦点を書く）。
 　動画を見る場所の案内、noteの案内、URL、ハッシュタグは、ツールが付けるので本文に書かない。
 ・SNSのハッシュタグ
@@ -8966,12 +8968,12 @@ function ytPostRulesGen(){
 ・CTR／SEO最適化ポイント、動画管理表は出力しない。
 
 【出力】次の形のJSONだけを出力する。説明文やコードフェンスは不要。
-{"titles":["","",""],"thumbs":["上段：中段：下段","",""],"desc":"","tags":["","",""],"x":"","yt_post":"","insta":"","lemon8_title":"","lemon8":"","tiktok":"","points":["","",""],"x_tags":[],"yt_post_tags":[],"insta_tags":[],"lemon8_tags":[],"tiktok_tags":[]}`;
+{"titles":["","",""],"thumbs":["上段：中段：下段","",""],"desc":"","tags":["","",""],"x":"","yt_post":"","insta":"","lemon8_title":"","lemon8":"","tiktok_title":"","tiktok":"","points":["","",""],"x_tags":[],"yt_post_tags":[],"insta_tags":[],"lemon8_tags":[],"tiktok_tags":[]}`;
 }
 // SNSの投稿文だけを作り直すとき：タイトル・サムネ・概要欄・概要欄のタグは出させない（登録済みの概要欄を変えないため）
 function ytPostPromptSns(){
   const keys=ytGen()
-    ?'{"x":"","yt_post":"","insta":"","lemon8_title":"","lemon8":"","tiktok":"","points":["","",""],"x_tags":[],"yt_post_tags":[],"insta_tags":[],"lemon8_tags":[],"tiktok_tags":[]}'
+    ?'{"x":"","yt_post":"","insta":"","lemon8_title":"","lemon8":"","tiktok_title":"","tiktok":"","points":["","",""],"x_tags":[],"yt_post_tags":[],"insta_tags":[],"lemon8_tags":[],"tiktok_tags":[]}'
     :'{"hook":"","points":["","",""],"x":"","x_tags":[],"yt_post_tags":[],"insta_tags":[],"lemon8_title":"","lemon8_intro":"","lemon8_tags":[],"tiktok_tags":[]}';
   return `${ytPostPrompt()}
 
@@ -9056,7 +9058,7 @@ function ytPostApply(){
   set('p-hook',String(j.hook||'').trim());set('p-points',pts.join('\n'));set('p-announce',String(j.announce||'').trim());
   set('p-xtags',tl(j.x_tags));set('p-yptags',tl(j.yt_post_tags));set('p-igtags',tl(j.insta_tags));set('p-tttags',tl(j.tiktok_tags));
   set('p-l8title',String(j.lemon8_title||'').trim());set('p-l8intro',String(j.lemon8||j.lemon8_intro||'').trim());
-  set('p-ypbody',String(j.yt_post||'').trim());set('p-igbody',String(j.insta||'').trim());set('p-ttbody',String(j.tiktok||'').trim());set('p-l8tags',tl(j.lemon8_tags));
+  set('p-ypbody',String(j.yt_post||'').trim());if(j.tiktok_title!=null)set('p-ttt',String(j.tiktok_title||'').trim());set('p-igbody',String(j.insta||'').trim());set('p-ttbody',String(j.tiktok||'').trim());set('p-l8tags',tl(j.lemon8_tags));
   if(!sns){
     const tg=Array.isArray(j.tags)?j.tags:String(j.tags||'').split(/\s+/);
     set('p-tags',tg.map(s=>String(s).trim()).filter(Boolean).map(s=>s.startsWith('#')?s:'#'+s).join(' '));
@@ -9231,8 +9233,49 @@ function ytNoteUrlSet(inp,manual){
       if(o){el.value=v.replace(o,n);msg.push({yp:'YouTubeの投稿',ig:'Instagram',l8:'Lemon8',tt:'TikTok'}[k]);}
     });
   }
+  ytFixRecord();
   saveState();
   if(manual)ytStatus(msg.length?`✅ noteの箇所を差し替えました（${msg.join('・')}）`:'差し替える箇所がありませんでした（投稿文がまだ無いか、noteの行を手で消しています）',msg.length?'ok':'','post-status');
+}
+// 定型文の箇所：概要欄は設定タブの「概要欄の定型文」、SNSは見る場所・noteの案内（YT動画は note のURLの有無で変わる）
+function ytFixedFor(k){return k==='desc'?ytVal('p-fixed'):(ytGen()?ygPostFixed(k):ytPostFixedText(k));}
+const YT_FIX_TARGETS=[['desc','p-desc','概要欄'],['yp','p-yp','YouTubeの投稿'],['ig','p-ig','Instagram'],['l8','p-l8','Lemon8'],['tt','p-tt','TikTok']];
+// 組み立てたときに入れた定型文を控える（あとで「定型文差替」で、その箇所だけを入れ替えるため）
+function ytFixRecord(){const el=ytEl('p-fixapplied');if(!el)return;const o={};YT_FIX_TARGETS.forEach(([k])=>{o[k]=ytFixedFor(k);});el.value=JSON.stringify(o);}
+function ytFixReplace(){
+  let a={};try{a=JSON.parse(ytVal('p-fixapplied')||'{}');}catch(e){}
+  const done=[],miss=[];
+  YT_FIX_TARGETS.forEach(([k,id,nm])=>{
+    const el=ytEl(id);if(!el||!el.value.trim())return;
+    // 欄にいま入っている文面の中で、前の定型文の箇所だけを入れ替える（ほかの文は、手で直した分もそのまま）
+    const nl=x=>String(x||'').replace(/\r\n/g,'\n').trim();
+    const n=nl(ytFixedFor(k)),v=el.value.replace(/\r\n/g,'\n');
+    if(n&&v.includes(n))return;   // もう今の定型文になっている
+    // 前の定型文の候補：組み立てたときの控え、無ければツールの既定の文面（長いものから探す）
+    const up=getDir()==='up'?'上値':'下値';
+    const cands=[a[k]].concat(k==='desc'?[YT_POST_FIXED]:ytGen()?[ygPostFixed(k,true),ygPostFixed(k,false),YT_SNS_FIXED_GEN[k],...(YT_SNS_FIXED_GEN_OLD[k]||[])]:[String(YT_SNS_FIXED[k]||'').replace(/\{下値\/上値\}/g,up)])
+      .map(nl).filter(x=>x&&x!==n).sort((p,q)=>q.length-p.length);
+    const o=cands.find(x=>v.includes(x));
+    if(o){el.value=v.replace(o,n);done.push(nm);}else miss.push(nm);
+  });
+  ytFixRecord();saveState();
+  ytStatus(done.length||miss.length?`${done.length?`✅ 定型文を差し替えました（${done.join('・')}）`:''}${miss.length?`　⚠ ${miss.join('・')}は、前の定型文が見つからないので差し替えていません（手で直してください）`:''}`:'定型文は変わっていません',miss.length?'':'ok','post3-status');
+}
+// URL差替：YouTubeのURL（Xの最終行）・noteの記事URL（概要欄とSNSのnoteの箇所）・ハッシュタグ（概要欄の最後）だけを差し替える
+function ytTagsReplace(){
+  const el=ytEl('p-desc');if(!el||!el.value.trim())return;
+  const now=ytVal('p-tags'),bl=el.value.replace(/\r\n/g,'\n').replace(/\s+$/,'').split(/\n{2,}/);
+  if(/^([#＃][^\s#＃]+\s*)+$/.test((bl[bl.length-1]||'').trim()))bl.pop();
+  if(now)bl.push(now);
+  el.value=bl.join('\n\n');const t=ytEl('p-tags');if(t)t.dataset.prev=t.value;
+}
+function ytUrlTagSet(){
+  if(!ytVal('p-desc')&&!ytVal('p-x')){ytStatus('先に投稿文を作ってください','error','post3-status');return;}
+  if(ytVal('p-x'))ytPostUrlSet();
+  ytTagsReplace();
+  ytNoteUrlSet(ytEl('note-url'),false);
+  saveState();
+  ytStatus('✅ YouTubeのURL・noteの記事URL・ハッシュタグの箇所を差し替えました','ok','post3-status');
 }
 // SNSの定型文（設定タブ）。{下値/上値} は株価の向きで入れ替える
 // YT動画の定型文：noteの記事のURL（設定タブ）が無いときは、noteの行を外す。
@@ -9271,7 +9314,7 @@ function ytPostBuild(snsOnly){
     ytEl('p-l8t').value=ytVal('p-l8title').replace(/^【[^】]*】\s*/,'');
     ytEl('p-l8').value=J([ytVal('p-l8intro'),pts.length?L2+'\n'+num:'',ygPostFixed('l8'),ytVal('p-l8tags')]);
     ytEl('p-tt').value=J([ytVal('p-ttbody'),pts.length?L2+'\n'+bul:'',ygPostFixed('tt'),ytVal('p-tttags')]);
-    saveState();return;
+    ytFixRecord();saveState();return;
   }
   // YouTubeの投稿・Instagram・Lemon8・TikTok：同じ hook と「この動画で確かめること」を使い、誘導とnoteの案内は定型文
   if(hook){
@@ -9286,7 +9329,7 @@ function ytPostBuild(snsOnly){
     ytEl('p-l8').value=J([ytVal('p-l8intro'),pts.length?L+'\n'+num:'',ytPostFixedText('l8'),ytVal('p-l8tags')]);
     ytEl('p-tt').value=J([[hook,bul].filter(Boolean).join('\n'),ytPostFixedText('tt'),ytVal('p-tttags')]);
   }
-  saveState();
+  ytFixRecord();saveState();
 }
 // SNSの投稿文の定型文（誘導とnoteの案内）。Lemon8 のプロフィールは note だけ、TikTok はプロフィールに YouTube を置けない
 // YT動画用の既定（noteは無料の記事。動画と同じ内容を文章で読める、という案内）
@@ -9338,7 +9381,7 @@ function ytInnerTab(t){
 }
 function ytBuildTabHtml(){
   const G='background:#475569;color:#fff;';   // プロンプトのコピーは既存タブと同じ灰色
-  const b=(label,on,style)=>`<button class="btn-sm" onclick="${on}" style="flex:1;min-width:0;${style||''}">${label}</button>`;
+  const b=(label,on,style,id,tip)=>`<button class="btn-sm" ${id?`id="${id}"`:''}${tip?` title="${tip}"`:''} onclick="${on}" style="flex:1;min-width:0;${style||''}">${label}</button>`;
   const row=(...x)=>`<div class="row" style="flex-wrap:nowrap;">${x.join('')}</div>`;
   const set=(label,input,note)=>`<div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:4px;"><label style="font-size:11px;color:var(--text-sub);flex:none;">${label}</label>${input}${note?`<span style="font-size:11px;color:var(--text-sub);">${note}</span>`:''}</div>`;
   return `
@@ -9466,26 +9509,28 @@ ${yaBuildPaneHtml()}
 <div class="sa-card" style="margin-top:8px;">
   <h2>3. 概要欄・SNS</h2>
   ${set('YouTubeのURL','<input type="text" id="yt-p-yturl" placeholder="動画を上げたあとのURL（Xの投稿文に入ります）" oninput="ytPostUrlSet()" style="flex:1;min-width:0;font-size:11px;">')}
-  ${set('noteの記事URL','<input type="text" id="yt-note-url" placeholder="noteの記事のURL（概要欄・SNS・まとめのスライドのQRに入ります）" oninput="ytNoteInfo()" onchange="ytNoteUrlSet(this)" style="flex:1;min-width:0;font-size:11px;"><button class="ya-nd" onclick="ytNoteUrlSet(document.getElementById(\'yt-note-url\'),true)" title="概要欄とSNSの投稿文の、noteの箇所だけを差し替える">↻ 差し替え</button>')}
+  ${set('noteの記事URL','<input type="text" id="yt-note-url" placeholder="noteの記事のURL（概要欄・SNS・まとめのスライドのQRに入ります）" oninput="ytNoteInfo()" onchange="ytNoteUrlSet(this)" style="flex:1;min-width:0;font-size:11px;">')}
   <div id="yt-note-info" style="font-size:10px;color:var(--text-sub);"></div>
   ${set('ハッシュタグ','<input type="text" id="yt-p-tags" placeholder="#銘柄名 #証券コード ほか（概要欄の最後に付きます）" onfocus="this.dataset.prev=this.value" oninput="ytPostTagsSet(this)" style="flex:1;min-width:0;font-size:11px;">')}
   <input type="hidden" id="yt-p-body"><input type="hidden" id="yt-p-xbody"><input type="hidden" id="yt-p-hook"><input type="hidden" id="yt-p-announce"><input type="hidden" id="yt-p-ypbody"><input type="hidden" id="yt-p-igbody"><input type="hidden" id="yt-p-ttbody"><textarea id="yt-p-points" style="display:none;"></textarea>
   <input type="hidden" id="yt-p-xtags"><input type="hidden" id="yt-p-yptags"><input type="hidden" id="yt-p-igtags"><input type="hidden" id="yt-p-tttags">
-  <input type="hidden" id="yt-p-l8title"><textarea id="yt-p-l8intro" style="display:none;"></textarea><input type="hidden" id="yt-p-l8tags">
-  <div class="yp-shd"><span title="本文 → noteの記事リンク → 定型文（設定タブ）→ ハッシュタグ">▼ 概要欄</span><span class="yp-sbtn"><button class="ya-nd" onclick="downloadThumb()" title="横のサムネをダウンロード（サムネイルのタブの文から作ります）">サムネ</button><button class="ya-nd" onclick="copyText(ytVal('p-desc'),this)">概要欄</button><button class="ya-nd" onclick="if(confirm('概要欄とSNSの投稿文を、AIの文から作り直します。手で直した分は消えます。よろしいですか？'))ytPostBuild()" title="概要欄とSNSの全部を、AIの文から作り直します（手で直した分も）">組み立て直す</button></span></div>
-  <textarea id="yt-p-desc" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;width:100%;box-sizing:border-box;"></textarea>
-  ${row(b('🤖 SNSだけ作り直す',"ytPostAi(this,true)",'background:#4f46e5;color:#fff;'))}
-  <div class="yp-shd"><span>▼ X</span><span class="yp-sbtn"><button class="ya-nd" onclick="copyText(ytVal('p-x'),this)">投稿文</button></span></div>
-  <textarea id="yt-p-x" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;width:100%;box-sizing:border-box;"></textarea>
-  <div class="yp-shd"><span title="投稿の種類で「動画」を選び、この動画を選ぶ">▼ YouTubeの投稿</span><span class="yp-sbtn"><button class="ya-nd" onclick="copyText(ytVal('p-yp'),this)">投稿文</button></span></div>
-  <textarea id="yt-p-yp" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;width:100%;box-sizing:border-box;"></textarea>
-  <div class="yp-shd"><span>▼ Instagram</span><span class="yp-sbtn"><button class="ya-nd" onclick="downloadThumbV()" title="縦のサムネをダウンロード（サムネイルのタブの文から作ります）">サムネ</button><button class="ya-nd" onclick="copyText(ytVal('p-ig'),this)">投稿文</button></span></div>
-  <textarea id="yt-p-ig" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;width:100%;box-sizing:border-box;"></textarea>
-  <div class="yp-shd"><span>▼ Lemon8</span><span class="yp-sbtn"><button class="ya-nd" onclick="downloadThumbV()" title="縦のサムネをダウンロード（サムネイルのタブの文から作ります）">サムネ</button><button class="ya-nd" onclick="copyText(ytVal('p-l8t'),this)">見出し</button><button class="ya-nd" onclick="copyText(ytVal('p-l8'),this)">投稿文</button></span></div>
+  <input type="hidden" id="yt-p-l8title"><input type="hidden" id="yt-p-fixapplied"><textarea id="yt-p-l8intro" style="display:none;"></textarea><input type="hidden" id="yt-p-l8tags">
+  <div class="yp-shd"><span title="本文 → noteの記事リンク → 定型文（設定タブ）→ ハッシュタグ">▼ 概要欄</span><span class="yp-slot" id="yh-slot-desc"></span><span class="yp-sbtn"><button class="ya-nd" onclick="downloadThumb()" title="横のサムネをダウンロード（サムネイルのタブの文から作ります）">サムネ</button><button class="ya-nd" onclick="copyText(ytVal('p-desc'),this)">概要欄</button></span></div>
+  <textarea id="yt-p-desc" data-yh-slot="yh-slot-desc" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;width:100%;box-sizing:border-box;"></textarea>
+  ${row(b('URL差替','ytUrlTagSet()','','','YouTubeのURL・noteの記事URL・ハッシュタグの箇所だけを差し替えます（ほかの文はそのまま）'),b('🤖 再生成',"if(confirm('タイトル・サムネイル・概要欄・SNSの投稿文を、AIで全部作り直します。よろしいですか？'))ytPostAi(this)",'background:#4f46e5;color:#fff;','','タイトル・サムネイル・概要欄・SNSの投稿文を、AIで全部作り直します'),b('🤖 SNS再生成','ytPostAi(this,true)','background:#4f46e5;color:#fff;','','概要欄・タイトル・サムネイルは変えずに、SNSの投稿文だけをAIで作り直します'),b('定型文差替','ytFixReplace()','','','設定タブの定型文を直したとき、概要欄とSNSの定型文の箇所だけを差し替えます（ほかの文はそのまま）'))}
+  <div id="yt-post3-status" style="display:none;font-size:11px;"></div>
+  <div class="yp-shd"><span>▼ X</span><span class="yp-slot" id="yh-slot-x"></span><span class="yp-sbtn"><button class="ya-nd" onclick="copyText(ytVal('p-x'),this)">投稿文</button></span></div>
+  <textarea id="yt-p-x" data-yh-slot="yh-slot-x" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;width:100%;box-sizing:border-box;"></textarea>
+  <div class="yp-shd"><span title="投稿の種類で「動画」を選び、この動画を選ぶ">▼ YouTubeの投稿</span><span class="yp-slot" id="yh-slot-yp"></span><span class="yp-sbtn"><button class="ya-nd" onclick="copyText(ytVal('p-yp'),this)">投稿文</button></span></div>
+  <textarea id="yt-p-yp" data-yh-slot="yh-slot-yp" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;width:100%;box-sizing:border-box;"></textarea>
+  <div class="yp-shd"><span>▼ Instagram</span><span class="yp-slot" id="yh-slot-ig"></span><span class="yp-sbtn"><button class="ya-nd" onclick="downloadThumbV()" title="縦のサムネをダウンロード（サムネイルのタブの文から作ります）">サムネ</button><button class="ya-nd" onclick="copyText(ytVal('p-ig'),this)">投稿文</button></span></div>
+  <textarea id="yt-p-ig" data-yh-slot="yh-slot-ig" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;width:100%;box-sizing:border-box;"></textarea>
+  <div class="yp-shd"><span>▼ Lemon8</span><span class="yp-slot" id="yh-slot-l8"></span><span class="yp-sbtn"><button class="ya-nd" onclick="downloadThumbV()" title="縦のサムネをダウンロード（サムネイルのタブの文から作ります）">サムネ</button><button class="ya-nd" onclick="copyText(ytVal('p-l8t'),this)">見出し</button><button class="ya-nd" onclick="copyText(ytVal('p-l8'),this)">投稿文</button></span></div>
   <input type="text" id="yt-p-l8t" oninput="saveState()" placeholder="見出し" style="width:100%;box-sizing:border-box;font-size:11px;">
-  <textarea id="yt-p-l8" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;width:100%;box-sizing:border-box;"></textarea>
-  <div class="yp-shd"><span>▼ TikTok</span><span class="yp-sbtn"><button class="ya-nd" onclick="downloadThumbV()" title="縦のサムネをダウンロード（サムネイルのタブの文から作ります）">サムネ</button><button class="ya-nd" onclick="copyText(ytVal('p-tt'),this)">投稿文</button></span></div>
-  <textarea id="yt-p-tt" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;width:100%;box-sizing:border-box;"></textarea>
+  <textarea id="yt-p-l8" data-yh-slot="yh-slot-l8" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;width:100%;box-sizing:border-box;"></textarea>
+  <div class="yp-shd"><span>▼ TikTok</span><span class="yp-slot" id="yh-slot-tt"></span><span class="yp-sbtn"><button class="ya-nd" onclick="downloadThumbV()" title="縦のサムネをダウンロード（サムネイルのタブの文から作ります）">サムネ</button><button class="ya-nd" onclick="copyText(ytVal('p-ttt'),this)">見出し</button><button class="ya-nd" onclick="copyText(ytVal('p-tt'),this)">投稿文</button></span></div>
+  <input type="text" id="yt-p-ttt" oninput="saveState()" placeholder="見出し" style="width:100%;box-sizing:border-box;font-size:11px;">
+  <textarea id="yt-p-tt" data-yh-slot="yh-slot-tt" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;width:100%;box-sizing:border-box;"></textarea>
 </div>
 </div>
 
@@ -9536,7 +9581,7 @@ ${[['n','note記事（無料）','表なしで作ります。動画のURLは最�
 </div>
 </div>`;
 }
-const YT_PERSIST_IDS=['vd-orient','th-ctx','th-note-text','th-note-preset','yt-th-text','yt-th-preset','yg-th-text','yg-th-preset','yt-g-theme','yt-g-report','yt-g-aud','yt-a-n-raw','yt-a-n-title','yt-a-n-body','yt-a-n-tags','yt-a-b-raw','yt-a-b-title','yt-a-b-body','yt-a-b-tags','yt-a-check','yt-link-state','yt-doc','yt-series','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-t1','yt-p-t2','yt-p-t3','yt-p-s1','yt-p-s2','yt-p-s3','yt-p-body','yt-p-xbody','yt-p-hook','yt-p-announce','yt-p-ypbody','yt-p-igbody','yt-p-ttbody','yt-p-points','yt-p-xtags','yt-p-yptags','yt-p-igtags','yt-p-tttags','yt-p-l8title','yt-p-l8intro','yt-p-l8tags','yt-p-yp','yt-p-ig','yt-p-l8t','yt-p-l8','yt-p-tt','yt-f-yp','yt-f-ig','yt-f-l8','yt-f-tt','yt-p-yturl','yt-p-tags','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-m-cut','yt-m-read','yt-m-plan','yt-m-post','yt-m-qr','yt-yomi','yt-yomi-for','yt-open','yt-open-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan'];
+const YT_PERSIST_IDS=['vd-orient','th-ctx','th-note-text','th-note-preset','yt-th-text','yt-th-preset','yg-th-text','yg-th-preset','yt-g-theme','yt-g-report','yt-g-aud','yt-a-n-raw','yt-a-n-title','yt-a-n-body','yt-a-n-tags','yt-a-b-raw','yt-a-b-title','yt-a-b-body','yt-a-b-tags','yt-a-check','yt-link-state','yt-doc','yt-series','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-t1','yt-p-t2','yt-p-t3','yt-p-s1','yt-p-s2','yt-p-s3','yt-p-body','yt-p-xbody','yt-p-hook','yt-p-announce','yt-p-ypbody','yt-p-igbody','yt-p-ttbody','yt-p-points','yt-p-xtags','yt-p-yptags','yt-p-igtags','yt-p-tttags','yt-p-l8title','yt-p-l8intro','yt-p-l8tags','yt-p-yp','yt-p-ig','yt-p-l8t','yt-p-ttt','yt-p-fixapplied','yt-p-l8','yt-p-tt','yt-f-yp','yt-f-ig','yt-f-l8','yt-f-tt','yt-p-yturl','yt-p-tags','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-m-cut','yt-m-read','yt-m-plan','yt-m-post','yt-m-qr','yt-yomi','yt-yomi-for','yt-open','yt-open-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan'];
 // ---- 動画の種類：株価分析の横動画＝stock ／ YT動画タブ＝gen ----
 // 画面と関数は1組だけ。種類を切り替えると、作品ごとの欄（localStorage）と IndexedDB のキーを入れ替える。
 // 株価分析の側は今までのキーのまま、YT動画の側は前に 'gen:' を付ける。設計：docs/design/2026-09-21_YT動画タブ.md
