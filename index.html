@@ -8753,6 +8753,7 @@ function ytDownloadSource(){
 // ---- スライドの直し（ChatGPTへの依頼文）----
 // 毎回だいたい同じことを頼むので、よくある直しをチェックで選べるようにする。
 const YT_FIX_ITEMS=[
+  ['paler','背景色だけ、配色を薄く','背景色だけ、配色を薄くしてください。文字・図・グラフの色はそのままにしてください。'],
   ['asimg','画像で出し直す','PowerPointなどのファイルではなく、16:9（1920×1080）の画像として1枚ずつ出し直してください。1枚の画像に複数のスライドを並べないでください。'],
   ['topright','右上を空ける','右上のすみは、動画でテロップを出すので、文字や図を置かずに空けてください。'],
   ['nohead','章番号を入れない','「第1章」「CHAPTER 01」のような章番号は入れないでください。章のタイトルはそのままスライドの見出しとして使ってください。'],
@@ -9358,7 +9359,7 @@ function ytBuildTabHtml(){
     ${row(b('📋 貼り付け',"ygPasteReport(this)"),`<button class="btn-danger" onclick="if(confirm('レポートを消しますか？')){ytEl('g-report').value='';saveState();}" style="flex:1;">✕ クリア</button>`)}
     <textarea id="yt-g-report" placeholder="ChatGPTのレポートをここに貼り付け（②〜④を誤りがなくなるまで繰り返し、直った全文を貼り直す）" oninput="saveState()" style="min-height:36px;"></textarea>
     ${row(`<button class="btn-sm" onclick="ygReportDownload(this)" title="レポートをファイル（レポート.md）に保存します。ChatGPTに添付してください" style="flex:1;min-width:0;background:#0d9488;color:#fff;">💾 添付</button>`,b('✅ ②FC',"ytCopy('rfc',this)",G),b('🔁 ③再CK',"ytCopy('recheck',this)",G),b('🔧 ④修正',"ytCopy('rfix',this)",G))}
-    <div style="font-size:10px;color:var(--text-sub);margin-top:4px;">レポートは長いので、プロンプトには入れません。「💾 添付」で保存した「レポート.md」を、ChatGPTに添付してください。②は新しいチャットで。</div>
+    <div style="font-size:10px;color:var(--text-sub);margin-top:4px;" title="レポートは長いので、プロンプトには入れません。「💾 添付」で保存した「レポート.md」を、ChatGPTに添付してください。②は新しいチャットで。">「💾 添付」の「レポート.md」をChatGPTに添付。②は新しいチャットで。</div>
   </div>
   <details class="yt-only-stock">
     <summary id="yt-free-info" style="font-size:11px;color:var(--text-sub);cursor:pointer;"></summary>
@@ -9374,7 +9375,7 @@ function ytBuildTabHtml(){
     <div id="yt-doc-paste">${row(b('📋 貼り付け',"ytPasteDoc(this)"),`<button class="btn-danger" onclick="if(confirm('動画資料を消しますか？')){ytEl('doc').value='';saveState();}" style="flex:1;">✕ クリア</button>`)}</div>
     <div id="yt-doc-links" class="yt-col">
       ${row(b('🔗 出典のリンクを確認','ytCheckLinks(this)'))}
-      <div class="yt-only-gen" style="display:none;font-size:10px;color:var(--text-sub);">②〜④が終わったら、最後に1回押します（全部が問題なしになるまで、音声から先へは進めません）。問題があったら、もう一度②を押すと、その内容がプロンプトに入ります。</div>
+      <div class="yt-only-gen" style="display:none;font-size:10px;color:var(--text-sub);" title="②〜④が終わったら、最後に1回押します（全部が問題なしになるまで、音声から先へは進めません）。問題があったら、もう一度②を押すと、その内容がプロンプトに入ります。">②〜④のあと、最後に1回押す（問題が無くなるまで、音声から先へ進めません）。</div>
       <div id="yt-link-status" style="display:none;font-size:11px;"></div><input type="hidden" id="yt-link-state">
       <div id="yt-link-list"></div>
     </div>
@@ -9387,41 +9388,41 @@ function ytBuildTabHtml(){
 <div id="yt-pane-slides" style="display:none;">
 <div class="sa-card">
   <h2>1. スライド（ChatGPTで作る）</h2>
-  <div style="font-size:11px;color:var(--text-sub);">音声の文字起こしに合わせて作ります。ChatGPTにプロンプトを貼り、ZIPの2ファイルを添付してください。</div>
+  <div style="font-size:11px;color:var(--text-sub);" title="音声の文字起こしに合わせて作ります。ChatGPTにプロンプトを貼り、ZIPの2ファイルを添付してください。">プロンプトを貼り、ZIPの2ファイルを添付。</div>
   ${row(b('💬 プロンプトをコピー',"try{copyText(ytSlideDesignerPrompt(),this)}catch(e){alert(e.message)}",G),`<button class="btn-sm" onclick="ytDownloadSlideZip(this)" style="flex:1;min-width:0;background:#0d9488;color:#fff;">💾 添付ファイル（ZIP）</button>`)}
   <div id="yt-slide-status2" style="display:none;font-size:11px;"></div>
 </div>
 
-<div class="sa-card" style="margin-top:8px;">
-  <h2>2. 直してもらう</h2>
+<details class="sa-card yt-fixbox" style="margin-top:8px;"><summary style="cursor:pointer;"><h2 style="display:inline;">2. 直してもらう</h2> <span style="font-size:10px;color:var(--text-sub);">（必要なときだけ開く）</span></summary>
+
   <div style="font-size:11px;color:var(--text-sub);">チェックで選び、そのほかは下の欄に1行ずつ。</div>
   <div class="yt-fixes">${YT_FIX_ITEMS.map(x=>`<label><input type="checkbox" id="yt-fix-${x[0]}" onchange="saveState()"> ${esc(x[1])}</label>`).join('')}</div>
   <textarea id="yt-fix-note" placeholder="そのほかの直し（1行に1つ）&#10;例：4枚目の右下のアイコンを消す&#10;例：2枚目の売上構成を円グラフではなく帯にする" oninput="saveState()" style="min-height:52px;font-size:11px;"></textarea>
   ${row(b('💬 直しの依頼をコピー',"try{copyText(ytFixPrompt(),this)}catch(e){alert(e.message)}",G),b('✕ 選び直す','ytFixClear()'))}
-</div>
+</details>
 
 <div class="sa-card" style="margin-top:8px;">
   <h2>3. できたスライドを取り込む</h2>
   <div style="font-size:11px;color:var(--text-sub);">できた画像を読み込みます（ファイル名順）。</div>
   <input type="file" id="yn-files" accept="image/*" multiple onchange="ynLoadFiles(this.files)" style="font-size:11px;width:100%;">
-  ${row(b('<span id="yn-read-label">🔍 まとまりを読み取る</span>','ynReadZones(this)',G))}
+  ${row(b('<span id="yn-read-label">🔍 まとまりを読み取る</span>','ynReadZones(this)','background:#4f46e5;color:#fff;'))}
   <div id="yn-sel-info" style="font-size:11px;color:var(--text-sub);"></div>
   <div class="row" style="flex-wrap:nowrap;gap:4px;"><button class="ya-nd" onclick="ynSelAll(true)">全部選ぶ</button><button class="ya-nd" onclick="ynSelAll(false)">選ぶのをやめる</button></div>
   ${row(b('↻ 読み取り直す',"ynReadAgain()"),b('🪄 位置を補正','ynSnapAll(this)'),b('🗑 リセット','ynResetMenu(this)'))}
   <div style="font-size:10px;color:var(--text-sub);">リセット・画像の読み込みの前に戻す</div>
   <div class="row" style="flex-wrap:nowrap;gap:4px;"><button class="ya-nd" onclick="ynSlidesUndo(this,'p')" title="リセットや画像の読み込みの前に戻す">↶ 戻す</button><button class="ya-nd" onclick="ynSlidesUndo(this,'f')" title="戻したのを取り消す">↷ やり直す</button></div>
-  <div style="font-size:10px;color:var(--text-sub);">読み取ったあと、ツールが枠を画像の縁や文字に合わせます（自動）。まとまりは、枚ごとに右の「↶」で前の状態に戻せます。</div>
+  <div style="font-size:10px;color:var(--text-sub);" title="読み取ったあと、ツールが枠を画像の縁や文字に合わせます（自動）。まとまりは、枚ごとに右の「↶」で前の状態に戻せます。">枠は自動で画像に合わせます。枚ごとの「↶」で戻せます。</div>
   <details class="yt-col" style="margin-top:4px;">
     <summary style="font-size:11px;color:var(--text-sub);cursor:pointer;">Gemini（Web版）で読み取る（APIが混んでいるとき）</summary>
-    <div style="font-size:10px;color:var(--text-sub);">「💾 添付」で保存したZIPを開き、中の画像を全部Geminiに添付し、「💬 プロンプト」を貼って送ります。返ってきたJSONを貼り付けてください。対象は、選んだ枚（選んでいなければ全部の枚）です（読み取り済みの枚も読み直します）。1回に10枚までなので、11枚以上あるときは、貼り付けたあと、もう一度「💾 添付」と「💬 プロンプト」を押すと続きの枚になります。</div>
+    <div style="font-size:10px;color:var(--text-sub);" title="「💾 添付」で保存したZIPを開き、中の画像を全部Geminiに添付し、「💬 プロンプト」を貼って送ります。返ってきたJSONを貼り付けてください。対象は、選んだ枚（選んでいなければ全部の枚）です（読み取り済みの枚も読み直します）。1回に10枚までなので、11枚以上あるときは、貼り付けたあと、もう一度「💾 添付」と「💬 プロンプト」を押すと続きの枚になります。">「💾 添付」のZIPの画像を全部添付し、「💬 プロンプト」を貼って送り、JSONを貼る。10枚ずつ（11枚目からは、貼ったあともう一度）。</div>
     ${row(`<button class="btn-sm" onclick="ynWebDownload(this)" title="プロンプトの対象の枚の画像を、添付する順の番号を付けて保存します" style="flex:1;min-width:0;background:#0d9488;color:#fff;">💾 添付</button>`,b('💬 プロンプト',"ynWebCopy(this)",G),b('📋 貼り付け',"ynWebPaste()"))}
     <textarea id="yn-webread" placeholder="GeminiのJSONをここに貼り付け（貼ると反映します）" oninput="ynWebApply(this.value,true)" style="min-height:36px;font-size:11px;"></textarea>
   </details>
   <div id="yn-status" style="display:none;font-size:11px;"></div>
   <div class="sa-sub">▼ まとめスライドのQR</div>
-  ${row(b('🔳 QRを貼る','yqStart(this)',G),b('↩ 貼る前に戻す','yqUndo()'))}
+  ${row(b('🔳 QRを貼る','yqStart(this)','background:#4f46e5;color:#fff;'),b('↩ 貼る前に戻す','yqUndo()'))}
   <div id="yn-qr-status" style="display:none;font-size:11px;"></div>
-  <div style="font-size:10px;color:var(--text-sub);">最後の1枚のQR用の空きに、QRのドットだけを貼ります（位置はドラッグで直せます）。</div>
+  <div style="font-size:10px;color:var(--text-sub);" title="最後の1枚のQR用の空きに、QRのドットだけを貼ります（位置はドラッグで直せます）。">最後の1枚の空きに貼ります（ドラッグで位置を直せます）。</div>
 </div>
 </div>
 
@@ -9439,8 +9440,7 @@ ${yaBuildPaneHtml()}
 
 <div id="yt-pane-post" style="display:none;">
 <div class="sa-card">
-  <h2>1. 投稿文を作る</h2>
-  <div style="font-size:11px;color:var(--text-sub);">材料は、動画資料・レポートの無料範囲・音声の文字起こし（カット後に残る文）です。</div>
+  <h2 title="材料は、動画資料・レポートの無料範囲・音声の文字起こし（カット後に残る文）です">1. 投稿文を作る</h2>
   ${row(b('🤖 Gemini APIで作る','ytPostAi(this)','background:#4f46e5;color:#fff;'),b('🤖 SNSだけ作り直す',"ytPostAi(this,true)",'background:#4f46e5;color:#fff;'))}
   <div style="font-size:10px;color:var(--text-sub);">「SNSだけ作り直す」は、概要欄・タイトル・サムネイルを変えません（登録済みの動画用）。</div>
   <details class="yt-col" style="margin-top:4px;"><summary style="font-size:11px;color:var(--text-sub);cursor:pointer;">手動で作る（ChatGPT など。APIが混んでいるとき）</summary>
@@ -9472,11 +9472,11 @@ ${yaBuildPaneHtml()}
   <div class="sa-sub">▼ 概要欄（このまま貼れる全文）</div>
   <textarea id="yt-p-desc" placeholder="本文／noteの記事リンク／使用ツール／AIの注意書き／ハッシュタグ" oninput="saveState()" style="min-height:150px;font-size:11px;"></textarea>
   ${row(b('📋 概要欄をコピー',"copyText(ytVal('p-desc'),this)",'background:#0d9488;color:#fff;'),b('↻ 組み立て直す',"if(confirm('概要欄とSNSの投稿文を、AIの文から作り直します。手で直した分は消えます。よろしいですか？'))ytPostBuild()"))}
-  <div style="font-size:10px;color:var(--text-sub);">本文 → noteの記事リンク（記事タブの記事URL）→ 定型文（設定タブ）→ ハッシュタグ の順に組み立てます。「↻ 組み立て直す」は、手で直した分を捨てて、AIの文から作り直します（概要欄とSNSの全部）。</div>
+  <div style="font-size:10px;color:var(--text-sub);" title="本文 → noteの記事リンク（記事タブの記事URL）→ 定型文（設定タブ）→ ハッシュタグ の順に組み立てます。「↻ 組み立て直す」は、手で直した分を捨てて、AIの文から作り直します（概要欄とSNSの全部）。">「↻ 組み立て直す」は、手で直した分も作り直します（概要欄とSNSの全部）。</div>
   <div class="sa-sub">▼ X（旧Twitter）（このまま貼れる全文）</div>
   <textarea id="yt-p-x" placeholder="【#銘柄名（コード）】／本文／ハッシュタグ／YouTubeのURL" oninput="saveState()" style="min-height:90px;font-size:11px;"></textarea>
   ${row(b('📋 Xをコピー',"copyText(ytVal('p-x'),this)"))}
-  <div style="font-size:10px;color:var(--text-sub);">ここから下の4つは、Xと同じ1行目（問いかけ）と「この動画で確かめること」を使い、誘導とnoteの案内は設定タブの定型文を付けます。</div>
+  <div style="font-size:10px;color:var(--text-sub);" title="ここから下の4つは、Xと同じ1行目（問いかけ）と「この動画で確かめること」を使い、誘導とnoteの案内は設定タブの定型文を付けます。">下の4つの、見る場所とnoteの案内は、設定タブの定型文です。</div>
   <div class="sa-sub">▼ YouTubeの投稿（投稿の種類で「動画」を選び、この動画を選ぶ）</div>
   <textarea id="yt-p-yp" oninput="saveState()" style="min-height:120px;font-size:11px;"></textarea>
   ${row(b('📋 YouTubeの投稿をコピー',"copyText(ytVal('p-yp'),this)"))}
@@ -9494,11 +9494,11 @@ ${yaBuildPaneHtml()}
 </div>
 
 <div id="yt-pane-article" style="display:none;">
-${[['n','note記事（無料）','noteは表を表示できないので、表を使わない形で作ります。動画のURLは、本文の最初の段落のあとに入ります（noteに貼ったあと、URLの行の末尾でEnterを押すと動画のカードになります）。'],['b','ブログ記事','表を使う形で作ります。動画は、ブログの管理画面の「YouTube の URL」の欄に入れてください（本文には入れません）。']].map(([k,title,note],i)=>`
+${[['n','note記事（無料）','表なしで作ります。動画のURLは最初の段落のあと（noteでURLの行末でEnter→動画のカード）。'],['b','ブログ記事','表ありで作ります。動画は管理画面の「YouTube の URL」の欄へ（本文には入れない）。']].map(([k,title,note],i)=>`
 <div class="sa-card"${i?' style="margin-top:8px;"':''}>
   <h2>${i+1}. ${title}</h2>
   <div style="font-size:11px;color:var(--text-sub);">${note}</div>
-  ${row(b('🤖 Gemini APIで作る',"ygArtAi('"+k+"',this)",'background:#0d9488;color:#fff;'))}
+  ${row(b('🤖 Gemini APIで作る',"ygArtAi('"+k+"',this)",'background:#4f46e5;color:#fff;'))}
   <details class="yt-col" style="margin-top:4px;"><summary style="font-size:11px;color:var(--text-sub);cursor:pointer;">手動で作る（ChatGPT など。APIが混んでいるとき）</summary>
   ${row(b('💬 プロンプト',"try{copyText(ygArticlePrompt('"+k+"'),this)}catch(e){alert(e.message)}",G),b('📋 貼り付け',"ygArtPaste('"+k+"')"))}
   </details>
@@ -9514,8 +9514,8 @@ ${[['n','note記事（無料）','noteは表を表示できないので、表を
 </div>`).join('')}
 <div class="sa-card" style="margin-top:8px;">
   <h2>3. 売買をすすめる表現のチェック</h2>
-  <div style="font-size:11px;color:var(--text-sub);">Gemini APIで作ったときは自動で行います。貼り付けた記事は、下のボタンで。</div>
-  ${row(b('✅ note記事をチェック',"ygArtCheck('n',this)"),b('✅ ブログ記事をチェック',"ygArtCheck('b',this)"))}
+  <div style="font-size:11px;color:var(--text-sub);" title="Gemini APIで作ったときは自動で行います。貼り付けた記事は、下のボタンで。">APIで作ると自動。手動で貼った記事だけ押す。</div>
+  ${row(b('✅ note記事をチェック',"ygArtCheck('n',this)",'background:#4f46e5;color:#fff;'),b('✅ ブログ記事をチェック',"ygArtCheck('b',this)",'background:#4f46e5;color:#fff;'))}
   <textarea id="yt-a-check" readonly placeholder="チェックの結果（どこを・どう直したか）がここに出ます" style="min-height:46px;font-size:11px;"></textarea>
 </div>
 </div>
@@ -9527,7 +9527,7 @@ ${[['n','note記事（無料）','noteは表を表示できないので、表を
   ${set('チャート期間','<input type="number" id="yt-months" value="12" min="1" max="60" style="width:60px;flex:none;font-size:11px;padding:4px;">','ヶ月')}
   ${set('試聴の前後','<input type="number" id="ya-ctx" value="2" min="0" max="10" step="0.5" style="width:60px;flex:none;font-size:11px;padding:4px;">','秒（音声カットの▶・試聴で、前後に足す長さ）')}
   <div class="sa-sub">▼ Geminiのモデル（作業ごと）</div>
-  <div style="font-size:10px;color:var(--text-sub);">回数の上限のときは、選んだモデルから一覧の順に下のモデルへ自動で切り替えます（Lite には切り替えません。読み取りの位置が大きくずれて使えなかったため）。混雑のときは切り替えずに止まるので、ここで別のモデルを選んでもう一度押してください。</div>
+  <div style="font-size:10px;color:var(--text-sub);" title="回数の上限のときは、選んだモデルから一覧の順に下のモデルへ自動で切り替えます（Lite には切り替えません。読み取りの位置が大きくずれて使えなかったため）。混雑のときは切り替えずに止まるので、ここで別のモデルを選んでもう一度押してください。">上限のときは下のモデルへ自動で切り替え（Lite除く）。混雑で止まったら、別のモデルを選んでもう一度。</div>
   ${YT_AI_TASKS.map(([k,n,d])=>set(n,`<select id="yt-m-${k}" onchange="saveState()" style="flex:1;min-width:0;font-size:11px;padding:3px;">${YT_MODEL_LIST.map(([v,l])=>`<option value="${v}"${v===d?' selected':''}>${l}</option>`).join('')}</select>`)).join('')}
   <div class="yt-only-gen" style="display:none;">${set('番組の説明','<input type="text" id="yt-g-aud" value="'+YT_G_AUD_DEFAULT+'" oninput="saveState()" style="flex:1;min-width:0;font-size:11px;padding:4px;">','')}
   <div style="font-size:10px;color:var(--text-sub);">ChatGPTへの指示の「あなたの役割」に入れる、番組の説明です。</div></div>
@@ -9535,7 +9535,7 @@ ${[['n','note記事（無料）','noteは表を表示できないので、表を
   <div class="sa-sub">▼ 概要欄の定型文（使用ツール・AIの注意書き）</div>
   <textarea id="yt-p-fixed" style="min-height:90px;font-size:11px;">${esc(YT_POST_FIXED)}</textarea>
   <div class="sa-sub">▼ SNSの投稿文の定型文（誘導とnoteの案内）</div>
-  <div class="yt-only-stock" style="font-size:10px;color:var(--text-sub);">{下値/上値} は、株価が下がった回は「下値」、上がった回は「上値」に置き換わります。直したら、SNSタブの「↻ 組み立て直す」で入ります。</div>
+  <div class="yt-only-stock" style="font-size:10px;color:var(--text-sub);" title="{下値/上値} は、株価が下がった回は「下値」、上がった回は「上値」に置き換わります。直したら、SNSタブの「↻ 組み立て直す」で入ります。">{下値/上値} は株価の向きで置き換わります。直したらSNSタブの「↻ 組み立て直す」。</div>
   ${[['yp','YouTubeの投稿'],['ig','Instagram'],['l8','Lemon8'],['tt','TikTok']].map(([k,n])=>`<div style="font-size:11px;margin-top:4px;">${n}</div><textarea id="yt-f-${k}" style="min-height:44px;font-size:11px;">${esc(YT_SNS_FIXED[k])}</textarea>`).join('')}
 </div>
 </div>`;
@@ -10404,7 +10404,7 @@ function yaBuildPaneHtml(){
   return `
 <div class="sa-card" style="margin-top:8px;">
   <h2>2. 音声の読み込み・文字起こし</h2>
-  <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;"><input type="file" id="ya-file" accept="audio/*,.m4a" onchange="yaLoadFile(this.files[0])" style="font-size:11px;flex:1;min-width:0;">${b('📝 文字起こし','yaTranscribe(this)',G)}</div>
+  <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;"><input type="file" id="ya-file" accept="audio/*,.m4a" onchange="yaLoadFile(this.files[0])" style="font-size:11px;flex:1;min-width:0;">${b('📝 文字起こし','yaTranscribe(this)','background:#4f46e5;color:#fff;')}</div>
   <div id="ya-st-tr" style="display:none;font-size:11px;"></div>
   <div style="font-size:10px;color:var(--text-sub);" title="Whisperは相槌を落とし話者も分からないので、Geminiで起こした文章と時刻を突き合わせます">Gemini（Web版）の文字起こしで、相槌と話者を補う</div>
   ${row(b('💬 プロンプト',"copyText(YA_G_PROMPT,this)",G),b('📋 貼り付け',"yaPaste('gtext',yaAlignFromBox)"),b('↻ 突き合わせ','yaAlignFromBox()'))}
@@ -12049,12 +12049,12 @@ function ynBuildPaneHtml(){
   const row=(...x)=>`<div class="row" style="flex-wrap:nowrap;">${x.join('')}</div>`;
   return `
 <div class="sa-card">
-  <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;"><h2>1. 演出の割り当て</h2><span style="flex:none;"><button class="ya-nd" onclick="ynPlanUndo(this,'p')" title="割り当ての前の状態に戻す">↶ 戻す</button><button class="ya-nd" onclick="ynPlanUndo(this,'f')" title="戻したのを取り消す">↷ やり直す</button></span></div>
-  <div style="font-size:11px;color:var(--text-sub);">音声（③でカットした後に残る文）とスライドのまとまりを突き合わせ、切り替え・ズーム・強調・根拠資料の差し込みを決めます。</div>
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;"><h2 title="音声（カットした後に残る文）とスライドのまとまりを突き合わせ、切り替え・ズーム・強調・根拠資料の差し込みを決めます">1. 演出の割り当て</h2><span style="flex:none;"><button class="ya-nd" onclick="ynPlanUndo(this,'p')" title="割り当ての前の状態に戻す">↶ 戻す</button><button class="ya-nd" onclick="ynPlanUndo(this,'f')" title="戻したのを取り消す">↷ やり直す</button></span></div>
+  
   ${row(b('🤖 Gemini APIで割り当て','ynAiPlan(this)','background:#4f46e5;color:#fff;'))}
   <details class="yt-col" style="margin-top:4px;"><summary style="font-size:11px;color:var(--text-sub);cursor:pointer;">手動で割り当てる（ChatGPT など。APIが混んでいるとき）</summary>
   ${row(b('💬 プロンプト',"try{copyText(ynPlanPrompt(),this)}catch(e){alert(e.message)}",G),b('🖼 番号入り画像','ynAnnotatedZip(this)'),b('📋 貼り付け',"ynPaste('plan',ynApplyPasted)"),b('↻ 反映','ynApplyPasted()'))}
-  <div style="font-size:10px;color:var(--text-sub);">ChatGPTで割り当てるときは、プロンプトと一緒に「🖼 番号入り画像」のZIPの中の画像を添付してください（Gemini APIは自動で送ります）。</div>
+  <div style="font-size:10px;color:var(--text-sub);" title="ChatGPTで割り当てるときは、プロンプトと一緒に「🖼 番号入り画像」のZIPの中の画像を添付してください（Gemini APIは自動で送ります）。">「🖼 番号入り画像」のZIPの画像も一緒に添付。</div>
   <textarea id="yn-plan" placeholder="Gemini／ChatGPTに投げて、返ってきたJSONを貼り付け" style="min-height:36px;font-size:11px;font-family:monospace;"></textarea>
   </details>
   <div id="yn-status2" style="display:none;font-size:11px;"></div>
@@ -12062,11 +12062,11 @@ function ynBuildPaneHtml(){
 
 <div class="sa-card" style="margin-top:8px;">
   <h2>2. 出典の画像</h2>
-  <div style="font-size:11px;color:var(--text-sub);">出典ごとに、画面へ差し込む画像を用意します。PDFは「取得」、ページやチャートはキャプチャを「貼り付け」。</div>
-  ${row(b('⬇ まとめて取得（未取得だけ）','ysGrabAll(this)',G),b('↻ 出典一覧を読み直す','ysRender()'))}
+  <div style="font-size:11px;color:var(--text-sub);" title="出典ごとに、画面へ差し込む画像を用意します。PDFは「取得」、ページやチャートはキャプチャを「貼り付け」。">PDFは「取得」、ページやチャートはキャプチャを「貼り付け」。</div>
+  ${row(b('⬇ まとめて取得（未取得だけ）','ysGrabAll(this)'),b('↻ 出典一覧を読み直す','ysRender()'))}
   <div id="yn-src-list"></div>
   <div id="yn-src-status" style="display:none;font-size:11px;"></div>
-  <div style="font-size:10px;color:var(--text-sub);">キャプチャは、行を押して選んでから Ctrl+V（または「貼り付け」）。入れた画像は .svpz に入ります。</div>
+  <div style="font-size:10px;color:var(--text-sub);" title="キャプチャは、行を押して選んでから Ctrl+V（または「貼り付け」）。入れた画像は .svpz に入ります。">キャプチャは、行を選んで Ctrl+V。</div>
 </div>
 
 <div class="sa-card" style="margin-top:8px;">
@@ -12078,7 +12078,7 @@ function ynBuildPaneHtml(){
   <div id="yn-tpl-name" style="font-size:10px;color:var(--text-sub);"></div>
   ${row(`<button class="main-btn download-btn" style="flex:1;font-size:13px;padding:8px 4px;" onclick="ynExport(this)">💾 .svpz を書き出す</button>`)}
   <div id="yn-status3" style="display:none;font-size:11px;"></div>
-  <div style="font-size:10px;color:var(--text-sub);">中身：スライド画像・元の音声・カット・切り替え・ズーム・強調・コーナーテロップ・字幕・出典（仮画像＋表記）。ひな形の .svpz を選ぶと、全体の設定（透かし・BGM・字幕スタイル・書き出し設定）を引き継ぎます。</div>
+  <div style="font-size:10px;color:var(--text-sub);" title="中身：スライド画像・元の音声・カット・切り替え・ズーム・強調・コーナーテロップ・字幕・出典（仮画像＋表記）。ひな形の .svpz を選ぶと、全体の設定（透かし・BGM・字幕スタイル・書き出し設定）を引き継ぎます。">ひな形の .svpz を選ぶと、透かし・BGM・字幕・書き出しの設定を引き継ぎます。</div>
 </div>`;
 }
 async function ynLoadTpl(file){
