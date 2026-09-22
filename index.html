@@ -11245,7 +11245,8 @@ async function ynExport(btn){
     seq.forEach((no,i)=>{
       const s=YN.slides[no-1],ext=(s.name.match(/\.(\w+)$/)||[,'png'])[1].toLowerCase();
       zip.file(`slides/slide-${i}.${ext}`,s.blob);
-      outSlides.push({name:s.name,file:`slides/slide-${i}.${ext}`,zoomKeyframes:[],id:++id,kind:'image',narMute:0});
+      const nth=seq.slice(0,i+1).filter(n=>n===no).length;   // 同じスライドの何回目か（2回目からは名前に付けて、ナレスラの一覧で見分けられるように）
+      outSlides.push({name:nth>1?s.name.replace(/(\.\w+)?$/,`（${nth}回目）$1`):s.name,file:`slides/slide-${i}.${ext}`,zoomKeyframes:[],id:++id,kind:'image',narMute:0});
     });
     // そのスライドの、その時刻に表示している回（見つからなければ最初の回）
     const slideAt=(no,t)=>{let k=occ.findIndex(o=>o.no===no&&t>=o.s-0.01&&t<o.e-0.01);if(k<0)k=occ.findIndex(o=>o.no===no);return k<0?null:outSlides[k];};
