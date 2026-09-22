@@ -11079,7 +11079,11 @@ function ynFxSet(kind,i,field,v){
     it.zones=zs;delete it.zone;delete it.text;
   }else{
     const ns=ynKeptSents().map(x=>x.n);let n=+v;
-    if(!ns.includes(n)){const near=ns.reduce((a,b)=>Math.abs(b-n)<Math.abs(a-n)?b:a,ns[0]);n=near;}   // 削った文の番号なら、近くの残る文へ
+    // 削った文の番号なら、動かした向きの次の残る文へ（近い方へ寄せると、広げたのに元へ戻ってしまう）
+    if(!ns.includes(n)){
+      const up=n>(+it[field]||0),near=(up?ns.find(x=>x>n):[...ns].reverse().find(x=>x<n))??ns.reduce((a,b)=>Math.abs(b-n)<Math.abs(a-n)?b:a,ns[0]);
+      ynStatus(`文${n}は「削る」にしている文なので、文${near}にしました`,'ok','status2');n=near;
+    }
     if(field==='from'){it.from=n;if(it.to<n)it.to=n;}else{it.to=n;if(it.from>n)it.from=n;}
     Object.assign(it,ynSeg(it.from,it.to)||{});
   }
