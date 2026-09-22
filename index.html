@@ -10934,7 +10934,9 @@ function ynEditLen(s,e){const K=yaKeep();return Math.max(0,yaToEdit(e,K)-yaToEdi
 function ynApplyPlan(plan){
   const sents=ynKeptSents();if(!sents.length)throw new Error('文字起こしがありません');
   const at=n=>sents.find(x=>x.n===+n)||null;
+  // 始まりの文を削っていたら、その範囲で最初に残る文から始める（外すと前後の同じスライドが1つにまとまり、2回目が消える）
   const sl=plan.slides.map(x=>({no:+x.no,from:+x.from,to:+x.to,corner:String(x.corner||'').slice(0,12)}))
+    .map(x=>{if(!at(x.from)){const q=sents.find(y=>y.n>=x.from&&y.n<=Math.max(x.from,x.to));if(q)x.from=q.n;}return x;})
     .filter(x=>x.no>=1&&x.no<=YN.slides.length&&at(x.from)).sort((a,b)=>(a.from-b.from)||(a.no-b.no));   // 音声で出てくる順
   if(!sl.length)throw new Error('スライドの範囲が読み取れません');
   // 1枚目は最初の文から。2枚目以降は、AIが決めた文のまま（章の切れ目へは寄せない。切れ目は前振りの文から始まるので、切り替えが早くなる）
