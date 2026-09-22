@@ -8335,7 +8335,7 @@ function ytSlideParts(){
   const up=getDir()==='up';
   const doc=ytStripSources(ytVal('doc'));
   const tr=((document.getElementById('ya-gtext')||{}).value||'').trim();
-  if(!doc)throw new Error('「調査」タブに ChatGPT の動画資料を貼り付けてください');
+  if(!doc)throw new Error('「分析」タブに ChatGPT の動画資料を貼り付けてください');
   if(!tr)throw new Error('「音声」タブに Gemini の文字起こしを貼り付けてください');
   const fr=ytFreeReport();
   const ch=ytChapters().map(c=>`${c.no} ${up&&c.whatUp?c.whatUp:c.what}`).join('\n');
@@ -8473,15 +8473,15 @@ function ytGenChapters(){
 function ygMaterial(){
   ygLinkGate();
   const r=ygReport(),d=ytStripSources(ytVal('doc'));
-  if(!r)throw new Error('「調査」タブに、ファクトチェックを終えたレポートを貼り付けてください');
-  if(!d)throw new Error('「調査」タブの「3. 構成と出典」に、①で作った結果を貼り付けてください');
+  if(!r)throw new Error('「分析」タブに、ファクトチェックを終えたレポートを貼り付けてください');
+  if(!d)throw new Error('「分析」タブの「3. 構成と出典」に、①で作った結果を貼り付けてください');
   return `テーマ：${ytTheme()}\n\n# レポート\n${r}\n\n# 企画と構成\n${d}`;
 }
 // 章の並び。株価分析の動画は決まった7章、YT動画は貼り付けた動画資料の構成
 function ytChapters(){
   if(!ytGen())return YT_CHAPTERS;
   const ch=ytGenChapters();
-  if(!ch.length)throw new Error('動画資料に「構成」の表がありません。調査タブの「3. 構成と出典」に、①で作った結果を貼り付けてください');
+  if(!ch.length)throw new Error('動画資料に「構成」の表がありません。分析タブの「3. 構成と出典」に、①で作った結果を貼り付けてください');
   return ch;
 }
 const ytTheme=()=>ytVal('g-theme');
@@ -8669,7 +8669,7 @@ ${rows.map(r=>`・出典${r.x.no} ${r.x.name}\n　${r.x.url}\n${r.j.why.map(w=>'
 function ygLinkGate(){
   if(!ytGen())return;
   const t=ytLinkState();if(t.pass)return;
-  throw new Error('「調査」タブの「3. 構成と出典」で、出典のリンクの確認が済んでいません（'+ytLinkStateText()[0].replace(/^[⚠✅]\s*リンク：/,'')+'）');
+  throw new Error('「分析」タブの「3. 構成と出典」で、出典のリンクの確認が済んでいません（'+ytLinkStateText()[0].replace(/^[⚠✅]\s*リンク：/,'')+'）');
 }
 
 // ---- 操作 ----
@@ -8936,7 +8936,7 @@ function ytPostPrompt(){
   const tr=ytPostTranscript();
   const sr=ytSeries();
   if(ytGen()){
-    if(!ytTheme())throw new Error('「調査」タブにテーマを入力してください');
+    if(!ytTheme())throw new Error('「分析」タブにテーマを入力してください');
     return `${ytPostRulesGen()}
 
 ---
@@ -8971,7 +8971,7 @@ ${tr}`:''}`;
 function ytSlidePartsLoose(){
   const up=getDir()==='up';
   const doc=ytStripSources(ytVal('doc'));
-  if(!doc)throw new Error('「調査」タブに ChatGPT の動画資料を貼り付けてください');
+  if(!doc)throw new Error('「分析」タブに ChatGPT の動画資料を貼り付けてください');
   if(ytGen())return{plan:`${ytIntent()}です。\n\nテーマ：${ytTheme()}`,report:ygMaterial()};
   const fr=ytFreeReport();
   const plan=`${ytIntent()}です。
@@ -9026,7 +9026,7 @@ async function ytPostAi(btn){
 // 出力の形は、株価分析の記事・ブログの貼り付けと同じ【タイトル】【本　文】【ハッシュタグ】（sumikko-money/docs/article-format.md）
 function ygArticlePrompt(kind){
   const theme=ytTheme();
-  if(!theme)throw new Error('「調査」タブにテーマを入力してください');
+  if(!theme)throw new Error('「分析」タブにテーマを入力してください');
   const doc=ygMaterial();
   const note=kind==='n';
   return `あなたは、${ytAud()}の内容を、記事として分かりやすく伝える書き手です。
@@ -9086,7 +9086,7 @@ async function ygArtPaste(k){
 function ygArtUrlApply(manual){
   const el=ytEl('a-n-body');if(!el||!el.value.trim()){if(manual)alert('先にnote記事を作ってください');return;}
   const url=ytVal('p-yturl');
-  if(!url){if(manual)alert('投稿文タブの「YouTubeのURL」を入れてから押してください（動画を上げたあとで構いません）');return;}
+  if(!url){if(manual)alert('SNSタブの「YouTubeのURL」を入れてから押してください（動画を上げたあとで構いません）');return;}
   const isYt=l=>/^https?:\/\/(www\.|m\.)?(youtube\.com|youtu\.be)\/\S+$/.test(l.trim());
   const blocks=el.value.split(/\n{2,}/).map(x=>x.trim()).filter(x=>x&&!isYt(x));
   let i=blocks.findIndex(x=>!/^#{1,6}\s/.test(x));if(i<0)i=0;
@@ -9218,13 +9218,13 @@ function ytBuildTabHtml(){
   const set=(label,input,note)=>`<div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:4px;"><label style="font-size:11px;color:var(--text-sub);flex:none;">${label}</label>${input}${note?`<span style="font-size:11px;color:var(--text-sub);">${note}</span>`:''}</div>`;
   return `
 <div class="sa-subtabs" style="margin-top:6px;">
-  <button class="sa-subtab active" id="yt-itab-research" onclick="ytInnerTab('research')">調査</button>
+  <button class="sa-subtab active" id="yt-itab-research" onclick="ytInnerTab('research')">分析</button>
   <button class="sa-subtab" id="yt-itab-audio" onclick="ytInnerTab('audio')">音声</button>
-  <button class="sa-subtab" id="yt-itab-slides" onclick="ytInnerTab('slides')">スライド</button>
   <button class="sa-subtab" id="yt-itab-cut" onclick="ytInnerTab('cut')">カット</button>
-  <button class="sa-subtab" id="yt-itab-naresla" onclick="ytInnerTab('naresla')">ナレスラ</button>
-  <button class="sa-subtab" id="yt-itab-post" onclick="ytInnerTab('post')">投稿文</button>
+  <button class="sa-subtab" id="yt-itab-slides" onclick="ytInnerTab('slides')">スライド</button>
+  <button class="sa-subtab" id="yt-itab-naresla" onclick="ytInnerTab('naresla')">演出</button>
   <button class="sa-subtab yt-only-gen" id="yt-itab-article" onclick="ytInnerTab('article')" style="display:none;">記事</button>
+  <button class="sa-subtab" id="yt-itab-post" onclick="ytInnerTab('post')">SNS</button>
   <button class="sa-subtab" id="yt-itab-settings" onclick="ytInnerTab('settings')">設定</button>
 </div>
 <div id="yt-status" class="yt-toast" style="display:none;" onclick="this.style.display='none'" title="押すと消えます"></div>
@@ -9377,7 +9377,7 @@ ${[['n','note記事（無料）','noteは表を表示できないので、表を
   <div class="row" style="flex-wrap:nowrap;gap:4px;"><input type="text" id="yt-a-${k}-title" oninput="saveState()" style="flex:1;min-width:0;font-size:12px;"><button class="ya-nd" onclick="copyText(ytVal('a-${k}-title'),this)">コピー</button></div>
   <div class="sa-sub">▼ 本文</div>
   <textarea id="yt-a-${k}-body" oninput="saveState()" style="min-height:120px;font-size:11px;"></textarea>
-  ${row(b('📄 本文をコピー',"copyText(ytVal('a-"+k+"-body'),this)"),k==='n'?b('🎬 動画のURLを入れ直す','ygArtUrlApply(true)'):b('🎬 動画のURLをコピー',"ytVal('p-yturl')?copyText(ytVal('p-yturl'),this):alert('投稿文タブの「YouTubeのURL」が空です')"))}
+  ${row(b('📄 本文をコピー',"copyText(ytVal('a-"+k+"-body'),this)"),k==='n'?b('🎬 動画のURLを入れ直す','ygArtUrlApply(true)'):b('🎬 動画のURLをコピー',"ytVal('p-yturl')?copyText(ytVal('p-yturl'),this):alert('SNSタブの「YouTubeのURL」が空です')"))}
   <div class="sa-sub">▼ ハッシュタグ</div>
   <div class="row" style="flex-wrap:nowrap;gap:4px;"><input type="text" id="yt-a-${k}-tags" oninput="saveState()" style="flex:1;min-width:0;font-size:11px;"><button class="ya-nd" onclick="copyText(ytVal('a-${k}-tags'),this)">コピー</button></div>
   <div id="yt-a-${k}-status" style="display:none;font-size:11px;"></div>
@@ -9406,7 +9406,7 @@ ${[['n','note記事（無料）','noteは表を表示できないので、表を
   <div class="sa-sub">▼ 概要欄の定型文（使用ツール・AIの注意書き）</div>
   <textarea id="yt-p-fixed" style="min-height:90px;font-size:11px;">${esc(YT_POST_FIXED)}</textarea>
   <div class="sa-sub">▼ SNSの投稿文の定型文（誘導とnoteの案内）</div>
-  <div class="yt-only-stock" style="font-size:10px;color:var(--text-sub);">{下値/上値} は、株価が下がった回は「下値」、上がった回は「上値」に置き換わります。直したら、投稿文タブの「↻ 組み立て直す」で入ります。</div>
+  <div class="yt-only-stock" style="font-size:10px;color:var(--text-sub);">{下値/上値} は、株価が下がった回は「下値」、上がった回は「上値」に置き換わります。直したら、SNSタブの「↻ 組み立て直す」で入ります。</div>
   ${[['yp','YouTubeの投稿'],['ig','Instagram'],['l8','Lemon8'],['tt','TikTok']].map(([k,n])=>`<div style="font-size:11px;margin-top:4px;">${n}</div><textarea id="yt-f-${k}" style="min-height:44px;font-size:11px;">${esc(YT_SNS_FIXED[k])}</textarea>`).join('')}
 </div>
 </div>`;
@@ -10749,12 +10749,17 @@ function ynReadLabel(){
   const next=YN.slides.findIndex(s=>!(s.zones&&s.zones.length));
   el.textContent=!n||!done?'🔍 まとまりを読み取る':done<n?`🔍 続きから（${next+1}枚目〜）`:`✅ 全${n}枚 読み取り済み`;
 }
+// いちばん近い、縦に動かせる入れ物（無ければページ）
+function ynScrollBox(el){for(let p=el.parentElement;p;p=p.parentElement){const o=getComputedStyle(p).overflowY;if((o==='auto'||o==='scroll')&&p.scrollHeight>p.clientHeight)return p;}return document.scrollingElement;}
 function ynRender(){
   ynReadLabel();
   [...YN.sel].forEach(n=>{if(!YN.slides.some(s=>s.name===n))YN.sel.delete(n);});ynSelInfo();
   const area=document.getElementById('yn-prev');if(!area)return;
-  if(!YN.slides.length){area.innerHTML='<div style="font-size:11px;color:var(--text-sub);padding:8px;">「ナレスラ」タブでスライド画像を読み込むと、ここに表示されます</div>';return;}
-  area.innerHTML=YN.slides.map((s,i)=>`<div class="yn-item"><div class="yn-hd"><input type="checkbox" class="yn-sel" ${YN.sel.has(s.name)?'checked':''} onchange="ynSelToggle(${i},this.checked)" title="選ぶ（読み取り直す・位置を補正・リセット・Web版の読み取りを、選んだ枚だけにする）"><b>${i+1}</b> <b>${esc(ynSlideTitle(i))}</b> <span title="${esc(s.name)}">${esc(ynShortName(i))}</span> <span>${s.zones?`${s.zones.length}か所`:'未読み取り'}</span>
+  // 描き直すと中身の高さが一度0になり、見ていた位置が一番上へ飛ぶ。前の位置と、枚ごとの高さを覚えておく
+  const sc=ynScrollBox(area),top0=sc?sc.scrollTop:0,hs={};
+  area.querySelectorAll('.yn-item[data-n]').forEach(it=>{hs[it.dataset.n]=it.offsetHeight;});
+  if(!YN.slides.length){area.innerHTML='<div style="font-size:11px;color:var(--text-sub);padding:8px;">「スライド」タブでスライド画像を読み込むと、ここに表示されます</div>';return;}
+  area.innerHTML=YN.slides.map((s,i)=>`<div class="yn-item" data-n="${esc(s.name)}"><div class="yn-hd"><input type="checkbox" class="yn-sel" ${YN.sel.has(s.name)?'checked':''} onchange="ynSelToggle(${i},this.checked)" title="選ぶ（読み取り直す・位置を補正・リセット・Web版の読み取りを、選んだ枚だけにする）"><b>${i+1}</b> <b>${esc(ynSlideTitle(i))}</b> <span title="${esc(s.name)}">${esc(ynShortName(i))}</span> <span>${s.zones?`${s.zones.length}か所`:'未読み取り'}</span>
 <button class="ya-nd" onclick="ynSnapAll(this,${i})" title="この1枚の枠を、画像の縁や文字に合わせる">🪄</button><button class="ya-nd" onclick="ynZonesUndo(this,${i},'p')" title="この1枚のまとまりを、前の状態に戻す">↶</button><button class="ya-nd" onclick="ynZonesUndo(this,${i},'f')" title="戻したのを取り消す">↷</button><button class="ya-nd" onclick="ynReadOne(${i})" title="この1枚だけ、まとまりを読み取る（読み取り直す）">${s.zones&&s.zones.length?'↻ 読み直す':'🔍 読み取る'}</button><button class="ya-nd" onclick="ynMove(${i},-1)">↑</button><button class="ya-nd" onclick="ynMove(${i},1)">↓</button><button class="ya-nd" onclick="if(confirm('この画像を外しますか？'))ynRemove(${i})">✕</button></div>
 <div class="yn-img" id="yn-img-${i}"></div></div>`).join('');
   // 割り当て済みなら、スライドごとの表示時間・ズーム・強調・出典・チャートを下に出す（時刻はカット後）
@@ -10817,6 +10822,9 @@ ${rows.map(r=>r[1]).join('')}
       (s.texts||[]).map((q,k)=>q.lines.map((l,j)=>{const b=ynBox({box:l});
         return `<div class="yn-tline" style="left:${b.x0*100}%;top:${b.y0*100}%;width:${(b.x1-b.x0)*100}%;height:${(b.y1-b.y0)*100}%;" title="T${k+1} ${esc(YN_TKIND[q.kind]||'')}：${esc(q.label)}">${j===0?`<span>T${k+1}</span>`:''}</div>`;}).join('')).join('')+`</div>`;
   });
+  // 前の高さを仮に保ち、元の位置へ戻す（画像が読めたら仮の高さは外す）
+  area.querySelectorAll('.yn-item[data-n]').forEach(it=>{const hh=hs[it.dataset.n];if(!hh)return;it.style.minHeight=hh+'px';const im=it.querySelector('img');if(im)im.addEventListener('load',()=>{it.style.minHeight='';},{once:true});});
+  if(sc)sc.scrollTop=top0;
 }
 
 // ---- 2. 演出の割り当て（音声の文字起こし × スライドのまとまり） ----
@@ -11082,7 +11090,7 @@ function ynAddType(slide){
 function ynFxAdd(slide){
   const g=id=>document.getElementById(id+slide),type=g('yn-add-t').value;
   if(type==='source'){
-    const s=ytSources().find(y=>String(y.no)===g('yn-add-s').value);if(!s){alert('出典を選んでください（調査タブの動画資料の出典一覧から出ます）');return;}
+    const s=ytSources().find(y=>String(y.no)===g('yn-add-s').value);if(!s){alert('出典を選んでください（分析タブの動画資料の出典一覧から出ます）');return;}
     const sl=YN.plan.slides.find(x=>x.no===slide),ns=ynKeptSents().map(x=>x.n);
     const pick=v=>{let n=+v;if(!v||!ns.length)return null;return ns.includes(n)?n:ns.reduce((a,b)=>Math.abs(b-n)<Math.abs(a-n)?b:a,ns[0]);};
     let f=pick(g('yn-add-f').value)||sl.from,e=pick(g('yn-add-e').value)||f;if(e<f)e=f;
@@ -11484,7 +11492,7 @@ function ysRender(){
   const box=document.getElementById('yn-src-list');if(!box)return;
   YS.urls.forEach(u=>URL.revokeObjectURL(u));YS.urls=[];
   const list=ysRows();
-  if(!list.length){box.innerHTML='<div style="font-size:11px;color:var(--text-sub);">「調査」タブの動画資料に出典一覧がありません。</div>';return;}
+  if(!list.length){box.innerHTML='<div style="font-size:11px;color:var(--text-sub);">「分析」タブの動画資料に出典一覧がありません。</div>';return;}
   const st=list.map(s=>{const u=!!YN.plan&&!ysWhere(s.no);return u?'off':(YS.imgs[s.no]&&YS.imgs[s.no].blob)?'ok':'ng';});
   const nOk=st.filter(x=>x==='ok').length,nNg=st.filter(x=>x==='ng').length,nOff=st.filter(x=>x==='off').length;
   const sum=`<div class="ys-sum ${nNg?'ng':'ok'}">${YN.plan?'使う出典':'出典'} ${nOk+nNg}件：画像あり ${nOk}／<b>画像なし ${nNg}</b>${nOff?`（未使用 ${nOff}件は不要）`:''}${YN.plan?'':'　※割り当て前なので、使う・使わないはまだ分かりません'}</div>`;
