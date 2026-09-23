@@ -10690,6 +10690,7 @@ function yaBuildCutHtml(){
 // 欄はPJごと（yt-oped-kind／yt-op-s1..3／yt-op-v1..3／yt-op-lead／yt-ed-v。案は yt-op-cands／yt-ed-cands に JSON で持つ）。
 // 音声は KT_YA の 'oped:op'／'oped:ed'：{b64（wav）, seconds, text, voice, model, times}
 //   times：OP＝[{i:1〜3, s:その要点を話し始める時刻}]、ED＝[{text, s, e}]（字幕用の文）
+const YT_OP_LEAD='今日は3つのポイントを解説します。',YT_OP_TAIL='です。';   // OP の冒頭と締め（固定）
 const YT_OPED_GAP=0.5;                 // つなぎ目（前・OP・後・ED）に入れる無音の秒数
 const YO={op:null,ed:null};            // OP・ED の音声（KT_YA の oped:op／oped:ed の写し。演出の画面は同期で描くので持っておく）
 const ytOpedKind=()=>ytVal('oped-kind')||(ytGen()?'theme':'earn');
@@ -10713,18 +10714,21 @@ function ytOpedDraftPrompt(role){
     if(ytGen()){try{mat=ygMaterial();}catch(e){mat=ytVal('doc')||'';}}
     else{const r=ytFreeReport();mat=`銘柄：${getName()||''}（${getDir()==='up'?'上昇':'下落'}）\n${r.text||''}`;}
   }
-  const opRules=`オープニングでは、「この動画を見ると何が分かるか」を要点3つで伝えます。案を3つ作ってください。
+  // オープニングの決まり（すみぽんが書いた文をもとに整えた、2026-09-23）。冒頭と締めは固定（YT_OP_LEAD／YT_OP_TAIL）で、出力には含めない
+  const opRules=`動画の冒頭の15秒ほどで、この動画で解説する3つのポイントを紹介します。次の2つを作ってください。案は3つ作ってください。
 
-決まり
-・要点は、本編の文字起こしで実際に話している内容だけから作る。話していないことを足さない
-・音声は、lead → 3つの voice → close の順に続けて読み上げる1本の台本にする
-・lead：この動画で3つのポイントを解説することを伝える一言（1文）
-・要点ごとに2つの文を作る
-　- screen：画面に出す見出し。全角12字以内。言い切る
-　- voice：音声で読む文。見る人が抱く疑問の形で終える。全角30字くらい。3つとも同じ終わり方にしない
-・close：3つの voice のあとに読む短い締めの一言
-・3つの案は、要点の選び方や切り口を変える（同じ要点の言い換えにしない）
-・数字を入れるなら、文字起こしにある数字だけ`;
+① 読み上げる台本
+・冒頭「${YT_OP_LEAD}」→ 1つ目 → 2つ目 → 3つ目 → 締め「${YT_OP_TAIL}」の順に、続けて読み上げます
+・冒頭と締めは決まっているので、作るのは1つ目〜3つ目だけです（冒頭と締めは出力に含めない）
+・1つ目〜3つ目は、それぞれを文として言い切らず、問いかけの形で終えます。冒頭から締めまで続けて読むと、1つの流れになるようにします
+・冒頭と締めを含めて、読み上げて15秒ほどに収まる長さにします
+
+② 画面に出す見出し
+・1つ目〜3つ目を話している間に、画面に出す見出しです
+・その内容を、全角12字以内の短い言葉にまとめます。文にせず、箇条書きの項目名のようにします
+
+・ポイントは、本編の文字起こしで話している内容から選んでください
+・3つの案は、選ぶポイントや切り口を変えてください`;
   const angle=kind==='earn'
     ?`・観点：株価が下がっていたから／名前しか聞いたことがなく、くわしく知らなかったから、という作り手の動機。最後に、これからどうするつもりか（買うか見送るかの判断や、次に見る材料）を1文
 ・動機や判断の材料は、下の資料にあることだけを使う`
@@ -10737,7 +10741,7 @@ function ytOpedDraftPrompt(role){
 ・売買をすすめる言い方はしない（自分の考えとして話す）
 ${angle}
 ・3つの案は、動機の取り方を変える`;
-  const opJson='[{"lead":"","points":[{"screen":"","voice":""},{"screen":"","voice":""},{"screen":"","voice":""}],"close":""},{...},{...}]';
+  const opJson='[{"points":[{"voice":"①の台本（1つ目）","screen":"②の表示（1つ目）"},{"voice":"","screen":""},{"voice":"","screen":""}]},{...},{...}]';
   const edJson='[{"text":"","basis":"動機に使った出来事（1行。検索で得たものは出典名も）"},{...},{...}]';
   const out=op&&ed?`{"op":${opJson},"ed":${edJson}}`:`{"candidates":${op?opJson:edJson}}`;
   return `${ytIntent()}の${what}の文を作ります。
@@ -10805,7 +10809,7 @@ function ytOpedPick(role,i){
   let cands=[];try{cands=JSON.parse(ytVal(role==='op'?'op-cands':'ed-cands')||'[]');}catch(e){}
   const c=cands[i];if(!c)return;
   if(role==='op'){
-    ytEl('op-lead').value=c.lead||'';ytEl('op-tail').value=c.close||'';
+    ytEl('op-lead').value=c.lead||YT_OP_LEAD;ytEl('op-tail').value=c.close||YT_OP_TAIL;   // 冒頭と締めは固定
     for(let k=1;k<=3;k++){const p=(c.points||[])[k-1]||{};ytEl('op-s'+k).value=p.screen||'';ytEl('op-v'+k).value=p.voice||'';}
   }else ytEl('ed-v').value=c.text||'';
   saveState();
