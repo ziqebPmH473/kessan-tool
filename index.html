@@ -10634,22 +10634,22 @@ function yaBuildCutHtml(){
       <option value="">自動（株価分析＝決算／YT動画＝テーマ）</option>${YT_OPED_KINDS.map(([k,n])=>`<option value="${k}">${n}</option>`).join('')}
     </select>
   </div>
-  ${row(b('🤖 OP・EDの案を出す','ytOpedDraft(\'all\',this)','background:#4f46e5;color:#fff;'),b('🔊 OP・EDの音声を作る','ytOpedTtsAll(this)','background:#4f46e5;color:#fff;'))}
-  <div style="font-size:10px;color:var(--text-sub);" title="案は1回の呼び出しで、オープニングとエンディングを3つずつ出します（区分がテーマ・ニュースのときは、最近の出来事を検索します）。片方だけ出し直すときは、下のそれぞれのボタンを使います。">案は OP・ED を3つずつ1回で出します。片方だけ出し直すときは下のボタン。</div>
+  ${row(b('🤖 台本作成','ytOpedDraft(\'all\',this)','background:#4f46e5;color:#fff;'),b('🔊 音声生成','ytOpedTtsAll(this)','background:#4f46e5;color:#fff;'))}
+  <div style="font-size:10px;color:var(--text-sub);" title="台本作成は、1回の呼び出しで、オープニング（台本と画面に出す文字）とエンディングの台本を3つずつ作ります（区分がテーマ・ニュースのときは、最近の出来事を検索します）。音声生成は、オープニングとエンディングの音声を続けて作ります。片方だけ作り直すときは、下のそれぞれの「↻」を使います。">OP・ED の台本を3つずつ作ります。</div>
   <div class="sa-sub">▼ オープニング（この動画を見ると何が分かるか）</div>
-  ${row(b('↻ OPだけ出し直す','ytOpedDraft(\'op\',this)','background:#4f46e5;color:#fff;'))}
+  ${row(b('↻ 台本作成','ytOpedDraft(\'op\',this)','background:#4f46e5;color:#fff;'))}
   <div id="yt-oped-op-st" style="display:none;font-size:11px;"></div>
   <div id="yt-oped-op-cands"></div>
   ${[1,2,3].map(i=>`<div class="row" style="flex-wrap:nowrap;gap:4px;align-items:flex-start;margin-top:4px;"><span style="flex:none;font-size:11px;color:var(--text-sub);padding-top:4px;">${'①②③'[i-1]}</span><div style="flex:1;min-width:0;"><input type="text" id="yt-op-s${i}" placeholder="画面に出す文（短く）" oninput="saveState()" style="width:100%;font-size:11px;padding:3px;"><textarea id="yt-op-v${i}" rows="2" placeholder="音声で読む文" oninput="saveState()" style="width:100%;font-size:11px;margin-top:2px;"></textarea></div></div>`).join('')}
   <textarea id="yt-op-lead" rows="1" placeholder="要点の前に読む一言（空欄なら無し）" oninput="saveState()" style="width:100%;font-size:11px;margin-top:4px;"></textarea>
-  ${row(b('↻ OPの音声だけ作り直す','ytOpedTts(\'op\',this)','background:#4f46e5;color:#fff;'))}
+  ${row(b('↻ 音声生成','ytOpedTts(\'op\',this)','background:#4f46e5;color:#fff;'))}
   <div id="yt-oped-op-audio" style="font-size:11px;color:var(--text-sub);">音声：未生成</div>
   <div class="sa-sub">▼ エンディング（なぜこの動画を作ったか・どうするつもりか）</div>
-  ${row(b('↻ EDだけ出し直す','ytOpedDraft(\'ed\',this)','background:#4f46e5;color:#fff;'))}
+  ${row(b('↻ 台本作成','ytOpedDraft(\'ed\',this)','background:#4f46e5;color:#fff;'))}
   <div id="yt-oped-ed-st" style="display:none;font-size:11px;"></div>
   <div id="yt-oped-ed-cands"></div>
   <textarea id="yt-ed-v" rows="3" placeholder="音声で読む文（下の字幕にもなります）" oninput="saveState()" style="width:100%;font-size:11px;margin-top:4px;"></textarea>
-  ${row(b('↻ EDの音声だけ作り直す','ytOpedTts(\'ed\',this)','background:#4f46e5;color:#fff;'))}
+  ${row(b('↻ 音声生成','ytOpedTts(\'ed\',this)','background:#4f46e5;color:#fff;'))}
   <div id="yt-oped-ed-audio" style="font-size:11px;color:var(--text-sub);">音声：未生成</div>
   <textarea id="yt-op-cands" style="display:none;"></textarea><textarea id="yt-ed-cands" style="display:none;"></textarea>
 </div>`;
@@ -10717,16 +10717,16 @@ ${tr.slice(0,op?14000:8000)}`;
 function ytOpedParseJson(s){
   const m=String(s||'').replace(/^```[^\n]*\n?/,'').replace(/\n?```\s*$/,'');
   const a=m.indexOf('{'),b=m.lastIndexOf('}');
-  if(a<0||b<a)throw new Error('案を読み取れませんでした（JSONではありません）');
+  if(a<0||b<a)throw new Error('台本を読み取れませんでした（JSONではありません）');
   return JSON.parse(m.slice(a,b+1));
 }
-// role：'all'（ふだん。OP と ED を1回で）／'op'／'ed'（片方だけ出し直す）
+// role：'all'（ふだん。OP と ED を1回で）／'op'／'ed'（片方だけ作り直す）
 async function ytOpedDraft(role,btn){
   const roles=role==='all'?['op','ed']:[role];
   const st=(msg,cls)=>roles.forEach(r=>ytOpedSt(r,msg,cls));
   let prompt;try{prompt=ytOpedDraftPrompt(role);}catch(e){st('❌ '+esc(e.message),'error');return;}
   const search=role!=='op'&&ytOpedKind()!=='earn';
-  if(btn)btn.disabled=true;st(search?'案を作っています…（最近の出来事を検索します）':'案を作っています…');
+  if(btn)btn.disabled=true;st(search?'台本を作っています…（最近の出来事を検索します）':'台本を作っています…');
   try{
     const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,temperature:0.6,models:ytModels('oped'),onBusy:'stop',search})});
     const data=await res.json();if(!data.ok)throw new Error(ytAiErr(data,'oped'));
@@ -10734,10 +10734,10 @@ async function ytOpedDraft(role,btn){
     for(const r of roles){
       const list=role==='all'?j[r]:(j.candidates||j[r]);
       const cands=Array.isArray(list)?list.slice(0,3):[];
-      if(!cands.length)throw new Error(`${r==='op'?'オープニング':'エンディング'}の案が入っていませんでした`);
+      if(!cands.length)throw new Error(`${r==='op'?'オープニング':'エンディング'}の台本が入っていませんでした`);
       ytEl(r==='op'?'op-cands':'ed-cands').value=JSON.stringify(cands);
       ytOpedRenderCands(r);
-      ytOpedSt(r,`✅ 案を${cands.length}つ出しました。選ぶと下の欄に入ります（直してから音声を作ってください）`,'ok');
+      ytOpedSt(r,`✅ 台本を${cands.length}つ作りました。選ぶと下の欄に入ります（直してから音声生成を押してください）`,'ok');
     }
     saveState();
   }catch(e){st('❌ '+esc(e.message),'error');}
@@ -10759,7 +10759,7 @@ function ytOpedRenderCands(role){
     const body=role==='op'
       ?`${c.lead?`<div style="color:var(--text-sub);">${esc(c.lead)}</div>`:''}${(c.points||[]).map((p,k)=>`<div><b>${'①②③'[k]||''} ${esc(p.screen||'')}</b>　<span style="color:var(--text-sub);">${esc(p.voice||'')}</span></div>`).join('')}`
       :`<div>${esc(c.text||'')}</div>${c.basis?`<div style="color:var(--text-sub);">根拠：${esc(c.basis)}</div>`:''}`;
-    return `<div onclick="ytOpedPick('${role}',${i})" title="この案を下の欄に入れる" style="border:1px solid var(--border);border-radius:6px;padding:4px 6px;margin-top:4px;font-size:11px;cursor:pointer;line-height:1.5;"><span style="color:var(--text-sub);">案${i+1}</span>${body}</div>`;
+    return `<div onclick="ytOpedPick('${role}',${i})" title="この台本を下の欄に入れる" style="border:1px solid var(--border);border-radius:6px;padding:4px 6px;margin-top:4px;font-size:11px;cursor:pointer;line-height:1.5;"><span style="color:var(--text-sub);">台本${i+1}</span>${body}</div>`;
   }).join('');
 }
 function ytOpedPick(role,i){
