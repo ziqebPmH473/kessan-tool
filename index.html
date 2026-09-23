@@ -7666,7 +7666,7 @@ function earnPrevMode(m){
 // ---- 横動画：Gemini のモデル（作業ごとに設定タブで選ぶ）----
 // 回数の上限のときは、選んだモデルから一覧の順に下のモデルへ切り替える（Lite は除く）。混雑のときは切り替えずに止める（下も混んでいることが多い）
 const YT_MODEL_LIST=[['gemini-3.8-flash','Gemini 3.8 Flash（20回/日）'],['gemini-3.7-flash','Gemini 3.7 Flash（20回/日）'],['gemini-3.6-flash','Gemini 3.6 Flash（20回/日）'],['gemini-3.5-flash','Gemini 3.5 Flash（20回/日）'],['gemini-3-flash-preview','Gemini 3 Flash（20回/日）'],['gemini-3.5-flash-lite','Gemini 3.5 Flash Lite（500回/日）'],['gemini-3.1-flash-lite','Gemini 3.1 Flash Lite（500回/日）'],['gemini-2.5-flash','Gemini 2.5 Flash（20回/日）'],['gemini-2.5-flash-lite','Gemini 2.5 Flash Lite（20回/日）']];
-const YT_AI_TASKS=[['cut','カットの判定','gemini-3.8-flash'],['read','まとまりの読み取り','gemini-3.8-flash'],['qr','QRの位置','gemini-3.8-flash'],['plan','演出の割り当て','gemini-3.8-flash'],['post','記事・投稿文','gemini-3.8-flash'],['oped','OP・EDの案','gemini-3.8-flash']];   // 画面の並び＝使う順（音声 → スライド → 演出 → 記事・SNS）
+const YT_AI_TASKS=[['cut','カットの判定','gemini-3.8-flash'],['oped','OP・EDの案','gemini-3.8-flash'],['read','まとまりの読み取り','gemini-3.8-flash'],['qr','QRの位置','gemini-3.8-flash'],['plan','演出の割り当て','gemini-3.8-flash'],['post','記事・投稿文','gemini-3.8-flash']];   // 画面の並び＝使う順（音声 → スライド → 演出 → 記事・SNS）
 const ytModelName=m=>((YT_MODEL_LIST.find(x=>x[0]===m)||[])[1]||m).replace(/（.*$/,'');
 function ytModels(task){
   const def=(YT_AI_TASKS.find(x=>x[0]===task)||[])[2]||'gemini-3.8-flash';
