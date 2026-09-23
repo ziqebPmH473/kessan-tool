@@ -12067,13 +12067,14 @@ async function ynExport(btn){
       if(x.e<x.s+0.3)x.e=x.s+0.6;                                  // 終わりが始まりより前／短すぎる
       const nx=kept[i+1];if(nx&&x.e>nx.s)x.e=Math.max(x.s+0.2,nx.s);   // 次の字幕と重ならないようにする
     });
-    const subs=kept.map(x=>({id:++id,text:x.text,startTime:+x.s.toFixed(2),endTime:+x.e.toFixed(2),startSil:null,endSil:null,templateId:1}));
+    const subs=kept.map(x=>({id:++id,text:x.text,startTime:+x.s.toFixed(2),endTime:+x.e.toFixed(2),startSil:null,endSil:null}));   // スタイルは「共通設定を使用」（templateId を付けない）。共通設定は下で news にする
     const cuts=(typeof yaMerged==='function')?yaMerged().map(c=>({start:+c.start.toFixed(2),end:+c.end.toFixed(2)})):[];
     const ext=(YA.fileName.match(/\.(\w+)$/)||[,'m4a'])[1].toLowerCase();
     // オープニング・エンディング（音声を作ってあれば）：音声をつなぎ直して WAV にし、時刻をずらし、動画のスライド・文字・字幕・テロップを足す
     let nar={file:YA.file,name:'narration.'+ext,label:YA.fileName},opedNote='';
     const oped=await ynOpedBuild({zip,slides,switchPoints,decorations,cornerTelops,subs,cuts,newId:()=>++id,nUsed:occ.length});
-    if(oped){nar=oped.nar;opedNote=oped.note;if(oped.hasEd)p.endPad=0;}   // ED の後ろの無音はツールで入れるので、ナレスラの終了後の無音は 0
+    if(oped){nar=oped.nar;opedNote=oped.note;if(oped.hasEd)p.endPad=0;}
+    p.msubSettings=Object.assign({},p.msubSettings||{},{style:'news'});   // 字幕の共通設定のスタイル＝📰 ニュース/報道（ひな形の設定を取り込むときも、ここはニュース/報道にする）   // ED の後ろの無音はツールで入れるので、ナレスラの終了後の無音は 0
     Object.assign(p,{version:3,source:'import',name:`${ytFileBase('','')}_YouTube`,created:new Date().toISOString(),
       slides,cuts,switchPoints,decorations,decImages,cornerTelops,insertions:[],sfxList:[],sfxVols:{},
       manualSubtitles:subs,decIdCtr:id+10,narFile:nar.name,narFileName:nar.label,
@@ -12213,7 +12214,7 @@ async function ynOpedBuild(c){
     addTelop(telop.ed,at+1);
     // 字幕：文ごと（時刻は ED の音声の中の時刻）
     const t0=mainEnd+G,ts=(YO.ed.times&&YO.ed.times.length)?YO.ed.times:[{text:YO.ed.text,s:0,e:YO.ed.seconds}];
-    ts.forEach(x=>c.subs.push({id:c.newId(),text:x.text,startTime:r2(t0+x.s),endTime:r2(t0+x.e),startSil:null,endSil:null,templateId:1}));
+    ts.forEach(x=>c.subs.push({id:c.newId(),text:x.text,startTime:r2(t0+x.s),endTime:r2(t0+x.e),startSil:null,endSil:null}));
     notes.push(`エンディング ${L.toFixed(1)}秒`);
   }
   ynStatus('音声を書き出しています…','','status3');
