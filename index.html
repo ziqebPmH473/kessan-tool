@@ -9827,7 +9827,7 @@ function ytCaptureDefaults(){ytWorkIds().forEach(id=>{const el=document.getEleme
 async function ytReloadAll(links){
   window._yaGen=(window._yaGen||0)+1;
   Object.assign(YA,{file:null,fileName:'',buf:null,mono:null,sil:null,chars:[],wchars:[],sents:[],cuts:[],dur:0,sections:[],score:null,reach:null});
-  YN.slides=[];YN.plan=null;YN.cur=0;YS.imgs={};YS.edit={};YS.sel=null;
+  YN.slides=[];YN.plan=null;YN.cur=0;YS.imgs={};YS.edit={};YS.sel=null;YO.op=null;YO.ed=null;
   // リンク確認の結果：保存してある欄（「目で確認した」の印も入っている）から戻す。欄が空で、読み込んだファイルに結果があればそれを使う
   if(typeof YL!=='undefined'){ytLinkLoad();if(!YL.res&&links){YL.res=links;YL.seen={};ytLinkSave();}if(typeof ytRenderLinks==='function')ytRenderLinks();}
   const tn=document.getElementById('yn-tpl-name');if(tn)tn.textContent='';
@@ -10522,6 +10522,14 @@ function yaDownloadText(){
 }
 
 // ---- 右ペインの一覧 ----
+// 右の文の一覧に入れる、OP・ED の音声の行（色を変えて、足した音声だと分かるようにする）
+function yaOpedRow(role){
+  const r=YO[role];if(!r)return '';
+  const name=role==='op'?'オープニング':'エンディング';
+  const txt=role==='op'?[ytVal('op-lead'),ytVal('op-v1'),ytVal('op-v2'),ytVal('op-v3')].filter(Boolean).join(' '):ytVal('ed-v');
+  const bd=role==='op'?`<span class="ya-swb"><button class="ya-nd" onclick="ynOpShift(-1)" title="OP を入れる位置を1文前へ">▲ 前の文へ</button><button class="ya-nd" onclick="ynOpShift(1)" title="OP を入れる位置を1文後へ">▼ 後の文へ</button></span>`:'';
+  return `<div class="ya-sw" style="background:#f5f3ff;color:#4c1d95;border-top-color:#8b5cf6;border-bottom-color:#ddd6fe;">■ ${name}の音声（足す音声・${r.seconds}秒＋前後に無音 ${YT_OPED_GAP}秒）${bd}</div><div class="ya-ln" style="background:#f5f3ff;"><span class="ya-no"></span><span class="ya-tx" title="${esc(txt)}">${esc(txt.length>120?txt.slice(0,120)+'…':txt)}</span></div>`;
+}
 function yaRender(keepScroll){
   const list=document.getElementById('ya-list');if(!list)return;
   const y=keepScroll?list.parentElement.scrollTop:0;
@@ -10550,8 +10558,9 @@ function yaRender(keepScroll){
     const sw=swStart[n]?`<div class="ya-sw" data-goslide="${swStart[n].k+1}" title="押すと、左のスライドがこの1枚に移ります" style="cursor:pointer;">■ スライド${swStart[n].no}　${esc(ynSlideTitle(swStart[n].no-1))}${YN.slides[swStart[n].no-1]?` <span style="font-weight:400;opacity:.7;" title="${esc(YN.slides[swStart[n].no-1].name)}">${esc(ynShortName(swStart[n].no-1))}</span>`:''}${swStart[n].corner?`／テロップ「${esc(swStart[n].corner)}」`:''}<span data-swsum="${swStart[n].k}"></span>${swStart[n].k>0?`<span class="ya-swb"><button class="ya-nd" data-sw="${swStart[n].k},-1" title="切り替えを1文前へ">▲ 前の文へ</button><button class="ya-nd" data-sw="${swStart[n].k},1" title="切り替えを1文後へ">▼ 後の文へ</button></span>`:''}</div>`:'';
     // 帯は1種類。割り当てが済んでいればスライドの帯、まだならAIの章分けの帯
     const head=hasPlan?sw:(secStart[n]?`<div class="ya-sec">■ ${esc(secStart[n].title)}（${secStart[n].from}〜${secStart[n].to}）<span data-secsum="${n}"></span></div>`:'');
-    return `${head}<div class="ya-ln${whole?' cut':''}" data-es="${whole?'':es.toFixed(2)}"><span class="ya-no">${n}</span><span class="ya-tc" data-seek="${es.toFixed(2)}" title="元の時刻 ${yaTc(s.s)}${whole?'':'（押すとカット後の音声をここから再生）'}">${whole?'—':yaTc(es)}</span><span class="ya-sp sp${s.sp}">${s.sp?(s.sp===1?'A':'B'):''}</span>${badge}${box}<button class="ya-go" data-go="${n}" title="${whole?'つなぎ目を再生':'この文を再生'}（カットは飛ばす。もう一度押すと停止）">▶</button><span class="ya-ctl">${tags}${mc&&mc.on?adj(mk,mc):''}${parts}</span><span class="ya-tx" data-n="${n}">${tx}</span></div>`;
-  }).join('');
+    const op=hasPlan&&YN.plan.op&&+YN.plan.op.from===n&&YO.op&&YO.op.b64?yaOpedRow('op'):'';
+    return `${op}${head}<div class="ya-ln${whole?' cut':''}" data-es="${whole?'':es.toFixed(2)}"><span class="ya-no">${n}</span><span class="ya-tc" data-seek="${es.toFixed(2)}" title="元の時刻 ${yaTc(s.s)}${whole?'':'（押すとカット後の音声をここから再生）'}">${whole?'—':yaTc(es)}</span><span class="ya-sp sp${s.sp}">${s.sp?(s.sp===1?'A':'B'):''}</span>${badge}${box}<button class="ya-go" data-go="${n}" title="${whole?'つなぎ目を再生':'この文を再生'}（カットは飛ばす。もう一度押すと停止）">▶</button><span class="ya-ctl">${tags}${mc&&mc.on?adj(mk,mc):''}${parts}</span><span class="ya-tx" data-n="${n}">${tx}</span></div>`;
+  }).join('')+(hasPlan&&YO.ed&&YO.ed.b64?yaOpedRow('ed'):'');
   list.querySelectorAll('input[data-k]').forEach(el=>el.onchange=()=>{const c=YA.cuts[+el.dataset.k];c.on=el.checked;c.manual=true;c.manualOn=el.checked;yaSave();yaRender(true);});
   list.querySelectorAll('input[data-sent]').forEach(el=>el.onchange=()=>yaToggleSentence(+el.dataset.sent,el.checked));
   list.querySelectorAll('button[data-sw]').forEach(el=>el.onclick=ev=>{ev.stopPropagation();const [k,d]=el.dataset.sw.split(',').map(Number);ynSlideShift(k,d);});
@@ -10659,6 +10668,8 @@ function yaBuildCutHtml(){
 // 欄はPJごと（yt-oped-kind／yt-op-s1..3／yt-op-v1..3／yt-op-lead／yt-ed-v。案は yt-op-cands／yt-ed-cands に JSON で持つ）。
 // 音声は KT_YA の 'oped:op'／'oped:ed'：{b64（wav）, seconds, text, voice, model, times}
 //   times：OP＝[{i:1〜3, s:その要点を話し始める時刻}]、ED＝[{text, s, e}]（字幕用の文）
+const YT_OPED_GAP=0.5;                 // つなぎ目（前・OP・後・ED）に入れる無音の秒数
+const YO={op:null,ed:null};            // OP・ED の音声（KT_YA の oped:op／oped:ed の写し。演出の画面は同期で描くので持っておく）
 const ytOpedKind=()=>ytVal('oped-kind')||(ytGen()?'theme':'earn');
 const ytOpedKindName=k=>((YT_OPED_KINDS.find(x=>x[0]===k)||[])[1]||k);
 function ytOpedSt(role,msg,cls){const el=document.getElementById('yt-oped-'+role+'-st');if(!el)return;el.style.display=msg?'block':'none';el.innerHTML=msg||'';el.style.color=cls==='error'?'#dc2626':cls==='ok'?'#059669':'var(--text-sub)';}
@@ -10791,7 +10802,8 @@ async function ytOpedTts(role,btn){
     ytOpedSt(role,'文字起こしで時刻を取っています…');
     try{rec.times=await ytOpedTimes(role,rec);}
     catch(e){ytOpedSt(role,'⚠ 音声はできましたが、時刻を取れませんでした：'+esc(e.message)+'（文字数で見積もります）','');rec.times=ytOpedTimesGuess(role,rec);}
-    await yaPut('oped:'+role,rec);
+    await yaPut('oped:'+role,rec);YO[role]=rec;
+    ynOpedChanged();
     ytOpedRenderAudio(role,rec);
     if(rec.times&&rec.times.length)ytOpedSt(role,`✅ 音声を作りました（${rec.seconds}秒）`,'ok');
   }catch(e){ytOpedSt(role,'❌ '+esc(e.message),'error');}
@@ -10836,7 +10848,75 @@ function ytOpedRenderAudio(role,rec){
 }
 async function ytOpedRender(){
   ytOpedRenderCands('op');ytOpedRenderCands('ed');
-  for(const role of ['op','ed'])ytOpedRenderAudio(role,await yaGet('oped:'+role));
+  for(const role of ['op','ed']){YO[role]=await yaGet('oped:'+role);ytOpedRenderAudio(role,YO[role]);}
+}
+// OP・ED の音声が変わったら、演出の割り当てに OP の位置を入れる（割り当て済みで、まだ位置が無いとき）・画面を描き直す
+function ynOpedChanged(){
+  const P=YN.plan;
+  if(P&&P.slides&&P.slides.length&&YO.op&&YO.op.b64&&P.op===undefined){P.op=ynOpDefault();ynPut('plan',P);}
+  if(typeof ynRender==='function')ynRender();
+  if(typeof yaRender==='function')yaRender(true);
+}
+// ---- 演出：オープニングの位置 ----
+// YN.plan.op = {from:文番号}：その文の前に OP の音声を入れ、そこから次のスライドの切り替えまで OP の動画を映す。
+// null＝入れない（外した）。undefined＝まだ決めていない（OP の音声ができたら、既定の位置で入る）
+// 置ける範囲：表紙（1枚目）の2文目 〜 2枚目に切り替わる文（その文なら、前振りの区間は無し）
+function ynOpRange(){
+  const sl=YN.plan&&YN.plan.slides,ns=ynKeptSents().map(x=>x.n);
+  if(!sl||!sl.length||ns.length<2)return null;
+  const lo=1,hi=sl.length>1?Math.max(lo,ns.indexOf(sl[1].from)):ns.length-1;
+  return{ns,lo,hi};
+}
+function ynOpDefault(){const r=ynOpRange();return r?{from:r.ns[r.hi]}:null;}
+function ynOpClamp(){
+  const P=YN.plan;if(!P||!P.op)return;
+  const r=ynOpRange();if(!r){P.op=null;return;}
+  let a=r.ns.indexOf(+P.op.from);
+  if(a<0){a=r.ns.findIndex(n=>n>=+P.op.from);if(a<0)a=r.hi;}
+  P.op={from:r.ns[Math.min(r.hi,Math.max(r.lo,a))]};
+}
+function ynOpShift(d){
+  const P=YN.plan;if(!P||!P.op)return;
+  const r=ynOpRange();if(!r)return;
+  const a=Math.min(r.hi,Math.max(r.lo,r.ns.indexOf(+P.op.from)+d));
+  P.op={from:r.ns[a]};
+  ynPut('plan',P);ynRender();if(typeof yaRender==='function')yaRender(true);
+}
+function ynOpSet(on){
+  const P=YN.plan;if(!P)return;
+  P.op=on?ynOpDefault():null;
+  ynPut('plan',P);ynRender();if(typeof yaRender==='function')yaRender(true);
+}
+// 演出の一覧に出す OP・ED の枠
+const YN_OP_BG='#f5f3ff',YN_OP_BD='#8b5cf6';   // OP・ED の目印の色（右の文の一覧と同じ）
+function ynOpCoverLine(){
+  const P=YN.plan;if(!P||!YO.op||!YO.op.b64)return '';
+  if(P.op)return `<div class="yn-it"><span class="yn-k" style="background:${YN_OP_BD};">OP</span><span class="yn-sd">文 ${P.op.from} の前にオープニングが入ります（下の枠）</span></div>`;
+  return `<div class="yn-it"><span class="yn-k" style="background:#94a3b8;">OP</span><span class="yn-sd">オープニングを入れていません</span><span class="yn-ed"><button class="ya-nd" onclick="ynOpSet(true)" title="2枚目に切り替わる文の前に入れます。入れたあと、位置を1文ずつ動かせます">＋ 入れる</button></span></div>`;
+}
+function ynOpCard(te,sents){
+  const P=YN.plan,op=P.op,first=(sents.find(q=>q.n===+op.from)||{}).text||'';
+  const pts=[1,2,3].map(i=>ytVal('op-s'+i)).filter(Boolean);
+  const t=(YO.op.times||[]).map(x=>`${'①②③'[x.i-1]} ${x.s}秒`).join('／');
+  return `<div class="yn-item" style="border-color:${YN_OP_BD};"><div class="yn-hd" style="background:${YN_OP_BG};"><b>オープニング（動画）</b> <span>音声 ${YO.op.seconds}秒＋前振り → 映す長さ ${ynOpShowLen().toFixed(1)}秒（カット後）</span></div>
+<div class="yn-plan" style="background:${YN_OP_BG};"><div class="yn-it"><span class="yn-k" style="background:#f59e0b;">切替</span><span class="yn-nn"><button class="yn-go" onclick="yaJumpTo(${op.from})" title="右の一覧でこの文を表示">文</button> ${op.from}</span><span class="yn-sd" title="${esc(first)}">この文の前に入れる：「${esc(first.slice(0,50))}」</span>
+<span class="yn-ed"><span class="yn-lb">入れる位置</span><button class="ya-nd" title="1文前へ" onclick="ynOpShift(-1)">◀ 前へ</button><button class="ya-nd" title="1文後へ" onclick="ynOpShift(1)">後へ ▶</button><button class="ya-nd" title="オープニングを入れない" onclick="ynOpSet(false)">外す</button></span></div>
+<div class="yn-it"><span class="yn-k" style="background:${YN_OP_BD};">文字</span><span class="yn-sd">${pts.length?pts.map((s,i)=>`${'①②③'[i]} ${esc(s)}`).join('　'):'（画面に出す文が空です。音声タブの 5. で入れてください）'}</span></div>
+${t?`<div class="yn-it"><span class="yn-lb">出す時刻（OP の音声の中）</span><span class="yn-sd">${t}</span></div>`:''}
+<div class="yn-it"><span class="yn-sd">終わり＝次のスライドの切り替え。${YO.op.text!==ytOpedText('op')?'<span style="color:#b45309;">⚠ 文を直したあとに音声を作り直していません</span>':''}</span></div></div></div>`;
+}
+function ynEdCard(){
+  return `<div class="yn-item" style="border-color:${YN_OP_BD};"><div class="yn-hd" style="background:${YN_OP_BG};"><b>エンディング（動画）</b> <span>音声 ${YO.ed.seconds}秒 → 映す長さ ${((YO.ed.seconds||0)+YT_OPED_GAP*2).toFixed(1)}秒</span></div>
+<div class="yn-plan" style="background:${YN_OP_BG};"><div class="yn-it"><span class="yn-sd">本編の最後のあとに入ります。文は下の字幕で出します。${YO.ed.text!==ytOpedText('ed')?'<span style="color:#b45309;">⚠ 文を直したあとに音声を作り直していません</span>':''}</span></div></div></div>`;
+}
+// OP の動画を映す長さ（カット後）：OP の音声＋前後の無音＋前振りの区間（OP の位置から、次のスライドの切り替えまで）
+function ynOpShowLen(){
+  const P=YN.plan;if(!P||!P.op||!YO.op)return 0;
+  const sl=P.slides,end=sl.length>1?sl[1].from:null;
+  let tail=0;
+  if(end!=null&&+P.op.from<end){const g=ynSeg(+P.op.from,end-1);if(g)tail=ynEditLen(g.s,g.e);}
+  else if(end==null){const ns=ynKeptSents();const g=ynSeg(+P.op.from,ns[ns.length-1].n);if(g)tail=ynEditLen(g.s,g.e);}
+  return (YO.op.seconds||0)+YT_OPED_GAP*2+tail;
 }
 function yaAlignFromBox(){try{yaAlign(yaVal('gtext'));}catch(e){yaStatus('st-g','❌ '+esc(e.message),'error');}}
 async function yaPaste(id,after){
@@ -11344,7 +11424,7 @@ ${nums(kind,i,z)}${tail(kind,i,z)}</div>`;};
       el.insertAdjacentHTML('afterend',`<div class="yn-plan"><div class="yn-hd2"><button class="ya-nd yn-addbtn" onclick="ynAddOpen(${si},true)" title="このスライドに演出を足す">＋ 追加</button> 表示 ${yaTc(te(x.s))}〜${yaTc(te(x.e))}（${ynEditLen(x.s,x.e).toFixed(1)}秒・カット後）／文 ${x.from}〜${x.to}${x.corner?`／テロップ「${esc(x.corner)}」`:''}</div>
 <div class="yn-it"><span class="yn-k" style="background:#f59e0b;">切替</span><span class="yn-nn"><button class="yn-go" onclick="yaJumpTo(${x.from})" title="右の一覧でこの文を表示">文</button> ${x.from}</span><span class="yn-sd" title="${esc(first)}">ここから：「${esc(first.slice(0,50))}」</span>
 ${si>0?`<span class="yn-ed"><span class="yn-lb">切り替える文</span><button class="ya-nd" title="切り替えを1文前へ" onclick="ynSlideShift(${si},-1)">◀ 前へ</button><button class="ya-nd" title="切り替えを1文後へ" onclick="ynSlideShift(${si},1)">後へ ▶</button></span>`:''}</div>
-${rows.map(r=>r[1]).join('')}
+${si===0?ynOpCoverLine():''}${rows.map(r=>r[1]).join('')}
 <div class="yn-it yn-add" id="yn-add-row${si}" style="display:none;"><select class="yn-sel t-zoom" id="yn-add-t${si}" onchange="this.className='yn-sel t-'+this.value;ynAddType(${si})">${TYPES.concat([['source','出典']]).map(o=>`<option value="${o[0]}">${o[1]}</option>`).join('')}</select>
 <select class="yn-in yn-srcsel" id="yn-add-s${si}" style="display:none;">${srcOpts}</select>
 <select class="yn-col" id="yn-add-c${si}" title="強調の色（自動＝そのまとまりで控えめに見える色）"><option value="">自動</option>${YN_COLS.map(o=>`<option value="${o[0]}" style="background:${o[0]}">${o[1]}</option>`).join('')}</select>
@@ -11352,6 +11432,10 @@ ${rows.map(r=>r[1]).join('')}
 <span class="yn-nn"><span class="yn-lb">文</span><input class="yn-in" type="number" id="yn-add-f${si}" placeholder="${x.from}">〜<input class="yn-in" type="number" id="yn-add-e${si}" placeholder="${x.to}"></span>
 <button class="ya-nd" style="background:#0d9488;color:#fff;border-color:#0d9488;" onclick="ynFxAdd(${si})">保存</button><button class="ya-nd" onclick="ynAddOpen(${si},false)">やめる</button><span class="yn-sd">枠＝上の画像の番号（文字はT1）、文＝右の一覧の番号</span></div></div>`);
     });
+    // オープニング・エンディングの動画は、スライドの1枚として並べる（OP は表紙の次、ED は最後）
+    const p0=order.findIndex(o=>o.k===0),coverItem=p0<0?null:(document.getElementById('yn-img-'+p0)||{}).closest?.('.yn-item');
+    if(coverItem&&YN.plan.op&&YO.op)coverItem.insertAdjacentHTML('afterend',ynOpCard(te,sents));
+    if(YO.ed&&YO.ed.b64){const lastUsed=[...area.querySelectorAll('.yn-item[data-n*="#"]')].pop();if(lastUsed)lastUsed.insertAdjacentHTML('afterend',ynEdCard());}
   }
   ynPos();
   order.forEach((o,p)=>{
@@ -11403,6 +11487,7 @@ function ynPlanPrompt(){
   const lines=sents.map(x=>`[${x.n}] ${yaTc(te(x.s))}（${Math.max(0,te(x.e)-te(x.s)).toFixed(1)}秒） ${x.sp?(x.sp===1?'A':'B')+': ':''}${x.text}`).join('\n');
   const total=te(YA.dur),mins=total/60,nSrc=Math.min(10,Math.max(1,Math.round(mins*0.8)));
   const tick=ynTicker();
+  const hasOp=!!(YO.op&&YO.op.b64);   // OP の音声を作ってあるときだけ、OP の位置も選ばせる
   const srcs=ytSources();
   const srcBlock=srcs.length?`\n\n【根拠資料（動画で一時的に画面へ差し込む）】\n${srcs.map(s=>`  ${s.no}. ${s.name}${s.kind==='chart'?`【チャート：${ynTvTicker(s.name)}${s.tvSpec&&s.tvSpec.interval&&s.tvSpec.start?`・${s.tvSpec.interval}・${s.tvSpec.start}〜${s.tvSpec.end}（決まっているので、interval・start・end は書かなくてよい）`:''}】`:s.page?`（${s.page}）`:''}`).join('\n')}`:'';
   return `あなたは動画編集者です。完成した音声（2人の会話）に、スライドの表示とズーム・強調を割り当ててください。
@@ -11436,9 +11521,10 @@ ${ytGen()?`・チャート：株価や指数の値動き（いつの高値から
 ・根拠資料やチャートを出している間は、スライドが隠れるので、ズームと強調は付けない。
 ・ズームと強調は、前振りや問いかけの文には付けず、その箇所の中身を話し始めた文から付ける。
 ・時刻と秒数は、どれもカット後（視聴者が見る時間）のもの。
-
+${hasOp?`・オープニング：表紙の範囲の中で、導入（問題提起や、この動画で何を話すか）を言い終えて、次の話への前振りが始まる文の番号を op に書く。前振りが無ければ、2枚目に切り替わる文の番号。
+`:''}
 【出力】JSONをコードブロック1つでそのまま出力する。説明文は不要。
-{"slides":[{"no":1,"from":文番号,"to":文番号,"corner":"コーナー名"}],
+{${hasOp?'"op":文番号,\n ':''}"slides":[{"no":1,"from":文番号,"to":文番号,"corner":"コーナー名"}],
  "zooms":[{"slide":1,"zones":[まとまりの番号],"from":文番号,"to":文番号}],
  "marks":[{"slide":1,"zone":まとまりの番号,"type":"rect","strength":"soft","from":文番号,"to":文番号}],（文字に付けるときは zone の代わりに "text":"T1"）
  "sources":[{"no":資料の番号,"from":文番号,"to":文番号,"interval":"日足","start":"2026-01-01","end":"2026-09-18"}],（interval・start・end は【チャート】の資料だけ）
@@ -11514,6 +11600,8 @@ function ynApplyPlan(plan){
   const charts=(plan.charts||[]).map((x,i)=>{const g=rng(x);return g?{id:'c'+(i+1),ticker:(ytGen()&&x.ticker)?String(x.ticker):ynTicker(),interval:String(x.interval||'日足'),start:String(x.start||''),end:String(x.end||''),note:String(x.note||''),...g}:null;}).filter(Boolean);
   const fx=ynFxTidy(zooms,marks);
   YN.plan={slides:sl.map(x=>({...x,...(ynSeg(x.from,x.to)||{})})),zooms:fx.zooms,marks:fx.marks,sources,charts};
+  // オープニングの位置：AI が選んだ文（範囲の外なら寄せる）。書いていなければ、2枚目に切り替わる文の前
+  if(YO.op&&YO.op.b64)YN.plan.op=plan.op!=null&&isFinite(+plan.op)?{from:+plan.op}:ynOpDefault();
   ynPlanNorm();
   _ynPlanWhy='割り当てのやり直し前';ynPut('plan',YN.plan);ynRender();
   ynStatus(`✅ 割り当てました（スライド${sl.length}枚・ズーム${fx.zooms.length}・強調${fx.marks.length}・出典${sources.length}・チャート${charts.length}）${fx.note?`／${fx.note}`:''}`,'ok','status2');
@@ -11595,6 +11683,7 @@ function ynPlanNorm(){
     if(i===0)x.from=ns[0];
     Object.assign(x,ynSeg(x.from,x.to)||{});
   });
+  ynOpClamp();   // スライドの切り替えを動かしても、OP の位置が表紙の範囲に収まるように
 }
 // ---- 割り当ての手直し（消す／始まり・終わりを1文ずつ動かす）----
 function ynPlanDel(kind,i){
@@ -12503,6 +12592,7 @@ async function ynPaste(id,after){
   catch(e){alert('クリップボードを読めませんでした。欄に直接貼り付けてください（Ctrl+V）');}
 }
 async function ynRestore(){
+  YO.op=await yaGet('oped:op');YO.ed=await yaGet('oped:ed');
   const a=await ynGet('slides');
   const pl=await ynGet('plan');if(pl&&pl.slides){YN.plan=pl;try{ynPlanNorm();}catch(e){}}
   const tp=await ynGet('tpl');if(tp&&tp.name){const el=ynEl('tpl-name');if(el)el.textContent=`ひな形：${tp.name}`;}
