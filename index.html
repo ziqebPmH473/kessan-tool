@@ -7676,16 +7676,12 @@ function ytAiErr(d,task){
   const f=(d&&d.failures)||[];
   if(!f.length)return (d&&d.error)||'不明なエラー';
   const lastBy={};f.forEach(x=>{lastBy[x.model]=x;});
-  // 上限（429 など）は、1日の回数とは限らない（1分あたりの回数・検索の上限なども同じ形で返る）。どれかは Google の文で見分ける
-  const why=k=>k==='quota'?'上限':k==='busy'?'混雑':'エラー';
+  const why=k=>k==='quota'?'今日の回数の上限':k==='busy'?'混雑':'エラー';
   const tried=Object.values(lastBy).map(x=>`${ytModelName(x.model)}＝${why(x.kind)}`).join('、');
   const last=f[f.length-1];
-  // Google の文：当たった上限の名前がある最初の失敗（無ければ最後の失敗）
-  const g=f.find(x=>x.detail)||last;
-  const google=`［Googleの文（${ytModelName(g.model)}）：${g.error}${g.detail?`／当たった上限：${g.detail}`:''}］`;
-  if(d.busy||last.kind==='busy')return `${ytModelName(last.model)} が混雑していて使えませんでした（Google側の一時的な混雑です。下のモデルには切り替えていません）。少し待ってもう一度押すか、設定タブの「${tn}」のモデルを変えてください。［試したモデル：${tried}］${google}`;
-  if(last.kind==='quota')return `使えるモデルがすべて上限で断られました。どの上限かは下の Google の文を見てください（1日の回数なら明日まで待つか、設定タブの「${tn}」で Lite のモデルを選んでください）。［試したモデル：${tried}］${google}`;
-  return `${ytModelName(last.model)} でエラーになりました：${last.error}［試したモデル：${tried}］${g!==last?google:''}`;
+  if(d.busy||last.kind==='busy')return `${ytModelName(last.model)} が混雑していて使えませんでした（Google側の一時的な混雑です。下のモデルには切り替えていません）。少し待ってもう一度押すか、設定タブの「${tn}」のモデルを変えてください。［試したモデル：${tried}］`;
+  if(last.kind==='quota')return `使えるモデルがすべて今日の回数の上限でした。明日まで待つか、設定タブの「${tn}」で Lite のモデルを選んでください。［試したモデル：${tried}］`;
+  return `${ytModelName(last.model)} でエラーになりました：${last.error}［試したモデル：${tried}］`;
 }
 const YT_CHAPTERS=[
   {no:1,name:'なぜ今この銘柄？',tags:['下落','チャート','背景','問い'],

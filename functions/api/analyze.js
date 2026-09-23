@@ -85,13 +85,8 @@ export async function onRequestPost(context) {
   let lastErr = "";
   // 降格した理由（モデル・HTTPステータス・所要秒・エラー文の先頭）。画面に出して原因を特定できるようにする
   const failures = [];
-  // detail：Google が返した、当たった上限の名前（quotaMetric／quotaId）。どの上限で断られたか（回数か、検索か）を画面で見分けるため
-  const note = (m, status, t0, msg, detail) =>
-    failures.push({ model: m, status, kind: kindOf(status, msg), sec: Math.round((Date.now() - t0) / 100) / 10, error: String(msg || "").slice(0, 300), detail: String(detail || "").slice(0, 300) });
-  const quotaDetail = (err) => ((err && err.details) || [])
-    .flatMap((d) => d.violations || [])
-    .map((v) => [v.quotaMetric, v.quotaId, v.quotaValue != null ? "上限=" + v.quotaValue : ""].filter(Boolean).join(" "))
-    .join(" / ");
+  const note = (m, status, t0, msg) =>
+    failures.push({ model: m, status, kind: kindOf(status, msg), sec: Math.round((Date.now() - t0) / 100) / 10, error: String(msg || "").slice(0, 160) });
   for (let i = 0; i < models.length; i++) {
     const m = models[i];
     for (let attempt = 0; attempt < 2; attempt++) {   // 各モデル最大2回（一時エラー時に1回リトライ）
@@ -115,7 +110,7 @@ export async function onRequestPost(context) {
         }
         const raw = data && data.error && data.error.message ? data.error.message : `HTTP ${res.status}`;
         lastErr = raw;
-        note(m, res.status, t0, raw, quotaDetail(data && data.error));
+        note(m, res.status, t0, raw);
         // 一時エラー以外（認証ミス等）は即中断
         if (!isTransient(res.status, raw)) return json({ ok: false, error: "Gemini API エラー: " + raw, model: m, failures }, 502);
         if (attempt === 0) { await delay(stopOnBusy && kindOf(res.status, raw) === "busy" ? 2500 : 800); continue; }  // 同モデルで1回リトライ
