@@ -9719,7 +9719,7 @@ ${[['n','note記事（無料）','表なしで作ります。動画のURLは最�
 </div>
 </div>`;
 }
-const YT_PERSIST_IDS=['vd-orient','th-ctx','th-note-text','th-note-preset','yt-th-text','yt-th-preset','yg-th-text','yg-th-preset','yt-g-theme','yt-g-report','yt-g-aud','yt-a-n-raw','yt-a-n-title','yt-a-n-body','yt-a-n-tags','yt-a-b-raw','yt-a-b-title','yt-a-b-body','yt-a-b-tags','yt-a-check','yt-link-state','yt-doc','yt-series','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-t1','yt-p-t2','yt-p-t3','yt-p-s1','yt-p-s2','yt-p-s3','yt-p-body','yt-p-xbody','yt-p-hook','yt-p-announce','yt-p-ypbody','yt-p-igbody','yt-p-ttbody','yt-p-points','yt-p-xtags','yt-p-yptags','yt-p-igtags','yt-p-tttags','yt-p-l8title','yt-p-l8intro','yt-p-l8tags','yt-p-yp','yt-p-ig','yt-p-l8t','yt-p-ttt','yt-p-fixapplied','yt-p-l8','yt-p-tt','yt-f-yp','yt-f-ig','yt-f-l8','yt-f-tt','yt-p-yturl','yt-p-tags','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-m-cut','yt-m-read','yt-m-plan','yt-m-post','yt-m-qr','yt-m-oped','yt-yomi','yt-yomi-for','yt-open','yt-open-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan','yt-oped-kind','yt-op-s1','yt-op-s2','yt-op-s3','yt-op-v1','yt-op-v2','yt-op-v3','yt-op-lead','yt-ed-v','yt-op-cands','yt-ed-cands'];
+const YT_PERSIST_IDS=['vd-orient','th-ctx','th-note-text','th-note-preset','yt-th-text','yt-th-preset','yg-th-text','yg-th-preset','yt-g-theme','yt-g-report','yt-g-aud','yt-a-n-raw','yt-a-n-title','yt-a-n-body','yt-a-n-tags','yt-a-b-raw','yt-a-b-title','yt-a-b-body','yt-a-b-tags','yt-a-check','yt-link-state','yt-doc','yt-series','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-t1','yt-p-t2','yt-p-t3','yt-p-s1','yt-p-s2','yt-p-s3','yt-p-body','yt-p-xbody','yt-p-hook','yt-p-announce','yt-p-ypbody','yt-p-igbody','yt-p-ttbody','yt-p-points','yt-p-xtags','yt-p-yptags','yt-p-igtags','yt-p-tttags','yt-p-l8title','yt-p-l8intro','yt-p-l8tags','yt-p-yp','yt-p-ig','yt-p-l8t','yt-p-ttt','yt-p-fixapplied','yt-p-l8','yt-p-tt','yt-f-yp','yt-f-ig','yt-f-l8','yt-f-tt','yt-p-yturl','yt-p-tags','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-m-cut','yt-m-read','yt-m-plan','yt-m-post','yt-m-qr','yt-m-oped','yt-yomi','yt-yomi-for','yt-open','yt-open-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan','yt-oped-kind','yt-op-s1','yt-op-s2','yt-op-s3','yt-op-v1','yt-op-v2','yt-op-v3','yt-op-lead','yt-op-tail','yt-ed-v','yt-op-cands','yt-ed-cands'];
 // ---- 動画の種類：株価分析の横動画＝stock ／ YT動画タブ＝gen ----
 // 画面と関数は1組だけ。種類を切り替えると、作品ごとの欄（localStorage）と IndexedDB のキーを入れ替える。
 // 株価分析の側は今までのキーのまま、YT動画の側は前に 'gen:' を付ける。設計：docs/design/2026-09-21_YT動画タブ.md
@@ -10526,7 +10526,7 @@ function yaDownloadText(){
 function yaOpedRow(role){
   const r=YO[role];if(!r)return '';
   const name=role==='op'?'オープニング':'エンディング';
-  const txt=role==='op'?[ytVal('op-lead'),ytVal('op-v1'),ytVal('op-v2'),ytVal('op-v3')].filter(Boolean).join(' '):ytVal('ed-v');
+  const txt=role==='op'?ytOpedParts().filter(Boolean).join(' '):ytVal('ed-v');
   const bd=role==='op'?`<span class="ya-swb"><button class="ya-nd" onclick="ynOpShift(-1)" title="OP を入れる位置を1文前へ">▲ 前の文へ</button><button class="ya-nd" onclick="ynOpShift(1)" title="OP を入れる位置を1文後へ">▼ 後の文へ</button></span>`:'';
   return `<div class="ya-sw" style="background:#f5f3ff;color:#4c1d95;border-top-color:#8b5cf6;border-bottom-color:#ddd6fe;">■ ${name}の音声（足す音声・${r.seconds}秒＋前後に無音 ${YT_OPED_GAP}秒）${bd}</div><div class="ya-ln" style="background:#f5f3ff;"><span class="ya-no"></span><span class="ya-tx" title="${esc(txt)}">${esc(txt.length>120?txt.slice(0,120)+'…':txt)}</span></div>`;
 }
@@ -10649,6 +10649,7 @@ function yaBuildCutHtml(){
   <div id="yt-oped-op-cands"></div>
   ${[1,2,3].map(i=>`<div class="row" style="flex-wrap:nowrap;gap:4px;align-items:flex-start;margin-top:4px;"><span style="flex:none;font-size:11px;color:var(--text-sub);padding-top:4px;">${'①②③'[i-1]}</span><div style="flex:1;min-width:0;"><input type="text" id="yt-op-s${i}" placeholder="画面に出す文（短く）" oninput="saveState()" style="width:100%;font-size:11px;padding:3px;"><textarea id="yt-op-v${i}" rows="2" placeholder="音声で読む文" oninput="saveState()" style="width:100%;font-size:11px;margin-top:2px;"></textarea></div></div>`).join('')}
   <textarea id="yt-op-lead" rows="1" placeholder="要点の前に読む一言（空欄なら無し）" oninput="saveState()" style="width:100%;font-size:11px;margin-top:4px;"></textarea>
+  <textarea id="yt-op-tail" rows="1" placeholder="要点のあとに読む一言（空欄なら無し）" oninput="saveState()" style="width:100%;font-size:11px;margin-top:4px;"></textarea>
   ${row(b('🔊 OP音声生成','ytOpedTts(\'op\',this)','background:#2563eb;color:#fff;'))}
   <div id="yt-oped-op-a-st" style="display:none;font-size:11px;"></div>
   <div id="yt-oped-op-audio" style="font-size:11px;color:var(--text-sub);">音声：未生成</div>
@@ -10695,10 +10696,12 @@ function ytOpedDraftPrompt(role){
 
 決まり
 ・要点は、本編の文字起こしで実際に話している内容だけから作る。話していないことを足さない
+・音声は、lead → 3つの voice → close の順に続けて読み上げる1本の台本にする
+・lead：この動画で3つのポイントを解説することを伝える一言（1文）
 ・要点ごとに2つの文を作る
-　- screen：画面に出す文。全角20字以内。短く言い切る
-　- voice：音声で読む文。全角40〜60字。話し言葉（ですます）。見た人が「これを見ると何が分かるか」をつかめる言い方にする
-・lead：3つの要点を言う前に読む短い前置き（1文、全角30字以内）
+　- screen：画面に出す見出し。全角12字以内。言い切る
+　- voice：音声で読む文。見る人が抱く疑問の形で終える。全角30字くらい。3つとも同じ終わり方にしない
+・close：3つの voice のあとに読む短い締めの一言
 ・3つの案は、要点の選び方や切り口を変える（同じ要点の言い換えにしない）
 ・数字を入れるなら、文字起こしにある数字だけ`;
   const angle=kind==='earn'
@@ -10713,7 +10716,7 @@ function ytOpedDraftPrompt(role){
 ・売買をすすめる言い方はしない（自分の考えとして話す）
 ${angle}
 ・3つの案は、動機の取り方を変える`;
-  const opJson='[{"lead":"","points":[{"screen":"","voice":""},{"screen":"","voice":""},{"screen":"","voice":""}]},{...},{...}]';
+  const opJson='[{"lead":"","points":[{"screen":"","voice":""},{"screen":"","voice":""},{"screen":"","voice":""}],"close":""},{...},{...}]';
   const edJson='[{"text":"","basis":"動機に使った出来事（1行。検索で得たものは出典名も）"},{...},{...}]';
   const out=op&&ed?`{"op":${opJson},"ed":${edJson}}`:`{"candidates":${op?opJson:edJson}}`;
   return `${ytIntent()}の${what}の文を作ります。
@@ -10759,7 +10762,7 @@ function ytOpedRenderCands(role){
   if(!cands.length){box.innerHTML='';return;}
   box.innerHTML=cands.map((c,i)=>{
     const body=role==='op'
-      ?`${c.lead?`<div style="color:var(--text-sub);">${esc(c.lead)}</div>`:''}${(c.points||[]).map((p,k)=>`<div><b>${'①②③'[k]||''} ${esc(p.screen||'')}</b>　<span style="color:var(--text-sub);">${esc(p.voice||'')}</span></div>`).join('')}`
+      ?`${c.lead?`<div style="color:var(--text-sub);">${esc(c.lead)}</div>`:''}${(c.points||[]).map((p,k)=>`<div><b>${'①②③'[k]||''} ${esc(p.screen||'')}</b>　<span style="color:var(--text-sub);">${esc(p.voice||'')}</span></div>`).join('')}${c.close?`<div style="color:var(--text-sub);">${esc(c.close)}</div>`:''}`
       :`<div>${esc(c.text||'')}</div>${c.basis?`<div style="color:var(--text-sub);">根拠：${esc(c.basis)}</div>`:''}`;
     return `<div onclick="ytOpedPick('${role}',${i})" title="この台本を下の欄に入れる" style="border:1px solid var(--border);border-radius:6px;padding:4px 6px;margin-top:4px;font-size:11px;cursor:pointer;line-height:1.5;"><span style="color:var(--text-sub);">台本${i+1}</span>${body}</div>`;
   }).join('');
@@ -10768,16 +10771,16 @@ function ytOpedPick(role,i){
   let cands=[];try{cands=JSON.parse(ytVal(role==='op'?'op-cands':'ed-cands')||'[]');}catch(e){}
   const c=cands[i];if(!c)return;
   if(role==='op'){
-    ytEl('op-lead').value=c.lead||'';
+    ytEl('op-lead').value=c.lead||'';ytEl('op-tail').value=c.close||'';
     for(let k=1;k<=3;k++){const p=(c.points||[])[k-1]||{};ytEl('op-s'+k).value=p.screen||'';ytEl('op-v'+k).value=p.voice||'';}
   }else ytEl('ed-v').value=c.text||'';
   saveState();
 }
-// 音声で読む文（OP は前置き＋①②③をつなぐ）
+// 音声で読む文（OP は前置き＋①②③＋締めをつなぐ）。文の終わりに「？」「！」「。」があればそのまま、無ければ「。」を足す
+const ytOpedParts=()=>[ytVal('op-lead'),ytVal('op-v1'),ytVal('op-v2'),ytVal('op-v3'),ytVal('op-tail')];
 function ytOpedText(role){
   if(role==='ed')return ytVal('ed-v');
-  const parts=[ytVal('op-lead'),ytVal('op-v1'),ytVal('op-v2'),ytVal('op-v3')].map(s=>s.replace(/[。\s]+$/,'')).filter(Boolean);
-  return parts.map(s=>s+'。').join('');
+  return ytOpedParts().map(s=>s.replace(/\s+$/,'')).filter(Boolean).map(s=>/[。？！?!]$/.test(s)?s:s+'。').join('');
 }
 // TTS の声・モデルは、横動画の動画タブの設定（vd）に合わせる。無ければ既定
 function ytOpedVoice(){const v=document.getElementById('vd-tts-voice'),m=document.getElementById('vd-tts-model');return{voice:(v&&v.value)||'Erinome',model:(m&&m.value)||'gemini-3.1-flash-tts-preview'};}
