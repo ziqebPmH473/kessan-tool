@@ -10643,22 +10643,22 @@ function yaBuildCutHtml(){
       <option value="">自動（株価分析＝決算／YT動画＝テーマ）</option>${YT_OPED_KINDS.map(([k,n])=>`<option value="${k}">${n}</option>`).join('')}
     </select>
   </div>
-  ${row(b('🤖 台本作成','ytOpedDraft(\'all\',this)','background:#4f46e5;color:#fff;'),b('🔊 音声生成','ytOpedTtsAll(this)','background:#2563eb;color:#fff;'))}
-  <div style="font-size:10px;color:var(--text-sub);" title="台本作成は、1回の呼び出しで、オープニング（台本と画面に出す文字）とエンディングの台本を3つずつ作ります（区分がテーマ・ニュースのときは、最近の出来事を検索します）。音声生成は、オープニングとエンディングの音声を続けて作ります。片方だけ作り直すときは、下のそれぞれの「↻」を使います。">OP・ED の台本を3つずつ作ります。</div>
   <div class="sa-sub">▼ オープニング（この動画を見ると何が分かるか）</div>
-  ${row(b('↻ 台本作成','ytOpedDraft(\'op\',this)','background:#4f46e5;color:#fff;'))}
+  ${row(b('🤖 OP台本作成','ytOpedDraft(\'op\',this)','background:#4f46e5;color:#fff;'))}
   <div id="yt-oped-op-st" style="display:none;font-size:11px;"></div>
   <div id="yt-oped-op-cands"></div>
   ${[1,2,3].map(i=>`<div class="row" style="flex-wrap:nowrap;gap:4px;align-items:flex-start;margin-top:4px;"><span style="flex:none;font-size:11px;color:var(--text-sub);padding-top:4px;">${'①②③'[i-1]}</span><div style="flex:1;min-width:0;"><input type="text" id="yt-op-s${i}" placeholder="画面に出す文（短く）" oninput="saveState()" style="width:100%;font-size:11px;padding:3px;"><textarea id="yt-op-v${i}" rows="2" placeholder="音声で読む文" oninput="saveState()" style="width:100%;font-size:11px;margin-top:2px;"></textarea></div></div>`).join('')}
   <textarea id="yt-op-lead" rows="1" placeholder="要点の前に読む一言（空欄なら無し）" oninput="saveState()" style="width:100%;font-size:11px;margin-top:4px;"></textarea>
-  ${row(b('↻ 音声生成','ytOpedTts(\'op\',this)','background:#2563eb;color:#fff;'))}
+  ${row(b('🔊 OP音声生成','ytOpedTts(\'op\',this)','background:#2563eb;color:#fff;'))}
+  <div id="yt-oped-op-a-st" style="display:none;font-size:11px;"></div>
   <div id="yt-oped-op-audio" style="font-size:11px;color:var(--text-sub);">音声：未生成</div>
   <div class="sa-sub">▼ エンディング（なぜこの動画を作ったか・どうするつもりか）</div>
-  ${row(b('↻ 台本作成','ytOpedDraft(\'ed\',this)','background:#4f46e5;color:#fff;'))}
+  ${row(b('🤖 ED台本作成','ytOpedDraft(\'ed\',this)','background:#4f46e5;color:#fff;'))}
   <div id="yt-oped-ed-st" style="display:none;font-size:11px;"></div>
   <div id="yt-oped-ed-cands"></div>
   <textarea id="yt-ed-v" rows="3" placeholder="音声で読む文（下の字幕にもなります）" oninput="saveState()" style="width:100%;font-size:11px;margin-top:4px;"></textarea>
-  ${row(b('↻ 音声生成','ytOpedTts(\'ed\',this)','background:#2563eb;color:#fff;'))}
+  ${row(b('🔊 ED音声生成','ytOpedTts(\'ed\',this)','background:#2563eb;color:#fff;'))}
+  <div id="yt-oped-ed-a-st" style="display:none;font-size:11px;"></div>
   <div id="yt-oped-ed-audio" style="font-size:11px;color:var(--text-sub);">音声：未生成</div>
   <textarea id="yt-op-cands" style="display:none;"></textarea><textarea id="yt-ed-cands" style="display:none;"></textarea>
 </div>`;
@@ -10679,7 +10679,7 @@ function ytOpedTranscript(){
   if(g)return g;
   return (YA.sents||[]).map(x=>x.text).join('');
 }
-// 案の依頼文。role：'op'／'ed'／'all'（OP と ED を1回でまとめて。ふだんはこれ）
+// 案の依頼文。role：'op'／'ed'（'all'＝OP と ED を1回で。いまはボタンなし）
 function ytOpedDraftPrompt(role){
   const tr=ytOpedTranscript();
   if(!tr)throw new Error('先に本編の音声を文字起こししてください（2. の「文字起こし」か、Gemini の文字起こしの貼り付け）');
@@ -10705,8 +10705,7 @@ function ytOpedDraftPrompt(role){
     ?`・観点：株価が下がっていたから／名前しか聞いたことがなく、くわしく知らなかったから、という作り手の動機。最後に、これからどうするつもりか（買うか見送るかの判断や、次に見る材料）を1文
 ・動機や判断の材料は、下の資料にあることだけを使う`
     :`・観点：最近のニュースや、近いうちにある出来事と結びつけた作り手の動機。最後に、これからどうするつもりか（何を見ていくか）を1文
-・Google 検索で、このテーマに関わる直近1か月の出来事と、今後1〜2か月の予定を調べ、案ごとに1つを動機に使う
-・出来事・日付・固有名詞は、検索で確かめられたものだけを使う。確かめられなければ入れない`;
+・動機に使う出来事や予定は、下の資料と文字起こしにあるものだけを使う`;
   const edRules=`エンディングでは、作り手（投稿者）の観点として、「なぜこの動画を作ったか」と「これからどうするつもりか」を、一人称の話し言葉で短く話します。案を3つ作ってください。
 
 決まり
@@ -10731,12 +10730,12 @@ function ytOpedParseJson(s){
   if(a<0||b<a)throw new Error('台本を読み取れませんでした（JSONではありません）');
   return JSON.parse(m.slice(a,b+1));
 }
-// role：'all'（ふだん。OP と ED を1回で）／'op'／'ed'（片方だけ作り直す）
+// role：'op'／'ed'（'all'＝OP と ED を1回で。いまはボタンなし）
 async function ytOpedDraft(role,btn){
   const roles=role==='all'?['op','ed']:[role];
   const st=(msg,cls)=>roles.forEach(r=>ytOpedSt(r,msg,cls));
   let prompt;try{prompt=ytOpedDraftPrompt(role);}catch(e){st('❌ '+esc(e.message),'error');return;}
-  const search=role!=='op'&&ytOpedKind()!=='earn';
+  const search=false;   // Google 検索は無料の枠では断られる（2026-09-23 確認）。最近の出来事は ChatGPT で探す想定
   if(btn)btn.disabled=true;st(search?'台本を作っています…（最近の出来事を検索します）':'台本を作っています…');
   try{
     const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,temperature:0.6,models:ytModels('oped'),onBusy:'stop',search})});
@@ -10752,14 +10751,6 @@ async function ytOpedDraft(role,btn){
     }
     saveState();
   }catch(e){st('❌ '+esc(e.message),'error');}
-  finally{if(btn)btn.disabled=false;}
-}
-// OP と ED の音声をまとめて作る（文が空の方は飛ばす）
-async function ytOpedTtsAll(btn){
-  const roles=['op','ed'].filter(r=>ytOpedText(r));
-  if(!roles.length){ytOpedSt('op','❌ 音声で読む文が空です','error');return;}
-  if(btn)btn.disabled=true;
-  try{for(const r of roles)await ytOpedTts(r,null);}
   finally{if(btn)btn.disabled=false;}
 }
 function ytOpedRenderCands(role){
@@ -10792,21 +10783,22 @@ function ytOpedText(role){
 function ytOpedVoice(){const v=document.getElementById('vd-tts-voice'),m=document.getElementById('vd-tts-model');return{voice:(v&&v.value)||'Erinome',model:(m&&m.value)||'gemini-3.1-flash-tts-preview'};}
 async function ytOpedTts(role,btn){
   const text=ytOpedText(role);
-  if(!text){ytOpedSt(role,'❌ 音声で読む文が空です','error');return;}
-  if(btn)btn.disabled=true;ytOpedSt(role,'音声を作っています…');
+  if(!text){ytOpedSt(role+'-a','❌ 音声で読む文が空です','error');return;}
+  if(btn)btn.disabled=true;ytOpedSt(role+'-a','音声を作っています…');
   try{
     const {voice,model}=ytOpedVoice();
     const res=await fetch('/api/tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,voice,model})});
     const data=await res.json();if(!data.ok)throw new Error(data.error||'音声を作れませんでした');
     const rec={b64:data.audioBase64,seconds:Math.round((data.seconds||0)*10)/10,text,voice,model,times:null};
-    ytOpedSt(role,'文字起こしで時刻を取っています…');
+    ytOpedSt(role+'-a','文字起こしで時刻を取っています…');
+    let guessed=false;
     try{rec.times=await ytOpedTimes(role,rec);}
-    catch(e){ytOpedSt(role,'⚠ 音声はできましたが、時刻を取れませんでした：'+esc(e.message)+'（文字数で見積もります）','');rec.times=ytOpedTimesGuess(role,rec);}
+    catch(e){ytOpedSt(role+'-a','⚠ 音声はできましたが、時刻を取れませんでした：'+esc(e.message)+'（文字数で見積もります）','');rec.times=ytOpedTimesGuess(role,rec);guessed=true;}
     await yaPut('oped:'+role,rec);YO[role]=rec;
     ynOpedChanged();
     ytOpedRenderAudio(role,rec);
-    if(rec.times&&rec.times.length)ytOpedSt(role,`✅ 音声を作りました（${rec.seconds}秒）`,'ok');
-  }catch(e){ytOpedSt(role,'❌ '+esc(e.message),'error');}
+    if(!guessed)ytOpedSt(role+'-a',`✅ 音声を作りました（${rec.seconds}秒）`,'ok');
+  }catch(e){ytOpedSt(role+'-a','❌ '+esc(e.message),'error');}
   finally{if(btn)btn.disabled=false;}
 }
 // 作った音声を文字起こしして、要点（OP）／文（ED）の時刻を取る
