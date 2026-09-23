@@ -7666,7 +7666,7 @@ function earnPrevMode(m){
 // ---- 横動画：Gemini のモデル（作業ごとに設定タブで選ぶ）----
 // 回数の上限のときは、選んだモデルから一覧の順に下のモデルへ切り替える（Lite は除く）。混雑のときは切り替えずに止める（下も混んでいることが多い）
 const YT_MODEL_LIST=[['gemini-3.8-flash','Gemini 3.8 Flash（20回/日）'],['gemini-3.7-flash','Gemini 3.7 Flash（20回/日）'],['gemini-3.6-flash','Gemini 3.6 Flash（20回/日）'],['gemini-3.5-flash','Gemini 3.5 Flash（20回/日）'],['gemini-3-flash-preview','Gemini 3 Flash（20回/日）'],['gemini-3.5-flash-lite','Gemini 3.5 Flash Lite（500回/日）'],['gemini-3.1-flash-lite','Gemini 3.1 Flash Lite（500回/日）'],['gemini-2.5-flash','Gemini 2.5 Flash（20回/日）'],['gemini-2.5-flash-lite','Gemini 2.5 Flash Lite（20回/日）']];
-const YT_AI_TASKS=[['cut','カットの判定','gemini-3.8-flash'],['read','まとまりの読み取り','gemini-3.8-flash'],['qr','QRの位置','gemini-3.8-flash'],['plan','演出の割り当て','gemini-3.8-flash'],['post','記事・投稿文','gemini-3.8-flash']];   // 画面の並び＝使う順（音声 → スライド → 演出 → 記事・SNS）
+const YT_AI_TASKS=[['cut','カットの判定','gemini-3.8-flash'],['read','まとまりの読み取り','gemini-3.8-flash'],['qr','QRの位置','gemini-3.8-flash'],['plan','演出の割り当て','gemini-3.8-flash'],['post','記事・投稿文','gemini-3.8-flash'],['oped','OP・EDの案','gemini-3.8-flash']];   // 画面の並び＝使う順（音声 → スライド → 演出 → 記事・SNS）
 const ytModelName=m=>((YT_MODEL_LIST.find(x=>x[0]===m)||[])[1]||m).replace(/（.*$/,'');
 function ytModels(task){
   const def=(YT_AI_TASKS.find(x=>x[0]===task)||[])[2]||'gemini-3.8-flash';
@@ -9505,7 +9505,7 @@ function ytInnerTab(t){
   if(t==='research')ytUpdateFreeInfo();
   if(t==='settings'){ytNoteInfo();ytColorFill();ytOpedMatRender();}
   if(t==='article'){const a=ytEl('a-yturl');if(a)a.value=ytVal('p-yturl');const b=ytEl('a-noteurl');if(b)b.value=ytVal('note-url');}
-  if(t==='audio')try{ytOpening();}catch(e){}
+  if(t==='audio'){try{ytOpening();}catch(e){}ytOpedRender();}
   if(t==='naresla')ysRender();
   const want=(t==='slides'||t==='naresla')?'ytnare':(t==='audio'||t==='cut')?'ytaudio':'';
   const cur=document.getElementById('tab-yb')?.classList.contains('active')?'ytboth'
@@ -9719,7 +9719,7 @@ ${[['n','note記事（無料）','表なしで作ります。動画のURLは最�
 </div>
 </div>`;
 }
-const YT_PERSIST_IDS=['vd-orient','th-ctx','th-note-text','th-note-preset','yt-th-text','yt-th-preset','yg-th-text','yg-th-preset','yt-g-theme','yt-g-report','yt-g-aud','yt-a-n-raw','yt-a-n-title','yt-a-n-body','yt-a-n-tags','yt-a-b-raw','yt-a-b-title','yt-a-b-body','yt-a-b-tags','yt-a-check','yt-link-state','yt-doc','yt-series','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-t1','yt-p-t2','yt-p-t3','yt-p-s1','yt-p-s2','yt-p-s3','yt-p-body','yt-p-xbody','yt-p-hook','yt-p-announce','yt-p-ypbody','yt-p-igbody','yt-p-ttbody','yt-p-points','yt-p-xtags','yt-p-yptags','yt-p-igtags','yt-p-tttags','yt-p-l8title','yt-p-l8intro','yt-p-l8tags','yt-p-yp','yt-p-ig','yt-p-l8t','yt-p-ttt','yt-p-fixapplied','yt-p-l8','yt-p-tt','yt-f-yp','yt-f-ig','yt-f-l8','yt-f-tt','yt-p-yturl','yt-p-tags','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-m-cut','yt-m-read','yt-m-plan','yt-m-post','yt-m-qr','yt-yomi','yt-yomi-for','yt-open','yt-open-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan'];
+const YT_PERSIST_IDS=['vd-orient','th-ctx','th-note-text','th-note-preset','yt-th-text','yt-th-preset','yg-th-text','yg-th-preset','yt-g-theme','yt-g-report','yt-g-aud','yt-a-n-raw','yt-a-n-title','yt-a-n-body','yt-a-n-tags','yt-a-b-raw','yt-a-b-title','yt-a-b-body','yt-a-b-tags','yt-a-check','yt-link-state','yt-doc','yt-series','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-t1','yt-p-t2','yt-p-t3','yt-p-s1','yt-p-s2','yt-p-s3','yt-p-body','yt-p-xbody','yt-p-hook','yt-p-announce','yt-p-ypbody','yt-p-igbody','yt-p-ttbody','yt-p-points','yt-p-xtags','yt-p-yptags','yt-p-igtags','yt-p-tttags','yt-p-l8title','yt-p-l8intro','yt-p-l8tags','yt-p-yp','yt-p-ig','yt-p-l8t','yt-p-ttt','yt-p-fixapplied','yt-p-l8','yt-p-tt','yt-f-yp','yt-f-ig','yt-f-l8','yt-f-tt','yt-p-yturl','yt-p-tags','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-m-cut','yt-m-read','yt-m-plan','yt-m-post','yt-m-qr','yt-m-oped','yt-yomi','yt-yomi-for','yt-open','yt-open-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan','yt-oped-kind','yt-op-s1','yt-op-s2','yt-op-s3','yt-op-v1','yt-op-v2','yt-op-v3','yt-op-lead','yt-ed-v','yt-op-cands','yt-ed-cands'];
 // ---- 動画の種類：株価分析の横動画＝stock ／ YT動画タブ＝gen ----
 // 画面と関数は1組だけ。種類を切り替えると、作品ごとの欄（localStorage）と IndexedDB のキーを入れ替える。
 // 株価分析の側は今までのキーのまま、YT動画の側は前に 'gen:' を付ける。設計：docs/design/2026-09-21_YT動画タブ.md
@@ -9819,7 +9819,7 @@ function yhInitFields(){
   if(!window._yhTimer)window._yhTimer=setInterval(yhScan,800);
 }
 // 種類を切り替えても入れ替えない欄：縦横の切り替え・サムネイルの文言（別の仕組みで入れ替える）・設定タブの共通の設定
-const YT_SHARED_IDS=['yt-g-aud','vd-orient','th-ctx','th-note-text','th-note-preset','yt-th-text','yt-th-preset','yg-th-text','yg-th-preset','yt-p-fixed','ya-ctx','yt-months','yt-nlm-min','yt-m-cut','yt-m-read','yt-m-plan','yt-m-post','yt-m-qr'];
+const YT_SHARED_IDS=['yt-g-aud','vd-orient','th-ctx','th-note-text','th-note-preset','yt-th-text','yt-th-preset','yg-th-text','yg-th-preset','yt-p-fixed','ya-ctx','yt-months','yt-nlm-min','yt-m-cut','yt-m-read','yt-m-plan','yt-m-post','yt-m-qr','yt-m-oped'];
 const ytWorkIds=()=>YT_PERSIST_IDS.filter(id=>!YT_SHARED_IDS.includes(id));
 const YT_FIELD_DEFAULTS={};   // 画面を組み立てた直後の値。まだ何も保存していない種類に切り替えたときの出発点
 function ytCaptureDefaults(){ytWorkIds().forEach(id=>{const el=document.getElementById(id);if(el)YT_FIELD_DEFAULTS[id]=el.type==='checkbox'?el.checked:el.value;});}
@@ -10624,7 +10624,211 @@ function yaBuildCutHtml(){
   <h2 title="ナレスラ用のプロジェクトでは、元の音声とカットの位置をそのまま渡します（ナレスラで調整できるように）">4. カット後の音声</h2>
   <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;">${b('▶ 通しで聴く','yaPlayCut()')}${b('💾 音声','yaDownloadCut(this)','background:#0d9488;color:#fff;')}<select id="ya-fmt" title="保存する形式" style="flex:none;font-size:11px;padding:4px;"><option value="mp3">MP3</option><option value="wav">WAV</option></select>${b('📄 文字起こし','yaDownloadText()')}</div>
   <div id="ya-st-out" style="display:none;font-size:11px;"></div>
+</div>
+
+<div class="sa-card" style="margin-top:8px;">
+  <h2 title="オープニング＝この動画を見ると何が分かるか（要点3つ）。エンディング＝なぜこの動画を作ったか・どうするつもりか（作り手の観点）。どちらも Gemini の声で読み、背景の動画とあわせてナレスラの書き出しに入ります。">5. OP・ED（オープニングとエンディング）</h2>
+  <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;">
+    <label style="font-size:11px;color:var(--text-sub);flex:none;">区分</label>
+    <select id="yt-oped-kind" onchange="saveState()" style="flex:1;min-width:0;font-size:11px;padding:3px;" title="背景の動画を選ぶための区分です。空欄なら、株価分析は「決算」、YT動画は「テーマ」になります。">
+      <option value="">自動（株価分析＝決算／YT動画＝テーマ）</option>${YT_OPED_KINDS.map(([k,n])=>`<option value="${k}">${n}</option>`).join('')}
+    </select>
+  </div>
+  <div class="sa-sub">▼ オープニング（この動画を見ると何が分かるか）</div>
+  ${row(b('🤖 案を3つ出す','ytOpedDraft(\'op\',this)','background:#4f46e5;color:#fff;'))}
+  <div id="yt-oped-op-st" style="display:none;font-size:11px;"></div>
+  <div id="yt-oped-op-cands"></div>
+  ${[1,2,3].map(i=>`<div class="row" style="flex-wrap:nowrap;gap:4px;align-items:flex-start;margin-top:4px;"><span style="flex:none;font-size:11px;color:var(--text-sub);padding-top:4px;">${'①②③'[i-1]}</span><div style="flex:1;min-width:0;"><input type="text" id="yt-op-s${i}" placeholder="画面に出す文（短く）" oninput="saveState()" style="width:100%;font-size:11px;padding:3px;"><textarea id="yt-op-v${i}" rows="2" placeholder="音声で読む文" oninput="saveState()" style="width:100%;font-size:11px;margin-top:2px;"></textarea></div></div>`).join('')}
+  <textarea id="yt-op-lead" rows="1" placeholder="要点の前に読む一言（空欄なら無し）" oninput="saveState()" style="width:100%;font-size:11px;margin-top:4px;"></textarea>
+  ${row(b('🔊 音声を作る','ytOpedTts(\'op\',this)','background:#4f46e5;color:#fff;'))}
+  <div id="yt-oped-op-audio" style="font-size:11px;color:var(--text-sub);">音声：未生成</div>
+  <div class="sa-sub">▼ エンディング（なぜこの動画を作ったか・どうするつもりか）</div>
+  ${row(b('🤖 案を3つ出す（検索あり）','ytOpedDraft(\'ed\',this)','background:#4f46e5;color:#fff;'))}
+  <div id="yt-oped-ed-st" style="display:none;font-size:11px;"></div>
+  <div id="yt-oped-ed-cands"></div>
+  <textarea id="yt-ed-v" rows="3" placeholder="音声で読む文（下の字幕にもなります）" oninput="saveState()" style="width:100%;font-size:11px;margin-top:4px;"></textarea>
+  ${row(b('🔊 音声を作る','ytOpedTts(\'ed\',this)','background:#4f46e5;color:#fff;'))}
+  <div id="yt-oped-ed-audio" style="font-size:11px;color:var(--text-sub);">音声：未生成</div>
+  <textarea id="yt-op-cands" style="display:none;"></textarea><textarea id="yt-ed-cands" style="display:none;"></textarea>
 </div>`;
+}
+
+// ---- OP・ED：文の案（Gemini）・音声（Gemini TTS）・文字起こし（時刻）----
+// 欄はPJごと（yt-oped-kind／yt-op-s1..3／yt-op-v1..3／yt-op-lead／yt-ed-v。案は yt-op-cands／yt-ed-cands に JSON で持つ）。
+// 音声は KT_YA の 'oped:op'／'oped:ed'：{b64（wav）, seconds, text, voice, model, times}
+//   times：OP＝[{i:1〜3, s:その要点を話し始める時刻}]、ED＝[{text, s, e}]（字幕用の文）
+const ytOpedKind=()=>ytVal('oped-kind')||(ytGen()?'theme':'earn');
+const ytOpedKindName=k=>((YT_OPED_KINDS.find(x=>x[0]===k)||[])[1]||k);
+function ytOpedSt(role,msg,cls){const el=document.getElementById('yt-oped-'+role+'-st');if(!el)return;el.style.display=msg?'block':'none';el.innerHTML=msg||'';el.style.color=cls==='error'?'#dc2626':cls==='ok'?'#059669':'var(--text-sub)';}
+// 本編の文字起こし（Gemini の貼り付けを優先。無ければ Whisper の文）
+function ytOpedTranscript(){
+  const g=((document.getElementById('ya-gtext')||{}).value||'').trim();
+  if(g)return g;
+  return (YA.sents||[]).map(x=>x.text).join('');
+}
+function ytOpedDraftPrompt(role){
+  const tr=ytOpedTranscript();
+  if(!tr)throw new Error('先に本編の音声を文字起こししてください（2. の「文字起こし」か、Gemini の文字起こしの貼り付け）');
+  const kind=ytOpedKind();
+  const head=`${ytIntent()}の${role==='op'?'オープニング':'エンディング'}の文を作ります。\n`;
+  if(role==='op'){
+    let ch='';try{ch=ytChapters().map(c=>`・${c.name||c.title||''}`).join('\n');}catch(e){}
+    return head+`
+オープニングでは、「この動画を見ると何が分かるか」を要点3つで伝えます。案を3つ作ってください。
+
+決まり
+・要点は、本編の文字起こしで実際に話している内容だけから作る。話していないことを足さない
+・要点ごとに2つの文を作る
+　- screen：画面に出す文。全角20字以内。短く言い切る
+　- voice：音声で読む文。全角40〜60字。話し言葉（ですます）。見た人が「これを見ると何が分かるか」をつかめる言い方にする
+・lead：3つの要点を言う前に読む短い前置き（1文、全角30字以内）
+・3つの案は、要点の選び方や切り口を変える（同じ要点の言い換えにしない）
+・数字を入れるなら、文字起こしにある数字だけ
+
+出力はJSONだけ（前後に説明を付けない）：
+{"candidates":[{"lead":"","points":[{"screen":"","voice":""},{"screen":"","voice":""},{"screen":"","voice":""}]},{...},{...}]}
+
+# 章の並び
+${ch||'（無し）'}
+
+# 本編の文字起こし
+${tr.slice(0,14000)}`;
+  }
+  const angle=kind==='earn'
+    ?`・観点：株価が下がっていたから／名前しか聞いたことがなく、くわしく知らなかったから、という作り手の動機。最後に、これからどうするつもりか（買うか見送るかの判断や、次に見る材料）を1文
+・動機や判断の材料は、下の資料にあることだけを使う`
+    :`・観点：最近のニュースや、近いうちにある出来事と結びつけた作り手の動機。最後に、これからどうするつもりか（何を見ていくか）を1文
+・Google 検索で、このテーマに関わる直近1か月の出来事と、今後1〜2か月の予定を調べ、案ごとに1つを動機に使う
+・出来事・日付・固有名詞は、検索で確かめられたものだけを使う。確かめられなければ入れない`;
+  let mat='';
+  if(ytGen()){try{mat=ygMaterial();}catch(e){mat=ytVal('doc')||'';}}
+  else{const r=ytFreeReport();mat=`銘柄：${getName()||''}（${getDir()==='up'?'上昇':'下落'}）\n${r.text||''}`;}
+  return head+`
+エンディングでは、作り手（投稿者）の観点として、「なぜこの動画を作ったか」と「これからどうするつもりか」を、一人称の話し言葉で短く話します。案を3つ作ってください。
+
+決まり
+・各案は全角80〜140字、2〜3文。ですます調。文の区切りは「。」
+・売買をすすめる言い方はしない（自分の考えとして話す）
+${angle}
+・3つの案は、動機の取り方を変える
+
+出力はJSONだけ（前後に説明を付けない）：
+{"candidates":[{"text":"","basis":"動機に使った出来事（1行。検索で得たものは出典名も）"},{...},{...}]}
+
+# 資料
+${mat.slice(0,12000)}
+
+# 本編の文字起こし
+${tr.slice(0,8000)}`;
+}
+function ytOpedParseJson(s){
+  const m=String(s||'').replace(/^```[^\n]*\n?/,'').replace(/\n?```\s*$/,'');
+  const a=m.indexOf('{'),b=m.lastIndexOf('}');
+  if(a<0||b<a)throw new Error('案を読み取れませんでした（JSONではありません）');
+  return JSON.parse(m.slice(a,b+1));
+}
+async function ytOpedDraft(role,btn){
+  let prompt;try{prompt=ytOpedDraftPrompt(role);}catch(e){ytOpedSt(role,'❌ '+esc(e.message),'error');return;}
+  const search=role==='ed'&&ytOpedKind()!=='earn';
+  if(btn)btn.disabled=true;ytOpedSt(role,search?'案を作っています…（最近の出来事を検索します）':'案を作っています…');
+  try{
+    const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,temperature:0.6,models:ytModels('oped'),onBusy:'stop',search})});
+    const data=await res.json();if(!data.ok)throw new Error(ytAiErr(data,'oped'));
+    const j=ytOpedParseJson(data.text);
+    const cands=Array.isArray(j.candidates)?j.candidates.slice(0,3):[];
+    if(!cands.length)throw new Error('案が入っていませんでした');
+    ytEl(role==='op'?'op-cands':'ed-cands').value=JSON.stringify(cands);saveState();
+    ytOpedRenderCands(role);
+    ytOpedSt(role,`✅ 案を${cands.length}つ出しました。選ぶと下の欄に入ります（直してから音声を作ってください）`,'ok');
+  }catch(e){ytOpedSt(role,'❌ '+esc(e.message),'error');}
+  finally{if(btn)btn.disabled=false;}
+}
+function ytOpedRenderCands(role){
+  const box=document.getElementById('yt-oped-'+role+'-cands');if(!box)return;
+  let cands=[];try{cands=JSON.parse(ytVal(role==='op'?'op-cands':'ed-cands')||'[]');}catch(e){}
+  if(!cands.length){box.innerHTML='';return;}
+  box.innerHTML=cands.map((c,i)=>{
+    const body=role==='op'
+      ?`${c.lead?`<div style="color:var(--text-sub);">${esc(c.lead)}</div>`:''}${(c.points||[]).map((p,k)=>`<div><b>${'①②③'[k]||''} ${esc(p.screen||'')}</b>　<span style="color:var(--text-sub);">${esc(p.voice||'')}</span></div>`).join('')}`
+      :`<div>${esc(c.text||'')}</div>${c.basis?`<div style="color:var(--text-sub);">根拠：${esc(c.basis)}</div>`:''}`;
+    return `<div onclick="ytOpedPick('${role}',${i})" title="この案を下の欄に入れる" style="border:1px solid var(--border);border-radius:6px;padding:4px 6px;margin-top:4px;font-size:11px;cursor:pointer;line-height:1.5;"><span style="color:var(--text-sub);">案${i+1}</span>${body}</div>`;
+  }).join('');
+}
+function ytOpedPick(role,i){
+  let cands=[];try{cands=JSON.parse(ytVal(role==='op'?'op-cands':'ed-cands')||'[]');}catch(e){}
+  const c=cands[i];if(!c)return;
+  if(role==='op'){
+    ytEl('op-lead').value=c.lead||'';
+    for(let k=1;k<=3;k++){const p=(c.points||[])[k-1]||{};ytEl('op-s'+k).value=p.screen||'';ytEl('op-v'+k).value=p.voice||'';}
+  }else ytEl('ed-v').value=c.text||'';
+  saveState();
+}
+// 音声で読む文（OP は前置き＋①②③をつなぐ）
+function ytOpedText(role){
+  if(role==='ed')return ytVal('ed-v');
+  const parts=[ytVal('op-lead'),ytVal('op-v1'),ytVal('op-v2'),ytVal('op-v3')].map(s=>s.replace(/[。\s]+$/,'')).filter(Boolean);
+  return parts.map(s=>s+'。').join('');
+}
+// TTS の声・モデルは、横動画の動画タブの設定（vd）に合わせる。無ければ既定
+function ytOpedVoice(){const v=document.getElementById('vd-tts-voice'),m=document.getElementById('vd-tts-model');return{voice:(v&&v.value)||'Erinome',model:(m&&m.value)||'gemini-3.1-flash-tts-preview'};}
+async function ytOpedTts(role,btn){
+  const text=ytOpedText(role);
+  if(!text){ytOpedSt(role,'❌ 音声で読む文が空です','error');return;}
+  if(btn)btn.disabled=true;ytOpedSt(role,'音声を作っています…');
+  try{
+    const {voice,model}=ytOpedVoice();
+    const res=await fetch('/api/tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,voice,model})});
+    const data=await res.json();if(!data.ok)throw new Error(data.error||'音声を作れませんでした');
+    const rec={b64:data.audioBase64,seconds:Math.round((data.seconds||0)*10)/10,text,voice,model,times:null};
+    ytOpedSt(role,'文字起こしで時刻を取っています…');
+    try{rec.times=await ytOpedTimes(role,rec);}
+    catch(e){ytOpedSt(role,'⚠ 音声はできましたが、時刻を取れませんでした：'+esc(e.message)+'（文字数で見積もります）','');rec.times=ytOpedTimesGuess(role,rec);}
+    await yaPut('oped:'+role,rec);
+    ytOpedRenderAudio(role,rec);
+    if(rec.times&&rec.times.length)ytOpedSt(role,`✅ 音声を作りました（${rec.seconds}秒）`,'ok');
+  }catch(e){ytOpedSt(role,'❌ '+esc(e.message),'error');}
+  finally{if(btn)btn.disabled=false;}
+}
+// 作った音声を文字起こしして、要点（OP）／文（ED）の時刻を取る
+async function ytOpedTimes(role,rec){
+  const wav=new Blob([vdB64ToBuf(rec.b64)],{type:'audio/wav'});
+  const res=await fetch('/api/transcribe?lang=ja',{method:'POST',headers:{'Content-Type':'audio/wav'},body:wav});
+  const data=await res.json();if(!data.ok)throw new Error(data.error||'文字起こしに失敗');
+  const chars=[];for(const w of (data.words||[])){const t=yaNorm(w.w),n=t.length;for(let i=0;i<n;i++)chars.push({c:t[i],s:w.s+(w.e-w.s)*i/n,e:w.s+(w.e-w.s)*(i+1)/n});}
+  if(!chars.length)throw new Error('語が取れませんでした');
+  const stream=chars.map(c=>c.c).join('');
+  // 文の先頭の数文字を、前回の位置より後ろから探す
+  let pos=0;const find=t=>{const nt=yaNorm(t);for(const n of [6,4,3]){const k=stream.indexOf(nt.slice(0,n),pos);if(k>=0){pos=k+1;return{s:chars[k].s,e:chars[Math.min(chars.length-1,k+nt.length-1)].e};}}return null;};
+  if(role==='op'){
+    if(ytVal('op-lead'))find(ytVal('op-lead'));
+    const out=[];for(let i=1;i<=3;i++){const f=find(ytVal('op-v'+i));if(!f)throw new Error(`${'①②③'[i-1]}の文が音声の中で見つかりません`);out.push({i,s:+f.s.toFixed(2)});}
+    return out;
+  }
+  const sents=(rec.text.match(/[^。？！?!]+[。？！?!]*/g)||[]).map(s=>s.trim()).filter(Boolean);
+  const out=[];for(const t of sents){const f=find(t);if(!f)throw new Error('文が音声の中で見つかりません：'+t.slice(0,12));out.push({text:t,s:+f.s.toFixed(2),e:+f.e.toFixed(2)});}
+  return out;
+}
+// 文字起こしが使えないときの見積もり（文字数の割合）
+function ytOpedTimesGuess(role,rec){
+  const total=rec.text.length,dur=rec.seconds;
+  if(role==='op'){const lead=ytVal('op-lead').length+1;let at=lead;const out=[];for(let i=1;i<=3;i++){out.push({i,s:+(dur*at/total).toFixed(2)});at+=ytVal('op-v'+i).length+1;}return out;}
+  const sents=(rec.text.match(/[^。？！?!]+[。？！?!]*/g)||[]).map(s=>s.trim()).filter(Boolean);let at=0;
+  return sents.map(t=>{const s=dur*at/total;at+=t.length;return{text:t,s:+s.toFixed(2),e:+(dur*at/total).toFixed(2)};});
+}
+function ytOpedRenderAudio(role,rec){
+  const el=document.getElementById('yt-oped-'+role+'-audio');if(!el)return;
+  if(!rec||!rec.b64){el.textContent='音声：未生成';return;}
+  const url=URL.createObjectURL(new Blob([vdB64ToBuf(rec.b64)],{type:'audio/wav'}));
+  const times=role==='op'
+    ?(rec.times||[]).map(t=>`${'①②③'[t.i-1]} ${t.s}秒`).join('／')
+    :(rec.times||[]).map(t=>`${t.s}〜${t.e}秒`).join('／');
+  const stale=rec.text!==ytOpedText(role);
+  el.innerHTML=`<div style="display:flex;align-items:center;gap:6px;"><audio controls src="${url}" style="flex:1;min-width:0;height:30px;"></audio><span style="flex:none;">${rec.seconds}秒・${esc(rec.voice||'')}</span></div>`+
+    `<div style="font-size:10px;color:var(--text-sub);">${times?`文字の時刻：${times}`:''}${stale?'<span style="color:#b45309;">　⚠ 文を直したあとに作っていません。もう一度「音声を作る」を押してください</span>':''}</div>`;
+}
+async function ytOpedRender(){
+  ytOpedRenderCands('op');ytOpedRenderCands('ed');
+  for(const role of ['op','ed'])ytOpedRenderAudio(role,await yaGet('oped:'+role));
 }
 function yaAlignFromBox(){try{yaAlign(yaVal('gtext'));}catch(e){yaStatus('st-g','❌ '+esc(e.message),'error');}}
 async function yaPaste(id,after){
@@ -12604,6 +12808,7 @@ async function tabIoYtCollect(){
     tpl:tpl&&tpl.blob?{name:tpl.name,blob:await enc(tpl.blob)}:null,
     srcimg:Object.fromEntries(await Promise.all(Object.entries(YS.imgs||{}).map(async([k,g])=>[k,{rect:g.rect||null,w:g.w||0,h:g.h||0,name:g.name||'',blob:await enc(g.blob),orig:g.orig?await enc(g.orig):null}]))),
     srcedit:YS.edit||{},
+    oped:{op:await yaGet('oped:op'),ed:await yaGet('oped:ed')},   // OP・EDの音声（b64 なので、そのまま入る）
     links:(typeof YL!=='undefined'&&YL.res)||null};
 }
 async function tabIoYtRestore(y){
@@ -12612,6 +12817,7 @@ async function tabIoYtRestore(y){
   // 保存先（IndexedDB）を書き換える
   await yaPut('audio',y.audio&&y.audio.blob?{blob:await dec(y.audio.blob),name:y.audio.name||'narration'}:null);
   await yaPut('state',y.state||null);
+  await yaPut('oped:op',(y.oped&&y.oped.op)||null);await yaPut('oped:ed',(y.oped&&y.oped.ed)||null);
   await ynPut('slides',await Promise.all((y.slides||[]).map(async s=>({name:s.name,zones:s.zones||null,texts:s.texts||null,qrRect:s.qrRect||null,blob:await dec(s.blob),qrOrig:s.qrOrig?await dec(s.qrOrig):null}))));
   _ynPlanWhy='読み込み前';await ynPut('plan',y.plan||null);
   await ynPut('tpl',y.tpl&&y.tpl.blob?{name:y.tpl.name,blob:await dec(y.tpl.blob)}:null);
