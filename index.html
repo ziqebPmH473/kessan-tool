@@ -2173,7 +2173,7 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
         const KT_YA    = KTStore.mediaNs('ya',    ktIdbNs('kessanTool-ytAudio', 'kv'), {        // 横動画：ナレーション音声と作業状態
             kindOf: () => ktYtKind(), legacy: ktLegacyYt });
         // ひな形（tpl）と OP・ED の背景動画（opv:／edv:）は PJ をまたいで共通
-        const ktYnCommon = k => (k === 'tpl' || /^(opv|edv):/.test(k));
+        const ktYnCommon = k => (k === 'tpl' || /^(opv|edv|bgm):/.test(k));   // bgm:＝設定で登録した BGM
         const KT_YN    = KTStore.mediaNs('yn',    ktIdbNs('kessanTool-ytNare', 'kv'), {         // 横動画：スライド画像・割り当て・素材
             kindOf: k => (ktYnCommon(k) ? '_common' : ktYtKind()),
             legacy: k => (ktYnCommon(k) ? { kind: '_common', key: k } : ktLegacyYt(k)) });
@@ -9502,6 +9502,49 @@ async function ytOpedMatDel(key){
   await ytOpedMatRender();
   ytOpedMatStatus('消しました','ok');
 }
+// ---- BGM（設定。全PJ共通）----
+// 保存先は KT_YN の共通キー 'bgm:<id>'（中身 {name, blob, dur, size}）。一覧は目録 'bgm:_index'。
+// 使うものは localStorage の kt-bgm-sel（キー。空＝なし）に持つ（LS_SYNC でサーバーの shared にも入る）
+const YT_BGM_IDX='bgm:_index',YT_BGM_SEL='kt-bgm-sel',YT_BGM_MAX_MB=30;
+async function ytBgmIndex(){const x=await ynGet(YT_BGM_IDX);return Array.isArray(x)?x:[];}
+const ytBgmSelKey=()=>{try{return localStorage.getItem(YT_BGM_SEL)||'';}catch(e){return '';}};
+function ytBgmSetSel(key){try{if(key)localStorage.setItem(YT_BGM_SEL,key);else localStorage.removeItem(YT_BGM_SEL);}catch(e){}if(typeof saveState==='function')saveState();}
+// 音声の長さを読む（読めなければ 0）
+function ytAudioDur(blob){
+  return new Promise(res=>{const a=document.createElement('audio'),u=URL.createObjectURL(blob);let done=false;
+    const fin=d=>{if(done)return;done=true;URL.revokeObjectURL(u);res(d);};
+    a.preload='metadata';a.onloadedmetadata=()=>fin(isFinite(a.duration)?a.duration:0);a.onerror=()=>fin(0);setTimeout(()=>fin(0),15000);a.src=u;});
+}
+async function ytBgmRender(){
+  const box=document.getElementById('yt-bgm-list');if(!box)return;
+  const idx=await ytBgmIndex(),sel=ytBgmSelKey();
+  const on=idx.some(x=>x.key===sel)?sel:'';
+  const row=(key,label,del)=>`<label style="display:flex;align-items:center;gap:4px;font-size:11px;min-width:0;margin-top:2px;"><input type="radio" name="yt-bgm-sel" value="${key}"${key===on?' checked':''} onchange="ytBgmSetSel(this.value)" style="flex:none;"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(label)}">${esc(label)}</span>${del?`<button class="btn-sm" onclick="event.preventDefault();ytBgmDel('${key}')" title="この BGM を消す" style="flex:none;padding:1px 5px;font-size:10px;">✕</button>`:''}</label>`;
+  box.innerHTML=row('','なし（入れない）',false)+idx.map(x=>row(x.key,`${x.name}${x.dur?`（${Math.round(x.dur)}秒）`:''}`,true)).join('')+
+    `<label class="btn-sm" for="yt-bgm-add" style="display:inline-block;padding:1px 6px;font-size:10px;cursor:pointer;margin-top:4px;">＋ 追加</label><input type="file" id="yt-bgm-add" accept="audio/*" onchange="ytBgmLoad(this.files[0]);this.value=''" style="display:none;">`+
+    `<div id="yt-bgm-status" style="display:none;font-size:11px;"></div>`;
+}
+function ytBgmStatus(msg,cls){const el=document.getElementById('yt-bgm-status');if(!el)return;el.style.display=msg?'block':'none';el.textContent=msg||'';el.style.color=cls==='error'?'#dc2626':cls==='ok'?'#059669':'var(--text-sub)';}
+async function ytBgmLoad(file){
+  if(!file)return;
+  if(file.size>YT_BGM_MAX_MB*1048576){ytBgmStatus(`❌ ${file.name} は ${(file.size/1048576).toFixed(0)}MB あります。1本 ${YT_BGM_MAX_MB}MB までにしてください（mp3 などにしてください）`,'error');return;}
+  ytBgmStatus(`${file.name} を読んでいます…`);
+  const dur=await ytAudioDur(file);
+  if(!dur){ytBgmStatus(`❌ ${file.name} を音声として読めませんでした`,'error');return;}
+  const key=`bgm:${Date.now().toString(36)}`;
+  await ynPut(key,{name:file.name,blob:file,dur,size:file.size});
+  const idx=await ytBgmIndex();idx.push({key,name:file.name,dur,size:file.size});await ynPut(YT_BGM_IDX,idx);
+  if(!idx.some(x=>x.key===ytBgmSelKey()))ytBgmSetSel(key);   // まだ何も選んでいなければ、入れたものを使う
+  await ytBgmRender();
+  ytBgmStatus(`✅ ${file.name}（${Math.round(dur)}秒）を登録しました`,'ok');
+}
+async function ytBgmDel(key){
+  const idx=await ytBgmIndex(),it=idx.find(x=>x.key===key);
+  if(!confirm(`「${(it&&it.name)||key}」を消しますか？（すべてのPJから消えます）`))return;
+  await KT_YN.del(key);await ynPut(YT_BGM_IDX,idx.filter(x=>x.key!==key));
+  if(ytBgmSelKey()===key)ytBgmSetSel('');
+  await ytBgmRender();ytBgmStatus('消しました','ok');
+}
 // OP・ED のテロップ（右上に出す言葉）。全PJ共通なので、欄に id を付けず localStorage の kt-oped-telop に持つ（LS_SYNC でサーバーの shared にも入る）
 const YT_OPED_TELOP_KEY='kt-oped-telop',YT_OPED_TELOP_DEF={op:'3つの注目点',ed:'投稿者の一言'};
 function ytOpedTelops(){let v=null;try{v=JSON.parse(localStorage.getItem(YT_OPED_TELOP_KEY)||'null');}catch(e){}v=v||{};return{op:v.op??YT_OPED_TELOP_DEF.op,ed:v.ed??YT_OPED_TELOP_DEF.ed};}
@@ -9531,7 +9574,7 @@ function ytInnerTab(t){
     if(b)b.classList.toggle('active',k===t);if(p)p.style.display=k===t?'':'none';
   });
   if(t==='research')ytUpdateFreeInfo();
-  if(t==='settings'){ytNoteInfo();ytColorFill();ytOpedMatRender();ytOpedTelopFill();}
+  if(t==='settings'){ytNoteInfo();ytColorFill();ytOpedMatRender();ytOpedTelopFill();ytBgmRender();}
   if(t==='article'){const a=ytEl('a-yturl');if(a)a.value=ytVal('p-yturl');const b=ytEl('a-noteurl');if(b)b.value=ytVal('note-url');}
   if(t==='audio'){try{ytOpening();}catch(e){}ytOpedRender();ytOpedVoiceFill();}
   if(t==='naresla')ysRender();
@@ -9738,6 +9781,9 @@ ${[['n','note記事（無料）','表なしで作ります。動画のURLは最�
   <div id="yt-oped-mats"></div>
   ${set('OPのテロップ','<input type="text" data-oped-telop="op" oninput="ytOpedTelopSave()" style="flex:1;min-width:0;font-size:11px;padding:4px;" title="オープニングの動画のあいだ、右上に出すテロップです。すべてのPJで共通です。">','')}
   ${set('EDのテロップ','<input type="text" data-oped-telop="ed" oninput="ytOpedTelopSave()" style="flex:1;min-width:0;font-size:11px;padding:4px;" title="エンディングの動画のあいだ、右上に出すテロップです。すべてのPJで共通です。">','')}
+  <div class="sa-sub">▼ BGM</div>
+  <div style="font-size:10px;color:var(--text-sub);" title="選んだ BGM を、ナレスラのプロジェクトに入れます（音量は 2%）。何本でも登録でき、使うものを1つ選びます。すべてのPJで共通です。「なし」を選ぶと入れません（ひな形に BGM があれば、そちらを使います）。">選んだ BGM をナレスラの書き出しに入れます。すべてのPJで共通です。</div>
+  <div id="yt-bgm-list"></div>
   <div class="sa-sub">▼ Geminiのモデル（作業ごと）</div>
   <div style="font-size:10px;color:var(--text-sub);" title="回数の上限のときは、選んだモデルから一覧の順に下のモデルへ自動で切り替えます（Lite には切り替えません。読み取りの位置が大きくずれて使えなかったため）。混雑のときは切り替えずに止まるので、ここで別のモデルを選んでもう一度押してください。">上限のときは下のモデルへ自動で切り替え（Lite除く）。混雑で止まったら、別のモデルを選んでもう一度。</div>
   ${YT_AI_TASKS.map(([k,n,d])=>set(n,`<select id="yt-m-${k}" onchange="saveState()" style="flex:1;min-width:0;font-size:11px;padding:3px;">${YT_MODEL_LIST.map(([v,l])=>`<option value="${v}"${v===d?' selected':''}>${l}</option>`).join('')}</select>`)).join('')}
@@ -12076,6 +12122,11 @@ async function ynExport(btn){
     if(oped){nar=oped.nar;opedNote=oped.note;if(oped.hasEd)p.endPad=0;}
     p.msubSettings=Object.assign({},p.msubSettings||{},{style:'news'});   // 字幕の共通設定のスタイル＝📰 ニュース/報道（ひな形の設定を取り込むときも、ここはニュース/報道にする）   // ED の後ろの無音はツールで入れるので、ナレスラの終了後の無音は 0
     p.fx=Object.assign({},p.fx||{},{bgmVol:0.02});   // BGM の音量は 2%（ひな形を使うときも）
+    // BGM：設定で選んだものを入れる（「なし」なら、ひな形の BGM のまま）
+    let bgmNote='';
+    {const sel=ytBgmSelKey(),it=sel?(await ytBgmIndex()).find(x=>x.key===sel):null;
+      if(it){const r=await ynGet(it.key);if(r&&r.blob){const be=((it.name.match(/\.(\w+)$/)||[,'mp3'])[1]).toLowerCase();zip.file(`bgm.${be}`,r.blob);p.bgmFile=`bgm.${be}`;p.bgmFileName=it.name;bgmNote=`BGM「${it.name}」`;}
+        else bgmNote=`⚠ BGM「${it.name}」を読めませんでした（入れていません）`;}}
     Object.assign(p,{version:3,source:'import',name:`${ytFileBase('','')}_YouTube`,created:new Date().toISOString(),
       slides,cuts,switchPoints,decorations,decImages,cornerTelops,insertions:[],sfxList:[],sfxVols:{},
       manualSubtitles:subs,decIdCtr:id+10,narFile:nar.name,narFileName:nar.label,
@@ -12085,7 +12136,7 @@ async function ynExport(btn){
     zip.file(nar.name,nar.file);
     const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:3}});
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${ytFileBase('code','name')}_ナレスラ.svpz`;a.click();
-    ynStatus(`✅ 書き出しました（スライド${slides.length}枚・ズーム${YN.plan.zooms.length}・強調${decorations.filter(d=>d.type!=='image'&&d.type!=='text').length}・チャート${chartPlan.length}・カット${cuts.length}・字幕${subs.length}・出典${srcPlan.length}（画像あり${nGot}））${tpl?`／ひな形：${esc(tpl.name)}`:'／ひな形なし'}${opedNote?`／${opedNote}`:''}`,'ok','status3');
+    ynStatus(`✅ 書き出しました（スライド${slides.length}枚・ズーム${YN.plan.zooms.length}・強調${decorations.filter(d=>d.type!=='image'&&d.type!=='text').length}・チャート${chartPlan.length}・カット${cuts.length}・字幕${subs.length}・出典${srcPlan.length}（画像あり${nGot}））${tpl?`／ひな形：${esc(tpl.name)}`:'／ひな形なし'}${opedNote?`／${opedNote}`:''}${bgmNote?`／${bgmNote}`:''}`,'ok','status3');
   }catch(e){ynStatus('❌ '+e.message,'error','status3');}
   finally{if(btn)btn.disabled=false;}
 }
