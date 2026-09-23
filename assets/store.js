@@ -163,7 +163,8 @@
         const touched = S.touched[t];
         if (!S.force[t]) {
           if (!touched) { S.base[t] = j; return; }
-          if (touched === 'click' && j === S.base[t]) return;
+          // 押しただけ：開いた直後の状態から欄が変わっていれば作る。まだ覚えていなければ（開いてすぐ押した）、いまを覚えて作らない
+          if (touched === 'click' && (S.base[t] === undefined || j === S.base[t])) { S.base[t] = j; return; }
         }
         id = newId(t); S.cur[t] = id; S.created[id] = nowIso(); delete S.touched[t]; delete S.base[t]; curSave();
       }
@@ -317,7 +318,8 @@
   function mediaNs(ns, local, opts) {
     const kindOf = (opts && opts.kindOf) || (() => '_common');
     S.ns[ns] = { local, kindOf, legacy: (opts && opts.legacy) || (k => ({ kind: kindOf(k), key: k })) };
-    const full = (key, create) => { const k = kindOf(key); const pid = k === '_common' ? '_common' : pidFor(k, create); return pid ? pid + '/' + key : null; };
+    // 空の PJ にファイルを書くのは、ユーザーが触ったあとだけ（初期化の書き込みで PJ を作らない）
+    const full = (key, create) => { const k = kindOf(key); if (k !== '_common' && create && !S.cur[k] && !S.touched[k] && !S.force[k]) return null; const pid = k === '_common' ? '_common' : pidFor(k, create); return pid ? pid + '/' + key : null; };
     return {
       async get(key) {
         await S.readyWait;
@@ -334,7 +336,7 @@
       },
       async put(key, val) {
         await S.readyWait;
-        const fk = full(key, true);
+        const fk = full(key, true); if (!fk) return;
         await local.put(fk, val);
         if (S.mode !== 'server') return;
         S.mediaQueue[ns + '/' + fk] = 1; metaSave(); runMedia();

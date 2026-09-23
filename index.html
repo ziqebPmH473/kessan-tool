@@ -12282,7 +12282,8 @@ const TAB_IO={
   earnings:{label:'決算分析',  roots:['#mode-earnings','#capture-area','#earn-video-view'], codeId:'p-code',        nameId:'p-name'},
   stock:   {label:'個別銘柄分析',roots:['#mode-stock','#capture-area-stock'],                 codeId:'sa-code-input', nameId:'sa-name-input'},
   price:   {label:'株価分析',  roots:['#mode-price','#capture-area-price'],                 codeId:'inp-ticker',    nameId:'inp-name'},
-  // YT動画：横動画のパネル（#yt-root）は、このタブを開いている間だけ #mode-yt の中にある。右側（サムネイルなど）は株価分析と共用なので roots に入れない
+  // YT動画：横動画のパネル（#yt-root）は、このタブを開いている間だけ #mode-yt の中にある。
+  // 右側のサムネイル（#thumb-view）は株価分析と共用の画面なので、YT動画を開いている間だけ YT動画の欄として扱う（tabIoElements）
   yt:      {label:'YT動画',    roots:['#mode-yt'],                                           codeId:null,            nameId:'yt-g-theme'},
 };
 // ============================================================
@@ -12327,7 +12328,9 @@ function ktModal(msg,okLabel){
 }
 // 種別の欄を、画面を組み立てた直後の値に戻す（空のPJ）
 function ktResetKindFields(kind){
+  window._ktYgTh={text:(document.getElementById('yg-th-text')||{}).value||'',preset:(document.getElementById('yg-th-preset')||{}).value||'youtube'};
   tabIoElements(kind).forEach(el=>{
+    if(kind==='yt'&&el.id==='th-input'){el.value='';return;}
     const t=(el.type||'').toLowerCase();
     if(t==='radio'||t==='checkbox'){el.checked=el.defaultChecked;return;}
     if(el.tagName==='SELECT'){let any=false;for(const o of el.options){o.selected=o.defaultSelected;if(o.defaultSelected)any=true;}if(!any&&el.options.length)el.selectedIndex=0;return;}
@@ -12358,7 +12361,14 @@ function ktKindAfterOpen(kind,json){
     try{vdBuildScriptBoxes('vd',true);vdRestoreFields('vd');vdUpdateScriptStats('vd');}catch(e){}
     requestAnimationFrame(()=>{try{if((document.getElementById('ta-data').value||'').trim())renderPrev();else if(typeof renderPrev==='function')renderPrev();}catch(e){}try{renderThumbPreview();}catch(e){}});
   }
+  if(kind==='yt'){
+    // サムネイル：この PJ の文言と型。前の形の行（サムネを持っていない）は、YT動画用の控えから
+    const ta=document.getElementById('th-input'),cx=document.getElementById('th-ctx'),f=j.fields||{};
+    if(cx)cx.value='gen';
+    if(!('th-input' in f)&&ta&&window._ktYgTh){ta.value=window._ktYgTh.text;const r=document.querySelector('input[name="th-preset"][value="'+window._ktYgTh.preset+'"]');if(r)r.checked=true;}
+  }
   if(kind==='price'||kind==='yt'){
+    try{const pr=(document.querySelector('input[name="th-preset"]:checked')||{}).value;if(pr&&THUMB_PRESETS[pr]){const p=THUMB_PRESETS[pr];THUMB.offsetTop=p.offsetTop;THUMB.offsetMid=p.offsetMid;THUMB.offsetBot=p.offsetBot;}thumbSyncFromControls();}catch(e){}
     try{ytFixedMigrate();}catch(e){}
     try{ytCtxApplyUi();ytSyncTabs();ytUpdateFreeInfo();}catch(e){}
   }
@@ -12376,7 +12386,7 @@ async function ktKindReload(kind){
   if(kind==='price'||kind==='yt'){
     try{const bg=await idbGet('thumbBg');tabIoSetThBg(bg&&bg.dataUrl?bg:null);}catch(e){}
     await ytReloadAll(null);
-    if(kind==='price')requestAnimationFrame(()=>{try{renderThumbPreview();}catch(e){}});
+    requestAnimationFrame(()=>{try{renderThumbPreview();}catch(e){}});
   }
 }
 // PJ を開く（id=null なら空）。いまの内容を送り切ってから、欄とファイルを入れ替える
@@ -12408,13 +12418,19 @@ function ktTabTitle(tab,fields){
   return [cd,nm].filter(v=>v!=null&&String(v).trim()).map(v=>String(v).trim()).join(' ').slice(0,80);
 }
 // タブ内のフォーム要素をすべて集める（動画サブタブなど JS で作った欄も含む）
+// サムネイルのうち、note用・株価分析の動画用の控え（YT動画の PJ には入れない）
+const KT_TH_PRICE_ONLY=['th-note-text','th-note-preset','yt-th-text','yt-th-preset'];
 function tabIoElements(tab){
   const out=[];const seen=new Set();
-  TAB_IO[tab].roots.forEach(sel=>{
+  const ytOn=typeof _ytModeOn!=='undefined'&&_ytModeOn,tv=document.getElementById('thumb-view');
+  const roots=TAB_IO[tab].roots.slice();if(tab==='yt'&&ytOn)roots.push('#thumb-view');
+  roots.forEach(sel=>{
     const root=document.querySelector(sel);if(!root)return;
     root.querySelectorAll('input,textarea,select').forEach(el=>{
       const t=(el.type||'').toLowerCase();
       if(t==='file'||t==='button'||t==='submit')return;
+      // サムネイルは、YT動画を開いている間は YT動画の PJ のもの（株価の PJ には書かない）
+      if(tv&&tv.contains(el)){if(tab==='price'&&ytOn)return;if(tab==='yt'&&KT_TH_PRICE_ONLY.includes(el.id))return;}
       const key=t==='radio'?'radio:'+el.name+':'+el.value:'id:'+el.id;
       if(seen.has(key))return;seen.add(key);
       out.push(el);
