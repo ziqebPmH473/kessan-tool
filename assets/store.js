@@ -69,8 +69,8 @@
     return `p:${kind}:${ts}-${Math.random().toString(36).slice(2, 6)}`;
   }
   const kindOfId = id => { const m = /^p:([a-z]+)(?::|$)/.exec(id || ''); return m ? m[1] : null; };
-  function metaLoad() { const m = parse(lsGet(META_KEY)) || {}; S.versions = m.versions || {}; S.mediaQueue = m.media || {}; }
-  function metaSave() { lsSet(META_KEY, JSON.stringify({ versions: S.versions, media: S.mediaQueue })); }
+  function metaLoad() { const m = parse(lsGet(META_KEY)) || {}; S.versions = m.versions || {}; S.mediaQueue = m.media || {}; S.etags = m.etags || {}; }
+  function metaSave() { lsSet(META_KEY, JSON.stringify({ versions: S.versions, media: S.mediaQueue, etags: S.etags || {} })); }
   function curSave() { ssSet(CUR_KEY, JSON.stringify(S.cur)); lsSet(CUR_KEY, JSON.stringify(Object.assign(parse(lsGet(CUR_KEY)) || {}, S.cur))); }
   function pendingSave() {
     const out = {};
@@ -326,11 +326,17 @@
         const fk = full(key, false); if (!fk) return null;
         if (S.mode !== 'server' || S.mediaQueue[ns + '/' + fk]) return local.get(fk);   // 送る途中のものは端末内の方が新しい
         try {
-          const r = await api(mediaUrl(ns, fk), { method: 'GET' });
-          if (r.status === 404) return null;
+          // 端末内に同じ版があれば、サーバーには「変わったか」だけ聞く（304 なら端末内のものを使う）
+          const ek = ns + '/' + fk; const et = S.etags && S.etags[ek];
+          let lv = null; if (et) { try { lv = await local.get(fk); } catch (e) {} }
+          const r = await api(mediaUrl(ns, fk), { method: 'GET', headers: (et && lv != null) ? { 'if-none-match': et } : {} });
+          if (r.status === 304 && lv != null) return lv;
+          if (r.status === 404) { if (S.etags) delete S.etags[ek]; return null; }
           if (!r.ok) throw new Error('HTTP ' + r.status);
           const v = await decode(await r.json());
-          local.put(fk, v).catch(() => {});
+          const ne = r.headers.get('x-kt-etag');
+          await local.put(fk, v).catch(() => {});
+          if (ne) { S.etags = S.etags || {}; S.etags[ek] = ne; metaSave(); }
           return v;
         } catch (e) { return local.get(fk); }
       },
@@ -383,6 +389,8 @@
             ? await api(mediaUrl(ns, fk), { method: 'DELETE' })
             : await api(mediaUrl(ns, fk), { method: 'PUT', body: JSON.stringify(await encode(v)) });
           if (!r.ok && r.status !== 404) throw new Error('HTTP ' + r.status);
+          S.etags = S.etags || {};
+          if (v == null) delete S.etags[q]; else { try { const j = await r.json(); if (j && j.etag) S.etags[q] = j.etag; else delete S.etags[q]; } catch (e) { delete S.etags[q]; } }
           delete S.mediaQueue[q]; metaSave();
         } catch (e) {
           failed = true;

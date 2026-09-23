@@ -47,9 +47,13 @@ export async function onRequestGet(context) {
     }
     const key = keyOf(context.params);
     if (!key) return json({ ok: false, error: 'キーがありません' }, 400);
-    const o = await b.get(key);
+    // If-None-Match：画面側が持っている版と同じなら中身を送らない（304）。同じ端末で開き直すたびに音声やスライドを丸ごと読まないように
+    const inm = (context.request.headers.get('if-none-match') || '').replace(/^W\//, '').replace(/"/g, '');
+    const o = await b.get(key, inm ? { onlyIf: { etagDoesNotMatch: inm } } : undefined);
     if (!o) return json({ ok: false, error: 'なし' }, 404);
-    return new Response(o.body, { headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
+    const h = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-kt-etag': o.etag };
+    if (!('body' in o) || !o.body) return new Response(null, { status: 304, headers: h });
+    return new Response(o.body, { headers: h });
   } catch (e) {
     return json({ ok: false, error: String(e && e.message ? e.message : e) }, 500);
   }
@@ -62,8 +66,8 @@ export async function onRequestPut(context) {
   if (!key) return json({ ok: false, error: 'キーがありません' }, 400);
   try {
     const buf = await context.request.arrayBuffer();
-    await b.put(key, buf, { httpMetadata: { contentType: 'application/json' } });
-    return json({ ok: true, size: buf.byteLength });
+    const o = await b.put(key, buf, { httpMetadata: { contentType: 'application/json' } });
+    return json({ ok: true, size: buf.byteLength, etag: o && o.etag });
   } catch (e) {
     return json({ ok: false, error: String(e && e.message ? e.message : e) }, 500);
   }
