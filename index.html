@@ -9771,6 +9771,7 @@ const YT_FIELD_DEFAULTS={};   // 画面を組み立てた直後の値。まだ�
 function ytCaptureDefaults(){ytWorkIds().forEach(id=>{const el=document.getElementById(id);if(el)YT_FIELD_DEFAULTS[id]=el.type==='checkbox'?el.checked:el.value;});}
 // いま画面にある分を空にしてから、保存先から読み直す（インポートのあとと、種類を切り替えたあと）
 async function ytReloadAll(links){
+  window._yaGen=(window._yaGen||0)+1;
   Object.assign(YA,{file:null,fileName:'',buf:null,mono:null,sil:null,chars:[],wchars:[],sents:[],cuts:[],dur:0,sections:[],score:null,reach:null});
   YN.slides=[];YN.plan=null;YN.cur=0;YS.imgs={};YS.edit={};YS.sel=null;
   // リンク確認の結果：保存してある欄（「目で確認した」の印も入っている）から戻す。欄が空で、読み込んだファイルに結果があればそれを使う
@@ -9941,18 +9942,27 @@ function yaSave(){clearTimeout(_yaSaveTimer);_yaSaveTimer=setTimeout(yaSaveNow,4
 async function yaFlush(){if(_yaSaveTimer){clearTimeout(_yaSaveTimer);await yaSaveNow();}}
 
 // ---- 音声の読み込み ----
+// 展開した音声を覚えておく（同じ PJ の同じ音声を開き直したときに、展開をやり直さない。メモリのため直近2件まで）
+const YA_CACHE=new Map();window._yaGen=0;
 async function yaLoadFile(file,restoring){
   if(!file)return;
+  const gen=window._yaGen;   // 展開の途中で PJ が変わったら、結果を捨てる
+  const ck=(typeof KTStore!=='undefined'?(KTStore.cur[ytGen()?'yt':'price']||''):'')+'|'+(file.name||'')+'|'+file.size;
   YA.file=file;YA.fileName=file.name||'narration';
   yaStatus('st-tr','音声を読み込み中…');
   try{
-    const ctx=new (window.AudioContext||window.webkitAudioContext)();
-    YA.buf=await ctx.decodeAudioData(await file.arrayBuffer());ctx.close();
-    YA.dur=YA.buf.duration;
-    const off=new OfflineAudioContext(1,Math.ceil(YA.dur*YA.sr),YA.sr);   // 文字起こし送信・波形解析用に 16kHz モノラル
-    const src=off.createBufferSource();src.buffer=YA.buf;src.connect(off.destination);src.start();
-    YA.mono=(await off.startRendering()).getChannelData(0);
-    yaCalcSilence();
+    let c=restoring?YA_CACHE.get(ck):null;
+    if(!c){
+      const ctx=new (window.AudioContext||window.webkitAudioContext)();
+      const buf=await ctx.decodeAudioData(await file.arrayBuffer());ctx.close();
+      const off=new OfflineAudioContext(1,Math.ceil(buf.duration*YA.sr),YA.sr);   // 文字起こし送信・波形解析用に 16kHz モノラル
+      const src=off.createBufferSource();src.buffer=buf;src.connect(off.destination);src.start();
+      c={buf,mono:(await off.startRendering()).getChannelData(0),sil:null};
+    }
+    if(gen!==window._yaGen)return;
+    YA.buf=c.buf;YA.dur=c.buf.duration;YA.mono=c.mono;
+    if(c.sil)YA.sil=c.sil;else{yaCalcSilence();c.sil=YA.sil;}
+    YA_CACHE.delete(ck);YA_CACHE.set(ck,c);while(YA_CACHE.size>2)YA_CACHE.delete(YA_CACHE.keys().next().value);
     if(!restoring){
       Object.assign(YA,{chars:[],wchars:[],sents:[],cuts:[],sections:[],score:null,reach:null});
       await yaPut('audio',{blob:file,name:YA.fileName});yaSave();yaRender();
@@ -10577,9 +10587,15 @@ async function yaRestore(){
   if(st&&st.sents){Object.assign(YA,{fileName:st.fileName||'',dur:st.dur||0,chars:st.chars||[],wchars:st.wchars||[],sents:st.sents||[],cuts:st.cuts||[],sections:st.sections||[],score:st.score||null,reach:st.reach==null?null:st.reach});}
   if(a&&a.blob){
     let f=a.blob;try{f=new File([a.blob],a.name||'narration',{type:a.blob.type});}catch(e){}
-    await yaLoadFile(f,true);
-    if(typeof ynRender==='function')ynRender();if(typeof ysRender==='function')ysRender();
-    if(st&&st.stock&&st.stock!==ytWorkName())yaStatus('st-tr',`⚠ 保存されている音声は「${esc(st.stock)}」のものです（${esc(YA.fileName)}）。別の${ytGen()?'テーマ':'銘柄'}なら読み込み直してください`,'error');
+    const gen=window._yaGen;
+    const job=yaLoadFile(f,true).then(()=>{
+      if(gen!==window._yaGen)return;
+      if(typeof ynRender==='function')ynRender();if(typeof ysRender==='function')ysRender();
+      if(st&&st.stock&&st.stock!==ytWorkName())yaStatus('st-tr',`⚠ 保存されている音声は「${esc(st.stock)}」のものです（${esc(YA.fileName)}）。別の${ytGen()?'テーマ':'銘柄'}なら読み込み直してください`,'error');
+      yaRender();
+    });
+    // PJ の切り替え中は展開を待たない（読み込み中のモーダルを先に閉じ、展開は音声の欄に「読み込み中…」を出して裏で進める）
+    if(!window._ktSwitching)await job;
   }
   yaRender();
 }
@@ -12329,7 +12345,9 @@ function ktModal(msg,okLabel){
     const done=v=>{ov.remove();res(v);};
     ov.querySelector('.cancel').onclick=()=>done(false);ov.querySelector('.ok').onclick=()=>done(true);
     ov.addEventListener('click',e=>{if(e.target===ov)done(false);});
-    document.body.appendChild(ov);ov.querySelector('.cancel').focus();
+    // Enter＝実行（削除など）、Esc＝やめる
+    ov.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();done(true);}else if(e.key==='Escape'){e.preventDefault();done(false);}});
+    document.body.appendChild(ov);ov.querySelector('.ok').focus();
   });
 }
 // 種別の欄を、画面を組み立てた直後の値に戻す（空のPJ）
