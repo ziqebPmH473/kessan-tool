@@ -12212,9 +12212,9 @@ async function ynOpedBuild(c){
     c.slides.splice(at,0,vs);
     c.cornerTelops.forEach(t=>{if(t.startSlide>at)t.startSlide++;if(t.endSlide!=null&&t.endSlide>at)t.endSlide++;});
     addTelop(telop.ed,at+1);
-    // 字幕：文ごと（時刻は ED の音声の中の時刻）
-    const t0=mainEnd+G,ts=(YO.ed.times&&YO.ed.times.length)?YO.ed.times:[{text:YO.ed.text,s:0,e:YO.ed.seconds}];
-    ts.forEach(x=>c.subs.push({id:c.newId(),text:x.text,startTime:r2(t0+x.s),endTime:r2(t0+x.e),startSil:null,endSil:null}));
+    // 字幕：文ごと。話し始めから、次の文の話し始めの直前まで。最後の文は ED の音声の終わり（後ろの無音の直前）まで
+    const t0=mainEnd+G,edEnd=t0+edB.length/sr,ts=(YO.ed.times&&YO.ed.times.length)?YO.ed.times:[{text:YO.ed.text,s:0,e:YO.ed.seconds}];
+    ts.forEach((x,i)=>{const nx=ts[i+1],e=nx?t0+nx.s-0.01:edEnd;c.subs.push({id:c.newId(),text:x.text,startTime:r2(t0+x.s),endTime:r2(Math.max(t0+x.s+0.2,e)),startSil:null,endSil:null});});
     notes.push(`エンディング ${L.toFixed(1)}秒`);
   }
   ynStatus('音声を書き出しています…','','status3');
