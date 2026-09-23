@@ -10672,8 +10672,8 @@ function yaBuildCutHtml(){
   ${row(b('🤖 OP台本作成','ytOpedDraft(\'op\',this)','background:#4f46e5;color:#fff;'))}
   <div id="yt-oped-op-st" style="display:none;font-size:11px;"></div>
   <div id="yt-oped-op-cands"></div>
-  ${[1,2,3].map(i=>`<div class="row" style="flex-wrap:nowrap;gap:4px;align-items:flex-start;margin-top:4px;"><span style="flex:none;font-size:11px;color:var(--text-sub);padding-top:4px;">${'①②③'[i-1]}</span><div style="flex:1;min-width:0;"><input type="text" id="yt-op-s${i}" placeholder="画面に出す文（短く）" oninput="saveState()" style="width:100%;font-size:11px;padding:3px;"><textarea id="yt-op-v${i}" rows="2" placeholder="音声で読む文" oninput="saveState()" style="width:100%;font-size:11px;margin-top:2px;"></textarea></div></div>`).join('')}
   <textarea id="yt-op-lead" rows="1" placeholder="要点の前に読む一言（空欄なら無し）" oninput="saveState()" style="width:100%;font-size:11px;margin-top:4px;"></textarea>
+  ${[1,2,3].map(i=>`<div class="row" style="flex-wrap:nowrap;gap:4px;align-items:flex-start;margin-top:4px;"><span style="flex:none;font-size:11px;color:var(--text-sub);padding-top:4px;">${'①②③'[i-1]}</span><div style="flex:1;min-width:0;"><input type="text" id="yt-op-s${i}" placeholder="画面に出す文（短く）" oninput="saveState()" style="width:100%;font-size:11px;padding:3px;"><textarea id="yt-op-v${i}" rows="2" placeholder="音声で読む文" oninput="saveState()" style="width:100%;font-size:11px;margin-top:2px;"></textarea></div></div>`).join('')}
   <textarea id="yt-op-tail" rows="1" placeholder="要点のあとに読む一言（空欄なら無し）" oninput="saveState()" style="width:100%;font-size:11px;margin-top:4px;"></textarea>
   ${row(b('🔊 OP音声生成','ytOpedTts(\'op\',this)','background:#2563eb;color:#fff;'))}
   <div id="yt-oped-op-a-st" style="display:none;font-size:11px;"></div>
