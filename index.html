@@ -9502,6 +9502,15 @@ async function ytOpedMatDel(key){
   await ytOpedMatRender();
   ytOpedMatStatus('消しました','ok');
 }
+// OP・ED のテロップ（右上に出す言葉）。全PJ共通なので、欄に id を付けず localStorage の kt-oped-telop に持つ（LS_SYNC でサーバーの shared にも入る）
+const YT_OPED_TELOP_KEY='kt-oped-telop',YT_OPED_TELOP_DEF={op:'3つの注目点',ed:'投稿者の一言'};
+function ytOpedTelops(){let v=null;try{v=JSON.parse(localStorage.getItem(YT_OPED_TELOP_KEY)||'null');}catch(e){}v=v||{};return{op:v.op??YT_OPED_TELOP_DEF.op,ed:v.ed??YT_OPED_TELOP_DEF.ed};}
+function ytOpedTelopFill(){const t=ytOpedTelops();document.querySelectorAll('[data-oped-telop]').forEach(el=>{el.value=t[el.dataset.opedTelop]??'';});}
+function ytOpedTelopSave(){
+  const t=ytOpedTelops();document.querySelectorAll('[data-oped-telop]').forEach(el=>{t[el.dataset.opedTelop]=el.value;});
+  try{localStorage.setItem(YT_OPED_TELOP_KEY,JSON.stringify(t));}catch(e){}
+  if(typeof saveState==='function')saveState();
+}
 // PJ ごとの背景動画：必要になったとき（書き出し）に、その区分の中からランダムで決める。
 // 決めたものは PJ の隠し欄（yt-oped-bg＝{kind, op, ed}）に持ち、区分が変わったとき・その動画が消えたときだけ決め直す
 async function ytOpedBg(role){
@@ -9522,7 +9531,7 @@ function ytInnerTab(t){
     if(b)b.classList.toggle('active',k===t);if(p)p.style.display=k===t?'':'none';
   });
   if(t==='research')ytUpdateFreeInfo();
-  if(t==='settings'){ytNoteInfo();ytColorFill();ytOpedMatRender();}
+  if(t==='settings'){ytNoteInfo();ytColorFill();ytOpedMatRender();ytOpedTelopFill();}
   if(t==='article'){const a=ytEl('a-yturl');if(a)a.value=ytVal('p-yturl');const b=ytEl('a-noteurl');if(b)b.value=ytVal('note-url');}
   if(t==='audio'){try{ytOpening();}catch(e){}ytOpedRender();}
   if(t==='naresla')ysRender();
@@ -9727,6 +9736,8 @@ ${[['n','note記事（無料）','表なしで作ります。動画のURLは最�
   <div class="sa-sub">▼ OP・EDの背景動画</div>
   <div style="font-size:10px;color:var(--text-sub);" title="区分ごとに、オープニング用・エンディング用を何本でも登録できます。使う動画は、PJごとに書き出すときにランダムで1本選び、区分を変えない限りそのPJでは同じものを使います。スロー・ぼかしは入れたものを登録してください（ツールでは加工しません）。オープニング用は60秒くらい、エンディング用は音声より長めに。すべてのPJで共通です。">区分ごとに何本でも登録できます。PJごとにランダムで1本を使います。すべてのPJで共通です。</div>
   <div id="yt-oped-mats"></div>
+  ${set('OPのテロップ','<input type="text" data-oped-telop="op" oninput="ytOpedTelopSave()" style="flex:1;min-width:0;font-size:11px;padding:4px;" title="オープニングの動画のあいだ、右上に出すテロップです。すべてのPJで共通です。">','')}
+  ${set('EDのテロップ','<input type="text" data-oped-telop="ed" oninput="ytOpedTelopSave()" style="flex:1;min-width:0;font-size:11px;padding:4px;" title="エンディングの動画のあいだ、右上に出すテロップです。すべてのPJで共通です。">','')}
   <div class="sa-sub">▼ Geminiのモデル（作業ごと）</div>
   <div style="font-size:10px;color:var(--text-sub);" title="回数の上限のときは、選んだモデルから一覧の順に下のモデルへ自動で切り替えます（Lite には切り替えません。読み取りの位置が大きくずれて使えなかったため）。混雑のときは切り替えずに止まるので、ここで別のモデルを選んでもう一度押してください。">上限のときは下のモデルへ自動で切り替え（Lite除く）。混雑で止まったら、別のモデルを選んでもう一度。</div>
   ${YT_AI_TASKS.map(([k,n,d])=>set(n,`<select id="yt-m-${k}" onchange="saveState()" style="flex:1;min-width:0;font-size:11px;padding:3px;">${YT_MODEL_LIST.map(([v,l])=>`<option value="${v}"${v===d?' selected':''}>${l}</option>`).join('')}</select>`)).join('')}
@@ -10935,7 +10946,7 @@ function ynOpCard(te,sents){
   const P=YN.plan,op=P.op,first=(sents.find(q=>q.n===+op.from)||{}).text||'';
   const pts=[1,2,3].map(i=>ytVal('op-s'+i)).filter(Boolean);
   const t=(YO.op.times||[]).map(x=>`${'①②③'[x.i-1]} ${x.s}秒`).join('／');
-  return `<div class="yn-item" style="border-color:${YN_OP_BD};"><div class="yn-hd" style="background:${YN_OP_BG};"><b>オープニング（動画）</b> <span>音声 ${YO.op.seconds}秒＋前振り → 映す長さ ${ynOpShowLen().toFixed(1)}秒（カット後）</span></div>
+  return `<div class="yn-item" style="border-color:${YN_OP_BD};"><div class="yn-hd" style="background:${YN_OP_BG};"><b>オープニング（動画）</b>${ytOpedTelops().op?` <span>テロップ「${esc(ytOpedTelops().op)}」／</span>`:''} <span>音声 ${YO.op.seconds}秒＋前振り → 映す長さ ${ynOpShowLen().toFixed(1)}秒（カット後）</span></div>
 <div class="yn-plan" style="background:${YN_OP_BG};"><div class="yn-it"><span class="yn-k" style="background:#f59e0b;">切替</span><span class="yn-nn"><button class="yn-go" onclick="yaJumpTo(${op.from})" title="右の一覧でこの文を表示">文</button> ${op.from}</span><span class="yn-sd" title="${esc(first)}">この文の前に入れる：「${esc(first.slice(0,50))}」</span>
 <span class="yn-ed"><span class="yn-lb">入れる位置</span><button class="ya-nd" title="1文前へ" onclick="ynOpShift(-1)">◀ 前へ</button><button class="ya-nd" title="1文後へ" onclick="ynOpShift(1)">後へ ▶</button><button class="ya-nd" title="オープニングを入れない" onclick="ynOpSet(false)">外す</button></span></div>
 <div class="yn-it"><span class="yn-k" style="background:${YN_OP_BD};">文字</span><span class="yn-sd">${pts.length?pts.map((s,i)=>`${'①②③'[i]} ${esc(s)}`).join('　'):'（画面に出す文が空です。音声タブの 5. で入れてください）'}</span></div>
@@ -10943,7 +10954,7 @@ ${t?`<div class="yn-it"><span class="yn-lb">出す時刻（OP の音声の中）
 <div class="yn-it"><span class="yn-sd">終わり＝次のスライドの切り替え。${YO.op.text!==ytOpedText('op')?'<span style="color:#b45309;">⚠ 文を直したあとに音声を作り直していません</span>':''}</span></div></div></div>`;
 }
 function ynEdCard(){
-  return `<div class="yn-item" style="border-color:${YN_OP_BD};"><div class="yn-hd" style="background:${YN_OP_BG};"><b>エンディング（動画）</b> <span>音声 ${YO.ed.seconds}秒 → 映す長さ ${((YO.ed.seconds||0)+YT_OPED_GAP*2).toFixed(1)}秒</span></div>
+  return `<div class="yn-item" style="border-color:${YN_OP_BD};"><div class="yn-hd" style="background:${YN_OP_BG};"><b>エンディング（動画）</b>${ytOpedTelops().ed?` <span>テロップ「${esc(ytOpedTelops().ed)}」／</span>`:''} <span>音声 ${YO.ed.seconds}秒 → 映す長さ ${((YO.ed.seconds||0)+YT_OPED_GAP*2).toFixed(1)}秒</span></div>
 <div class="yn-plan" style="background:${YN_OP_BG};"><div class="yn-it"><span class="yn-sd">本編の最後のあとに入ります。文は下の字幕で出します。${YO.ed.text!==ytOpedText('ed')?'<span style="color:#b45309;">⚠ 文を直したあとに音声を作り直していません</span>':''}</span></div></div></div>`;
 }
 // OP の動画を映す長さ（カット後）：OP の音声＋前後の無音＋前振りの区間（OP の位置から、次のスライドの切り替えまで）
