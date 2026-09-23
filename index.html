@@ -12200,9 +12200,10 @@ async function ynOpedBuild(c){
     c.cornerTelops.forEach(t=>{if(t.startSlide>=2)t.startSlide++;if(t.endSlide!=null&&t.endSlide>=2)t.endSlide++;});
     addTelop(telop.op,2);
     // 画面に出す文字①②③：その要点を話し始めたときから、OP の動画の終わりまで
-    const t0=tOp+G,ys=[.36,.5,.64];
+    // ②を画面の真ん中に、①③を上下に。行の間は文字の大きさに比例（前の 1.8倍・0.14 と同じ割合）
+    const SZ=2.5,GAPY=+(0.14*SZ/1.8).toFixed(3),t0=tOp+G,ys=[.5-GAPY,.5,.5+GAPY];
     (YO.op.times||[]).forEach(x=>{const s=ytVal('op-s'+x.i);if(!s)return;
-      c.decorations.push({id:c.newId(),type:'text',imgX1:.5,imgY1:ys[x.i-1],imgX2:.5,imgY2:ys[x.i-1],color:'#ffffff',startTime:r2(t0+x.s),endTime:r2(opEnd),startSil:null,endSil:null,opacity:100,lineWidth:3,animIn:'fade',animOut:'fade',text:`${'①②③'[x.i-1]} ${s}`,textStyle:'outline',align:'center',size:1.8});});
+      c.decorations.push({id:c.newId(),type:'text',imgX1:.5,imgY1:ys[x.i-1],imgX2:.5,imgY2:ys[x.i-1],color:'#ffffff',startTime:r2(t0+x.s),endTime:r2(opEnd),startSil:null,endSil:null,opacity:100,lineWidth:3,animIn:'fade',animOut:'fade',text:`${'①②③'[x.i-1]} ${s}`,textStyle:'simple',align:'center',size:SZ});});
     notes.push(`オープニング ${L.toFixed(1)}秒`);
   }
   if(useEd){
