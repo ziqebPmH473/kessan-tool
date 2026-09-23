@@ -10666,6 +10666,8 @@ function yaBuildCutHtml(){
       <option value="">自動（株価分析＝決算／YT動画＝テーマ）</option>${YT_OPED_KINDS.map(([k,n])=>`<option value="${k}">${n}</option>`).join('')}
     </select>
   </div>
+  ${row(b('🤖 台本作成','ytOpedDraft(\'all\',this)','background:#4f46e5;color:#fff;'),b('🔊 音声生成','ytOpedTtsAll(this)','background:#2563eb;color:#fff;'))}
+  <div id="yt-oped-all-st" style="display:none;font-size:11px;"></div>
   <div class="sa-sub">▼ オープニング（この動画を見ると何が分かるか）</div>
   ${row(b('🤖 OP台本作成','ytOpedDraft(\'op\',this)','background:#4f46e5;color:#fff;'))}
   <div id="yt-oped-op-st" style="display:none;font-size:11px;"></div>
@@ -10759,7 +10761,7 @@ function ytOpedParseJson(s){
 // role：'op'／'ed'（'all'＝OP と ED を1回で。いまはボタンなし）
 async function ytOpedDraft(role,btn){
   const roles=role==='all'?['op','ed']:[role];
-  const st=(msg,cls)=>roles.forEach(r=>ytOpedSt(r,msg,cls));
+  const st=(msg,cls)=>ytOpedSt(role,msg,cls);   // メッセージは押したボタンの下（両方用は一番上の欄 yt-oped-all-st）
   let prompt;try{prompt=ytOpedDraftPrompt(role);}catch(e){st('❌ '+esc(e.message),'error');return;}
   const search=false;   // Google 検索は無料の枠では断られる（2026-09-23 確認）。最近の出来事は ChatGPT で探す想定
   if(btn)btn.disabled=true;st(search?'台本を作っています…（最近の出来事を検索します）':'台本を作っています…');
@@ -10773,10 +10775,18 @@ async function ytOpedDraft(role,btn){
       if(!cands.length)throw new Error(`${r==='op'?'オープニング':'エンディング'}の台本が入っていませんでした`);
       ytEl(r==='op'?'op-cands':'ed-cands').value=JSON.stringify(cands);
       YO_PICK[r]=null;ytOpedRenderCands(r,true);   // 作った直後は開く
-      ytOpedSt(r,`✅ 台本を${cands.length}つ作りました。選ぶと下の欄に入ります（直してから音声生成を押してください）`,'ok');
+      st(`✅ 台本を${role==='all'?'OP・ED それぞれ':''}${cands.length}つ作りました。選ぶと下の欄に入ります（直してから音声生成を押してください）`,'ok');
     }
     saveState();
   }catch(e){st('❌ '+esc(e.message),'error');}
+  finally{if(btn)btn.disabled=false;}
+}
+// OP と ED の音声を続けて作る（文が空の方は飛ばす）。それぞれのメッセージは各区切りの音声生成の下、まとめは一番上の欄
+async function ytOpedTtsAll(btn){
+  const roles=['op','ed'].filter(r=>ytOpedText(r));
+  if(!roles.length){ytOpedSt('all','❌ 音声で読む文が空です','error');return;}
+  if(btn)btn.disabled=true;ytOpedSt('all','音声を作っています…');
+  try{for(const r of roles)await ytOpedTts(r,null);ytOpedSt('all',`音声を作りました（${roles.map(r=>r==='op'?'オープニング':'エンディング').join('・')}）。結果はそれぞれの音声生成の下を見てください`,'ok');}
   finally{if(btn)btn.disabled=false;}
 }
 // 台本1〜3は折りたたみ。作った直後は開き、選んだら閉じる（開き直して選び直せる）。
