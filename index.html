@@ -10634,20 +10634,22 @@ function yaBuildCutHtml(){
       <option value="">自動（株価分析＝決算／YT動画＝テーマ）</option>${YT_OPED_KINDS.map(([k,n])=>`<option value="${k}">${n}</option>`).join('')}
     </select>
   </div>
+  ${row(b('🤖 OP・EDの案を出す','ytOpedDraft(\'all\',this)','background:#4f46e5;color:#fff;'),b('🔊 OP・EDの音声を作る','ytOpedTtsAll(this)','background:#4f46e5;color:#fff;'))}
+  <div style="font-size:10px;color:var(--text-sub);" title="案は1回の呼び出しで、オープニングとエンディングを3つずつ出します（区分がテーマ・ニュースのときは、最近の出来事を検索します）。片方だけ出し直すときは、下のそれぞれのボタンを使います。">案は OP・ED を3つずつ1回で出します。片方だけ出し直すときは下のボタン。</div>
   <div class="sa-sub">▼ オープニング（この動画を見ると何が分かるか）</div>
-  ${row(b('🤖 案を3つ出す','ytOpedDraft(\'op\',this)','background:#4f46e5;color:#fff;'))}
+  ${row(b('↻ OPだけ出し直す','ytOpedDraft(\'op\',this)','background:#4f46e5;color:#fff;'))}
   <div id="yt-oped-op-st" style="display:none;font-size:11px;"></div>
   <div id="yt-oped-op-cands"></div>
   ${[1,2,3].map(i=>`<div class="row" style="flex-wrap:nowrap;gap:4px;align-items:flex-start;margin-top:4px;"><span style="flex:none;font-size:11px;color:var(--text-sub);padding-top:4px;">${'①②③'[i-1]}</span><div style="flex:1;min-width:0;"><input type="text" id="yt-op-s${i}" placeholder="画面に出す文（短く）" oninput="saveState()" style="width:100%;font-size:11px;padding:3px;"><textarea id="yt-op-v${i}" rows="2" placeholder="音声で読む文" oninput="saveState()" style="width:100%;font-size:11px;margin-top:2px;"></textarea></div></div>`).join('')}
   <textarea id="yt-op-lead" rows="1" placeholder="要点の前に読む一言（空欄なら無し）" oninput="saveState()" style="width:100%;font-size:11px;margin-top:4px;"></textarea>
-  ${row(b('🔊 音声を作る','ytOpedTts(\'op\',this)','background:#4f46e5;color:#fff;'))}
+  ${row(b('↻ OPの音声だけ作り直す','ytOpedTts(\'op\',this)','background:#4f46e5;color:#fff;'))}
   <div id="yt-oped-op-audio" style="font-size:11px;color:var(--text-sub);">音声：未生成</div>
   <div class="sa-sub">▼ エンディング（なぜこの動画を作ったか・どうするつもりか）</div>
-  ${row(b('🤖 案を3つ出す（検索あり）','ytOpedDraft(\'ed\',this)','background:#4f46e5;color:#fff;'))}
+  ${row(b('↻ EDだけ出し直す','ytOpedDraft(\'ed\',this)','background:#4f46e5;color:#fff;'))}
   <div id="yt-oped-ed-st" style="display:none;font-size:11px;"></div>
   <div id="yt-oped-ed-cands"></div>
   <textarea id="yt-ed-v" rows="3" placeholder="音声で読む文（下の字幕にもなります）" oninput="saveState()" style="width:100%;font-size:11px;margin-top:4px;"></textarea>
-  ${row(b('🔊 音声を作る','ytOpedTts(\'ed\',this)','background:#4f46e5;color:#fff;'))}
+  ${row(b('↻ EDの音声だけ作り直す','ytOpedTts(\'ed\',this)','background:#4f46e5;color:#fff;'))}
   <div id="yt-oped-ed-audio" style="font-size:11px;color:var(--text-sub);">音声：未生成</div>
   <textarea id="yt-op-cands" style="display:none;"></textarea><textarea id="yt-ed-cands" style="display:none;"></textarea>
 </div>`;
@@ -10666,15 +10668,19 @@ function ytOpedTranscript(){
   if(g)return g;
   return (YA.sents||[]).map(x=>x.text).join('');
 }
+// 案の依頼文。role：'op'／'ed'／'all'（OP と ED を1回でまとめて。ふだんはこれ）
 function ytOpedDraftPrompt(role){
   const tr=ytOpedTranscript();
   if(!tr)throw new Error('先に本編の音声を文字起こししてください（2. の「文字起こし」か、Gemini の文字起こしの貼り付け）');
-  const kind=ytOpedKind();
-  const head=`${ytIntent()}の${role==='op'?'オープニング':'エンディング'}の文を作ります。\n`;
-  if(role==='op'){
-    let ch='';try{ch=ytChapters().map(c=>`・${c.name||c.title||''}`).join('\n');}catch(e){}
-    return head+`
-オープニングでは、「この動画を見ると何が分かるか」を要点3つで伝えます。案を3つ作ってください。
+  const kind=ytOpedKind(),op=role!=='ed',ed=role!=='op';
+  const what=op&&ed?'オープニングとエンディング':op?'オープニング':'エンディング';
+  let ch='';if(op){try{ch=ytChapters().map(c=>`・${c.name||c.title||''}`).join('\n');}catch(e){}}
+  let mat='';
+  if(ed){
+    if(ytGen()){try{mat=ygMaterial();}catch(e){mat=ytVal('doc')||'';}}
+    else{const r=ytFreeReport();mat=`銘柄：${getName()||''}（${getDir()==='up'?'上昇':'下落'}）\n${r.text||''}`;}
+  }
+  const opRules=`オープニングでは、「この動画を見ると何が分かるか」を要点3つで伝えます。案を3つ作ってください。
 
 決まり
 ・要点は、本編の文字起こしで実際に話している内容だけから作る。話していないことを足さない
@@ -10683,43 +10689,30 @@ function ytOpedDraftPrompt(role){
 　- voice：音声で読む文。全角40〜60字。話し言葉（ですます）。見た人が「これを見ると何が分かるか」をつかめる言い方にする
 ・lead：3つの要点を言う前に読む短い前置き（1文、全角30字以内）
 ・3つの案は、要点の選び方や切り口を変える（同じ要点の言い換えにしない）
-・数字を入れるなら、文字起こしにある数字だけ
-
-出力はJSONだけ（前後に説明を付けない）：
-{"candidates":[{"lead":"","points":[{"screen":"","voice":""},{"screen":"","voice":""},{"screen":"","voice":""}]},{...},{...}]}
-
-# 章の並び
-${ch||'（無し）'}
-
-# 本編の文字起こし
-${tr.slice(0,14000)}`;
-  }
+・数字を入れるなら、文字起こしにある数字だけ`;
   const angle=kind==='earn'
     ?`・観点：株価が下がっていたから／名前しか聞いたことがなく、くわしく知らなかったから、という作り手の動機。最後に、これからどうするつもりか（買うか見送るかの判断や、次に見る材料）を1文
 ・動機や判断の材料は、下の資料にあることだけを使う`
     :`・観点：最近のニュースや、近いうちにある出来事と結びつけた作り手の動機。最後に、これからどうするつもりか（何を見ていくか）を1文
 ・Google 検索で、このテーマに関わる直近1か月の出来事と、今後1〜2か月の予定を調べ、案ごとに1つを動機に使う
 ・出来事・日付・固有名詞は、検索で確かめられたものだけを使う。確かめられなければ入れない`;
-  let mat='';
-  if(ytGen()){try{mat=ygMaterial();}catch(e){mat=ytVal('doc')||'';}}
-  else{const r=ytFreeReport();mat=`銘柄：${getName()||''}（${getDir()==='up'?'上昇':'下落'}）\n${r.text||''}`;}
-  return head+`
-エンディングでは、作り手（投稿者）の観点として、「なぜこの動画を作ったか」と「これからどうするつもりか」を、一人称の話し言葉で短く話します。案を3つ作ってください。
+  const edRules=`エンディングでは、作り手（投稿者）の観点として、「なぜこの動画を作ったか」と「これからどうするつもりか」を、一人称の話し言葉で短く話します。案を3つ作ってください。
 
 決まり
 ・各案は全角80〜140字、2〜3文。ですます調。文の区切りは「。」
 ・売買をすすめる言い方はしない（自分の考えとして話す）
 ${angle}
-・3つの案は、動機の取り方を変える
-
+・3つの案は、動機の取り方を変える`;
+  const opJson='[{"lead":"","points":[{"screen":"","voice":""},{"screen":"","voice":""},{"screen":"","voice":""}]},{...},{...}]';
+  const edJson='[{"text":"","basis":"動機に使った出来事（1行。検索で得たものは出典名も）"},{...},{...}]';
+  const out=op&&ed?`{"op":${opJson},"ed":${edJson}}`:`{"candidates":${op?opJson:edJson}}`;
+  return `${ytIntent()}の${what}の文を作ります。
+${op&&ed?'\n# オープニング\n':'\n'}${op?opRules+'\n':''}${op&&ed?'\n# エンディング\n':''}${ed?edRules+'\n':''}
 出力はJSONだけ（前後に説明を付けない）：
-{"candidates":[{"text":"","basis":"動機に使った出来事（1行。検索で得たものは出典名も）"},{...},{...}]}
-
-# 資料
-${mat.slice(0,12000)}
-
+${out}
+${op?`\n# 章の並び\n${ch||'（無し）'}\n`:''}${ed?`\n# 資料\n${mat.slice(0,12000)}\n`:''}
 # 本編の文字起こし
-${tr.slice(0,8000)}`;
+${tr.slice(0,op?14000:8000)}`;
 }
 function ytOpedParseJson(s){
   const m=String(s||'').replace(/^```[^\n]*\n?/,'').replace(/\n?```\s*$/,'');
@@ -10727,20 +10720,35 @@ function ytOpedParseJson(s){
   if(a<0||b<a)throw new Error('案を読み取れませんでした（JSONではありません）');
   return JSON.parse(m.slice(a,b+1));
 }
+// role：'all'（ふだん。OP と ED を1回で）／'op'／'ed'（片方だけ出し直す）
 async function ytOpedDraft(role,btn){
-  let prompt;try{prompt=ytOpedDraftPrompt(role);}catch(e){ytOpedSt(role,'❌ '+esc(e.message),'error');return;}
-  const search=role==='ed'&&ytOpedKind()!=='earn';
-  if(btn)btn.disabled=true;ytOpedSt(role,search?'案を作っています…（最近の出来事を検索します）':'案を作っています…');
+  const roles=role==='all'?['op','ed']:[role];
+  const st=(msg,cls)=>roles.forEach(r=>ytOpedSt(r,msg,cls));
+  let prompt;try{prompt=ytOpedDraftPrompt(role);}catch(e){st('❌ '+esc(e.message),'error');return;}
+  const search=role!=='op'&&ytOpedKind()!=='earn';
+  if(btn)btn.disabled=true;st(search?'案を作っています…（最近の出来事を検索します）':'案を作っています…');
   try{
     const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,temperature:0.6,models:ytModels('oped'),onBusy:'stop',search})});
     const data=await res.json();if(!data.ok)throw new Error(ytAiErr(data,'oped'));
     const j=ytOpedParseJson(data.text);
-    const cands=Array.isArray(j.candidates)?j.candidates.slice(0,3):[];
-    if(!cands.length)throw new Error('案が入っていませんでした');
-    ytEl(role==='op'?'op-cands':'ed-cands').value=JSON.stringify(cands);saveState();
-    ytOpedRenderCands(role);
-    ytOpedSt(role,`✅ 案を${cands.length}つ出しました。選ぶと下の欄に入ります（直してから音声を作ってください）`,'ok');
-  }catch(e){ytOpedSt(role,'❌ '+esc(e.message),'error');}
+    for(const r of roles){
+      const list=role==='all'?j[r]:(j.candidates||j[r]);
+      const cands=Array.isArray(list)?list.slice(0,3):[];
+      if(!cands.length)throw new Error(`${r==='op'?'オープニング':'エンディング'}の案が入っていませんでした`);
+      ytEl(r==='op'?'op-cands':'ed-cands').value=JSON.stringify(cands);
+      ytOpedRenderCands(r);
+      ytOpedSt(r,`✅ 案を${cands.length}つ出しました。選ぶと下の欄に入ります（直してから音声を作ってください）`,'ok');
+    }
+    saveState();
+  }catch(e){st('❌ '+esc(e.message),'error');}
+  finally{if(btn)btn.disabled=false;}
+}
+// OP と ED の音声をまとめて作る（文が空の方は飛ばす）
+async function ytOpedTtsAll(btn){
+  const roles=['op','ed'].filter(r=>ytOpedText(r));
+  if(!roles.length){ytOpedSt('op','❌ 音声で読む文が空です','error');return;}
+  if(btn)btn.disabled=true;
+  try{for(const r of roles)await ytOpedTts(r,null);}
   finally{if(btn)btn.disabled=false;}
 }
 function ytOpedRenderCands(role){
