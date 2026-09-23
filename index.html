@@ -12075,6 +12075,7 @@ async function ynExport(btn){
     const oped=await ynOpedBuild({zip,slides,switchPoints,decorations,cornerTelops,subs,cuts,newId:()=>++id,nUsed:occ.length});
     if(oped){nar=oped.nar;opedNote=oped.note;if(oped.hasEd)p.endPad=0;}
     p.msubSettings=Object.assign({},p.msubSettings||{},{style:'news'});   // 字幕の共通設定のスタイル＝📰 ニュース/報道（ひな形の設定を取り込むときも、ここはニュース/報道にする）   // ED の後ろの無音はツールで入れるので、ナレスラの終了後の無音は 0
+    p.fx=Object.assign({},p.fx||{},{bgmVol:0.02});   // BGM の音量は 2%（ひな形を使うときも）
     Object.assign(p,{version:3,source:'import',name:`${ytFileBase('','')}_YouTube`,created:new Date().toISOString(),
       slides,cuts,switchPoints,decorations,decImages,cornerTelops,insertions:[],sfxList:[],sfxVols:{},
       manualSubtitles:subs,decIdCtr:id+10,narFile:nar.name,narFileName:nar.label,
