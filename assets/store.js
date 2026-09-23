@@ -52,6 +52,8 @@
     readyResolve: null,
     suspended: false,       // PJ の切り替え中：欄の値を行に写さない（古い欄の値を新しい行に入れないため）
     onChange: null,         // 行の一覧が変わったとき（保存で見出しが変わった等）に呼ぶ
+    fresh: {},              // 'ns/pid/名前' → 1：まとめて取り出した（/api/bundle）ので、端末内のものがサーバーと同じ
+    freshList: {},          // 'ns/pid' → 1：その PJ のファイルの名前も端末内とサーバーで同じ
   };
   // 画面の初期化（vdInit など）は onload より前に走り、そこでファイルを読みに来る。ready() が終わるまで待たせる
   S.readyWait = new Promise(res => { S.readyResolve = res; });
@@ -324,7 +326,7 @@
       async get(key) {
         await S.readyWait;
         const fk = full(key, false); if (!fk) return null;
-        if (S.mode !== 'server' || S.mediaQueue[ns + '/' + fk]) return local.get(fk);   // 送る途中のものは端末内の方が新しい
+        if (S.mode !== 'server' || S.mediaQueue[ns + '/' + fk] || S.fresh[ns + '/' + fk] || S.freshList[ns + '/' + fk.split('/')[0]]) return local.get(fk);   // 送る途中のもの・まとめて取り出したものは端末内を使う
         try {
           // 端末内に同じ版があれば、サーバーには「変わったか」だけ聞く（304 なら端末内のものを使う）
           const ek = ns + '/' + fk; const et = S.etags && S.etags[ek];
@@ -361,7 +363,7 @@
         if (!pid) return [];
         const prefix = pid + '/';
         const fromLocal = async () => (await local.list()).filter(x => x.startsWith(prefix)).map(x => x.slice(prefix.length));
-        if (S.mode !== 'server') return fromLocal();
+        if (S.mode !== 'server' || S.freshList[ns + '/' + pid]) return fromLocal();
         try {
           const r = await api('/api/media?prefix=' + encodeURIComponent(ns + '/' + prefix), { method: 'GET' });
           if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -453,14 +455,50 @@
     return (await r.json()).docs || {};
   }
   // その kind で開く PJ を切り替える（行の中身を返す。画面への反映は呼ぶ側）。id=null で空の PJ
-  async function openProject(kind, id) {
+  // PJ の行とファイルを1回でまとめて取り出す（/api/bundle）。ファイルは端末内に書き、以後その PJ は端末内から読む（S.fresh）。
+  // 取り出せない（R2 が無い等）ときは null を返し、今までどおり1つずつ読む
+  async function loadBundle(id, signal) {
+    const etags = {};
+    Object.keys(S.etags || {}).forEach(k => { const p = k.split('/'); if (p[1] === id || p[1] === '_common') etags[k] = S.etags[k]; });
+    const r = await api('/api/bundle', { method: 'POST', body: JSON.stringify({ id, etags }), signal });
+    if (!r.ok) { if (r.status === 503 || r.status === 404) return null; throw new Error('HTTP ' + r.status); }
+    const j = await r.json();
+    const aborted = () => { if (signal && signal.aborted) throw new DOMException('中止しました', 'AbortError'); };
+    aborted();
+    const media = j.media || {}; S.etags = S.etags || {};
+    await Promise.all(Object.keys(media).map(async q => {
+      const i = q.indexOf('/'); const ns = q.slice(0, i), fk = q.slice(i + 1); const ent = S.ns[ns]; if (!ent || S.mediaQueue[q]) return;
+      const m = media[q];
+      if (m.unchanged) { let lv = null; try { lv = await ent.local.get(fk); } catch (e) {} if (lv != null) S.fresh[q] = 1; else delete S.etags[q]; return; }
+      try { const v = await decode(m.body); await ent.local.put(fk, v); S.etags[q] = m.etag; S.fresh[q] = 1; } catch (e) {}
+    }));
+    // ひな形がサーバーに無ければ、端末内も無し（送る途中なら残す）
+    if (!media['yn/_common/tpl'] && S.ns.yn && !S.mediaQueue['yn/_common/tpl']) { try { await S.ns.yn.local.del('_common/tpl'); } catch (e) {} S.fresh['yn/_common/tpl'] = 1; }
+    // サーバーに無いファイルは端末内からも消す（別の端末で消した）。送る途中のものは残す
+    const more = new Set(j.more || []);
+    for (const ns of Object.keys(j.keys || {})) {
+      const ent = S.ns[ns]; if (!ent) continue;
+      const server = new Set(j.keys[ns] || []);
+      try { for (const k of (await ent.local.list())) { if (k.startsWith(id + '/') && !server.has(k) && !S.mediaQueue[ns + '/' + k]) { await ent.local.del(k); delete S.etags[ns + '/' + k]; } } } catch (e) {}
+      if (![...more].some(k => k.startsWith(ns + '/'))) S.freshList[ns + '/' + id] = 1;
+    }
+    metaSave();
+    return j;
+  }
+  // signal で中止できる。中止・失敗したときは開いている PJ を変えない（取り出しが終わってから切り替える）
+  async function openProject(kind, id, signal) {
     await flush();
+    let doc = null;
+    if (id && S.mode === 'server') {
+      let b = null;
+      try { b = await loadBundle(id, signal); } catch (e) { if (e && e.name === 'AbortError') throw e; b = null; }
+      if (signal && signal.aborted) throw new DOMException('中止しました', 'AbortError');
+      if (b) doc = b.doc; else { const docs = await fetchDocs([id]); doc = docs[id] || null; }
+      if (signal && signal.aborted) throw new DOMException('中止しました', 'AbortError');
+    }
     S.cur[kind] = id || null; delete S.base[kind]; delete S.force[kind]; delete S.touched[kind]; curSave();
-    if (!id) return null;
-    if (S.mode !== 'server') return null;
-    const docs = await fetchDocs([id]); const d = docs[id];
-    if (d) { S.versions[id] = d.version; S.last[id] = JSON.stringify(d.json); metaSave(); }
-    return d ? d.json : null;
+    if (doc) { S.versions[id] = doc.version; S.last[id] = JSON.stringify(doc.json); metaSave(); }
+    return doc ? doc.json : null;
   }
   async function deleteProject(id) {
     const kind = kindOfId(id);
@@ -587,7 +625,10 @@
       // 開く行を読む（このタブの PJ と shared）
       const want = TABS.map(t => S.cur[t]).filter(Boolean).concat(['shared']);
       let docs = {};
+      // 行と、開いている PJ のファイルを同時に取り出す
+      const bundles = TABS.map(t => S.cur[t]).filter(Boolean).map(id => loadBundle(id).catch(() => null));
       try { docs = await fetchDocs(want); } catch (e) { setStatus('error', '読み込みに失敗'); }
+      await Promise.all(bundles);
       restorePending();
       // 送れていなかった行（同じタブのリロード）：サーバーが進んでいなければ送る。進んでいたら選ぶ
       // 閉じる直前に送った分は、サーバーには入ったのに手元の版が進んでいないことがある。中身が同じなら食い違いではない

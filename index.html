@@ -12311,7 +12311,7 @@ function ktKindChange(kind){ktOpen(kind,null);}
 // プルダウンから離れたとき、選んでいる間に止めていた組み直しをする
 document.addEventListener('focusout',e=>{if(e.target&&e.target.id==='kt-pj'&&e.target._ktLater){e.target._ktLater=false;setTimeout(ktPjFill,0);}},true);
 function ktPjChange(id){ktOpen(window._ktKind,id||null);}
-function ktPjNew(){if(window._ktSwitching){ktOpen(window._ktNext?window._ktNext.kind:window._ktKind,null);return;}if(!KTStore.cur[window._ktKind]){alert('いま開いているのが新規のPJです。何か入力すると一覧に入ります。');return;}ktOpen(window._ktKind,null);}
+function ktPjNew(){if(window._ktSwitching)return;if(!KTStore.cur[window._ktKind]){alert('いま開いているのが新規のPJです。何か入力すると一覧に入ります。');return;}ktOpen(window._ktKind,null);}
 async function ktPjDelete(){
   const kind=window._ktKind,id=KTStore.cur[kind];
   if(!id){alert('まだ保存していないPJなので、消すものがありません。');return;}
@@ -12398,13 +12398,21 @@ async function ktKindReload(kind){
 // PJ を開く（id=null なら空）。いまの内容を送り切ってから、欄とファイルを入れ替える
 async function ktOpen(kind,id){
   // 切り替え中に押されたものは捨てずに、最後の1つを覚えて、いまの切り替えが終わってから開く
-  if(window._ktSwitching){window._ktNext={kind,id};ktBusy(true);return;}
-  window._ktSwitching=true;ktBusy(true);
+  if(window._ktSwitching){window._ktNext={kind,id};return;}
+  window._ktSwitching=true;
+  const ac=new AbortController();
+  const label=id?(KTStore.rows[id]?ktPjLabel(KTStore.rows[id]):''):'新規';
+  ktLoadModal(true,label,()=>ac.abort());
+  const abortP=new Promise((_,rej)=>ac.signal.addEventListener('abort',()=>rej(new DOMException('中止しました','AbortError'))));
+  abortP.catch(()=>{});
+  let canceled=false;
   try{
     if(typeof saveStateNow==='function')saveStateNow();
     KTStore.suspended=true;
-    await KTStore.flush();
-    const json=await KTStore.openProject(kind,id);
+    await Promise.race([KTStore.flush(),abortP]);
+    // 行とファイルをまとめて取り出す（ここまではキャンセルできる。画面はまだ前の PJ のまま）
+    const json=await Promise.race([KTStore.openProject(kind,id,ac.signal),abortP]);
+    ktLoadModal('show');   // ここからは画面に入れるだけ（キャンセルできない）
     window._ktKind=kind;
     switchMode(kind);
     if(typeof _ytCtxChain!=='undefined')await _ytCtxChain;
@@ -12412,15 +12420,37 @@ async function ktOpen(kind,id){
     if(json)tabIoApplyFields(kind,json.fields||{},json.radios||{});
     ktKindAfterOpen(kind,json);
     await ktKindReload(kind);
-  }catch(e){console.warn('[pj] 開けませんでした',e);alert('PJを開けませんでした：'+(e&&e.message||e));}
+  }catch(e){
+    if(e&&e.name==='AbortError'){canceled=true;window._ktNext=null;}
+    else{console.warn('[pj] 開けませんでした',e);alert('PJを開けませんでした：'+(e&&e.message||e));}
+  }
   finally{KTStore.suspended=false;window._ktSwitching=false;}
   if(typeof saveStateNow==='function')saveStateNow();
   const nx=window._ktNext;window._ktNext=null;
-  if(nx&&!(nx.kind===kind&&(nx.id||null)===(KTStore.cur[kind]||null))){return ktOpen(nx.kind,nx.id);}
-  ktBusy(false);ktPjFill();ktPjRefresh();
+  if(nx&&!(nx.kind===kind&&(nx.id||null)===(KTStore.cur[kind]||null))){ktLoadModal(false);return ktOpen(nx.kind,nx.id);}
+  ktLoadModal(false);ktPjFill();
+  if(!canceled)ktPjRefresh();
 }
-// 切り替え中の表示（PJ のプルダウンの横に「読み込み中…」）
-function ktBusy(on){const b=document.querySelector('.kt-pjbar');if(!b)return;let t=document.getElementById('kt-busy');if(!t){t=document.createElement('span');t.id='kt-busy';t.textContent='読み込み中…';t.style.cssText='font-size:12px;color:#2563eb;font-weight:bold;align-self:center;';b.insertBefore(t,document.getElementById('kt-pj'));}t.style.display=on?'':'none';b.style.opacity=on?'.75':'';}
+// 読み込み中のモーダル（ナレスラと同じ形）。on=true で出す（すぐ終わるときにちらつかないよう少し待ってから）／'show'＝キャンセルを消す／false で閉じる
+function ktLoadModal(on,label,onCancel){
+  let ov=document.getElementById('kt-loading');
+  if(on===false){clearTimeout(window._ktLoadT);if(ov)ov.remove();return;}
+  if(on==='show'){if(ov){const b=ov.querySelector('.cancel');if(b)b.style.display='none';const m=ov.querySelector('.sub');if(m)m.textContent='画面に入れています…';}return;}
+  if(ov)ov.remove();
+  ov=document.createElement('div');ov.id='kt-loading';
+  ov.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(15,23,42,.35);display:none;align-items:center;justify-content:center;padding:16px;';
+  ov.innerHTML='<div style="background:#fff;border-radius:12px;padding:22px 26px;min-width:260px;max-width:420px;box-shadow:0 10px 30px rgba(0,0,0,.25);text-align:center;">'
+    +'<div class="kt-spin" style="width:34px;height:34px;margin:0 auto 12px;border:4px solid #dbeafe;border-top-color:#2563eb;border-radius:50%;animation:ktspin .8s linear infinite;"></div>'
+    +'<div style="font-weight:bold;font-size:15px;color:#1e293b;">読み込み中…</div>'
+    +'<div class="lbl" style="font-size:12px;color:#475569;margin-top:6px;word-break:break-all;"></div>'
+    +'<div class="sub" style="font-size:11px;color:#64748b;margin-top:4px;">サーバーから取り出しています</div>'
+    +'<button type="button" class="cancel" style="margin-top:14px;padding:7px 18px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;">キャンセル</button></div>';
+  ov.querySelector('.lbl').textContent=label||'';
+  ov.querySelector('.cancel').onclick=()=>{if(onCancel)onCancel();};
+  if(!document.getElementById('kt-spin-css')){const st=document.createElement('style');st.id='kt-spin-css';st.textContent='@keyframes ktspin{to{transform:rotate(360deg)}}';document.head.appendChild(st);}
+  document.body.appendChild(ov);
+  clearTimeout(window._ktLoadT);window._ktLoadT=setTimeout(()=>{if(ov.isConnected)ov.style.display='flex';},200);
+}
 // 種別ごとの見出し（サーバーの PJ 一覧に出す）：コードと名前をつなぐ
 function ktTabTitle(tab,fields){
   const t=TAB_IO[tab];if(!t)return '';
