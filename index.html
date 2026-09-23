@@ -12069,18 +12069,154 @@ async function ynExport(btn){
     const subs=kept.map(x=>({id:++id,text:x.text,startTime:+x.s.toFixed(2),endTime:+x.e.toFixed(2),startSil:null,endSil:null,templateId:1}));
     const cuts=(typeof yaMerged==='function')?yaMerged().map(c=>({start:+c.start.toFixed(2),end:+c.end.toFixed(2)})):[];
     const ext=(YA.fileName.match(/\.(\w+)$/)||[,'m4a'])[1].toLowerCase();
+    // オープニング・エンディング（音声を作ってあれば）：音声をつなぎ直して WAV にし、時刻をずらし、動画のスライド・文字・字幕・テロップを足す
+    let nar={file:YA.file,name:'narration.'+ext,label:YA.fileName},opedNote='';
+    const oped=await ynOpedBuild({zip,slides,switchPoints,decorations,cornerTelops,subs,cuts,newId:()=>++id,nUsed:occ.length});
+    if(oped){nar=oped.nar;opedNote=oped.note;}
     Object.assign(p,{version:3,source:'import',name:`${ytFileBase('','')}_YouTube`,created:new Date().toISOString(),
       slides,cuts,switchPoints,decorations,decImages,cornerTelops,insertions:[],sfxList:[],sfxVols:{},
-      manualSubtitles:subs,decIdCtr:id+10,narFile:'narration.'+ext,narFileName:YA.fileName,
+      manualSubtitles:subs,decIdCtr:id+10,narFile:nar.name,narFileName:nar.label,
       bgmFile:p.bgmFile||'',bgmFileName:p.bgmFileName||''});
     zip.file('project.json',JSON.stringify(p));
     zip.file('transcript.json',JSON.stringify({trWords:[],trSentenceSplits:[],trKeywords:[],trSelSentences:[],trSelWords:[]}));
-    zip.file('narration.'+ext,YA.file);
+    zip.file(nar.name,nar.file);
     const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:3}});
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${ytFileBase('code','name')}_ナレスラ.svpz`;a.click();
-    ynStatus(`✅ 書き出しました（スライド${slides.length}枚・ズーム${YN.plan.zooms.length}・強調${decorations.filter(d=>d.type!=='image'&&d.type!=='text').length}・チャート${chartPlan.length}・カット${cuts.length}・字幕${subs.length}・出典${srcPlan.length}（画像あり${nGot}））${tpl?`／ひな形：${esc(tpl.name)}`:'／ひな形なし'}`,'ok','status3');
+    ynStatus(`✅ 書き出しました（スライド${slides.length}枚・ズーム${YN.plan.zooms.length}・強調${decorations.filter(d=>d.type!=='image'&&d.type!=='text').length}・チャート${chartPlan.length}・カット${cuts.length}・字幕${subs.length}・出典${srcPlan.length}（画像あり${nGot}））${tpl?`／ひな形：${esc(tpl.name)}`:'／ひな形なし'}${opedNote?`／${opedNote}`:''}`,'ok','status3');
   }catch(e){ynStatus('❌ '+e.message,'error','status3');}
   finally{if(btn)btn.disabled=false;}
+}
+// ---- 書き出し：オープニング・エンディング ----
+// 本編の音声を OP の位置で切り、「前・無音・OP・無音・後・無音・ED・無音」につないで WAV にする（形の違う音声をつなぐので、いったん元の音に戻す。WAV なので音質は変わらない）。
+// 時刻はすべて、つないだ後の音声の時刻にずらす。OP・ED の背景動画は「解説を止めない動画」（ナレスラの S）のスライドとして置く。
+// ナレスラの S は原音の時刻に乗り、自分の長さで終わる（切替点を使わない。カットが重なればその部分の映像も一緒に消える）。
+// なので動画の長さ＝その区間の音声の長さ（カットは引かない）。区間の長さに切ってから入れ、切った長さを読み直して確かめる。
+let _ynMb=null;
+function ynMediabunny(){return _ynMb||(_ynMb=import('https://cdn.jsdelivr.net/npm/mediabunny@1.59.0/+esm').catch(e=>{_ynMb=null;throw new Error('動画を切る部品を読み込めませんでした（通信を確認してください）');}));}
+// 動画を先頭から L 秒に切る（音は捨てる）。先頭から切るので、中身は作り直さずにそのまま使う（できない形式のときは作り直しになる）
+async function ynTrimVideo(blob,L){
+  const M=await ynMediabunny();
+  const input=new M.Input({formats:M.ALL_FORMATS,source:new M.BlobSource(blob)});
+  const output=new M.Output({format:new M.Mp4OutputFormat(),target:new M.BufferTarget()});
+  const conv=await M.Conversion.init({input,output,trim:{start:0,end:L},audio:{discard:true}});
+  if(conv.isValid===false)throw new Error('背景動画を切れませんでした（この動画の形式は扱えません。mp4 で作り直してください）');
+  await conv.execute();
+  return new Blob([output.target.buffer],{type:'video/mp4'});
+}
+// 動画の1コマ目（ナレスラの一覧に出す画像。これが無いと動画のスライドとして読まれない）
+function ynVideoPoster(blob){
+  return new Promise((res,rej)=>{
+    const v=document.createElement('video'),u=URL.createObjectURL(blob);let done=false;
+    const fin=(f,x)=>{if(done)return;done=true;URL.revokeObjectURL(u);f(x);};
+    v.preload='auto';v.muted=true;v.playsInline=true;
+    v.onloadeddata=()=>{try{const c=document.createElement('canvas');c.width=v.videoWidth||1920;c.height=v.videoHeight||1080;c.getContext('2d').drawImage(v,0,0,c.width,c.height);c.toBlob(b=>b?fin(res,b):fin(rej,new Error('動画の1コマ目を取れませんでした')),'image/jpeg',0.88);}catch(e){fin(rej,e);}};
+    v.onerror=()=>fin(rej,new Error('背景動画を読めませんでした'));
+    setTimeout(()=>fin(rej,new Error('背景動画の読み込みが終わりませんでした')),20000);
+    v.src=u;try{v.currentTime=0.001;}catch(e){}
+  });
+}
+// 16bit の WAV（チャンネルはそのまま）。つなぐ部品を順に直接書き込む（途中の配列を作らない。長い音声でも使う量を抑える）
+// parts：[{src:[チャンネルごとの Float32Array], from, to}（本編の一部）｜{mono:Float32Array}（全チャンネルに同じ音）｜{silence:標本数}]
+function ynWavParts(parts,nc,sr){
+  const n=parts.reduce((a,p)=>a+(p.silence!=null?p.silence:p.mono?p.mono.length:p.to-p.from),0);
+  const buf=new ArrayBuffer(44+n*nc*2),dv=new DataView(buf);
+  const w=(o,s)=>{for(let i=0;i<s.length;i++)dv.setUint8(o+i,s.charCodeAt(i));};
+  w(0,'RIFF');dv.setUint32(4,36+n*nc*2,true);w(8,'WAVE');w(12,'fmt ');dv.setUint32(16,16,true);dv.setUint16(20,1,true);dv.setUint16(22,nc,true);
+  dv.setUint32(24,sr,true);dv.setUint32(28,sr*nc*2,true);dv.setUint16(32,nc*2,true);dv.setUint16(34,16,true);w(36,'data');dv.setUint32(40,n*nc*2,true);
+  const q=x=>{x=Math.max(-1,Math.min(1,x));return x<0?x*0x8000:x*0x7FFF;};
+  let o=44;
+  for(const p of parts){
+    if(p.silence!=null){o+=p.silence*nc*2;continue;}   // ArrayBuffer は 0 で始まるので、無音は飛ばすだけ
+    if(p.mono){for(let i=0;i<p.mono.length;i++){const v=q(p.mono[i]);for(let c=0;c<nc;c++){dv.setInt16(o,v,true);o+=2;}}continue;}
+    for(let i=p.from;i<p.to;i++)for(let c=0;c<nc;c++){dv.setInt16(o,q(p.src[c][i]),true);o+=2;}
+  }
+  return new Blob([buf],{type:'audio/wav'});
+}
+// 背景動画を1本、区間の長さに切って zip に入れ、動画のスライドを返す
+async function ynOpedVideoSlide(c,role,L){
+  const kindName=ytOpedKindName(ytOpedKind()),rn=role==='op'?'オープニング':'エンディング';
+  const mat=await ytOpedBg(role);
+  if(!mat)throw new Error(`${rn}の背景動画が登録されていません（設定タブ「OP・EDの背景動画」の「${kindName}」）`);
+  const rec=await ynGet(mat.key);if(!rec||!rec.blob)throw new Error(`${rn}の背景動画（${mat.name}）を読めませんでした`);
+  if((rec.dur||mat.dur||0)<L-0.05)throw new Error(`${rn}の背景動画「${mat.name}」は ${(rec.dur||mat.dur||0).toFixed(1)}秒で、必要な ${L.toFixed(1)}秒より短いです。長い動画を登録してください`);
+  ynStatus(`${rn}の背景動画を ${L.toFixed(1)}秒に切っています…`,'','status3');
+  const cut=await ynTrimVideo(rec.blob,L);
+  const got=await ytVideoDur(cut);
+  if(!got||Math.abs(got-L)>0.1)throw new Error(`${rn}の背景動画を切った長さが合いません（必要 ${L.toFixed(2)}秒／切った結果 ${got?got.toFixed(2):'読めない'}秒）。書き出しを止めました`);
+  const poster=await ynVideoPoster(cut);
+  const vidId=c.newId(),sid=c.newId();
+  c.zip.file(`slides/slide-oped-${role}.jpg`,poster);
+  c.zip.file(`動画/vid-${vidId}.mp4`,cut);
+  return{name:`${rn}（背景動画：${mat.name}）`,file:`slides/slide-oped-${role}.jpg`,zoomKeyframes:[],id:sid,kind:'video',narMute:0,dur:+L.toFixed(3),vidId,bgm:'keep',vol:0,trans:'none'};
+}
+async function ynOpedBuild(c){
+  const P=YN.plan;
+  const useOp=!!(P.op&&YO.op&&YO.op.b64),useEd=!!(YO.ed&&YO.ed.b64);
+  if(!useOp&&!useEd)return null;
+  if(!YA.buf)throw new Error('音声を読み込み直してください（音声タブを開くと読み込まれます）');
+  for(const r of (useOp?['op']:[]).concat(useEd?['ed']:[]))if(YO[r].text!==ytOpedText(r))throw new Error(`${r==='op'?'オープニング':'エンディング'}の文を直したあと、音声を作り直していません（音声タブの「5. OP・ED」）`);
+  ynStatus('オープニング・エンディングを入れています…（音声をつなぎ直しています）','','status3');
+  const G=YT_OPED_GAP,B=YA.buf,sr=B.sampleRate,nc=B.numberOfChannels;
+  const dec=async b64=>await new OfflineAudioContext(1,1,sr).decodeAudioData(vdB64ToBuf(b64).slice(0));   // 本編と同じ sampleRate に合わせて読む
+  const opB=useOp?await dec(YO.op.b64):null,edB=useEd?await dec(YO.ed.b64):null;
+  const gapN=Math.round(G*sr);
+  // OP を入れる位置：前の文の終わりと、OP の文の始まりの間（カットの中に入らないように）
+  let iOp=0,tOp=0,dOp=0;
+  if(useOp){
+    const cur=YA.sents[+P.op.from-1];if(!cur)throw new Error('オープニングを入れる文が見つかりません（演出で入れる位置を確かめてください）');
+    const prev=ynKeptSents().filter(x=>x.n<+P.op.from).pop();
+    tOp=prev?Math.min(cur.s,Math.max(prev.e,(prev.e+cur.s)/2)):cur.s;
+    for(const k of c.cuts)if(k.start<tOp&&k.end>tOp)tOp=Math.min(cur.s,k.end);
+    iOp=Math.round(tOp*sr);tOp=iOp/sr;
+    dOp=(gapN*2+opB.length)/sr;
+  }
+  const mainN=B.length+(useOp?gapN*2+opB.length:0);
+  const src=[];for(let ch=0;ch<nc;ch++)src.push(B.getChannelData(ch));
+  const parts=useOp?[{src,from:0,to:iOp},{silence:gapN},{mono:opB.getChannelData(0)},{silence:gapN},{src,from:iOp,to:B.length}]:[{src,from:0,to:B.length}];
+  if(useEd)parts.push({silence:gapN},{mono:edB.getChannelData(0)},{silence:gapN});
+  // 時刻のずらし：OP の位置より後ろは dOp 足す（始まりは OP の位置ちょうどから、終わりは OP の位置より後ろから）
+  const fS=t=>useOp&&t>=tOp-1e-6?t+dOp:t, fE=t=>useOp&&t>tOp+1e-6?t+dOp:t, r2=v=>+v.toFixed(2);
+  c.slides.forEach(s=>(s.zoomKeyframes||[]).forEach(k=>{k.startTime=r2(fS(k.startTime));k.endTime=r2(fE(k.endTime));}));
+  c.decorations.forEach(d=>{d.startTime=r2(fS(d.startTime));d.endTime=r2(fE(d.endTime));});
+  c.subs.forEach(s=>{s.startTime=r2(fS(s.startTime));s.endTime=r2(fE(s.endTime));});
+  const cuts2=[];c.cuts.forEach(k=>{if(useOp&&k.start<tOp&&k.end>tOp){cuts2.push({start:k.start,end:r2(tOp)},{start:r2(tOp+dOp),end:r2(k.end+dOp)});}else cuts2.push({start:r2(fS(k.start)),end:r2(fE(k.end))});});
+  c.cuts.splice(0,c.cuts.length,...cuts2);
+  // 切り替え：表紙は OP の位置で終わる。OP の動画は自分の長さで終わるので、2枚目の切り替えは外す（動画の終わりが2枚目の始まりになる）
+  const sp0=c.switchPoints.slice(),sp=[];
+  if(useOp){sp.push(r2(tOp));sp0.slice(1).forEach(t=>sp.push(r2(fS(t))));}else sp0.forEach(t=>sp.push(r2(t)));
+  const mainEnd=mainN/sr;
+  if(useEd)sp.push(r2(mainEnd));   // 本編の最後のスライドは、本編の音声の終わりで終わる（そこから ED の動画）
+  c.switchPoints.splice(0,c.switchPoints.length,...sp);
+  // 動画のスライド・テロップ・文字・字幕
+  const telop=ytOpedTelops(),notes=[];
+  const addTelop=(text,idx)=>{if(!String(text||'').trim())return;c.cornerTelops.push({id:c.newId(),text:String(text).trim(),accentColor:'#e91e8c',startSlide:idx,endSlide:idx,animIn:.5,animOut:.5,sizeMul:1,posX:78,posY:-85,minChars:6});};
+  if(useOp){
+    const ch1=P.slides.length>1?P.slides[1].s:B.duration,opEnd=fS(ch1),L=opEnd-tOp;
+    const vs=await ynOpedVideoSlide(c,'op',L);
+    c.slides.splice(1,0,vs);   // 表紙のすぐ後ろ
+    c.cornerTelops.forEach(t=>{if(t.startSlide>=2)t.startSlide++;if(t.endSlide!=null&&t.endSlide>=2)t.endSlide++;});
+    addTelop(telop.op,2);
+    // 画面に出す文字①②③：その要点を話し始めたときから、OP の動画の終わりまで
+    const t0=tOp+G,ys=[.36,.5,.64];
+    (YO.op.times||[]).forEach(x=>{const s=ytVal('op-s'+x.i);if(!s)return;
+      c.decorations.push({id:c.newId(),type:'text',imgX1:.5,imgY1:ys[x.i-1],imgX2:.5,imgY2:ys[x.i-1],color:'#ffffff',startTime:r2(t0+x.s),endTime:r2(opEnd),startSil:null,endSil:null,opacity:100,lineWidth:3,animIn:'fade',animOut:'fade',text:`${'①②③'[x.i-1]} ${s}`,textStyle:'outline',align:'center',size:1.8});});
+    notes.push(`オープニング ${L.toFixed(1)}秒`);
+  }
+  if(useEd){
+    const L=(gapN*2+edB.length)/sr;
+    const vs=await ynOpedVideoSlide(c,'ed',L);
+    const at=c.nUsed+(useOp?1:0);   // 使ったスライドの最後の後ろ（使わないスライドより前）
+    c.slides.splice(at,0,vs);
+    c.cornerTelops.forEach(t=>{if(t.startSlide>at)t.startSlide++;if(t.endSlide!=null&&t.endSlide>at)t.endSlide++;});
+    addTelop(telop.ed,at+1);
+    // 字幕：文ごと（時刻は ED の音声の中の時刻）
+    const t0=mainEnd+G,ts=(YO.ed.times&&YO.ed.times.length)?YO.ed.times:[{text:YO.ed.text,s:0,e:YO.ed.seconds}];
+    ts.forEach(x=>c.subs.push({id:c.newId(),text:x.text,startTime:r2(t0+x.s),endTime:r2(t0+x.e),startSil:null,endSil:null,templateId:1}));
+    notes.push(`エンディング ${L.toFixed(1)}秒`);
+  }
+  ynStatus('音声を書き出しています…','','status3');
+  const label=`${String(YA.fileName||'narration').replace(/\.\w+$/,'')}（OP・ED入り）.wav`;
+  return{nar:{file:ynWavParts(parts,nc,sr),name:'narration.wav',label},note:notes.join('・')+'を入れました（音声は WAV）'};
 }
 // 出典の仮画像（ナレスラで差し替える）
 function ynPlaceholder(){
