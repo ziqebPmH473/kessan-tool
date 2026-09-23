@@ -10749,23 +10749,28 @@ async function ytOpedDraft(role,btn){
       const cands=Array.isArray(list)?list.slice(0,3):[];
       if(!cands.length)throw new Error(`${r==='op'?'オープニング':'エンディング'}の台本が入っていませんでした`);
       ytEl(r==='op'?'op-cands':'ed-cands').value=JSON.stringify(cands);
-      ytOpedRenderCands(r);
+      YO_PICK[r]=null;ytOpedRenderCands(r,true);   // 作った直後は開く
       ytOpedSt(r,`✅ 台本を${cands.length}つ作りました。選ぶと下の欄に入ります（直してから音声生成を押してください）`,'ok');
     }
     saveState();
   }catch(e){st('❌ '+esc(e.message),'error');}
   finally{if(btn)btn.disabled=false;}
 }
-function ytOpedRenderCands(role){
+// 台本1〜3は折りたたみ。作った直後は開き、選んだら閉じる（開き直して選び直せる）。
+// open：true＝開く／false＝閉じる／省略＝欄がまだ空なら開く
+const YO_PICK={op:null,ed:null};   // いま選んでいる台本の番号（見出しに出すだけ。保存しない）
+function ytOpedRenderCands(role,open){
   const box=document.getElementById('yt-oped-'+role+'-cands');if(!box)return;
   let cands=[];try{cands=JSON.parse(ytVal(role==='op'?'op-cands':'ed-cands')||'[]');}catch(e){}
   if(!cands.length){box.innerHTML='';return;}
-  box.innerHTML=cands.map((c,i)=>{
+  if(open==null)open=!ytOpedText(role);
+  const pk=YO_PICK[role];
+  box.innerHTML=`<details${open?' open':''} style="margin-top:4px;"><summary style="font-size:11px;cursor:pointer;color:var(--text-sub);">台本1〜${cands.length}${pk!=null?`（台本${pk+1}を選びました）`:''}</summary>`+cands.map((c,i)=>{
     const body=role==='op'
       ?`${c.lead?`<div style="color:var(--text-sub);">${esc(c.lead)}</div>`:''}${(c.points||[]).map((p,k)=>`<div><b>${'①②③'[k]||''} ${esc(p.screen||'')}</b>　<span style="color:var(--text-sub);">${esc(p.voice||'')}</span></div>`).join('')}${c.close?`<div style="color:var(--text-sub);">${esc(c.close)}</div>`:''}`
       :`<div>${esc(c.text||'')}</div>${c.basis?`<div style="color:var(--text-sub);">根拠：${esc(c.basis)}</div>`:''}`;
     return `<div onclick="ytOpedPick('${role}',${i})" title="この台本を下の欄に入れる" style="border:1px solid var(--border);border-radius:6px;padding:4px 6px;margin-top:4px;font-size:11px;cursor:pointer;line-height:1.5;"><span style="color:var(--text-sub);">台本${i+1}</span>${body}</div>`;
-  }).join('');
+  }).join('')+'</details>';
 }
 function ytOpedPick(role,i){
   let cands=[];try{cands=JSON.parse(ytVal(role==='op'?'op-cands':'ed-cands')||'[]');}catch(e){}
@@ -10775,6 +10780,7 @@ function ytOpedPick(role,i){
     for(let k=1;k<=3;k++){const p=(c.points||[])[k-1]||{};ytEl('op-s'+k).value=p.screen||'';ytEl('op-v'+k).value=p.voice||'';}
   }else ytEl('ed-v').value=c.text||'';
   saveState();
+  YO_PICK[role]=i;ytOpedRenderCands(role,false);   // 選んだら閉じる
 }
 // 音声で読む文（OP は前置き＋①②③＋締めをつなぐ）。文の終わりに「？」「！」「。」があればそのまま、無ければ「。」を足す
 const ytOpedParts=()=>[ytVal('op-lead'),ytVal('op-v1'),ytVal('op-v2'),ytVal('op-v3'),ytVal('op-tail')];
