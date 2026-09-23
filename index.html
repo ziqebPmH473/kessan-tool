@@ -9533,7 +9533,7 @@ function ytInnerTab(t){
   if(t==='research')ytUpdateFreeInfo();
   if(t==='settings'){ytNoteInfo();ytColorFill();ytOpedMatRender();ytOpedTelopFill();}
   if(t==='article'){const a=ytEl('a-yturl');if(a)a.value=ytVal('p-yturl');const b=ytEl('a-noteurl');if(b)b.value=ytVal('note-url');}
-  if(t==='audio'){try{ytOpening();}catch(e){}ytOpedRender();}
+  if(t==='audio'){try{ytOpening();}catch(e){}ytOpedRender();ytOpedVoiceFill();}
   if(t==='naresla')ysRender();
   const want=(t==='slides'||t==='naresla')?'ytnare':(t==='audio'||t==='cut')?'ytaudio':'';
   const cur=document.getElementById('tab-yb')?.classList.contains('active')?'ytboth'
@@ -10673,6 +10673,15 @@ function yaBuildCutHtml(){
       <option value="">自動（株価分析＝決算／YT動画＝テーマ）</option>${YT_OPED_KINDS.map(([k,n])=>`<option value="${k}">${n}</option>`).join('')}
     </select>
   </div>
+  <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:4px;" title="OP・EDの音声生成で使う声とモデルです。すべてのPJで共通です。">
+    <label style="font-size:11px;color:var(--text-sub);flex:none;">声</label>
+    <select data-oped-voice="voice" onchange="ytOpedVoiceSave()" style="flex:1;min-width:0;font-size:11px;padding:3px;">${VD_VOICE_OPTIONS}</select>
+    <select data-oped-voice="model" onchange="ytOpedVoiceSave()" style="flex:1;min-width:0;font-size:11px;padding:3px;">
+      <option value="gemini-3.1-flash-tts-preview">Gemini 3.1 Flash TTS</option>
+      <option value="gemini-2.5-flash-preview-tts">Gemini 2.5 Flash TTS</option>
+      <option value="gemini-2.5-pro-preview-tts">Gemini 2.5 Pro TTS（有料枠）</option>
+    </select>
+  </div>
   ${row(b('🤖 台本作成','ytOpedDraft(\'all\',this)','background:#4f46e5;color:#fff;'),b('🔊 音声生成','ytOpedTtsAll(this)','background:#2563eb;color:#fff;'))}
   <div id="yt-oped-all-st" style="display:none;font-size:11px;"></div>
   <div class="sa-sub">▼ オープニング（この動画を見ると何が分かるか）</div>
@@ -10836,7 +10845,15 @@ function ytOpedText(role){
   return ytOpedParts().map(s=>s.replace(/\s+$/,'')).filter(Boolean).map(s=>/[。？！?!]$/.test(s)?s:s+'。').join('');
 }
 // TTS の声・モデルは、横動画の動画タブの設定（vd）に合わせる。無ければ既定
-function ytOpedVoice(){const v=document.getElementById('vd-tts-voice'),m=document.getElementById('vd-tts-model');return{voice:(v&&v.value)||'Erinome',model:(m&&m.value)||'gemini-3.1-flash-tts-preview'};}
+// OP・ED の声とモデル。全PJ共通なので欄に id を付けず（付けるとPJの行に入る）、localStorage の kt-oped-voice に持つ（LS_SYNC でサーバーの shared にも入る）
+const YT_OPED_VOICE_KEY='kt-oped-voice',YT_OPED_VOICE_DEF={voice:'Erinome',model:'gemini-3.1-flash-tts-preview'};
+function ytOpedVoice(){let v=null;try{v=JSON.parse(localStorage.getItem(YT_OPED_VOICE_KEY)||'null');}catch(e){}v=v||{};return{voice:v.voice||YT_OPED_VOICE_DEF.voice,model:v.model||YT_OPED_VOICE_DEF.model};}
+function ytOpedVoiceFill(){const c=ytOpedVoice();document.querySelectorAll('[data-oped-voice]').forEach(el=>{el.value=c[el.dataset.opedVoice];});}
+function ytOpedVoiceSave(){
+  const o=ytOpedVoice();document.querySelectorAll('[data-oped-voice]').forEach(el=>{o[el.dataset.opedVoice]=el.value;});
+  try{localStorage.setItem(YT_OPED_VOICE_KEY,JSON.stringify(o));}catch(e){}
+  if(typeof saveState==='function')saveState();
+}
 async function ytOpedTts(role,btn){
   const text=ytOpedText(role);
   if(!text){ytOpedSt(role+'-a','❌ 音声で読む文が空です','error');return;}

@@ -18,7 +18,7 @@
 (function () {
   'use strict';
   const LS_KEY = 'kessanTool:v1';
-  const LS_SYNC = ['kt-yt-ctx', 'yt-m-def38', 'kt-rel-days-365', 'kt-slide-style', 'kt-oped-telop'];
+  const LS_SYNC = ['kt-yt-ctx', 'yt-m-def38', 'kt-rel-days-365', 'kt-slide-style', 'kt-oped-telop', 'kt-oped-voice'];
   const LS_OLD = ['kt-yt-fields-stock', 'kt-yt-fields-gen'];   // フェーズ1までの控え。もう使わないので消す
   const META_KEY = 'kt-sync-meta';       // localStorage：{versions, media}
   const CUR_KEY = 'kt-cur';              // sessionStorage：このタブが開いている PJ {kind: id}／localStorage：最後に開いた PJ
