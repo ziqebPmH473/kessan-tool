@@ -1067,7 +1067,6 @@ select.yn-sel option{color:#0f172a;background:#fff;font-weight:400;}
                     <option value="gemini-3-flash-preview">Gemini 3 Flash（20回/日）</option>
                     <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite（500回/日）</option>
                     <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite（500回/日）</option>
-                    <option value="gemini-2.5-flash">Gemini 2.5 Flash（20回/日）</option>
                     <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite（20回/日）</option>
                 </select>
             </div>
@@ -1213,7 +1212,6 @@ select.yn-sel option{color:#0f172a;background:#fff;font-weight:400;}
                     <option value="gemini-3-flash-preview">Gemini 3 Flash（20回/日）</option>
                     <option value="gemini-3.5-flash-lite" selected>Gemini 3.5 Flash Lite（500回/日）</option>
                     <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite（500回/日）</option>
-                    <option value="gemini-2.5-flash">Gemini 2.5 Flash（20回/日）</option>
                     <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite（20回/日）</option>
                 </select>
             </div>
@@ -1327,7 +1325,6 @@ select.yn-sel option{color:#0f172a;background:#fff;font-weight:400;}
         <option value="gemini-3-flash-preview">Gemini 3 Flash（20回/日）</option>
         <option value="gemini-3.5-flash-lite" selected>Gemini 3.5 Flash Lite（500回/日）</option>
         <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite（500回/日）</option>
-        <option value="gemini-2.5-flash">Gemini 2.5 Flash（20回/日）</option>
         <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite（20回/日）</option>
       </select>
     </div>
@@ -1435,7 +1432,6 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
         <option value="gemini-3-flash-preview">Gemini 3 Flash（20回/日）</option>
         <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite（500回/日）</option>
         <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite（500回/日）</option>
-        <option value="gemini-2.5-flash">Gemini 2.5 Flash（20回/日）</option>
       </select>
     </div>
     <button class="btn btn-full" id="art-gen-btn" onclick="geminiArticle(this)" style="background:#0d9488;color:#fff;margin-top:6px;">📝 記事・SNSを生成</button>
@@ -2066,8 +2062,8 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
         function autoModelChain(cls, ov) {
             if (ov) return [ov];
             return cls === 'high'
-                ? ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3-flash-preview', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-2.5-flash']
-                : ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3-flash-preview', 'gemini-2.5-flash-lite', 'gemini-2.5-flash'];
+                ? ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3-flash-preview', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite']
+                : ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3-flash-preview', 'gemini-2.5-flash-lite'];
         }
 
         // 降格した理由の表示（例：・降格［3.8: 503 高負荷 41.2秒］）。原因の特定用
@@ -4816,8 +4812,8 @@ function copyNBPrompt(btn){copyText(NB_PROMPT,btn);}
 function saAutoModelChain(cls,ov){
   if(ov)return[ov];
   return cls==='high'
-    ?['gemini-3.8-flash','gemini-3.7-flash','gemini-3.6-flash','gemini-3.5-flash','gemini-3-flash-preview','gemini-3.5-flash-lite','gemini-3.1-flash-lite','gemini-2.5-flash']
-    :['gemini-3.5-flash-lite','gemini-3.1-flash-lite','gemini-3.8-flash','gemini-3.7-flash','gemini-3.6-flash','gemini-3-flash-preview','gemini-2.5-flash-lite','gemini-2.5-flash'];
+    ?['gemini-3.8-flash','gemini-3.7-flash','gemini-3.6-flash','gemini-3.5-flash','gemini-3-flash-preview','gemini-3.5-flash-lite','gemini-3.1-flash-lite']
+    :['gemini-3.5-flash-lite','gemini-3.1-flash-lite','gemini-3.8-flash','gemini-3.7-flash','gemini-3.6-flash','gemini-3-flash-preview','gemini-2.5-flash-lite'];
 }
 // 整形パス専用のグラウンディング強化（NotebookLMのRAG的な"ソース限定"に寄せる）
 const SA_GROUNDING_RULE='\n\n## グラウンディング（最重要・厳守）\n出力は、渡された資料（株探取得データ・分析レポート）に明示されている情報だけを根拠にすること。資料に無い数値・事実は、推測や一般知識で補わず空欄にすること。資料外の情報を創作してはならない。';
@@ -6476,7 +6472,7 @@ const VD_CFG={
 const vdEl=(P,id)=>document.getElementById(`${P}-${id}`);
 const vdVal=(P,id)=>((vdEl(P,id)||{}).value||'').trim();
 const VD_MODEL_OPTIONS=`<option value="" selected>自動（上位から上限で自動降格）</option>
-<option value="gemini-3.8-flash">Gemini 3.8 Flash（20回/日）</option><option value="gemini-3.7-flash">Gemini 3.7 Flash（20回/日）</option><option value="gemini-3.6-flash">Gemini 3.6 Flash（20回/日）</option><option value="gemini-3.5-flash">Gemini 3.5 Flash（20回/日）</option><option value="gemini-3-flash-preview">Gemini 3 Flash（20回/日）</option><option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite（500回/日）</option><option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite（500回/日）</option><option value="gemini-2.5-flash">Gemini 2.5 Flash（20回/日）</option>`;
+<option value="gemini-3.8-flash">Gemini 3.8 Flash（20回/日）</option><option value="gemini-3.7-flash">Gemini 3.7 Flash（20回/日）</option><option value="gemini-3.6-flash">Gemini 3.6 Flash（20回/日）</option><option value="gemini-3.5-flash">Gemini 3.5 Flash（20回/日）</option><option value="gemini-3-flash-preview">Gemini 3 Flash（20回/日）</option><option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite（500回/日）</option><option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite（500回/日）</option>`;
 const VD_VOICE_OPTIONS=`<option value="Zephyr">Zephyr (Bright)</option><option value="Puck">Puck (Upbeat)</option><option value="Charon">Charon (Informative)</option><option value="Kore">Kore (Firm)</option><option value="Fenrir">Fenrir (Excitable)</option><option value="Leda">Leda (Youthful)</option><option value="Orus">Orus (Firm)</option><option value="Aoede">Aoede (Breezy)</option><option value="Callirrhoe">Callirrhoe (Easy-going)</option><option value="Autonoe">Autonoe (Bright)</option><option value="Enceladus">Enceladus (Breathy)</option><option value="Iapetus">Iapetus (Clear)</option><option value="Umbriel">Umbriel (Easy-going)</option><option value="Algieba">Algieba (Smooth)</option><option value="Despina">Despina (Smooth)</option><option value="Erinome" selected>Erinome (Clear)</option><option value="Algenib">Algenib (Gravelly)</option><option value="Rasalgethi">Rasalgethi (Informative)</option><option value="Laomedeia">Laomedeia (Upbeat)</option><option value="Achernar">Achernar (Soft)</option><option value="Alnilam">Alnilam (Firm)</option><option value="Schedar">Schedar (Even)</option><option value="Gacrux">Gacrux (Mature)</option><option value="Pulcherrima">Pulcherrima (Forward)</option><option value="Achird">Achird (Friendly)</option><option value="Zubenelgenubi">Zubenelgenubi (Casual)</option><option value="Vindemiatrix">Vindemiatrix (Gentle)</option><option value="Sadachbita">Sadachbita (Lively)</option><option value="Sadaltager">Sadaltager (Knowledgeable)</option><option value="Sulafat">Sulafat (Warm)</option>`;
 
 // ---- タブのHTMLを組み立てる（株価分析・決算分析で共通。中は「スライド・投稿」「台本・音声」の2タブ） ----
@@ -7665,7 +7661,7 @@ function earnPrevMode(m){
 // ============================================================
 // ---- 横動画：Gemini のモデル（作業ごとに設定タブで選ぶ）----
 // 回数の上限のときは、選んだモデルから一覧の順に下のモデルへ切り替える（Lite は除く）。混雑のときは切り替えずに止める（下も混んでいることが多い）
-const YT_MODEL_LIST=[['gemini-3.8-flash','Gemini 3.8 Flash（20回/日）'],['gemini-3.7-flash','Gemini 3.7 Flash（20回/日）'],['gemini-3.6-flash','Gemini 3.6 Flash（20回/日）'],['gemini-3.5-flash','Gemini 3.5 Flash（20回/日）'],['gemini-3-flash-preview','Gemini 3 Flash（20回/日）'],['gemini-3.5-flash-lite','Gemini 3.5 Flash Lite（500回/日）'],['gemini-3.1-flash-lite','Gemini 3.1 Flash Lite（500回/日）'],['gemini-2.5-flash','Gemini 2.5 Flash（20回/日）'],['gemini-2.5-flash-lite','Gemini 2.5 Flash Lite（20回/日）']];
+const YT_MODEL_LIST=[['gemini-3.8-flash','Gemini 3.8 Flash（20回/日）'],['gemini-3.7-flash','Gemini 3.7 Flash（20回/日）'],['gemini-3.6-flash','Gemini 3.6 Flash（20回/日）'],['gemini-3.5-flash','Gemini 3.5 Flash（20回/日）'],['gemini-3-flash-preview','Gemini 3 Flash（20回/日）'],['gemini-3.5-flash-lite','Gemini 3.5 Flash Lite（500回/日）'],['gemini-3.1-flash-lite','Gemini 3.1 Flash Lite（500回/日）'],['gemini-2.5-flash-lite','Gemini 2.5 Flash Lite（20回/日）']];
 const YT_AI_TASKS=[['cut','カットの判定','gemini-3.8-flash'],['oped','OP・EDの案','gemini-3.8-flash'],['read','まとまりの読み取り','gemini-3.8-flash'],['qr','QRの位置','gemini-3.8-flash'],['plan','演出の割り当て','gemini-3.8-flash'],['post','記事・投稿文','gemini-3.8-flash']];   // 画面の並び＝使う順（音声 → スライド → 演出 → 記事・SNS）
 const ytModelName=m=>((YT_MODEL_LIST.find(x=>x[0]===m)||[])[1]||m).replace(/（.*$/,'');
 function ytModels(task){
@@ -7680,12 +7676,16 @@ function ytAiErr(d,task){
   const f=(d&&d.failures)||[];
   if(!f.length)return (d&&d.error)||'不明なエラー';
   const lastBy={};f.forEach(x=>{lastBy[x.model]=x;});
-  const why=k=>k==='quota'?'今日の回数の上限':k==='busy'?'混雑':'エラー';
+  // 上限（429 など）は、1日の回数とは限らない（1分あたりの回数・検索の上限なども同じ形で返る）。どれかは Google の文で見分ける
+  const why=k=>k==='quota'?'上限':k==='busy'?'混雑':'エラー';
   const tried=Object.values(lastBy).map(x=>`${ytModelName(x.model)}＝${why(x.kind)}`).join('、');
   const last=f[f.length-1];
-  if(d.busy||last.kind==='busy')return `${ytModelName(last.model)} が混雑していて使えませんでした（Google側の一時的な混雑です。下のモデルには切り替えていません）。少し待ってもう一度押すか、設定タブの「${tn}」のモデルを変えてください。［試したモデル：${tried}］`;
-  if(last.kind==='quota')return `使えるモデルがすべて今日の回数の上限でした。明日まで待つか、設定タブの「${tn}」で Lite のモデルを選んでください。［試したモデル：${tried}］`;
-  return `${ytModelName(last.model)} でエラーになりました：${last.error}［試したモデル：${tried}］`;
+  // Google の文：当たった上限の名前がある最初の失敗（無ければ最後の失敗）
+  const g=f.find(x=>x.detail)||last;
+  const google=`［Googleの文（${ytModelName(g.model)}）：${g.error}${g.detail?`／当たった上限：${g.detail}`:''}］`;
+  if(d.busy||last.kind==='busy')return `${ytModelName(last.model)} が混雑していて使えませんでした（Google側の一時的な混雑です。下のモデルには切り替えていません）。少し待ってもう一度押すか、設定タブの「${tn}」のモデルを変えてください。［試したモデル：${tried}］${google}`;
+  if(last.kind==='quota')return `使えるモデルがすべて上限で断られました。どの上限かは下の Google の文を見てください（1日の回数なら明日まで待つか、設定タブの「${tn}」で Lite のモデルを選んでください）。［試したモデル：${tried}］${google}`;
+  return `${ytModelName(last.model)} でエラーになりました：${last.error}［試したモデル：${tried}］${g!==last?google:''}`;
 }
 const YT_CHAPTERS=[
   {no:1,name:'なぜ今この銘柄？',tags:['下落','チャート','背景','問い'],
