@@ -9443,12 +9443,23 @@ function ytColorSave(){
   if(typeof saveState==='function')saveState();
 }
 // ---- OP・ED の背景動画（設定。全PJ共通） ----
-// 保存先は KT_YN の共通キー：オープニング 'opv:<区分>:<1〜3>'、エンディング 'edv:<区分>'。中身は {name, blob, dur, size}
+// 保存先は KT_YN の共通キー：オープニング 'opv:<区分>:<id>'、エンディング 'edv:<区分>:<id>'。中身は {name, blob, dur, size}。本数の上限は無し
+// 前の形（'opv:<区分>:1〜3'、'edv:<区分>'）もそのまま使う。
+// 一覧は目録（'opv:_index'＝[{key, role, kind, name, dur, size}]）から出す（一覧のたびに動画をサーバーから取らないため）
 const YT_OPED_KINDS=[['theme','テーマ'],['news','ニュース'],['earn','決算']];
-const YT_OPED_OPN=3;                              // オープニング用は区分ごとに3本まで
 const YT_OPED_MAX_MB=70;                          // サーバーへは JSON（base64）で送るので、1本の上限は控えめに
-const ytOpedMatKey=(role,kind,n)=>role==='op'?`opv:${kind}:${n}`:`edv:${kind}`;
-function ytOpedMatSlots(){const out=[];YT_OPED_KINDS.forEach(([k])=>{for(let n=1;n<=YT_OPED_OPN;n++)out.push({role:'op',kind:k,n,key:ytOpedMatKey('op',k,n)});out.push({role:'ed',kind:k,n:0,key:ytOpedMatKey('ed',k)});});return out;}
+const YT_OPED_IDX='opv:_index';
+const ytOpedKeyInfo=k=>{const m=/^(opv|edv):(theme|news|earn)(?::(.+))?$/.exec(k||'');return m?{role:m[1]==='opv'?'op':'ed',kind:m[2]}:null;};
+// 目録を読む。無ければ、登録済みのキーから作る（前の形の分。1回だけ）
+async function ytOpedMatIndex(){
+  const idx=await ynGet(YT_OPED_IDX);
+  if(Array.isArray(idx))return idx;
+  const keys=((await KT_YN.list('tpl'))||[]).filter(k=>ytOpedKeyInfo(k));
+  const out=[];
+  for(const k of keys){const r=await ynGet(k);if(r&&r.blob)out.push({key:k,...ytOpedKeyInfo(k),name:r.name||'',dur:r.dur||0,size:r.size||0});}
+  await ynPut(YT_OPED_IDX,out);
+  return out;
+}
 // 動画の長さを読む（読めなければ 0）
 function ytVideoDur(blob){
   return new Promise(res=>{
@@ -9463,36 +9474,48 @@ function ytVideoDur(blob){
 }
 async function ytOpedMatRender(){
   const box=document.getElementById('yt-oped-mats');if(!box)return;
-  const slots=ytOpedMatSlots();
-  const recs={};await Promise.all(slots.map(async s=>{recs[s.key]=await ynGet(s.key);}));
-  const cell=s=>{
-    const r=recs[s.key],id='yt-oped-'+s.key.replace(/[^0-9A-Za-z]/g,'_');
-    const info=r&&r.blob?`<span style="font-size:10px;color:var(--text-main);" title="${esc(r.name||'')}">${esc(String(r.name||'').slice(0,18))}${r.dur?`（${Math.round(r.dur)}秒）`:''}</span><button class="btn-sm" onclick="ytOpedMatDel('${s.key}')" title="この動画を消す" style="flex:none;padding:1px 5px;font-size:10px;">✕</button>`
-      :`<span style="font-size:10px;color:var(--text-sub);">未登録</span>`;
-    return `<div style="display:flex;align-items:center;gap:4px;min-width:0;"><label class="btn-sm" for="${id}" style="flex:none;padding:1px 6px;font-size:10px;cursor:pointer;">${r&&r.blob?'差替':'登録'}</label><input type="file" id="${id}" accept="video/mp4,video/webm,video/quicktime" onchange="ytOpedMatLoad('${s.key}',this.files[0]);this.value=''" style="display:none;">${info}</div>`;
+  let idx=[];try{idx=await ytOpedMatIndex();}catch(e){console.warn('[oped] 目録を読めません',e);}
+  const cell=(role,kind)=>{
+    const id=`yt-oped-add-${role}-${kind}`;
+    const items=idx.filter(x=>x.role===role&&x.kind===kind).map(x=>`<div style="display:flex;align-items:center;gap:4px;min-width:0;"><span style="font-size:10px;color:var(--text-main);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(x.name||'')}">${esc(x.name||'')}${x.dur?`（${Math.round(x.dur)}秒）`:''}</span><button class="btn-sm" onclick="ytOpedMatDel('${x.key}')" title="この動画を消す" style="flex:none;padding:1px 5px;font-size:10px;">✕</button></div>`).join('');
+    return `${items||'<div style="font-size:10px;color:var(--text-sub);">未登録</div>'}<label class="btn-sm" for="${id}" style="display:inline-block;padding:1px 6px;font-size:10px;cursor:pointer;margin-top:2px;">＋ 追加</label><input type="file" id="${id}" accept="video/mp4,video/webm,video/quicktime" onchange="ytOpedMatLoad('${role}','${kind}',this.files[0]);this.value=''" style="display:none;">`;
   };
-  box.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:4px;">
-    <tr style="color:var(--text-sub);"><th style="text-align:left;font-weight:normal;padding:2px;">区分</th><th style="text-align:left;font-weight:normal;padding:2px;">オープニング用</th><th style="text-align:left;font-weight:normal;padding:2px;">エンディング用</th></tr>
-    ${YT_OPED_KINDS.map(([k,label])=>`<tr style="border-top:1px solid var(--border);"><td style="padding:3px 2px;vertical-align:top;white-space:nowrap;">${label}</td><td style="padding:3px 2px;vertical-align:top;">${slots.filter(s=>s.role==='op'&&s.kind===k).map(cell).join('')}</td><td style="padding:3px 2px;vertical-align:top;">${cell(slots.find(s=>s.role==='ed'&&s.kind===k))}</td></tr>`).join('')}
+  box.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:4px;table-layout:fixed;">
+    <tr style="color:var(--text-sub);"><th style="text-align:left;font-weight:normal;padding:2px;width:4.5em;">区分</th><th style="text-align:left;font-weight:normal;padding:2px;">オープニング用</th><th style="text-align:left;font-weight:normal;padding:2px;">エンディング用</th></tr>
+    ${YT_OPED_KINDS.map(([k,label])=>`<tr style="border-top:1px solid var(--border);"><td style="padding:3px 2px;vertical-align:top;white-space:nowrap;">${label}</td><td style="padding:3px 2px;vertical-align:top;">${cell('op',k)}</td><td style="padding:3px 2px;vertical-align:top;">${cell('ed',k)}</td></tr>`).join('')}
   </table><div id="yt-oped-mat-status" style="display:none;font-size:11px;"></div>`;
 }
 function ytOpedMatStatus(msg,cls){const el=document.getElementById('yt-oped-mat-status');if(!el)return;el.style.display=msg?'block':'none';el.textContent=msg||'';el.style.color=cls==='error'?'#dc2626':cls==='ok'?'#059669':'var(--text-sub)';}
-async function ytOpedMatLoad(key,file){
+async function ytOpedMatLoad(role,kind,file){
   if(!file)return;
   if(file.size>YT_OPED_MAX_MB*1048576){ytOpedMatStatus(`❌ ${file.name} は ${(file.size/1048576).toFixed(0)}MB あります。1本 ${YT_OPED_MAX_MB}MB までにしてください（解像度や長さを落として作り直してください）`,'error');return;}
   ytOpedMatStatus(`${file.name} を読んでいます…`);
   const dur=await ytVideoDur(file);
   if(!dur){ytOpedMatStatus(`❌ ${file.name} を動画として読めませんでした（mp4 で作り直してください）`,'error');return;}
+  const key=`${role==='op'?'opv':'edv'}:${kind}:${Date.now().toString(36)}`;
   await ynPut(key,{name:file.name,blob:file,dur,size:file.size});
+  const idx=await ytOpedMatIndex();idx.push({key,role,kind,name:file.name,dur,size:file.size});await ynPut(YT_OPED_IDX,idx);
   await ytOpedMatRender();
   ytOpedMatStatus(`✅ ${file.name}（${Math.round(dur)}秒）を登録しました。サーバーへの保存は右下の札で確認できます`,'ok');
 }
 async function ytOpedMatDel(key){
-  const r=await ynGet(key);if(!r){return;}
-  if(!confirm(`「${r.name||key}」を消しますか？（すべてのPJから消えます）`))return;
+  const idx=await ytOpedMatIndex(),it=idx.find(x=>x.key===key);
+  if(!confirm(`「${(it&&it.name)||key}」を消しますか？（すべてのPJから消えます。この動画を使っていたPJは、書き出すときに別の動画が選ばれます）`))return;
   await KT_YN.del(key);
+  await ynPut(YT_OPED_IDX,idx.filter(x=>x.key!==key));
   await ytOpedMatRender();
   ytOpedMatStatus('消しました','ok');
+}
+// PJ ごとの背景動画：必要になったとき（書き出し）に、その区分の中からランダムで決める。
+// 決めたものは PJ の隠し欄（yt-oped-bg＝{kind, op, ed}）に持ち、区分が変わったとき・その動画が消えたときだけ決め直す
+async function ytOpedBg(role){
+  const kind=ytOpedKind();
+  let a={};try{a=JSON.parse(ytVal('oped-bg')||'{}')||{};}catch(e){}
+  if(a.kind!==kind)a={kind};
+  const items=(await ytOpedMatIndex()).filter(x=>x.role===role&&x.kind===kind);
+  let it=items.find(x=>x.key===a[role]);
+  if(!it&&items.length){it=items[Math.floor(Math.random()*items.length)];a[role]=it.key;ytEl('oped-bg').value=JSON.stringify(a);saveState();}
+  return it||null;
 }
 function ytInnerTab(t){
   try{sessionStorage.setItem('yt-itab',t);}catch(e){}   // リロードで戻すため（新しく開いたタブには引き継がない）
@@ -9706,7 +9729,7 @@ ${[['n','note記事（無料）','表なしで作ります。動画のURLは最�
   ${set('見出し','<input type="text" data-slide-color="head" oninput="ytColorSave()" style="flex:1;min-width:0;font-size:11px;padding:4px;">','')}
   ${set('書体','<input type="text" data-slide-color="font" oninput="ytColorSave()" style="flex:1;min-width:0;font-size:11px;padding:4px;">','')}
   <div class="sa-sub">▼ OP・EDの背景動画</div>
-  <div style="font-size:10px;color:var(--text-sub);" title="オープニングは区分ごとに3本まで登録でき、書き出すときにその中から1本を選びます。エンディングは区分ごとに1本です。スロー・ぼかしは入れたものを登録してください（ツールでは加工しません）。オープニング用は60秒くらい、エンディング用は音声より長めに。すべてのPJで共通です。">区分ごとに、オープニング用3本まで・エンディング用1本。加工済みの動画を登録。すべてのPJで共通です。</div>
+  <div style="font-size:10px;color:var(--text-sub);" title="区分ごとに、オープニング用・エンディング用を何本でも登録できます。使う動画は、PJごとに書き出すときにランダムで1本選び、区分を変えない限りそのPJでは同じものを使います。スロー・ぼかしは入れたものを登録してください（ツールでは加工しません）。オープニング用は60秒くらい、エンディング用は音声より長めに。すべてのPJで共通です。">区分ごとに何本でも登録できます。PJごとにランダムで1本を使います。すべてのPJで共通です。</div>
   <div id="yt-oped-mats"></div>
   <div class="sa-sub">▼ Geminiのモデル（作業ごと）</div>
   <div style="font-size:10px;color:var(--text-sub);" title="回数の上限のときは、選んだモデルから一覧の順に下のモデルへ自動で切り替えます（Lite には切り替えません。読み取りの位置が大きくずれて使えなかったため）。混雑のときは切り替えずに止まるので、ここで別のモデルを選んでもう一度押してください。">上限のときは下のモデルへ自動で切り替え（Lite除く）。混雑で止まったら、別のモデルを選んでもう一度。</div>
@@ -9719,7 +9742,7 @@ ${[['n','note記事（無料）','表なしで作ります。動画のURLは最�
 </div>
 </div>`;
 }
-const YT_PERSIST_IDS=['vd-orient','th-ctx','th-note-text','th-note-preset','yt-th-text','yt-th-preset','yg-th-text','yg-th-preset','yt-g-theme','yt-g-report','yt-g-aud','yt-a-n-raw','yt-a-n-title','yt-a-n-body','yt-a-n-tags','yt-a-b-raw','yt-a-b-title','yt-a-b-body','yt-a-b-tags','yt-a-check','yt-link-state','yt-doc','yt-series','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-t1','yt-p-t2','yt-p-t3','yt-p-s1','yt-p-s2','yt-p-s3','yt-p-body','yt-p-xbody','yt-p-hook','yt-p-announce','yt-p-ypbody','yt-p-igbody','yt-p-ttbody','yt-p-points','yt-p-xtags','yt-p-yptags','yt-p-igtags','yt-p-tttags','yt-p-l8title','yt-p-l8intro','yt-p-l8tags','yt-p-yp','yt-p-ig','yt-p-l8t','yt-p-ttt','yt-p-fixapplied','yt-p-l8','yt-p-tt','yt-f-yp','yt-f-ig','yt-f-l8','yt-f-tt','yt-p-yturl','yt-p-tags','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-m-cut','yt-m-read','yt-m-plan','yt-m-post','yt-m-qr','yt-m-oped','yt-yomi','yt-yomi-for','yt-open','yt-open-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan','yt-oped-kind','yt-op-s1','yt-op-s2','yt-op-s3','yt-op-v1','yt-op-v2','yt-op-v3','yt-op-lead','yt-op-tail','yt-ed-v','yt-op-cands','yt-ed-cands'];
+const YT_PERSIST_IDS=['vd-orient','th-ctx','th-note-text','th-note-preset','yt-th-text','yt-th-preset','yg-th-text','yg-th-preset','yt-g-theme','yt-g-report','yt-g-aud','yt-a-n-raw','yt-a-n-title','yt-a-n-body','yt-a-n-tags','yt-a-b-raw','yt-a-b-title','yt-a-b-body','yt-a-b-tags','yt-a-check','yt-link-state','yt-doc','yt-series','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-t1','yt-p-t2','yt-p-t3','yt-p-s1','yt-p-s2','yt-p-s3','yt-p-body','yt-p-xbody','yt-p-hook','yt-p-announce','yt-p-ypbody','yt-p-igbody','yt-p-ttbody','yt-p-points','yt-p-xtags','yt-p-yptags','yt-p-igtags','yt-p-tttags','yt-p-l8title','yt-p-l8intro','yt-p-l8tags','yt-p-yp','yt-p-ig','yt-p-l8t','yt-p-ttt','yt-p-fixapplied','yt-p-l8','yt-p-tt','yt-f-yp','yt-f-ig','yt-f-l8','yt-f-tt','yt-p-yturl','yt-p-tags','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-m-cut','yt-m-read','yt-m-plan','yt-m-post','yt-m-qr','yt-m-oped','yt-yomi','yt-yomi-for','yt-open','yt-open-for','ya-gtext','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan','yt-oped-kind','yt-op-s1','yt-op-s2','yt-op-s3','yt-op-v1','yt-op-v2','yt-op-v3','yt-op-lead','yt-op-tail','yt-ed-v','yt-op-cands','yt-ed-cands','yt-oped-bg'];
 // ---- 動画の種類：株価分析の横動画＝stock ／ YT動画タブ＝gen ----
 // 画面と関数は1組だけ。種類を切り替えると、作品ごとの欄（localStorage）と IndexedDB のキーを入れ替える。
 // 株価分析の側は今までのキーのまま、YT動画の側は前に 'gen:' を付ける。設計：docs/design/2026-09-21_YT動画タブ.md
@@ -10661,7 +10684,7 @@ function yaBuildCutHtml(){
   ${row(b('🔊 ED音声生成','ytOpedTts(\'ed\',this)','background:#2563eb;color:#fff;'))}
   <div id="yt-oped-ed-a-st" style="display:none;font-size:11px;"></div>
   <div id="yt-oped-ed-audio" style="font-size:11px;color:var(--text-sub);">音声：未生成</div>
-  <textarea id="yt-op-cands" style="display:none;"></textarea><textarea id="yt-ed-cands" style="display:none;"></textarea>
+  <textarea id="yt-op-cands" style="display:none;"></textarea><textarea id="yt-ed-cands" style="display:none;"></textarea><textarea id="yt-oped-bg" style="display:none;"></textarea>
 </div>`;
 }
 
