@@ -2176,9 +2176,11 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
             legacy: k => ({ kind: k.startsWith('ev:') ? 'earnings' : 'price', key: k }) });
         const KT_YA    = KTStore.mediaNs('ya',    ktIdbNs('kessanTool-ytAudio', 'kv'), {        // 横動画：ナレーション音声と作業状態
             kindOf: () => ktYtKind(), legacy: ktLegacyYt });
-        const KT_YN    = KTStore.mediaNs('yn',    ktIdbNs('kessanTool-ytNare', 'kv'), {         // 横動画：スライド画像・割り当て・素材。ひな形（tpl）は PJ をまたいで共通
-            kindOf: k => (k === 'tpl' ? '_common' : ktYtKind()),
-            legacy: k => (k === 'tpl' ? { kind: '_common', key: k } : ktLegacyYt(k)) });
+        // ひな形（tpl）と OP・ED の背景動画（opv:／edv:）は PJ をまたいで共通
+        const ktYnCommon = k => (k === 'tpl' || /^(opv|edv):/.test(k));
+        const KT_YN    = KTStore.mediaNs('yn',    ktIdbNs('kessanTool-ytNare', 'kv'), {         // 横動画：スライド画像・割り当て・素材
+            kindOf: k => (ktYnCommon(k) ? '_common' : ktYtKind()),
+            legacy: k => (ktYnCommon(k) ? { kind: '_common', key: k } : ktLegacyYt(k)) });
         function idbPut(key, val) { return KT_FILES.put(key, val); }
         function idbGet(key) { return KT_FILES.get(key); }
         function persistEarnFiles() { idbPut('earn', window._earnFiles).catch(e => console.warn('ファイル保存に失敗', e)); }
@@ -9440,6 +9442,58 @@ function ytColorSave(){
   try{localStorage.setItem(YT_COLOR_KEY,JSON.stringify(o));}catch(e){}
   if(typeof saveState==='function')saveState();
 }
+// ---- OP・ED の背景動画（設定。全PJ共通） ----
+// 保存先は KT_YN の共通キー：オープニング 'opv:<区分>:<1〜3>'、エンディング 'edv:<区分>'。中身は {name, blob, dur, size}
+const YT_OPED_KINDS=[['theme','テーマ'],['news','ニュース'],['earn','決算']];
+const YT_OPED_OPN=3;                              // オープニング用は区分ごとに3本まで
+const YT_OPED_MAX_MB=70;                          // サーバーへは JSON（base64）で送るので、1本の上限は控えめに
+const ytOpedMatKey=(role,kind,n)=>role==='op'?`opv:${kind}:${n}`:`edv:${kind}`;
+function ytOpedMatSlots(){const out=[];YT_OPED_KINDS.forEach(([k])=>{for(let n=1;n<=YT_OPED_OPN;n++)out.push({role:'op',kind:k,n,key:ytOpedMatKey('op',k,n)});out.push({role:'ed',kind:k,n:0,key:ytOpedMatKey('ed',k)});});return out;}
+// 動画の長さを読む（読めなければ 0）
+function ytVideoDur(blob){
+  return new Promise(res=>{
+    const v=document.createElement('video'),u=URL.createObjectURL(blob);let done=false;
+    const fin=d=>{if(done)return;done=true;URL.revokeObjectURL(u);try{v.removeAttribute('src');v.load();}catch(e){}res(d);};
+    v.preload='metadata';v.muted=true;
+    // 長さの情報が無い動画（ブラウザで録ったものなど）は、後ろまで飛ばすと長さが分かる
+    v.onloadedmetadata=()=>{if(isFinite(v.duration))fin(v.duration);else{v.ondurationchange=()=>{if(isFinite(v.duration))fin(v.duration);};try{v.currentTime=1e7;}catch(e){fin(0);}}};
+    v.onerror=()=>fin(0);
+    setTimeout(()=>fin(0),15000);v.src=u;
+  });
+}
+async function ytOpedMatRender(){
+  const box=document.getElementById('yt-oped-mats');if(!box)return;
+  const slots=ytOpedMatSlots();
+  const recs={};await Promise.all(slots.map(async s=>{recs[s.key]=await ynGet(s.key);}));
+  const cell=s=>{
+    const r=recs[s.key],id='yt-oped-'+s.key.replace(/[^0-9A-Za-z]/g,'_');
+    const info=r&&r.blob?`<span style="font-size:10px;color:var(--text-main);" title="${esc(r.name||'')}">${esc(String(r.name||'').slice(0,18))}${r.dur?`（${Math.round(r.dur)}秒）`:''}</span><button class="btn-sm" onclick="ytOpedMatDel('${s.key}')" title="この動画を消す" style="flex:none;padding:1px 5px;font-size:10px;">✕</button>`
+      :`<span style="font-size:10px;color:var(--text-sub);">未登録</span>`;
+    return `<div style="display:flex;align-items:center;gap:4px;min-width:0;"><label class="btn-sm" for="${id}" style="flex:none;padding:1px 6px;font-size:10px;cursor:pointer;">${r&&r.blob?'差替':'登録'}</label><input type="file" id="${id}" accept="video/mp4,video/webm,video/quicktime" onchange="ytOpedMatLoad('${s.key}',this.files[0]);this.value=''" style="display:none;">${info}</div>`;
+  };
+  box.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:4px;">
+    <tr style="color:var(--text-sub);"><th style="text-align:left;font-weight:normal;padding:2px;">区分</th><th style="text-align:left;font-weight:normal;padding:2px;">オープニング用</th><th style="text-align:left;font-weight:normal;padding:2px;">エンディング用</th></tr>
+    ${YT_OPED_KINDS.map(([k,label])=>`<tr style="border-top:1px solid var(--border);"><td style="padding:3px 2px;vertical-align:top;white-space:nowrap;">${label}</td><td style="padding:3px 2px;vertical-align:top;">${slots.filter(s=>s.role==='op'&&s.kind===k).map(cell).join('')}</td><td style="padding:3px 2px;vertical-align:top;">${cell(slots.find(s=>s.role==='ed'&&s.kind===k))}</td></tr>`).join('')}
+  </table><div id="yt-oped-mat-status" style="display:none;font-size:11px;"></div>`;
+}
+function ytOpedMatStatus(msg,cls){const el=document.getElementById('yt-oped-mat-status');if(!el)return;el.style.display=msg?'block':'none';el.textContent=msg||'';el.style.color=cls==='error'?'#dc2626':cls==='ok'?'#059669':'var(--text-sub)';}
+async function ytOpedMatLoad(key,file){
+  if(!file)return;
+  if(file.size>YT_OPED_MAX_MB*1048576){ytOpedMatStatus(`❌ ${file.name} は ${(file.size/1048576).toFixed(0)}MB あります。1本 ${YT_OPED_MAX_MB}MB までにしてください（解像度や長さを落として作り直してください）`,'error');return;}
+  ytOpedMatStatus(`${file.name} を読んでいます…`);
+  const dur=await ytVideoDur(file);
+  if(!dur){ytOpedMatStatus(`❌ ${file.name} を動画として読めませんでした（mp4 で作り直してください）`,'error');return;}
+  await ynPut(key,{name:file.name,blob:file,dur,size:file.size});
+  await ytOpedMatRender();
+  ytOpedMatStatus(`✅ ${file.name}（${Math.round(dur)}秒）を登録しました。サーバーへの保存は右下の札で確認できます`,'ok');
+}
+async function ytOpedMatDel(key){
+  const r=await ynGet(key);if(!r){return;}
+  if(!confirm(`「${r.name||key}」を消しますか？（すべてのPJから消えます）`))return;
+  await KT_YN.del(key);
+  await ytOpedMatRender();
+  ytOpedMatStatus('消しました','ok');
+}
 function ytInnerTab(t){
   try{sessionStorage.setItem('yt-itab',t);}catch(e){}   // リロードで戻すため（新しく開いたタブには引き継がない）
   if(t==='article'&&!ytGen())t='research';   // 記事タブは YT動画だけ
@@ -9449,7 +9503,7 @@ function ytInnerTab(t){
     if(b)b.classList.toggle('active',k===t);if(p)p.style.display=k===t?'':'none';
   });
   if(t==='research')ytUpdateFreeInfo();
-  if(t==='settings'){ytNoteInfo();ytColorFill();}
+  if(t==='settings'){ytNoteInfo();ytColorFill();ytOpedMatRender();}
   if(t==='article'){const a=ytEl('a-yturl');if(a)a.value=ytVal('p-yturl');const b=ytEl('a-noteurl');if(b)b.value=ytVal('note-url');}
   if(t==='audio')try{ytOpening();}catch(e){}
   if(t==='naresla')ysRender();
@@ -9651,6 +9705,9 @@ ${[['n','note記事（無料）','表なしで作ります。動画のURLは最�
   ${set('基調色','<input type="text" data-slide-color="base" oninput="ytColorSave()" style="flex:1;min-width:0;font-size:11px;padding:4px;">','')}
   ${set('見出し','<input type="text" data-slide-color="head" oninput="ytColorSave()" style="flex:1;min-width:0;font-size:11px;padding:4px;">','')}
   ${set('書体','<input type="text" data-slide-color="font" oninput="ytColorSave()" style="flex:1;min-width:0;font-size:11px;padding:4px;">','')}
+  <div class="sa-sub">▼ OP・EDの背景動画</div>
+  <div style="font-size:10px;color:var(--text-sub);" title="オープニングは区分ごとに3本まで登録でき、書き出すときにその中から1本を選びます。エンディングは区分ごとに1本です。スロー・ぼかしは入れたものを登録してください（ツールでは加工しません）。オープニング用は60秒くらい、エンディング用は音声より長めに。すべてのPJで共通です。">区分ごとに、オープニング用3本まで・エンディング用1本。加工済みの動画を登録。すべてのPJで共通です。</div>
+  <div id="yt-oped-mats"></div>
   <div class="sa-sub">▼ Geminiのモデル（作業ごと）</div>
   <div style="font-size:10px;color:var(--text-sub);" title="回数の上限のときは、選んだモデルから一覧の順に下のモデルへ自動で切り替えます（Lite には切り替えません。読み取りの位置が大きくずれて使えなかったため）。混雑のときは切り替えずに止まるので、ここで別のモデルを選んでもう一度押してください。">上限のときは下のモデルへ自動で切り替え（Lite除く）。混雑で止まったら、別のモデルを選んでもう一度。</div>
   ${YT_AI_TASKS.map(([k,n,d])=>set(n,`<select id="yt-m-${k}" onchange="saveState()" style="flex:1;min-width:0;font-size:11px;padding:3px;">${YT_MODEL_LIST.map(([v,l])=>`<option value="${v}"${v===d?' selected':''}>${l}</option>`).join('')}</select>`)).join('')}
