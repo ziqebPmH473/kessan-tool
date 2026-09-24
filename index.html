@@ -4409,6 +4409,7 @@ risk_3=`;
 
             // 入力内容の復元（テキストボックス等がリロードで消えないように）→ 各欄へ保存フックを登録
             const restored = restoreState();
+            KTStore.markLoaded();   // 行を読めた PJ は、ここで画面に入れ終わった。読めなかった PJ は保存しない（右下の札が赤になる）
             if (typeof ytFixedMigrate === 'function') ytFixedMigrate();
             if (typeof ytModelMigrate === 'function') ytModelMigrate(true);   // 復元で古い定型文に戻るので、ここでも足す
             switchSaCompareMode(getSaCompareMode());
@@ -13176,10 +13177,11 @@ async function ktOpen(kind,id){
     ktResetKindFields(kind);
     if(json)tabIoApplyFields(kind,json.fields||{},json.radios||{});
     ktKindAfterOpen(kind,json);
+    KTStore.markLoaded(kind,true);   // ここまで来て初めて、この PJ の行を保存してよい（途中で失敗したら、画面の初期値で上書きしないよう保存しない）
     await ktKindReload(kind);
   }catch(e){
     if(e&&e.name==='AbortError'){canceled=true;window._ktNext=null;}
-    else{console.warn('[pj] 開けませんでした',e);alert('PJを開けませんでした：'+(e&&e.message||e));}
+    else{console.warn('[pj] 開けませんでした',e);KTStore.markLoaded(kind,false);alert('PJを開けませんでした：'+(e&&e.message||e)+'\n\nこのPJは、読み直すまで保存しません（中身を消さないため）。右下の札を押して読み直してください。');}
   }
   finally{KTStore.suspended=false;window._ktSwitching=false;}
   if(typeof saveStateNow==='function')saveStateNow();
@@ -13400,6 +13402,7 @@ async function importTabData(tab,data){
   if(tab==='yt'||tab==='price'){switchMode(tab);await _ytCtxChain;}
   // 1) 入力欄・ラジオを戻す
   tabIoApplyFields(tab,fields,radios);
+  KTStore.markLoaded(tab,true);   // ファイルの中身で置き換えるのはユーザーの意思なので、読み込めていなかった PJ でも保存してよい
 
   // 2) 裏データを戻す
   if(tab==='earnings'){

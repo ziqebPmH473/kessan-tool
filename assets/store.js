@@ -51,6 +51,10 @@
     conflict: null,
     readyResolve: null,
     suspended: false,       // PJ の切り替え中：欄の値を行に写さない（古い欄の値を新しい行に入れないため）
+    // kind → true：その kind で開いている PJ の中身を、このタブの画面に入れ終えた。
+    // 印が無いうちは、その PJ の行を保存しない（読み込みに失敗したまま閉じると、画面の初期値で上書きしてしまうため。2026-09-25 に実際に消えた）
+    loaded: {},
+    docOk: {},              // kind → 起動時に、その kind で開いている PJ の行をサーバーから読めたか（画面に入れたら loaded にする）
     onChange: null,         // 行の一覧が変わったとき（保存で見出しが変わった等）に呼ぶ
     fresh: {},              // 'ns/pid/名前' → 1：まとめて取り出した（/api/bundle）ので、端末内のものがサーバーと同じ
     freshList: {},          // 'ns/pid' → 1：その PJ のファイルの名前も端末内とサーバーで同じ
@@ -96,7 +100,7 @@
     if (S.cur[kind]) return S.cur[kind];
     if (!create) return null;
     const id = newId(kind);
-    S.cur[kind] = id; S.created[id] = nowIso(); S.force[kind] = true; curSave();
+    S.cur[kind] = id; S.created[id] = nowIso(); S.force[kind] = true; S.loaded[kind] = true; curSave();
     setTimeout(() => { try { if (typeof window.saveStateNow === 'function') window.saveStateNow(); } catch (e) {} }, 0);
     return id;
   }
@@ -152,6 +156,7 @@
     TABS.forEach(t => {
       const d = kd[t];
       let id = S.cur[t];
+      if (id && S.mode === 'server' && !S.loaded[t]) return;   // 中身を画面に入れ終えていない PJ は保存しない（初期値で上書きしないため）
       if (id) {
         // 持ち越し：いま画面に無い欄（別の種別の側に移っている横動画の欄など）は、前に保存した値を残す。
         // 行の json は丸ごと置き換わるので、こうしないと消えてしまう
@@ -168,7 +173,7 @@
           // 押しただけ：開いた直後の状態から欄が変わっていれば作る。まだ覚えていなければ（開いてすぐ押した）、いまを覚えて作らない
           if (touched === 'click' && (S.base[t] === undefined || j === S.base[t])) { S.base[t] = j; return; }
         }
-        id = newId(t); S.cur[t] = id; S.created[id] = nowIso(); delete S.touched[t]; delete S.base[t]; curSave();
+        id = newId(t); S.cur[t] = id; S.created[id] = nowIso(); S.loaded[t] = true; delete S.touched[t]; delete S.base[t]; curSave();
       }
       delete S.force[t];
       if (j === S.last[id]) return;
@@ -273,6 +278,7 @@
     error: ['保存できませんでした（あとで再試行）', '#dc2626', ''],
     conflict: ['別の端末と食い違い', '#d97706', '画面の上の案内から選んでください'],
     login: ['ログインが切れました。押して開き直す', '#dc2626', ''],
+    notloaded: ['PJを読み込めませんでした。押して読み直す', '#dc2626', '読み込めるまで、このPJは保存しません（画面の初期値で上書きしないため）'],
     migrating: ['この端末の内容を取り込み中…', '#2563eb', '初回だけ。終わるまで閉じないでください'],
   };
   function setStatus(st, detail) {
@@ -282,13 +288,13 @@
       if (!document.body) return;
       el = document.createElement('div'); el.id = 'kt-sync';
       el.style.cssText = 'position:fixed;right:8px;bottom:8px;z-index:99998;font-size:11px;line-height:1;padding:5px 9px;border-radius:999px;background:#fff;border:1px solid #d1d5db;color:#374151;box-shadow:0 1px 4px rgba(0,0,0,.12);cursor:default;user-select:none;';
-      el.onclick = () => { if (S.status === 'login') location.reload(); };
+      el.onclick = () => { if (S.status === 'login' || S.status === 'notloaded') location.reload(); };
       document.body.appendChild(el);
     }
     const t = STATUS_TEXT[st] || STATUS_TEXT.local;
     el.innerHTML = '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:' + t[1] + ';margin-right:6px;vertical-align:middle;"></span>' + t[0];
     el.title = detail || t[2] || '';
-    el.style.cursor = st === 'login' ? 'pointer' : 'default';
+    el.style.cursor = (st === 'login' || st === 'notloaded') ? 'pointer' : 'default';
   }
 
   // ---- ファイル（Blob を base64 にして JSON で送る） ----
@@ -487,6 +493,7 @@
   }
   // signal で中止できる。中止・失敗したときは開いている PJ を変えない（取り出しが終わってから切り替える）
   async function openProject(kind, id, signal) {
+    S.loaded[kind] = false;   // 画面に入れ終えるまで（呼ぶ側が markLoaded するまで）この kind は保存しない
     await flush();
     let doc = null;
     if (id && S.mode === 'server') {
@@ -549,6 +556,7 @@
       if (S.mode !== 'server') {
         // ブラウザ保存：このタブの PJ（無ければ最後に開いたもの）。id は端末内だけの目印
         S.cur = S.cur || parse(lsGet(CUR_KEY)) || {};
+        TABS.forEach(t => { S.loaded[t] = true; S.docOk[t] = true; });
         curSave();
         await migrateLocalMedia();
         restorePending();
@@ -628,6 +636,8 @@
       // 行と、開いている PJ のファイルを同時に取り出す
       const bundles = TABS.map(t => S.cur[t]).filter(Boolean).map(id => loadBundle(id).catch(() => null));
       try { docs = await fetchDocs(want); } catch (e) { setStatus('error', '読み込みに失敗'); }
+      // 開いている PJ の行を読めたか。読めなかった kind は、画面に入れ終えた印（loaded）を付けないので保存されない
+      TABS.forEach(t => { S.docOk[t] = !S.cur[t] || !!docs[S.cur[t]]; });
       await Promise.all(bundles);
       restorePending();
       // 送れていなかった行（同じタブのリロード）：サーバーが進んでいなければ送る。進んでいたら選ぶ
@@ -647,7 +657,8 @@
       Object.keys(S.pending).forEach(id => { merged[id] = S.pending[id]; });
       applyDocsToLocal(merged);
       metaSave(); pendingSave();
-      if (Object.keys(S.pending).length) { setStatus('saving'); schedulePush(300); } else setStatus('saved');
+      if (TABS.some(t => !S.docOk[t])) setStatus('notloaded');
+      else if (Object.keys(S.pending).length) { setStatus('saving'); schedulePush(300); } else setStatus('saved');
       if (Object.keys(S.mediaQueue).length) runMedia();
     })();
   }
@@ -657,6 +668,15 @@
     pidFor, openProject, deleteProject, listProjects, refreshRows, fetchDocs,
     // ユーザーが触った合図（空の PJ に行を作る）。'input'＝欄を打った・貼った・ファイルを選んだ、'click'＝何か押した（欄が変わっていれば作る）
     touch(kind, type) { if (!kind || S.cur[kind]) return; if (type === 'input' || !S.touched[kind]) S.touched[kind] = type === 'input' ? 'input' : 'click'; },
+    // 「その kind の PJ の中身を画面に入れ終えた」印。kind を省くと、起動時に行を読めた kind すべてに付ける（restoreState のあとに呼ぶ）。
+    // ok=false は「入れられなかった」：印を付けず、右下の札を赤にする（そのPJは保存されない）
+    markLoaded(kind, ok) {
+      if (kind == null) { TABS.forEach(t => { if (S.docOk[t]) S.loaded[t] = true; }); return; }
+      if (ok === false) { S.loaded[kind] = false; setStatus('notloaded'); return; }
+      S.loaded[kind] = true;
+      if (S.status === 'notloaded' && TABS.every(t => !S.cur[t] || S.loaded[t])) setStatus(Object.keys(S.pending).length ? 'saving' : 'saved');
+    },
+    isLoaded(kind) { return !S.cur[kind] || !!S.loaded[kind]; },
     set titleOf(fn) { S.titleOf = fn; },
     get cur() { return Object.assign({}, S.cur); },
     get rows() { return S.rows; },
