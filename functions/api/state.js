@@ -6,6 +6,11 @@
  *   GET    /api/state?id=a,b,c   … 指定した行（json つき）
  *   PUT    /api/state            … 送られてきた行を保存する（version で上書き事故を防ぐ）
  *   DELETE /api/state?id=xxx     … 行を消す
+ *   GET    /api/state?hist=xxx   … その行の履歴の一覧（version, updated_at, size。json 抜き）
+ *   GET    /api/state?hist=xxx&v=N … 履歴の1つ（json つき）
+ *
+ * 履歴（projects_hist）：行を上書き・削除するたびに、上書き前の中身を残す（1つの id につき直近 HIST_KEEP 版）。
+ * 画面の初期値で上書きしてしまう事故（2026-09-25）のあとに追加。戻すときは wrangler か、あとで作る画面から。
  *
  * 1PJ＝1行。id は 'p:<kind>:<作成時刻>'（フェーズ2〜）。'shared' はどの種別にも属さない欄・画面の状態。
  * meta は {created, title, sub} の JSON（一覧に出すための小さな情報。本文の json とは別の列に持つ）。
@@ -22,13 +27,35 @@ const SCHEMA = `CREATE TABLE IF NOT EXISTS projects (
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 )`;
+const SCHEMA_HIST = `CREATE TABLE IF NOT EXISTS projects_hist (
+  id TEXT NOT NULL,
+  version INTEGER NOT NULL,
+  kind TEXT NOT NULL DEFAULT '',
+  title TEXT NOT NULL DEFAULT '',
+  json TEXT NOT NULL,
+  meta TEXT NOT NULL DEFAULT '{}',
+  updated_at TEXT NOT NULL,
+  saved_at TEXT NOT NULL,
+  PRIMARY KEY (id, version)
+)`;
 const MAX_JSON = 1900000;   // D1 の1値の上限（2MB）より少し小さく
+const HIST_KEEP = 30;       // 1つの id につき残す履歴の数
 let ensured = false;
 async function ensure(db) {
   if (ensured) return;
   await db.prepare(SCHEMA).run();
   try { await db.prepare(`ALTER TABLE projects ADD COLUMN meta TEXT NOT NULL DEFAULT '{}'`).run(); } catch (e) { /* すでにある */ }
+  await db.prepare(SCHEMA_HIST).run();
   ensured = true;
+}
+// 上書き・削除の前に、いまの行を履歴に残す文（古い分は HIST_KEEP を超えたら消す）
+function histStmts(db, r, now) {
+  return [
+    db.prepare(`INSERT OR REPLACE INTO projects_hist (id, version, kind, title, json, meta, updated_at, saved_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+      .bind(r.id, r.version, r.kind || '', r.title || '', r.json, r.meta || '{}', r.updated_at, now),
+    db.prepare(`DELETE FROM projects_hist WHERE id = ? AND version NOT IN (SELECT version FROM projects_hist WHERE id = ? ORDER BY version DESC LIMIT ${HIST_KEEP})`)
+      .bind(r.id, r.id),
+  ];
 }
 const parseJ = s => { try { return JSON.parse(s); } catch (e) { return null; } };
 const rowMeta = r => ({ kind: r.kind, title: r.title, version: r.version, createdAt: r.created_at, updatedAt: r.updated_at, meta: parseJ(r.meta) || {} });
@@ -40,6 +67,17 @@ export async function onRequestGet(context) {
   const url = new URL(context.request.url);
   try {
     await ensure(db);
+    const hist = url.searchParams.get('hist');
+    if (hist) {
+      const v = url.searchParams.get('v');
+      if (v) {
+        const r = await db.prepare('SELECT id, version, kind, title, json, meta, updated_at, saved_at FROM projects_hist WHERE id = ? AND version = ?').bind(hist, Number(v)).first();
+        if (!r) return json({ ok: false, error: 'その履歴はありません' }, 404);
+        return json({ ok: true, doc: Object.assign(rowFull(r), { savedAt: r.saved_at }) });
+      }
+      const rs = await db.prepare('SELECT id, version, kind, title, length(json) AS size, meta, updated_at, saved_at FROM projects_hist WHERE id = ? ORDER BY version DESC').bind(hist).all();
+      return json({ ok: true, hist: (rs.results || []).map(r => Object.assign(rowMeta(r), { size: r.size, savedAt: r.saved_at })) });
+    }
     if (url.searchParams.get('list')) {
       const rs = await db.prepare('SELECT id, kind, title, version, created_at, updated_at, meta FROM projects ORDER BY created_at DESC').all();
       const rows = {};
@@ -76,7 +114,7 @@ export async function onRequestPut(context) {
   try {
     await ensure(db);
     const cur = {};
-    const rs = await db.prepare(`SELECT id, version, created_at FROM projects WHERE id IN (${ids.map(() => '?').join(',')})`).bind(...ids).all();
+    const rs = await db.prepare(`SELECT id, kind, title, json, version, created_at, updated_at, meta FROM projects WHERE id IN (${ids.map(() => '?').join(',')})`).bind(...ids).all();
     (rs.results || []).forEach(r => { cur[r.id] = r; });
 
     // 別の端末が先に保存していたら、上書きせずに知らせる（force のときは上書き）
@@ -106,6 +144,8 @@ export async function onRequestPut(context) {
       const meta = (d.meta && typeof d.meta === 'object') ? d.meta : {};
       // 作成日時は meta.created（画面側が決める）を優先。無ければ今
       const created = (cur[id] && cur[id].created_at) || (typeof meta.created === 'string' && meta.created) || now;
+      // 上書き前の中身を履歴に残す（中身が同じ保存は残さない。shared は画面の状態だけなので残さない）
+      if (cur[id] && id !== 'shared' && cur[id].json !== text) stmts.push(...histStmts(db, cur[id], now));
       stmts.push(db.prepare(
         `INSERT INTO projects (id, kind, title, json, version, created_at, updated_at, meta) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET kind = excluded.kind, title = excluded.title, json = excluded.json, version = excluded.version, updated_at = excluded.updated_at, meta = excluded.meta`
@@ -126,7 +166,11 @@ export async function onRequestDelete(context) {
   if (!id) return json({ ok: false, error: 'id がありません' }, 400);
   try {
     await ensure(db);
-    await db.prepare('DELETE FROM projects WHERE id = ?').bind(id).run();
+    // 消す前の中身を履歴に残す（消したあとでも戻せるように）
+    const r = await db.prepare('SELECT id, kind, title, json, version, created_at, updated_at, meta FROM projects WHERE id = ?').bind(id).first();
+    const stmts = r ? histStmts(db, r, new Date().toISOString()) : [];
+    stmts.push(db.prepare('DELETE FROM projects WHERE id = ?').bind(id));
+    await db.batch(stmts);
     return json({ ok: true });
   } catch (e) {
     return json({ ok: false, error: String(e && e.message ? e.message : e) }, 500);
