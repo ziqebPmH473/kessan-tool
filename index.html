@@ -7888,7 +7888,7 @@ Markdownで、次の見出しをこの順番で出力する。
 // ファクトチェックは別のチャットで行う（生成したチャットの先入観を持ち込まない）。株価分析レポートの②〜④と同じ運用：
 // 貼り付けた資料＋生成時の指示を渡して指摘させる → 修正版を貼り直す → もう一度②
 function ytFactCheckPrompt(){
-  const doc=ytVal('doc');if(!doc)throw new Error('先にChatGPTの動画資料を貼り付けてください');
+  const doc=ytMdPlain(ytVal('doc'));if(!doc)throw new Error('先にChatGPTの動画資料を貼り付けてください');
   if(ytGen()){ygNeed(true);return `以下の「構成と出典」は、添付ファイル「${YG_REPORT_FILE}」（ファクトチェック済みのレポート）をもとに、以下の指示でAIが生成したものです。
 誤っている箇所と、指示に沿っていない箇所のみを指摘してください。
 レポートの内容そのものは確認済みなので、確認しなくてよいです。
@@ -8788,9 +8788,17 @@ function ytCopy(kind,btn){
     copyText(t,btn);ytStatus('');
   }catch(e){ytStatus('❌ '+e.message,'error');}
 }
+// ChatGPTがURLを [URL](URL) や <URL> の形で書いたもの・「TSE\:TOPIX」のような余計な \ を、ふつうの文字に戻す（表の区切りの \| は残す）
+function ytMdPlain(s){
+  return String(s||'')
+    .replace(/\[[^\]\n]*\]\((https?:\/\/[^)\s]+)\)/g,'$1')
+    .replace(/<(https?:\/\/[^>\s]+)>/g,'$1')
+    .replace(/\\([:_~.\-*#+!\[\]()])/g,'$1');
+}
 async function ytPaste(id,after){
   try{let s=await navigator.clipboard.readText();if(!s.trim()){alert('クリップボードが空です');return;}
     s=s.trim().replace(/^```[^\n]*\n/,'').replace(/\n```\s*$/,'');   // コードブロックの囲みごと貼られた場合は外す
+    if(id==='doc')s=ytMdPlain(s);
     ytEl(id).value=s;saveState();if(after)after();return true;}
   catch(e){alert('クリップボードを読めませんでした。欄に直接貼り付けてください（Ctrl+V）');return false;}
 }
@@ -12402,7 +12410,7 @@ function ynPlaceholder(){
 }
 // 動画資料の出典一覧（表示用の表記）を読む
 function ytParseSources(){
-  const doc=ytVal('doc');if(!doc)return[];
+  const doc=ytMdPlain(ytVal('doc'));if(!doc)return[];   // 欄に直接貼った場合も、[URL](URL) の形を読めるように
   const m=doc.match(/^#{1,4}\s*出典一覧[^\n]*$/m);if(!m)return[];
   // セルは「\|」（表の中の縦線）で区切らない。空のセルも残す（列がずれないように）。セルの中の <br> は改行として読む
   const cells=l=>l.replace(/^\|/,'').replace(/(?<!\\)\|\s*$/,'').split(/(?<!\\)\|/).map(x=>x.replace(/<br\s*\/?>/gi,'\n').trim());
