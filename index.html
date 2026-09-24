@@ -8413,7 +8413,7 @@ function ytSlideDesignerText(){
 }
 // 動画資料から出典を取り除く（［出典n］の印と「出典一覧」以降）
 function ytStripSources(s){
-  let x=String(s||'').replace(/[［\[（(]\s*出典\s*[0-9０-９]+\s*[］\]）)]/g,'');
+  let x=ytMdPlain(s).replace(/[［\[（(]\s*出典\s*[0-9０-９]+\s*[］\]）)]/g,'');
   const m=x.match(/^#{1,4}\s*出典一覧[^\n]*$/m);
   if(m)x=x.slice(0,m.index);
   return x.trim();
@@ -8641,7 +8641,7 @@ function ytNotebookSource(){
     return `# ${ytTheme()} 動画資料\n\n${ygMaterial()}\n`;
   }
   const fr=ytFreeReport();if(!fr.ok)throw new Error(fr.why);
-  const doc=ytVal('doc');if(!doc)throw new Error('ChatGPTの動画資料（最終版）を貼り付けてください');
+  const doc=ytMdPlain(ytVal('doc'));if(!doc)throw new Error('ChatGPTの動画資料（最終版）を貼り付けてください');
   return `# ${getName()||''}（${getTicker()||''}）動画資料\n\n## 基本情報\n${vdBasicInfo('vd')}\n\n## 株価分析レポート（1〜2章）\n${fr.text}\n\n## 動画資料（調査・深掘り）\n${doc}\n`;
 }
 
@@ -10904,7 +10904,7 @@ function ytOpedDraftPrompt(role){
   let ch='';if(op){try{ch=ytChapters().map(c=>`・${c.name||c.title||''}`).join('\n');}catch(e){}}
   let mat='';
   if(ed){
-    if(ytGen()){try{mat=ygMaterial();}catch(e){mat=ytVal('doc')||'';}}
+    if(ytGen()){try{mat=ygMaterial();}catch(e){mat=ytMdPlain(ytVal('doc'));}}
     else{const r=ytFreeReport();mat=`銘柄：${getName()||''}（${getDir()==='up'?'上昇':'下落'}）\n${r.text||''}`;}
   }
   // オープニングの決まり（すみぽんが書いた文をもとに整えた、2026-09-23）。冒頭と締めは固定（YT_OP_LEAD／YT_OP_TAIL）で、出力には含めない。
