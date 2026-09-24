@@ -22,7 +22,10 @@
   const LS_OLD = ['kt-yt-fields-stock', 'kt-yt-fields-gen'];   // フェーズ1までの控え。もう使わないので消す
   const META_KEY = 'kt-sync-meta';       // localStorage：{versions, media}
   const CUR_KEY = 'kt-cur';              // sessionStorage：このタブが開いている PJ {kind: id}／localStorage：最後に開いた PJ
-  const PENDING_KEY = 'kt-pending';      // sessionStorage：送れていない行（リロードで拾う）
+  const PENDING_KEY = 'kt-pending';      // sessionStorage：送れていない行（同じタブのリロードで拾う。shared もここ）
+  // localStorage：送れていない行を PJ ごとに残す（タブを閉じても消えない。次にその PJ を開いたときに送る）／PJ の最後にサーバーと合った中身（つながらないときの起動に使う）
+  const PEND_PREFIX = 'kt-pend:';
+  const DOC_PREFIX = 'kt-doc:';
   const TABS = ['earnings', 'stock', 'price', 'yt'];
   const EXTRA = { earnings: 'earnFetched', stock: 'fetched', price: 'priceFetched' };
   const PUSH_DELAY = 900;
@@ -55,6 +58,7 @@
     // 印が無いうちは、その PJ の行を保存しない（読み込みに失敗したまま閉じると、画面の初期値で上書きしてしまうため。2026-09-25 に実際に消えた）
     loaded: {},
     docOk: {},              // kind → 起動時に、その kind で開いている PJ の行をサーバーから読めたか（画面に入れたら loaded にする）
+    pendWrote: {},          // id → 1：このタブが localStorage（kt-pend:<id>）に書いた未送信の行。送れたら消す
     onChange: null,         // 行の一覧が変わったとき（保存で見出しが変わった等）に呼ぶ
     fresh: {},              // 'ns/pid/名前' → 1：まとめて取り出した（/api/bundle）ので、端末内のものがサーバーと同じ
     freshList: {},          // 'ns/pid' → 1：その PJ のファイルの名前も端末内とサーバーで同じ
@@ -80,8 +84,35 @@
   function curSave() { ssSet(CUR_KEY, JSON.stringify(S.cur)); lsSet(CUR_KEY, JSON.stringify(Object.assign(parse(lsGet(CUR_KEY)) || {}, S.cur))); }
   function pendingSave() {
     const out = {};
-    Object.keys(S.pending).forEach(id => { const d = S.pending[id]; out[id] = { kind: d.kind, title: d.title, meta: d.meta, json: d.json, force: !!d.force }; });
+    Object.keys(S.pending).forEach(id => {
+      const d = S.pending[id]; out[id] = { kind: d.kind, title: d.title, meta: d.meta, json: d.json, force: !!d.force };
+      // PJ の行は端末にも残す（ver＝この変更のもとになったサーバーの版。開くときに、サーバーが進んでいないかを見る）
+      if (id !== 'shared') { lsSet(PEND_PREFIX + id, JSON.stringify(Object.assign({}, out[id], { ver: S.versions[id] || 0, at: nowIso() }))); S.pendWrote[id] = 1; }
+    });
+    Object.keys(S.pendWrote).forEach(id => { if (!S.pending[id]) { lsSet(PEND_PREFIX + id, null); delete S.pendWrote[id]; } });
     ssSet(PENDING_KEY, Object.keys(out).length ? JSON.stringify(out) : null);
+  }
+  const isCur = id => TABS.some(t => S.cur && S.cur[t] === id);
+  // 開いている PJ の、サーバーと合った中身を端末に残す（つながらないときの起動で、その PJ の中身を画面に出すため）
+  function cacheDoc(id, jsonStr) { if (id && id !== 'shared' && isCur(id) && jsonStr) lsSet(DOC_PREFIX + id, jsonStr); }
+  // PJ を開くとき：端末に残っている未送信の行（このタブの S.pending か kt-pend:<id>）があれば、どちらを使うか決める。
+  // 返すのは画面に出す中身。未送信の方を採るときは S.pending に入れ直す（呼ぶ側が送る）
+  function adoptPending(id, doc, kind) {
+    const mine = S.pending[id];
+    const p = mine ? { kind: mine.kind, title: mine.title, meta: mine.meta, json: mine.json, force: !!mine.force, ver: S.versions[id] || 0 } : parse(lsGet(PEND_PREFIX + id));
+    delete S.pending[id];
+    const drop = () => { lsSet(PEND_PREFIX + id, null); delete S.pendWrote[id]; };
+    if (!p || !p.json) { drop(); return doc ? doc.json : null; }
+    const pj = JSON.stringify(p.json);
+    if (doc && JSON.stringify(doc.json) === pj) { drop(); return doc.json; }   // もう届いている（閉じる直前に送れていた）
+    const serverVer = doc ? doc.version : 0;
+    let useLocal = serverVer === (Number(p.ver) || 0);   // サーバーが進んでいなければ、未送信の方が新しい
+    if (!useLocal) useLocal = !confirm('この PJ に、前に送れなかった変更が残っています。\nしかし、その後に別の端末（またはタブ）でも同じ PJ が保存されていました。\n\nOK＝サーバーの内容を使う（送れなかった変更は捨てる）\nキャンセル＝送れなかった変更で上書きする');
+    if (!useLocal) { drop(); return doc ? doc.json : null; }
+    S.versions[id] = serverVer;
+    S.pending[id] = { kind: p.kind || kind || kindOfId(id), title: p.title || '', meta: p.meta || metaOf(id, p.title || ''), json: p.json, jsonStr: pj, force: !!p.force };
+    S.pendWrote[id] = 1;
+    return p.json;
   }
 
   // Access のログインが切れると、API はログイン画面へ転送される。redirect:'manual' にして見分ける。
@@ -207,7 +238,7 @@
       } else {
         const j = await r.json();
         Object.keys(j.versions || {}).forEach(id => {
-          S.versions[id] = j.versions[id]; S.last[id] = sent[id].jsonStr;
+          S.versions[id] = j.versions[id]; S.last[id] = sent[id].jsonStr; cacheDoc(id, sent[id].jsonStr);
           if (!S.rows[id] && sent[id].kind !== 'shared') S.rows[id] = { kind: sent[id].kind, title: sent[id].title, createdAt: sent[id].meta.created, meta: sent[id].meta };
           else if (S.rows[id]) { S.rows[id].title = sent[id].title; S.rows[id].meta = sent[id].meta; }
         });
@@ -275,7 +306,7 @@
     local: ['ブラウザに保存', '#6b7280', 'サーバーが紐づいていないので、この端末の中だけに保存しています'],
     saved: ['サーバーに保存済み', '#059669', '別の端末でも同じ内容が出ます'],
     saving: ['保存中…', '#2563eb', ''],
-    error: ['保存できませんでした（あとで再試行）', '#dc2626', ''],
+    error: ['保存できませんでした（あとで再試行）', '#dc2626', '打った内容はこの端末に残ります。閉じても、次にこの PJ を開いたときに送ります'],
     conflict: ['別の端末と食い違い', '#d97706', '画面の上の案内から選んでください'],
     login: ['ログインが切れました。押して開き直す', '#dc2626', ''],
     notloaded: ['PJを読み込めませんでした。押して読み直す', '#dc2626', '読み込めるまで、このPJは保存しません（画面の初期値で上書きしないため）'],
@@ -504,8 +535,18 @@
       if (signal && signal.aborted) throw new DOMException('中止しました', 'AbortError');
     }
     S.cur[kind] = id || null; delete S.base[kind]; delete S.force[kind]; delete S.touched[kind]; curSave();
-    if (doc) { S.versions[id] = doc.version; S.last[id] = JSON.stringify(doc.json); metaSave(); }
-    return doc ? doc.json : null;
+    if (doc) { S.versions[id] = doc.version; S.last[id] = JSON.stringify(doc.json); cacheDoc(id, S.last[id]); }
+    if (!id) { metaSave(); return null; }
+    if (S.mode !== 'server') {
+      // つながらないとき：端末に残したその PJ の中身（未送信分があればそれ）を出す
+      const p = parse(lsGet(PEND_PREFIX + id)), c = parse(lsGet(DOC_PREFIX + id));
+      if (p && p.json) { S.pending[id] = { kind, title: p.title || '', meta: p.meta || metaOf(id, ''), json: p.json, jsonStr: JSON.stringify(p.json), force: !!p.force }; S.pendWrote[id] = 1; }
+      return (p && p.json) || c || null;
+    }
+    const j = adoptPending(id, doc, kind);
+    metaSave(); pendingSave();
+    if (S.pending[id]) { setStatus('saving'); schedulePush(300); }
+    return j;
   }
   async function deleteProject(id) {
     const kind = kindOfId(id);
@@ -519,6 +560,7 @@
       try { const keys = await ent.local.list(); for (const k of keys) if (k.startsWith(id + '/')) await ent.local.del(k); } catch (e) {}
     }
     Object.keys(S.mediaQueue).forEach(q => { if (q.includes('/' + id + '/')) delete S.mediaQueue[q]; });
+    lsSet(PEND_PREFIX + id, null); lsSet(DOC_PREFIX + id, null); delete S.pendWrote[id];
     delete S.rows[id]; delete S.versions[id]; delete S.last[id]; delete S.pending[id];
     if (kind && S.cur[kind] === id) { S.cur[kind] = null; delete S.base[kind]; delete S.touched[kind]; curSave(); }
     metaSave(); pendingSave();
@@ -541,7 +583,7 @@
       const collect = (opts && opts.collect) || (() => ({ fields: {}, radios: {} }));
       const byTab = {};
       TABS.forEach(t => { try { byTab[t] = collect(t, localState || { fields: {} }); } catch (e) { byTab[t] = { fields: {}, radios: {} }; } });
-      const restorePending = () => { const p = parse(ssGet(PENDING_KEY)) || {}; Object.keys(p).forEach(id => { p[id].jsonStr = JSON.stringify(p[id].json); S.pending[id] = p[id]; }); };
+      const restorePending = () => { const p = parse(ssGet(PENDING_KEY)) || {}; Object.keys(p).forEach(id => { if (S.pending[id]) return; p[id].jsonStr = JSON.stringify(p[id].json); S.pending[id] = p[id]; }); };
 
       let r;
       try { r = await api('/api/state?list=1', { method: 'GET' }); }
@@ -556,10 +598,26 @@
       if (S.mode !== 'server') {
         // ブラウザ保存：このタブの PJ（無ければ最後に開いたもの）。id は端末内だけの目印
         S.cur = S.cur || parse(lsGet(CUR_KEY)) || {};
-        TABS.forEach(t => { S.loaded[t] = true; S.docOk[t] = true; });
-        curSave();
-        await migrateLocalMedia();
         restorePending();
+        // サーバーに保存したことのある PJ を開いているなら、「このブラウザで最後に保存した内容」ではなく、
+        // その PJ の最後の中身（＋その PJ の未送信分）を画面に出す（別の PJ の中身が混ざらないように）。端末に無い PJ は空で開く
+        if (TABS.some(t => S.cur[t])) {
+          const docs = {};
+          TABS.forEach(t => {
+            const id = S.cur[t]; if (!id) return;
+            if (S.pending[id]) { docs[id] = { kind: t, json: S.pending[id].json }; return; }
+            const p = parse(lsGet(PEND_PREFIX + id)), c = parse(lsGet(DOC_PREFIX + id));
+            if (p && p.json) { S.pending[id] = { kind: t, title: p.title || '', meta: p.meta || metaOf(id, ''), json: p.json, jsonStr: JSON.stringify(p.json), force: !!p.force }; S.pendWrote[id] = 1; docs[id] = { kind: t, json: p.json }; }
+            else if (c) docs[id] = { kind: t, json: c };
+            else S.cur[t] = null;
+          });
+          const old = localState || {}; const ls = {}; LS_SYNC.forEach(k => { const v = lsGet(k); if (v != null) ls[k] = v; });
+          docs.shared = { kind: 'shared', json: { fields: {}, radios: {}, ui: old.ui || null, ls } };
+          applyDocsToLocal(docs);
+        }
+        TABS.forEach(t => { S.loaded[t] = true; S.docOk[t] = true; });
+        curSave(); pendingSave();
+        await migrateLocalMedia();
         return;
       }
 
@@ -640,21 +698,11 @@
       TABS.forEach(t => { S.docOk[t] = !S.cur[t] || !!docs[S.cur[t]]; });
       await Promise.all(bundles);
       restorePending();
-      // 送れていなかった行（同じタブのリロード）：サーバーが進んでいなければ送る。進んでいたら選ぶ
-      // 閉じる直前に送った分は、サーバーには入ったのに手元の版が進んでいないことがある。中身が同じなら食い違いではない
-      Object.keys(S.pending).forEach(id => {
-        if (id === 'shared' || !docs[id]) return;
-        if ((S.versions[id] || 0) !== docs[id].version && JSON.stringify(S.pending[id].json) === JSON.stringify(docs[id].json)) { S.versions[id] = docs[id].version; delete S.pending[id]; }
-      });
-      const clash = Object.keys(S.pending).filter(id => id !== 'shared' && docs[id] && (S.versions[id] || 0) !== docs[id].version);
-      let useLocalForClash = false;
-      if (clash.length) {
-        useLocalForClash = !confirm('この画面に、まだサーバーへ送れていない変更があります。\nしかし、別の端末（またはタブ）でも同じPJが保存されていました。\n\nOK＝向こうの内容を使う（この画面の送れていない変更は捨てる）\nキャンセル＝この画面の内容で上書きする');
-        clash.forEach(id => { if (useLocalForClash) S.versions[id] = docs[id].version; else delete S.pending[id]; });
-      }
       const merged = {};
-      Object.keys(docs).forEach(id => { merged[id] = docs[id]; S.versions[id] = docs[id].version; S.last[id] = JSON.stringify(docs[id].json); });
-      Object.keys(S.pending).forEach(id => { merged[id] = S.pending[id]; });
+      Object.keys(docs).forEach(id => { merged[id] = docs[id]; S.versions[id] = docs[id].version; S.last[id] = JSON.stringify(docs[id].json); cacheDoc(id, S.last[id]); });
+      // 送れていなかった行（同じタブのリロード、または前に閉じたタブの分）：サーバーが進んでいなければ送る。進んでいたら選ぶ
+      TABS.forEach(t => { const id = S.cur[t]; if (!id) return; const j = adoptPending(id, docs[id], t); if (j) merged[id] = { kind: t, json: j }; });
+      Object.keys(S.pending).forEach(id => { if (id !== 'shared' && !isCur(id)) delete S.pending[id]; });   // 開いていない PJ の分は、端末に残したまま（開いたときに送る）
       applyDocsToLocal(merged);
       metaSave(); pendingSave();
       if (TABS.some(t => !S.docOk[t])) setStatus('notloaded');
@@ -677,6 +725,8 @@
       if (S.status === 'notloaded' && TABS.every(t => !S.cur[t] || S.loaded[t])) setStatus(Object.keys(S.pending).length ? 'saving' : 'saved');
     },
     isLoaded(kind) { return !S.cur[kind] || !!S.loaded[kind]; },
+    // その PJ に、端末に残った未送信の変更があるか（PJ の一覧に印を出す）
+    hasPending(id) { return !!S.pending[id] || !!lsGet(PEND_PREFIX + id); },
     set titleOf(fn) { S.titleOf = fn; },
     get cur() { return Object.assign({}, S.cur); },
     get rows() { return S.rows; },

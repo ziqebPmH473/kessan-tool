@@ -13048,7 +13048,7 @@ const TAB_IO={
 // ============================================================
 window._ktKind=window._ktKind||'earnings';window._ktSwitching=false;
 function ktFmtDate(iso){const d=new Date(iso||'');if(isNaN(d))return '';const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'/'+p(d.getMonth()+1)+'/'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());}
-function ktPjLabel(row){const m=row.meta||{};const t=m.title||row.title||'';const sub=m.sub?'['+m.sub+'] ':'';return (ktFmtDate(m.created||row.createdAt)+' '+sub+(t||'（名前なし）')).trim();}
+function ktPjLabel(row){const m=row.meta||{};const t=m.title||row.title||'';const sub=m.sub?'['+m.sub+'] ':'';const pend=(row.id&&typeof KTStore!=='undefined'&&KTStore.hasPending&&KTStore.hasPending(row.id))?' ⚠未送信あり':'';return (ktFmtDate(m.created||row.createdAt)+' '+sub+(t||'（名前なし）')+pend).trim();}
 function ktPjFill(){
   const sel=document.getElementById('kt-pj'),ks=document.getElementById('kt-kind');if(!sel||!ks||typeof KTStore==='undefined')return;
   const kind=window._ktKind;ks.value=kind;
