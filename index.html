@@ -10071,7 +10071,7 @@ function yaCutsKeep(){const cj=JSON.stringify(YA.cuts||[]);if(_yaCutsBase!=null&
 function yaCutsUndo(btn,dir){
   yhMenu(btn,'cuts','カット',dir||'p',()=>{yaCutsKeep();return YA.cuts||[];},async v=>{YA.cuts=v||[];_yaCutsBase=JSON.stringify(YA.cuts);await yaSaveNow();yaRender(true);if(typeof ynRender==='function')ynRender();});
 }
-function yaSaveNow(){_yaSaveTimer=null;yaCutsKeep();return yaPut('state',{fileName:YA.fileName,dur:YA.dur,chars:YA.chars,wchars:YA.wchars,sents:YA.sents,cuts:YA.cuts,sections:YA.sections,score:YA.score,reach:YA.reach,stock:ytWorkName()});}
+function yaSaveNow(){_yaSaveTimer=null;yaCutsKeep();return yaPut('state',{fileName:YA.fileName,dur:YA.dur,chars:YA.chars,wchars:YA.wchars,sents:YA.sents,cuts:YA.cuts,sections:YA.sections,score:YA.score,reach:YA.reach,stock:ytWorkName(),issues:YA.issues||null,issuesGap:YA.issuesGap||null});}
 function yaSave(){clearTimeout(_yaSaveTimer);_yaSaveTimer=setTimeout(yaSaveNow,400);}
 // 保留中の保存を、いますぐ書き出す（動画の種類を切り替える前に呼ぶ。切り替えたあとに書くと、相手側の保存先に入ってしまう）
 async function yaFlush(){if(_yaSaveTimer){clearTimeout(_yaSaveTimer);await yaSaveNow();}}
@@ -10103,7 +10103,8 @@ async function yaLoadFile(file,restoring){
       await yaPut('audio',{blob:file,name:YA.fileName});yaSave();yaRender();
     }
     yaStatus('st-tr',`${esc(YA.fileName)}（${yaTc(YA.dur)}）${YA.sents.length?`・${YA.sents.length}文`:'。「文字起こし」を押してください'}`,'ok');
-    yaCheckAudio();   // 長い無音・音割れを調べて下に出す（取り込んだ時点で分かるように）
+    if(!restoring||!YA.issues||YA.issuesGap!==yaGapSec())yaCheckAudio();   // 取り込んだ時点で調べる。開き直したときは、前に調べた結果をそのまま出す
+    else yaRenderCheck();
   }catch(e){yaStatus('st-tr','❌ 音声を読み込めませんでした: '+esc(e.message),'error');}
 }
 async function yaEncodeMp3(){
@@ -10250,7 +10251,7 @@ function yaCalcSilence(){
 const YA_GAP_DEF=1.5;
 function yaGapSec(){const v=parseFloat(yaVal('gap'));return v>0?v:YA_GAP_DEF;}
 function yaCheckAudio(){
-  YA.issues=[];
+  YA.issues=[];YA.issuesGap=yaGapSec();
   if(!YA.mono||!YA.sil){yaRenderCheck();return;}
   // 長い無音：話の途中で、決めた秒数より長く音が無いところ（頭とお尻は見ない）
   const n=YA.sil.length,g=yaGapSec();
@@ -10276,7 +10277,7 @@ function yaCheckAudio(){
     list.forEach(c=>{if(c.n>=3)YA.issues.push({kind:'clip',s:c.s,e:Math.max(c.e,c.s+0.05),n:c.n});});
   }
   YA.issues.sort((a,b)=>a.s-b.s);
-  yaRenderCheck();
+  yaSave();yaRenderCheck();
 }
 // その時刻を話している文の番号
 function yaSentAt(t){
@@ -11159,7 +11160,7 @@ async function yaPaste(id,after){
 async function yaRestore(){
   const a=await yaGet('audio');const st=await yaGet('state');
   _yaCutsBase=JSON.stringify((st&&st.cuts)||[]);
-  if(st&&st.sents){Object.assign(YA,{fileName:st.fileName||'',dur:st.dur||0,chars:st.chars||[],wchars:st.wchars||[],sents:st.sents||[],cuts:st.cuts||[],sections:st.sections||[],score:st.score||null,reach:st.reach==null?null:st.reach});}
+  if(st&&st.sents){Object.assign(YA,{fileName:st.fileName||'',dur:st.dur||0,chars:st.chars||[],wchars:st.wchars||[],sents:st.sents||[],cuts:st.cuts||[],sections:st.sections||[],score:st.score||null,reach:st.reach==null?null:st.reach,issues:st.issues||null,issuesGap:st.issuesGap||null});}
   if(a&&a.blob){
     let f=a.blob;try{f=new File([a.blob],a.name||'narration',{type:a.blob.type});}catch(e){}
     const gen=window._yaGen;
