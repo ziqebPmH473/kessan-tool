@@ -12382,8 +12382,10 @@ async function ynExport(btn){
       if(!sl||!zs.length)continue;   // まとまりが無い＝読み取り前や番号違いは飛ばす
       // 複数のまとまりは、全部を囲む枠にする
       const zone={box:[Math.min(...zs.map(q=>Math.min(q.box[0],q.box[2]))),Math.min(...zs.map(q=>Math.min(q.box[1],q.box[3]))),Math.max(...zs.map(q=>Math.max(q.box[0],q.box[2]))),Math.max(...zs.map(q=>Math.max(q.box[1],q.box[3])))]};
+      const tg=ynZoomTarget(zone);
+      if(tg.w>=0.99)continue;   // 倍率が1倍（まとまりが大きく、画面いっぱいのまま）になるズームは入れない。割り当ては残す
       sl.zoomKeyframes.push({id:`zk-yt-${++id}`,startTime:+z.s.toFixed(2),endTime:+z.e.toFixed(2),startSil:null,endSil:null,
-        target:ynZoomTarget(zone),enterAnim:{type:'smooth',durationMs:500},exitAnim:{type:'smooth',durationMs:500}});
+        target:tg,enterAnim:{type:'smooth',durationMs:500},exitAnim:{type:'smooth',durationMs:500}});
     }
     slides.forEach(s=>s.zoomKeyframes.sort((a,b)=>a.startTime-b.startTime));
     // 強調（四角枠・ハイライト・下線）
