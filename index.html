@@ -1007,6 +1007,26 @@ select.yn-sel option{color:#0f172a;background:#fff;font-weight:400;}
 .kc-msg{padding:16px;text-align:center;color:#64748b;}
 .kc-err{color:#b91c1c;}
 @media (max-width:700px){.kc-months{grid-template-columns:1fr;}.kc-nav{width:18px;font-size:24px;}.kc-tbl .kc-opt{display:none;}}
+
+/* ===== 共通設定（⚙。すべてのPJで共通の設定を、画面に重ねて出す） ===== */
+.kg-hide{display:none!important;}
+.kg{position:fixed;inset:0;z-index:9000;background:rgba(15,23,42,.45);overflow:auto;padding:24px 16px;}
+.kg[hidden]{display:none;}
+.kg-box{max-width:640px;margin:0 auto;background:#fff;border-radius:14px;box-shadow:0 24px 60px -20px rgba(15,23,42,.5);padding:16px 20px 24px;font-size:12px;color:#1e293b;}
+.kg-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;position:sticky;top:-24px;background:#fff;padding:8px 0;z-index:2;border-bottom:1px solid #e2e8f0;}
+.kg-head h2{font-size:17px;margin:0;}
+.kg-head .kg-sub{font-size:11px;color:#64748b;flex:1;min-width:180px;}
+.kg-close{padding:6px 14px;border:1px solid #cbd5e1;border-radius:8px;background:#f1f5f9;cursor:pointer;font-weight:bold;}
+.kg-sec{margin-top:14px;}
+.kg-sec h3{font-size:13px;margin:0 0 4px;padding-left:8px;border-left:4px solid #2563eb;}
+.kg-note{font-size:10.5px;color:#64748b;margin:2px 0 4px;}
+.kg-row{display:flex;gap:6px;align-items:center;margin-top:5px;}
+.kg-row>label{flex:none;width:9.5em;font-size:11px;color:#475569;}
+.kg-row>input,.kg-row>select{flex:1;min-width:0;font-size:12px;padding:5px 8px;border:1px solid #cbd5e1;border-radius:7px;background:#fbfcfe;}
+.kg-area>label{display:block;font-size:11px;color:#475569;margin-top:6px;}
+.kg-area>textarea{width:100%;box-sizing:border-box;font-size:11.5px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:7px;background:#fbfcfe;min-height:52px;font-family:inherit;}
+.kg-box .row{display:flex;}
+@media (max-width:600px){.kg{padding:8px;}.kg-row{flex-wrap:wrap;}.kg-row>label{width:100%;}}
     </style>
     <!-- ===== UIテーマ（操作パネル・外枠のみ）=====
          生成画像（#capture-area / #capture-area-stock / #capture-area-price 内のスライド）には手を触れない。
@@ -1182,6 +1202,7 @@ select.yn-sel option{color:#0f172a;background:#fff;font-weight:400;}
             </select>
             <button type="button" class="kt-pjbtn" onclick="ktPjNew()" title="この種別で新しいPJを始める">＋新規</button>
             <button type="button" class="kt-pjbtn kt-pjdel" onclick="ktPjDelete()" title="開いているPJを消す（確認あり）">削除</button>
+            <button type="button" class="kt-pjbtn" onclick="kgOpen()" title="すべてのPJで共通の設定（声・モデル・定型文・サムネの初期値・スライドの色・OP/ED・BGM）">⚙ 共通設定</button>
             <button type="button" class="kt-pjbtn" onclick="kcOpen()" title="日本株・米国株の決算発表の予定日をカレンダーで見る">📅 決算カレンダー</button>
             <select id="kt-pj" class="kt-pjsel kt-pjlist" title="開くPJ（作成日 名前）。続きはここから選ぶ" onchange="ktPjChange(this.value)"></select>
         </div>
@@ -4670,6 +4691,7 @@ risk_3=`;
             }
             // 前回 YT動画を開いたまま閉じたあと、別のタブで開き直したときに、保存先を株価分析の側へ戻す
             if (typeof ytModeApply === 'function' && !(ui && ui.mode === 'yt')) ytModeApply(false);
+            kgApply();   // 共通設定（⚙）を欄へ。まだ無ければ、いまの欄の値を共通設定の最初の値にする
             window._ktKind = ktMode0; ktPjFill();
             KTStore.titleOf = (kind, fields) => ktTabTitle(kind, fields);
             try { await KTStore.refreshRows(); } catch (e) {}
@@ -5659,7 +5681,7 @@ function updateThumbText(){
   const name=getName();
   if(name)parts[1]=name;
   const rest=parts.slice(2).join('：').trim();
-  ta.value=[parts[0]||'',parts[1]||'',rest||'#底値#と%５つの反転サイン%'].join('：');
+  ta.value=[parts[0]||'',parts[1]||'',rest||kgGet('th3')].join('：');
   debouncedThumb();
 }
 // 取得済みチャートデータ（日足・降順）から直近365日の高値〜安値レンジを算出
@@ -6692,12 +6714,12 @@ function vdBuildTabHtml(P){
       <label style="font-size:11px;color:var(--text-sub);flex:none;">QR用URL</label>
       <input type="text" id="${P}-note-url" placeholder="https://note.com/xxxx（QRの飛び先。アカウントトップ推奨）" oninput="debouncedVideoPrev('${P}')" style="flex:1;min-width:0;font-size:11px;">
     </div>
-    <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:6px;">
+    <div class="row kg-hide" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:6px;">
       <label style="font-size:11px;color:var(--text-sub);flex:none;" title="X投稿文（返信用）の3行目に入れる案内文">note案内文</label>
       <input type="text" id="${P}-xnote" value="${VD_X_NOTE_LINE_DEFAULT}" placeholder="${VD_X_NOTE_LINE_DEFAULT}" style="flex:1;min-width:0;font-size:11px;">
     </div>`:'';
   const modelRow=`
-    <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:4px;">
+    <div class="row kg-hide" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:4px;">
       <label style="font-size:11px;color:var(--text-sub);flex:none;">文章モデル</label>
       <select id="${P}-model" style="flex:1;min-width:0;font-size:11px;padding:4px;">${VD_MODEL_OPTIONS}</select>
     </div>`;
@@ -6733,12 +6755,13 @@ function vdBuildTabHtml(P){
   <div id="${P}-pane-settings" style="display:none;">
   <div class="sa-card">
     <h2>設定</h2>
+    <div style="font-size:10px;color:var(--text-sub);">声・文章モデル・固定タグ・note案内文は、上の「⚙ 共通設定」で決めます（すべてのPJで共通）。</div>
     ${noteRows}${modelRow}${countRow}${monthsRow}
-    <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:4px;">
+    <div class="row kg-hide" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:4px;">
       <label style="font-size:11px;color:var(--text-sub);flex:none;" title="X・Instagram・TikTokの投稿文の末尾に必ず付けるタグ（両タブ共通）">固定タグ</label>
       <input type="text" id="${P}-fixed-tags" value="${VD_FIXED_TAGS_DEFAULT}" oninput="vdSyncTts('${P}')" placeholder="#タグ1 #タグ2（空欄で付けない）" style="flex:1;min-width:0;font-size:11px;padding:4px;">
     </div>
-    <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:4px;">
+    <div class="row kg-hide" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:4px;">
       <label style="font-size:11px;color:var(--text-sub);flex:none;">声</label>
       <select id="${P}-tts-voice" onchange="vdSyncTts('${P}')" style="flex:1;min-width:0;font-size:11px;padding:4px;">${VD_VOICE_OPTIONS}</select>
       <select id="${P}-tts-model" onchange="vdSyncTts('${P}')" style="flex:1;min-width:0;font-size:11px;padding:4px;">
@@ -9989,27 +10012,12 @@ ${[['n','note記事（無料）','表なしで作ります。動画のURLは最�
   <div class="yt-only-gen" style="display:none;">${set('番組の説明','<input type="text" id="yt-g-aud" value="'+YT_G_AUD_DEFAULT+'" oninput="saveState()" style="flex:1;min-width:0;font-size:11px;padding:4px;">','')}
   <div style="font-size:10px;color:var(--text-sub);">ChatGPTへの指示の「あなたの役割」に入れる、番組の説明です。</div></div>
   ${set('動画の長さ','<input type="number" id="yt-nlm-min" value="12" min="3" max="30" oninput="saveState()" style="width:60px;flex:none;font-size:11px;padding:4px;">','分（構成と音声の指示に入ります）')}
-  <div class="sa-sub">▼ スライドの色・書体</div>
-  <div style="font-size:10px;color:var(--text-sub);" title="PJごとではなく、株価分析とYT動画のすべてのPJで同じ設定を使います。">スライド作成の指示の色と書体。すべてのPJで共通です。</div>
-  ${set('基調色','<input type="text" data-slide-color="base" oninput="ytColorSave()" style="flex:1;min-width:0;font-size:11px;padding:4px;">','')}
-  ${set('見出し','<input type="text" data-slide-color="head" oninput="ytColorSave()" style="flex:1;min-width:0;font-size:11px;padding:4px;">','')}
-  ${set('書体','<input type="text" data-slide-color="font" oninput="ytColorSave()" style="flex:1;min-width:0;font-size:11px;padding:4px;">','')}
-  <div class="sa-sub">▼ OP・EDの背景動画</div>
-  <div style="font-size:10px;color:var(--text-sub);" title="区分ごとに、オープニング用・エンディング用を何本でも登録できます。使う動画は、PJごとに書き出すときにランダムで1本選び、区分を変えない限りそのPJでは同じものを使います。スロー・ぼかしは入れたものを登録してください（ツールでは加工しません）。オープニング用は60秒くらい、エンディング用は音声より長めに。すべてのPJで共通です。">区分ごとに何本でも登録できます。PJごとにランダムで1本を使います。すべてのPJで共通です。</div>
-  <div id="yt-oped-mats"></div>
-  ${set('OPのテロップ','<input type="text" data-oped-telop="op" oninput="ytOpedTelopSave()" style="flex:1;min-width:0;font-size:11px;padding:4px;" title="オープニングの動画のあいだ、右上に出すテロップです。すべてのPJで共通です。">','')}
-  ${set('EDのテロップ','<input type="text" data-oped-telop="ed" oninput="ytOpedTelopSave()" style="flex:1;min-width:0;font-size:11px;padding:4px;" title="エンディングの動画のあいだ、右上に出すテロップです。すべてのPJで共通です。">','')}
-  <div class="sa-sub">▼ BGM</div>
-  <div style="font-size:10px;color:var(--text-sub);" title="選んだ BGM を、ナレスラのプロジェクトに入れます（音量は 2%）。何本でも登録でき、使うものを1つ選びます。すべてのPJで共通です。「なし」を選ぶと入れません（ひな形に BGM があれば、そちらを使います）。">選んだ BGM をナレスラの書き出しに入れます。すべてのPJで共通です。</div>
-  <div id="yt-bgm-list"></div>
-  <div class="sa-sub">▼ Geminiのモデル（作業ごと）</div>
-  <div style="font-size:10px;color:var(--text-sub);" title="回数の上限のときは、選んだモデルから一覧の順に下のモデルへ自動で切り替えます（Lite には切り替えません。読み取りの位置が大きくずれて使えなかったため）。混雑のときは切り替えずに止まるので、ここで別のモデルを選んでもう一度押してください。">上限のときは下のモデルへ自動で切り替え（Lite除く）。混雑で止まったら、別のモデルを選んでもう一度。</div>
+  <div style="font-size:10px;color:var(--text-sub);margin-top:6px;">スライドの色・書体、OP・EDの背景動画とテロップ、BGM、Geminiのモデル、概要欄とSNSの定型文は、上の「⚙ 共通設定」で決めます（すべてのPJで共通）。</div>
+  <div class="kg-hide">
   ${YT_AI_TASKS.map(([k,n,d])=>set(n,`<select id="yt-m-${k}" onchange="saveState()" style="flex:1;min-width:0;font-size:11px;padding:3px;">${YT_MODEL_LIST.map(([v,l])=>`<option value="${v}"${v===d?' selected':''}>${l}</option>`).join('')}</select>`)).join('')}
-  <div class="sa-sub">▼ 概要欄の定型文（使用ツール・AIの注意書き）</div>
   <textarea id="yt-p-fixed" style="min-height:90px;font-size:11px;">${esc(YT_POST_FIXED)}</textarea>
-  <div class="sa-sub">▼ SNSの投稿文の定型文（誘導とnoteの案内）</div>
-  <div class="yt-only-stock" style="font-size:10px;color:var(--text-sub);" title="{下値/上値} は、株価が下がった回は「下値」、上がった回は「上値」に置き換わります。直したら、SNSタブの「↻ 組み立て直す」で入ります。">{下値/上値} は株価の向きで置き換わります。直したらSNSタブの「↻ 組み立て直す」。</div>
-  ${[['yp','YouTubeの投稿'],['ig','Instagram'],['l8','Lemon8'],['tt','TikTok']].map(([k,n])=>`<div style="font-size:11px;margin-top:4px;">${n}</div><textarea id="yt-f-${k}" style="min-height:44px;font-size:11px;">${esc(YT_SNS_FIXED[k])}</textarea>`).join('')}
+  ${[['yp','YouTubeの投稿'],['ig','Instagram'],['l8','Lemon8'],['tt','TikTok']].map(([k,n])=>`<textarea id="yt-f-${k}" style="min-height:44px;font-size:11px;">${esc(YT_SNS_FIXED[k])}</textarea>`).join('')}
+  </div>
 </div>
 </div>`;
 }
@@ -10152,6 +10160,7 @@ function ytSetCtx(ctx){
     // 欄の中身は PJ の行から入る（ktOpen が入れ替える）。ここでは種類の印と出し分けだけ
     YT_CTX=ctx;try{localStorage.setItem('kt-yt-ctx',ctx);}catch(e){}
     ytCtxApplyUi();
+    kgApply();   // SNSの定型文は種類ごと
     if(!window._ktSwitching){await ytReloadAll(null);}   // PJ の切り替え中は ktOpen 側で読み直す
     if(typeof ytUpdateFreeInfo==='function')ytUpdateFreeInfo();
   }).catch(e=>console.warn('[yt] 種類の切り替えに失敗',e)).then(()=>{if(_yhMute){yhRebase();_yhMute=false;}});
@@ -11050,15 +11059,7 @@ function yaBuildCutHtml(){
       <option value="">自動（株価分析＝決算／YT動画＝テーマ）</option>${YT_OPED_KINDS.map(([k,n])=>`<option value="${k}">${n}</option>`).join('')}
     </select>
   </div>
-  <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:4px;" title="OP・EDの音声生成で使う声とモデルです。すべてのPJで共通です。">
-    <label style="font-size:11px;color:var(--text-sub);flex:none;">声</label>
-    <select data-oped-voice="voice" onchange="ytOpedVoiceSave()" style="flex:1;min-width:0;font-size:11px;padding:3px;">${VD_VOICE_OPTIONS}</select>
-    <select data-oped-voice="model" onchange="ytOpedVoiceSave()" style="flex:1;min-width:0;font-size:11px;padding:3px;">
-      <option value="gemini-3.1-flash-tts-preview">Gemini 3.1 Flash TTS</option>
-      <option value="gemini-2.5-flash-preview-tts">Gemini 2.5 Flash TTS</option>
-      <option value="gemini-2.5-pro-preview-tts">Gemini 2.5 Pro TTS（有料枠）</option>
-    </select>
-  </div>
+  <div style="font-size:10px;color:var(--text-sub);margin-top:4px;">OP・EDの声は、上の「⚙ 共通設定」で決めます。</div>
   ${row(b('🤖 台本作成','ytOpedDraft(\'all\',this)','background:#4f46e5;color:#fff;'),b('🔊 音声生成','ytOpedTtsAll(this)','background:#2563eb;color:#fff;'))}
   <div id="yt-oped-all-st" style="display:none;font-size:11px;"></div>
   <div class="sa-sub">▼ オープニング（この動画を見ると何が分かるか）</div>
@@ -13334,6 +13335,7 @@ function ktKindAfterOpen(kind,json){
     try{renderImageStock();}catch(e){}
   }else if(kind==='price'){
     window._fetched=j.priceFetched||null;
+    if(!json){const ta=document.getElementById('th-input');if(ta){const p=ta.value.split('：');ta.value=[p[0]||'',p[1]||'',kgGet('th3')].join('：');}}   // 新規：3段目は共通設定の初期値
     try{renderPriceFetchInfo();}catch(e){}
     try{thumbSyncFromControls();}catch(e){}
     try{vdBuildScriptBoxes('vd',true);vdRestoreFields('vd',ktVdState('vd',json));vdUpdateScriptStats('vd');}catch(e){}
@@ -13391,6 +13393,7 @@ async function ktOpen(kind,id){
     ktResetKindFields(kind);
     if(json)tabIoApplyFields(kind,json.fields||{},json.radios||{});
     ktKindAfterOpen(kind,json);
+    kgApply();
     KTStore.markLoaded(kind,true);   // ここまで来て初めて、この PJ の行を保存してよい（途中で失敗したら、画面の初期値で上書きしないよう保存しない）
     await ktKindReload(kind);
   }catch(e){
@@ -13445,6 +13448,7 @@ function tabIoElements(tab){
       if(t==='file'||t==='button'||t==='submit')return;
       // サムネイルは、YT動画を開いている間は YT動画の PJ のもの（株価の PJ には書かない）
       if(tv&&tv.contains(el)){if(tab==='price'&&ytOn)return;if(tab==='yt'&&KT_TH_PRICE_ONLY.includes(el.id))return;}
+      if(el.id&&kgIsCommon(el.id))return;   // 共通設定の欄（⚙ 共通設定）は PJ に入れない
       const key=t==='radio'?'radio:'+el.name+':'+el.value:'id:'+el.id;
       if(seen.has(key))return;seen.add(key);
       out.push(el);
@@ -14059,6 +14063,85 @@ function kcRender(){
   }
 }
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){const v=document.getElementById('kc-view');if(v&&!v.hidden)kcClose();}});
+
+// =====================================================
+// 共通設定（上の「⚙ 共通設定」）。PJ ごとではなく全体で1つの設定。
+// ・前から全体共通だったもの（スライドの色・書体、OP・EDの背景動画・テロップ・声、BGM）は、欄をこの画面へ移しただけ（保存先は今までどおり）
+// ・PJ ごとに保存していた設定（声・モデル・固定タグ・note案内文・Geminiのモデル・概要欄とSNSの定型文）は、localStorage の kt-common を正にする
+//   （KTStore の LS_SYNC でサーバーの shared の行にも入る）。元の欄は隠して残し（関数が id で読むため）、PJ の保存からは外す（tabIoElements）
+// ・まだ kt-common に無い値は、そのときの欄の値を最初の値にする（今のPJの設定をそのまま引き継ぐ）
+// =====================================================
+var KG_KEY='kt-common';
+// 共通にした欄の id（tabIoElements から先に呼ばれるので、定数ではなく関数で持つ）
+function kgIsCommon(id){
+  return ['vd-tts-voice','ev-tts-voice','vd-tts-model','ev-tts-model','vd-model','ev-model','vd-fixed-tags','ev-fixed-tags','vd-xnote',
+    'yt-m-cut','yt-m-oped','yt-m-read','yt-m-qr','yt-m-plan','yt-m-post','yt-p-fixed','yt-f-yp','yt-f-ig','yt-f-l8','yt-f-tt'].includes(id);
+}
+const KG_SNS=[['yp','YouTubeの投稿'],['ig','Instagram'],['l8','Lemon8'],['tt','TikTok']];
+// g＝画面の置き場所、ids＝値を入れる元の欄、ctx＝その種類（stock＝株価分析の横動画／gen＝YT動画）のときだけ欄へ入れる、def＝まだ値が無いときの初期値
+const KG_ITEMS=[
+  {g:'thumb',key:'th3',label:'3段目の初期値',ids:[],def:'#底値#と%５つの反転サイン%'},
+  {g:'voice',key:'tts-voice',label:'台本の声',ids:['vd-tts-voice','ev-tts-voice']},
+  {g:'voice',key:'tts-model',label:'台本の声のモデル',ids:['vd-tts-model','ev-tts-model']},
+  {g:'model',key:'model',label:'縦動画の文章モデル',ids:['vd-model','ev-model']},
+  ...YT_AI_TASKS.map(([k,n])=>({g:'ytmodel',key:'yt-m-'+k,label:n,ids:['yt-m-'+k]})),
+  {g:'post',key:'fixed-tags',label:'固定タグ',ids:['vd-fixed-tags','ev-fixed-tags'],tip:'X・Instagram・TikTokの投稿文の末尾に必ず付けるタグ（空欄で付けない）'},
+  {g:'post',key:'xnote',label:'note案内文',ids:['vd-xnote'],tip:'縦動画のX投稿文（返信用）の3行目に入れる案内文'},
+  {g:'post',key:'yt-p-fixed',label:'概要欄の定型文（使用ツール・AIの注意書き）',ids:['yt-p-fixed'],area:1,def:YT_POST_FIXED},
+  ...KG_SNS.map(([k,n])=>({g:'snsstock',key:'yt-f-'+k+'@stock',label:n,ids:['yt-f-'+k],ctx:'stock',area:1,def:YT_SNS_FIXED[k]})),
+  ...KG_SNS.map(([k,n])=>({g:'snsgen',key:'yt-f-'+k+'@gen',label:n,ids:['yt-f-'+k],ctx:'gen',area:1,def:YT_SNS_FIXED_GEN[k]})),
+];
+const kgCtx=()=>(typeof YT_CTX!=='undefined'&&YT_CTX==='gen')?'gen':'stock';
+function kgStore(){let v=null;try{v=JSON.parse(localStorage.getItem(KG_KEY)||'null');}catch(e){}return v&&typeof v==='object'?v:{};}
+function kgSave(st){try{localStorage.setItem(KG_KEY,JSON.stringify(st));}catch(e){}if(typeof saveState==='function')saveState();}
+// 値：共通設定 → （その種類を開いていれば）いまの欄 → 初期値
+function kgGet(key){
+  const st=kgStore();if(st[key]!==undefined)return st[key];
+  const it=KG_ITEMS.find(x=>x.key===key);if(!it)return '';
+  const el=it.ids[0]&&(!it.ctx||it.ctx===kgCtx())?document.getElementById(it.ids[0]):null;
+  return el?el.value:(it.def!=null?it.def:'');
+}
+// 共通設定の値を元の欄へ入れる（起動時・PJを開いたあと・種類を切り替えたあと）。まだ無い値は、いまの欄の値で作る
+function kgApply(){
+  const st=kgStore(),ctx=kgCtx();let seeded=false;
+  KG_ITEMS.forEach(it=>{
+    if(!it.ids.length||(it.ctx&&it.ctx!==ctx))return;
+    if(st[it.key]===undefined){const el=document.getElementById(it.ids[0]);if(!el)return;st[it.key]=el.value;seeded=true;}
+    const v=st[it.key];
+    it.ids.forEach(id=>{const el=document.getElementById(id);if(el&&el.value!==v)el.value=v;});
+  });
+  if(seeded)kgSave(st);
+}
+// 共通設定の画面で変えたとき
+function kgSet(key,val){
+  const st=kgStore();st[key]=val;kgSave(st);
+  const it=KG_ITEMS.find(x=>x.key===key);
+  if(it&&(!it.ctx||it.ctx===kgCtx()))it.ids.forEach(id=>{const el=document.getElementById(id);if(el)el.value=val;});
+}
+function kgBuild(){
+  const opts=it=>{const el=it.ids[0]&&document.getElementById(it.ids[0]);return el&&el.tagName==='SELECT'?el.innerHTML:null;};
+  const groups={};
+  KG_ITEMS.forEach(it=>{
+    const v=kgGet(it.key),o=opts(it),tip=it.tip?` title="${esc(it.tip)}"`:'';
+    let h;
+    if(it.area)h=`<div class="kg-area"${tip}><label>${esc(it.label)}</label><textarea data-k="${esc(it.key)}" oninput="kgSet(this.dataset.k,this.value)">${esc(v)}</textarea></div>`;
+    else if(o!=null)h=`<div class="kg-row"${tip}><label>${esc(it.label)}</label><select data-k="${esc(it.key)}" onchange="kgSet(this.dataset.k,this.value)">${o}</select></div>`;
+    else h=`<div class="kg-row"${tip}><label>${esc(it.label)}</label><input type="text" data-k="${esc(it.key)}" value="${esc(v)}" oninput="kgSet(this.dataset.k,this.value)"></div>`;
+    (groups[it.g]=groups[it.g]||[]).push(h);
+  });
+  Object.keys(groups).forEach(g=>{const box=document.getElementById('kg-g-'+g);if(box)box.innerHTML=groups[g].join('');});
+  document.querySelectorAll('#kg-view select[data-k]').forEach(el=>{el.value=kgGet(el.dataset.k);});
+}
+function kgOpen(){
+  const v=document.getElementById('kg-view');if(!v)return;
+  const ov=document.querySelector('#kg-view select[data-oped-voice="voice"]');if(ov&&!ov.options.length)ov.innerHTML=VD_VOICE_OPTIONS;
+  kgBuild();
+  try{ytColorFill();ytOpedTelopFill();ytOpedVoiceFill();}catch(e){}
+  try{ytOpedMatRender();ytBgmRender();}catch(e){}
+  v.hidden=false;document.body.style.overflow='hidden';
+}
+function kgClose(){const v=document.getElementById('kg-view');if(v)v.hidden=true;document.body.style.overflow='';}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){const v=document.getElementById('kg-view');if(v&&!v.hidden)kgClose();}});
     </script>
 <div class="sa">
 <div id="render-target" style="position:fixed;left:-9999px;top:0;pointer-events:none;"></div>
@@ -14204,6 +14287,75 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){const v=document.ge
     </div>
     <div class="kc-listhead"><b id="kc-ltitle"></b><span id="kc-lcount"></span></div>
     <div id="kc-list"></div>
+  </div>
+</div>
+
+
+<!-- 共通設定（上の「⚙ 共通設定」で開く）。ここの値は PJ ではなく全体で1つ（kt-common・kt-slide-style など。サーバーの shared の行にも入る） -->
+<div id="kg-view" class="kg" hidden onclick="if(event.target===this)kgClose()">
+  <div class="kg-box">
+    <div class="kg-head">
+      <h2>⚙ 共通設定</h2>
+      <span class="kg-sub">すべてのPJで共通です。変えるとすぐ保存されます。</span>
+      <button type="button" class="kg-close" onclick="kgClose()">✕ 閉じる</button>
+    </div>
+
+    <div class="kg-sec">
+      <h3>サムネイル</h3>
+      <div class="kg-note">株価分析のサムネの3段目（自動で入らないところ）。新しいPJは、この文で始まります。</div>
+      <div id="kg-g-thumb"></div>
+    </div>
+
+    <div class="kg-sec">
+      <h3>声</h3>
+      <div id="kg-g-voice"></div>
+      <div class="kg-row" title="OP・EDの音声生成で使う声とモデルです。">
+        <label>OP・EDの声</label>
+        <select data-oped-voice="voice" onchange="ytOpedVoiceSave()"></select>
+        <select data-oped-voice="model" onchange="ytOpedVoiceSave()">
+          <option value="gemini-3.1-flash-tts-preview">Gemini 3.1 Flash TTS</option>
+          <option value="gemini-2.5-flash-preview-tts">Gemini 2.5 Flash TTS</option>
+          <option value="gemini-2.5-pro-preview-tts">Gemini 2.5 Pro TTS（有料枠）</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="kg-sec">
+      <h3>AIのモデル</h3>
+      <div id="kg-g-model"></div>
+      <div class="kg-note" title="回数の上限のときは、選んだモデルから一覧の順に下のモデルへ自動で切り替えます（Lite には切り替えません。読み取りの位置が大きくずれて使えなかったため）。混雑のときは切り替えずに止まるので、ここで別のモデルを選んでもう一度押してください。">横動画（Gemini）：上限のときは下のモデルへ自動で切り替え（Lite除く）。混雑で止まったら、別のモデルを選んでもう一度。</div>
+      <div id="kg-g-ytmodel"></div>
+    </div>
+
+    <div class="kg-sec">
+      <h3>スライドの色・書体</h3>
+      <div class="kg-note">横動画のスライド作成の指示に入る色と書体です。</div>
+      <div class="kg-row"><label>基調色</label><input type="text" data-slide-color="base" oninput="ytColorSave()"></div>
+      <div class="kg-row"><label>見出し</label><input type="text" data-slide-color="head" oninput="ytColorSave()"></div>
+      <div class="kg-row"><label>書体</label><input type="text" data-slide-color="font" oninput="ytColorSave()"></div>
+    </div>
+
+    <div class="kg-sec">
+      <h3>投稿の定型文</h3>
+      <div id="kg-g-post"></div>
+      <div class="kg-note" style="margin-top:8px;">SNSの投稿文の定型文（誘導とnoteの案内）。直したらSNSタブの「↻ 組み立て直す」で入ります。</div>
+      <details open><summary style="cursor:pointer;font-size:11.5px;margin-top:4px;">株価分析の横動画（{下値/上値} は株価の向きで置き換わります）</summary><div id="kg-g-snsstock"></div></details>
+      <details><summary style="cursor:pointer;font-size:11.5px;margin-top:4px;">YT動画</summary><div id="kg-g-snsgen"></div></details>
+    </div>
+
+    <div class="kg-sec">
+      <h3>OP・EDの背景動画</h3>
+      <div class="kg-note" title="区分ごとに、オープニング用・エンディング用を何本でも登録できます。使う動画は、PJごとに書き出すときにランダムで1本選び、区分を変えない限りそのPJでは同じものを使います。スロー・ぼかしは入れたものを登録してください（ツールでは加工しません）。オープニング用は60秒くらい、エンディング用は音声より長めに。">区分ごとに何本でも登録できます。PJごとにランダムで1本を使います。</div>
+      <div id="yt-oped-mats"></div>
+      <div class="kg-row"><label>OPのテロップ</label><input type="text" data-oped-telop="op" oninput="ytOpedTelopSave()" title="オープニングの動画のあいだ、右上に出すテロップです。"></div>
+      <div class="kg-row"><label>EDのテロップ</label><input type="text" data-oped-telop="ed" oninput="ytOpedTelopSave()" title="エンディングの動画のあいだ、右上に出すテロップです。"></div>
+    </div>
+
+    <div class="kg-sec">
+      <h3>BGM</h3>
+      <div class="kg-note" title="選んだ BGM を、ナレスラのプロジェクトに入れます（音量は 2%）。何本でも登録でき、使うものを1つ選びます。「なし」を選ぶと入れません（ひな形に BGM があれば、そちらを使います）。">選んだ BGM をナレスラの書き出しに入れます。</div>
+      <div id="yt-bgm-list"></div>
+    </div>
   </div>
 </div>
 
