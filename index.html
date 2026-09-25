@@ -13318,6 +13318,22 @@ function ktVdState(P,json){
   VD_CARRY_KEYS.forEach(k=>{const id=P+'-'+k;if(id in f)out[id]=f[id];});
   return {fields:out,radios:{}};
 }
+// サムネイルの入力（文言・型・濃さなど。動画のサムネの文言も）を控える／戻す。新規で開くときに引き継ぐ
+const KT_TH_ID=/^(th-|yt-th-|yg-th-|ev-th-|vd-th-)/;
+function ktThumbSnap(kind){
+  const fields={},radios={};
+  tabIoElements(kind).forEach(el=>{
+    const t=(el.type||'').toLowerCase();
+    if(t==='radio'){if(el.name==='th-preset'&&el.checked)radios[el.name]=el.value;return;}
+    if(el.id&&KT_TH_ID.test(el.id)&&el.id!=='th-ctx')fields[el.id]=t==='checkbox'?el.checked:el.value;
+  });
+  return {fields,radios};
+}
+function ktThumbPut(kind,snap){
+  tabIoApplyFields(kind,snap.fields,snap.radios);
+  if(kind==='yt'&&window._ktYgTh){if('th-input' in snap.fields)window._ktYgTh.text=snap.fields['th-input'];if(snap.radios['th-preset'])window._ktYgTh.preset=snap.radios['th-preset'];}
+  ['th-op','th-sc'].forEach(id=>{const el=document.getElementById(id),v=document.getElementById(id+'-val');if(el&&v)v.textContent=el.value;});
+}
 // 種別ごとの「欄を入れたあとの描き直し」（起動時の後半と同じこと）
 function ktKindAfterOpen(kind,json){
   const j=json||{};
@@ -13380,6 +13396,7 @@ async function ktOpen(kind,id){
   let canceled=false;
   try{
     if(typeof saveStateNow==='function')saveStateNow();
+    const thKeep=(!id&&window._ktKind===kind)?ktThumbSnap(kind):null;   // 同じ種別の新規は、サムネイルの入力を引き継ぐ（一部だけ入れ替えて使うため）
     KTStore.suspended=true;
     await Promise.race([KTStore.flush(),abortP]);
     // 行とファイルをまとめて取り出す（ここまではキャンセルできる。画面はまだ前の PJ のまま）
@@ -13390,6 +13407,7 @@ async function ktOpen(kind,id){
     if(typeof _ytCtxChain!=='undefined')await _ytCtxChain;
     ktResetKindFields(kind);
     if(json)tabIoApplyFields(kind,json.fields||{},json.radios||{});
+    if(thKeep)ktThumbPut(kind,thKeep);
     ktKindAfterOpen(kind,json);
     KTStore.markLoaded(kind,true);   // ここまで来て初めて、この PJ の行を保存してよい（途中で失敗したら、画面の初期値で上書きしないよう保存しない）
     await ktKindReload(kind);
