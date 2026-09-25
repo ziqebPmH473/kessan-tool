@@ -11885,7 +11885,7 @@ ${nums(kind,i,z)}${tail(kind,i,z)}</div>`;};
       rows.sort((a,b)=>a[0]-b[0]);
       const first=(sents.find(q=>q.n===x.from)||{}).text||'';
       const srcOpts=ytSources().map(s=>`<option value="${esc(String(s.no))}">出典${esc(String(s.no))}：${esc(s.name||'')}${s.kind==='chart'?'（チャート）':''}</option>`).join('')||'<option value="">出典一覧がありません</option>';
-      el.insertAdjacentHTML('afterend',`<div class="yn-plan"><div class="yn-hd2"><button class="ya-nd yn-addbtn" onclick="ynAddOpen(${si},true)" title="このスライドに演出を足す">＋ 追加</button> 表示 ${yaTc(te(x.s))}〜${yaTc(te(x.e))}（${ynEditLen(x.s,x.e).toFixed(1)}秒・カット後）／文 ${x.from}〜${x.to}${si>0&&x.corner?`／テロップ「${esc(x.corner)}」`:''}</div>
+      el.insertAdjacentHTML('afterend',`<div class="yn-plan"><div class="yn-hd2"><button class="ya-nd yn-addbtn" onclick="ynAddOpen(${si},true)" title="このスライドに演出を足す">＋ 追加</button> 表示 ${yaTc(te(x.s))}〜${yaTc(te(x.e))}（${ynEditLen(x.s,x.e).toFixed(1)}秒・カット後）／文 ${x.from}〜${x.to}${x.corner?`／テロップ「${esc(x.corner)}」`:''}</div>
 <div class="yn-it"><span class="yn-k" style="background:#f59e0b;">切替</span><span class="yn-nn"><button class="yn-go" onclick="yaJumpTo(${x.from})" title="右の一覧でこの文を表示">文</button> ${x.from}</span><span class="yn-sd" title="${esc(first)}">ここから：「${esc(first.slice(0,50))}」</span>
 ${si>0?`<span class="yn-ed"><span class="yn-lb">切り替える文</span><button class="ya-nd" title="切り替えを1文前へ" onclick="ynSlideShift(${si},-1)">◀ 前へ</button><button class="ya-nd" title="切り替えを1文後へ" onclick="ynSlideShift(${si},1)">後へ ▶</button><button class="ya-nd" title="この回の表示をやめて、前のスライドをそのまま続けます（この回のズーム・強調も消えます）" onclick="ynSlideDrop(${si})">この回を外す</button></span>`:''}</div>
 ${si===0?ynOpCoverLine():''}${rows.map(r=>r[1]).join('')}
@@ -11974,7 +11974,7 @@ function ynPlanPrompt(){
 　下線とハイライトは、そのスライドに「文字」（T番号）があれば、zone ではなく text に T番号を書く。
 　strength：その1枚でいちばん重要な箇所だけ strong、それ以外は soft。
 ・表紙（1枚目）は、まだ説明が始まっていないので、ズームは付けず、強調も付けないか1個まで。
-・コーナー名：そのスライドの内容を表す8字以内の短い言葉（動画の右上に出す）。
+・コーナー名：そのスライドの内容を表す8字以内の短い言葉（動画の右上に出す）。表紙は、この動画の話題を表す言葉にする。
 ・根拠資料：その資料が裏づけている事実を話している文の範囲に割り当てる。1件は5〜8秒。
 　この動画はカット後で約${mins.toFixed(1)}分なので、根拠資料の差し込みは${nSrc}件前後にする（多すぎると画面が落ち着かない。少なすぎると根拠が見えない）。
 　画面で見せる価値があるもの（数字の出どころ、会社の発表、公的な資料）を優先し、続けて出さない（間を20秒以上あける）。
@@ -12478,8 +12478,7 @@ async function ynExport(btn){
     }
     // 切り替え・テロップ・字幕・カット
     const switchPoints=YN.plan.slides.slice(1).map(x=>+x.s.toFixed(2));
-    // コーナー名は2枚目から（表紙の右上に「導入」などを出さない）
-    const cornerTelops=YN.plan.slides.map((x,i)=>[x,i]).filter(([x,i])=>i>0&&x.corner).map(([x,i])=>({id:++id,text:x.corner,accentColor:'#e91e8c',startSlide:i+1,endSlide:i+1,animIn:.5,animOut:.5,sizeMul:1,posX:78,posY:-85,minChars:6}));
+    const cornerTelops=YN.plan.slides.map((x,i)=>[x,i]).filter(([x])=>x.corner).map(([x,i])=>({id:++id,text:x.corner,accentColor:'#e91e8c',startSlide:i+1,endSlide:i+1,animIn:.5,animOut:.5,sizeMul:1,posX:78,posY:-85,minChars:6}));
     const kept=ynKeptSents().map(x=>({text:x.text,s:x.s,e:x.e})).sort((a,b)=>a.s-b.s);
     kept.forEach((x,i)=>{
       if(x.e<x.s+0.3)x.e=x.s+0.6;                                  // 終わりが始まりより前／短すぎる
