@@ -6817,8 +6817,9 @@ function vdPersistIds(P){
   return out;
 }
 // restoreState はこのモジュールより前に走るので、自前で復元する
-function vdRestoreFields(P){
-  let st=null;try{st=JSON.parse(localStorage.getItem(SA_STORAGE_KEY)||'null');}catch(e){}
+// st を渡さないときは、この端末で最後に保存した画面（kessanTool:v1）から入れる。PJ を開くときは、その PJ の中身を st で渡す（ktKindAfterOpen）
+function vdRestoreFields(P,st){
+  if(st===undefined)try{st=JSON.parse(localStorage.getItem(SA_STORAGE_KEY)||'null');}catch(e){}
   if(!st||!st.fields)return;
   vdPersistIds(P).forEach(id=>{const el=document.getElementById(id);if(!el||st.fields[id]==null)return;if(el.type==='checkbox')el.checked=!!st.fields[id];else el.value=st.fields[id];});
   if(st.radios&&st.radios['ev-count']){const r=document.querySelector(`input[name=ev-count][value="${st.radios["ev-count"]}"]`);if(r)r.checked=true;}
@@ -13304,6 +13305,16 @@ function ktResetKindFields(kind){
     if(kind==='yt'){const sr=document.getElementById('yt-series');if(sr)sr.value='';['yp','ig','l8','tt'].forEach(k=>{const el=document.getElementById('yt-f-'+k);if(el&&YT_SNS_FIXED_GEN[k]!=null)el.value=YT_SNS_FIXED_GEN[k];});}
   }
 }
+// 動画の欄を入れ直す元。開いた PJ の中身を使う（kessanTool:v1 は直前に開いていた PJ の画面なので、そのまま使うと前の PJ の台本などが入る）。
+// 新規は、声・モデルなどの設定だけ前の画面から引き継ぎ、台本・投稿文・スライドなどの中身は空のまま
+const VD_CARRY_KEYS=['model','months','logo-op','tts-voice','tts-model','tts-eq','tts-gap','tts-format','fixed-tags','auto'];
+function ktVdState(P,json){
+  if(json)return {fields:json.fields||{},radios:json.radios||{}};
+  let st=null;try{st=JSON.parse(localStorage.getItem(SA_STORAGE_KEY)||'null');}catch(e){}
+  const f=(st&&st.fields)||{},out={};
+  VD_CARRY_KEYS.forEach(k=>{const id=P+'-'+k;if(id in f)out[id]=f[id];});
+  return {fields:out,radios:{}};
+}
 // 種別ごとの「欄を入れたあとの描き直し」（起動時の後半と同じこと）
 function ktKindAfterOpen(kind,json){
   const j=json||{};
@@ -13311,7 +13322,7 @@ function ktKindAfterOpen(kind,json){
     window._earnFetched=j.earnFetched||null;
     if(!json){const p=document.getElementById('p-date');if(p){p.value=new Date().toISOString().split('T')[0];p.dispatchEvent(new Event('change'));}const ah=document.getElementById('p-post-after-hours');if(ah)ah.checked=true;}
     try{const c=document.getElementById('ev-count-auto');if(c&&typeof evAutoCount==='function')c.textContent=evAutoCount()+'枚';}catch(e){}
-    try{vdBuildScriptBoxes('ev',true);vdRestoreFields('ev');vdUpdateScriptStats('ev');}catch(e){}
+    try{vdBuildScriptBoxes('ev',true);vdRestoreFields('ev',ktVdState('ev',json));vdUpdateScriptStats('ev');}catch(e){}
     try{renderImage();}catch(e){}
   }else if(kind==='stock'){
     window._saFetched=j.fetched||null;
@@ -13322,7 +13333,7 @@ function ktKindAfterOpen(kind,json){
     window._fetched=j.priceFetched||null;
     try{renderPriceFetchInfo();}catch(e){}
     try{thumbSyncFromControls();}catch(e){}
-    try{vdBuildScriptBoxes('vd',true);vdRestoreFields('vd');vdUpdateScriptStats('vd');}catch(e){}
+    try{vdBuildScriptBoxes('vd',true);vdRestoreFields('vd',ktVdState('vd',json));vdUpdateScriptStats('vd');}catch(e){}
     requestAnimationFrame(()=>{try{if((document.getElementById('ta-data').value||'').trim())renderPrev();else if(typeof renderPrev==='function')renderPrev();}catch(e){}try{renderThumbPreview();}catch(e){}});
   }
   if(kind==='yt'){
