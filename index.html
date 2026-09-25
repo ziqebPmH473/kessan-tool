@@ -11906,8 +11906,8 @@ ${si===0?ynOpCoverLine():''}${rows.map(r=>r[1]).join('')}
   });
   // 前の高さを仮に保ち、元の位置へ戻す（画像が読めたら仮の高さは外す）
   area.querySelectorAll('.yn-item[data-n]').forEach(it=>{const hh=hs[it.dataset.n];if(!hh)return;it.style.minHeight=hh+'px';const im=it.querySelector('img');if(im)im.addEventListener('load',()=>{it.style.minHeight='';},{once:true});});
-  if(sc)sc.scrollTop=top0;
   if(fk){const e=[...area.querySelectorAll('[data-fk]')].find(x=>x.dataset.fk===fk);if(e){e.focus({preventScroll:true});if(e.select)e.select();}}
+  if(sc)sc.scrollTop=top0;   // 欄を選び直すと（select）その欄まで画面が動くので、そのあとで元の位置へ戻す
 }
 // 欄を直して Tab で次へ移ると、直した値の保存で一覧を描き直すため、移った先の欄が消えてカーソルが一番上へ飛んでいた。
 // 描き直す前に、カーソルのある欄（Tab で欄でない所へ来たときは、その向きで次の欄）を覚えておく
