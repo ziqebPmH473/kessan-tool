@@ -505,10 +505,9 @@ select.yn-sel option{color:#0f172a;background:#fff;font-weight:400;}
 .yp-shd .yp-sbtn{margin-left:auto;}
 .yp-sbtn{display:flex;gap:3px;flex:none;}
 #thumb-view.th-yt .th-noteonly{display:none!important;}
-/* 上のタブ・エクスポートの行・2段目のタブは画面の上に止める（その下だけがスクロールする）。高さは ktStickyTops で測る */
+/* 上のタブ・2段目のタブは画面の上に止める（その下だけがスクロールする）。高さは ktStickyTops で測る */
 .control-panel>.mode-tabs{position:sticky;top:0;z-index:40;background:#e5e7eb;margin-bottom:0!important;padding-bottom:8px;}
-#mode-yt>.yt-exprow{position:sticky;top:var(--kt-tabs-h,51px);z-index:39;background:#e5e7eb;}
-#yt-root>.sa-subtabs{position:sticky;top:calc(var(--kt-tabs-h,51px) + var(--kt-exp-h,32px));z-index:38;background:#e5e7eb;margin-top:0!important;padding-bottom:4px;}
+#yt-root>.sa-subtabs{position:sticky;top:var(--kt-tabs-h,51px);z-index:38;background:#e5e7eb;margin-top:0!important;padding-bottom:4px;}
 /* 株価分析の横動画では止めない（中身と一緒にスクロールする。止めると、中身の途中に重なっていた） */
 body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
 .yp-item{margin-top:4px;}
@@ -908,7 +907,7 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
 @media (min-width: 1620px){
   body{height:100vh;box-sizing:border-box;overflow:hidden;}
   .control-panel{overflow-y:auto;}
-  /* YT動画：上のタブ・エクスポートの行・2段目のタブは動かさず、その下（タブの中身）だけをスクロールする */
+  /* YT動画：上のタブ・2段目のタブは動かさず、その下（タブの中身）だけをスクロールする */
   body.kt-yt .control-panel{overflow:hidden;}
   body.kt-yt #mode-yt{flex:1;min-height:0;display:flex!important;flex-direction:column;}
   body.kt-yt #yt-root{flex:1;min-height:0;display:flex;flex-direction:column;}
@@ -1087,7 +1086,6 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
       #yt-root > .sa-subtabs { background: var(--ui-bg); padding: 0 0 6px; border-radius: 0; }
       #yt-root > .sa-subtabs .sa-subtab { background: #e2e8f0; }
       #yt-root > .sa-subtabs .sa-subtab.active { background: var(--ui-surface); }
-      #mode-yt > .yt-exprow { background: var(--ui-bg); }
 
       /* セクションカード */
       .tool-section, .sa-card {
@@ -1207,6 +1205,8 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
             <button type="button" class="kt-pjbtn kt-pjdel" onclick="ktPjDelete()" title="開いているPJを消す（確認あり）">削除</button>
             <button type="button" class="kt-pjbtn" onclick="kgOpen()" title="すべてのPJで共通の設定（声・モデル・定型文・サムネの初期値・スライドの色・OP/ED・BGM）">⚙ 共通設定</button>
             <button type="button" class="kt-pjbtn" onclick="kcOpen()" title="日本株・米国株の決算発表の予定日をカレンダーで見る">📅 決算カレンダー</button>
+            <button type="button" class="kt-pjbtn" onclick="exportTabData(window._ktKind)" title="開いているPJの内容（裏データ含む）をJSONで保存">📤 エクスポート</button>
+            <button type="button" class="kt-pjbtn" onclick="importTabDataPick(window._ktKind)" title="保存したJSONを読み込んで続きから再開">📥 インポート</button>
             <select id="kt-pj" class="kt-pjsel kt-pjlist" title="開くPJ（作成日 名前）。続きはここから選ぶ" onchange="ktPjChange(this.value)"></select>
         </div>
 
@@ -1219,7 +1219,7 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
         <div class="tool-section">
             <div class="section-heading" style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:4px 8px; border-bottom:none; padding-bottom:0;">
                 <span style="border-bottom:2px solid var(--accent); padding-bottom:4px; white-space:nowrap;">1. 情報収集 ＆ AIプロンプト生成</span>
-                <span style="display:flex; gap:4px; flex:none; margin-left:auto;"><button class="btn-sub" onclick="exportTabData('earnings')" title="このタブの内容（裏データ含む）をJSONで保存" style="padding:4px 10px; font-size:11px; flex:none; background:#e0f2fe; color:#075985;">📤 エクスポート</button><button class="btn-sub" onclick="importTabDataPick('earnings')" title="保存したJSONを読み込んで続きから再開" style="padding:4px 10px; font-size:11px; flex:none; background:#dcfce7; color:#166534;">📥 インポート</button><button class="btn-sub" onclick="clearEarnInputs()" style="padding:4px 12px; font-size:11px; flex:none; background:#fee2e2; color:#b91c1c;">🗑 クリア</button></span>
+                <span style="display:flex; gap:4px; flex:none; margin-left:auto;"><button class="btn-sub" onclick="clearEarnInputs()" style="padding:4px 12px; font-size:11px; flex:none; background:#fee2e2; color:#b91c1c;">🗑 クリア</button></span>
             </div>
 
             <div class="input-row" style="margin-bottom: 4px;">
@@ -1346,7 +1346,7 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
         <div class="tool-section">
             <div class="section-heading" style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:4px 8px; border-bottom:none; padding-bottom:0;">
                 <span style="border-bottom:2px solid var(--accent); padding-bottom:4px; white-space:nowrap;">1. 情報収集 ＆ AIプロンプト生成</span>
-                <span style="display:flex; gap:4px; flex:none; margin-left:auto;"><button class="btn-sub" onclick="exportTabData('stock')" title="このタブの内容（裏データ含む）をJSONで保存" style="padding:4px 10px; font-size:11px; flex:none; background:#e0f2fe; color:#075985;">📤 エクスポート</button><button class="btn-sub" onclick="importTabDataPick('stock')" title="保存したJSONを読み込んで続きから再開" style="padding:4px 10px; font-size:11px; flex:none; background:#dcfce7; color:#166534;">📥 インポート</button><button class="btn-sub" onclick="clearSaInputs()" style="padding:4px 12px; font-size:11px; flex:none; background:#fee2e2; color:#b91c1c;">🗑 クリア</button></span>
+                <span style="display:flex; gap:4px; flex:none; margin-left:auto;"><button class="btn-sub" onclick="clearSaInputs()" style="padding:4px 12px; font-size:11px; flex:none; background:#fee2e2; color:#b91c1c;">🗑 クリア</button></span>
             </div>
 
             <div class="input-row" style="margin-bottom: 4px;">
@@ -1476,7 +1476,7 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
         </div><!-- /mode-stock -->
 
         <!-- YT動画（テーマを問わない横動画）。中身は、株価分析の横動画のパネル（#yt-root）をそのままここへ移して使う -->
-        <div id="mode-yt" class="sa" style="display:none;"><div class="yt-exprow" style="display:flex;gap:4px;justify-content:flex-end;padding:6px 0;"><button class="btn-sm" onclick="exportTabData('yt')" title="このタブの内容（音声・スライド・割り当て・出典の画像も）をJSONで保存" style="flex:none;padding:2px 8px;font-size:10px;background:#e0f2fe;color:#075985;">📤 エクスポート</button><button class="btn-sm" onclick="importTabDataPick('yt')" title="保存したJSONを読み込んで続きから再開" style="flex:none;padding:2px 8px;font-size:10px;background:#dcfce7;color:#166534;">📥 インポート</button></div></div>
+        <div id="mode-yt" class="sa" style="display:none;"></div>
         <div id="mode-price" class="sa" style="display:none;">
 <div class="ctrl">
   <div class="sa-subtabs">
@@ -1489,7 +1489,7 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
   <div class="sa-card">
     <div class="row" style="justify-content:space-between;align-items:center;">
       <h2 style="margin:0;">1. 情報収集 ＆ AIプロンプト生成</h2>
-      <span style="display:flex;gap:4px;flex:none;"><button class="btn-sm" onclick="exportTabData('price')" title="このタブの内容（裏データ含む）をJSONで保存" style="flex:none;padding:4px 10px;font-size:11px; background:#e0f2fe; color:#075985;">📤 エクスポート</button><button class="btn-sm" onclick="importTabDataPick('price')" title="保存したJSONを読み込んで続きから再開" style="flex:none;padding:4px 10px;font-size:11px; background:#dcfce7; color:#166534;">📥 インポート</button><button class="btn-sm" onclick="clearPriceInputs()" style="flex:none;padding:4px 12px;font-size:11px;background:#fee2e2;color:#b91c1c;">🗑 クリア</button></span>
+      <span style="display:flex;gap:4px;flex:none;"><button class="btn-sm" onclick="clearPriceInputs()" style="flex:none;padding:4px 12px;font-size:11px;background:#fee2e2;color:#b91c1c;">🗑 クリア</button></span>
     </div>
     <div class="sa-sub">▼ 基本情報</div>
     <div class="row" style="flex-wrap:nowrap;justify-content:space-between;">
@@ -3410,11 +3410,10 @@ point_2=`;
         // 個別銘柄分析モード
         // =====================================================
 
-        // 画面の上に止める部品の高さ（上のタブ → エクスポートの行 → 2段目のタブの順に重ねる）
+        // 画面の上に止める部品の高さ（上のタブ → 2段目のタブの順に重ねる）
         function ktStickyTops(){
-            const r=document.documentElement.style,mt=document.querySelector('.control-panel>.mode-tabs'),ex=document.querySelector('#mode-yt>.yt-exprow');
+            const r=document.documentElement.style,mt=document.querySelector('.control-panel>.mode-tabs');
             if(mt)r.setProperty('--kt-tabs-h',mt.offsetHeight+'px');
-            if(ex&&ex.offsetHeight)r.setProperty('--kt-exp-h',ex.offsetHeight+'px');
         }
         window.addEventListener('resize',()=>ktStickyTops());window.addEventListener('load',()=>ktStickyTops());
         function switchMode(mode) {
