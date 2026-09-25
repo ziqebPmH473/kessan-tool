@@ -7900,9 +7900,13 @@ const YT_MODEL_LIST=[['gemini-3.8-flash','Gemini 3.8 Flash（20回/日）'],['ge
 const YT_AI_TASKS=[['cut','カットの判定',''],['oped','OP・EDの案',''],['read','まとまりの読み取り',''],['qr','QRの位置',''],['plan','演出の割り当て',''],['post','記事・投稿文','']];   // 3つ目は既定のモデル（空＝自動）   // 画面の並び＝使う順（音声 → スライド → 演出 → 記事・SNS）
 const YT_MODEL_AUTO='自動（上から順に。上限なら次へ・Lite除く）';
 const ytModelName=m=>((YT_MODEL_LIST.find(x=>x[0]===m)||[])[1]||m).replace(/（.*$/,'');
-// 自動（空）＝一覧の上から順に。選んだときは、そのモデルから。どちらも上限のときは一覧の下へ順に（上のモデルへは戻らない）
+// 自動（空）＝一覧の上から順に。選んだときは、そのモデルから。どちらも上限・混雑のときは一覧の下へ順に（上のモデルへは戻らない）
+// 1回のボタンの中で続けて呼ぶ処理（読み取りの複数枚など）は、下ろしたモデルから続ける。ボタンを押し直したら元に戻す（ytRunStart）
+const YT_RUN={};
+function ytRunStart(task){delete YT_RUN[task];}
+function ytRunUsed(task,d){if(d&&d.ok&&d.model&&d.fellBack)YT_RUN[task]=d.model;}
 function ytModels(task){
-  const sel=((document.getElementById('yt-m-'+task)||{}).value)||'';
+  const sel=YT_RUN[task]||((document.getElementById('yt-m-'+task)||{}).value)||'';
   // 上限で下へ切り替えるときも Lite には落とさない（3.5 Flash Lite では読み取りの位置が大きくずれて使えなかった。2026-09-21）。Lite は自分で選んだときだけ使う
   const all=YT_MODEL_LIST.map(x=>x[0]),i=all.indexOf(sel);
   const below=all.slice(i+1).filter(m=>!/lite/.test(m));   // 自動・一覧に無いモデルは i=-1 なので、上から全部
@@ -7917,8 +7921,7 @@ function ytAiErr(d,task){
   const why=k=>k==='quota'?'今日の回数の上限':k==='busy'?'混雑':'エラー';
   const tried=Object.values(lastBy).map(x=>`${ytModelName(x.model)}＝${why(x.kind)}`).join('、');
   const last=f[f.length-1];
-  if(d.busy||last.kind==='busy')return `${ytModelName(last.model)} が混雑していて使えませんでした（Google側の一時的な混雑です。下のモデルには切り替えていません）。少し待ってもう一度押すか、「⚙ 共通設定」の「${tn}」のモデルを変えてください。［試したモデル：${tried}］`;
-  if(last.kind==='quota')return `使えるモデルがすべて今日の回数の上限でした。明日まで待つか、「⚙ 共通設定」の「${tn}」で Lite のモデルを選んでください。［試したモデル：${tried}］`;
+  if(last.kind==='busy'||last.kind==='quota')return `使えるモデルがすべて混雑か今日の回数の上限でした。少し待ってもう一度押すか、「⚙ 共通設定」の「${tn}」で Lite のモデルを選んでください。［試したモデル：${tried}］`;
   return `${ytModelName(last.model)} でエラーになりました：${last.error}［試したモデル：${tried}］`;
 }
 const YT_CHAPTERS=[
@@ -9383,7 +9386,7 @@ async function ytPostAi(btn,sns){
   if(btn)btn.disabled=true;ytStatus('作成中…（数十秒かかります）','','post3-status');
   try{
     const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({prompt,resources:[],files:[],temperature:0.6,models:ytModels('post'),onBusy:'stop'})});
+      body:JSON.stringify({prompt,resources:[],files:[],temperature:0.6,models:ytModels('post')})});
     const data=await res.json();if(!data.ok)throw new Error(ytAiErr(data,'post'));
     ytEl('post').value=data.text||'';saveState();
     // 反映できたら、バックアップ（横動画の音声・スライド・割り当て・出典の画像も入る）を書き出す。株価分析の動画は株価分析のタブごと、YT動画はYT動画のタブを
@@ -9476,7 +9479,7 @@ async function ygArtAi(k,btn){
   if(btn)btn.disabled=true;ygArtStatus(k,'作成中…（30秒〜1分かかります）','');
   try{
     const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({prompt,resources:[],files:[],temperature:0.7,models:ytModels('post'),onBusy:'stop'})});
+      body:JSON.stringify({prompt,resources:[],files:[],temperature:0.7,models:ytModels('post')})});
     const data=await res.json();if(!data.ok)throw new Error(ytAiErr(data,'post'));
     if(ygArtApply(k,data.text||'')){
       ygArtStatus(k,'売買をすすめる表現をチェック中…','');
@@ -10779,7 +10782,7 @@ async function yaAiJudge(btn){
   let prompt;try{prompt=yaPrompt();}catch(e){yaStatus('st-ai','❌ '+esc(e.message),'error');return;}
   if(btn)btn.disabled=true;yaStatus('st-ai','判定中…（数十秒かかります）');
   try{
-    const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,resources:[],files:[],temperature:0.1,models:ytModels('cut'),onBusy:'stop'})});
+    const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,resources:[],files:[],temperature:0.1,models:ytModels('cut')})});
     const data=await res.json();if(!data.ok)throw new Error(ytAiErr(data,'cut'));
     yaEl('plan').value=data.text||'';saveState();
     if(yaApplyPlan(yaParsePlan(data.text||''))){
@@ -11173,7 +11176,7 @@ async function ytOpedDraft(role,btn){
   const search=false;   // Google 検索は無料の枠では断られる（2026-09-23 確認）。最近の出来事は ChatGPT で探す想定
   if(btn)btn.disabled=true;st(search?'台本を作っています…（最近の出来事を検索します）':'台本を作っています…');
   try{
-    const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,temperature:0.6,models:ytModels('oped'),onBusy:'stop',search})});
+    const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,temperature:0.6,models:ytModels('oped'),search})});
     const data=await res.json();if(!data.ok)throw new Error(ytAiErr(data,'oped'));
     const j=ytOpedParseJson(data.text);
     for(const r of roles){
@@ -11488,6 +11491,7 @@ async function ynReadZones(btn,only){
   const onl=only==null?null:new Set([].concat(only));   // only＝読み直す枚（番号か、番号の配列）
   if(YN.slides.some((s,i)=>onl?onl.has(i):!(s.zones&&s.zones.length)))await yhPush('slidesAll',ynSlidesSnap(),'読み取りの前');
   let cur=-1;
+  ytRunStart('read');
   try{
     for(let i=0;i<YN.slides.length;i++){
       const s=YN.slides[i];
@@ -11498,9 +11502,10 @@ async function ynReadZones(btn,only){
       const part=await ynBlobToPart(s.blob,1024);
       const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({prompt:YN_VISION_PROMPT,resources:[],temperature:0,files:[{name:part.name,mimeType:part.mimeType,data:part.data}],
-          models:ytModels('read'),onBusy:'stop'})});
+          models:ytModels('read')})});
       const data=await res.json();
       if(!data.ok)throw new Error(`${i+1}枚目: ${ytAiErr(data,'read')}`);
+      ytRunUsed('read',data);
       let vr;try{vr=ynParseVision(data.text);}catch(e){throw new Error(`${i+1}枚目: ${e.message}`);}
       await ynZonesKeep(i,'読み取り直す前');
       s.zones=vr.zones;s.texts=vr.texts;
@@ -12292,7 +12297,7 @@ async function ynAiPlan(btn){
   try{
     const files=[];for(let i=0;i<YN.slides.length;i++){const a=await ynAnnotated(i);files.push({name:a.name,mimeType:a.mimeType,data:a.data});}
     const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,resources:[],files,temperature:0.1,
-      models:ytModels('plan'),onBusy:'stop'})});
+      models:ytModels('plan')})});
     const data=await res.json();if(!data.ok)throw new Error(ytAiErr(data,'plan'));
     ynEl('plan').value=data.text||'';saveState();
     ynApplyPlan(ynParsePlan(data.text||''));
@@ -13021,7 +13026,7 @@ async function yqDetect(blob){
   const part=await ynBlobToPart(blob,1024);
   const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({prompt:YQ_PROMPT,resources:[],temperature:0,files:[{name:part.name,mimeType:part.mimeType,data:part.data}],
-      models:ytModels('qr'),onBusy:'stop'})});
+      models:ytModels('qr')})});
   const data=await res.json();
   if(!data.ok)throw new Error(ytAiErr(data,'qr'));
   const m=String(data.text||'').match(/\{[\s\S]*\}/);
