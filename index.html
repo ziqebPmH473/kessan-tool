@@ -12485,6 +12485,8 @@ async function ynExport(btn){
     let nar={file:YA.file,name:'narration.'+ext,label:YA.fileName},opedNote='';
     const oped=await ynOpedBuild({zip,slides,switchPoints,decorations,cornerTelops,subs,cuts,newId:()=>++id,nUsed:occ.length});
     if(oped){nar=oped.nar;opedNote=oped.note;if(oped.hasEd)p.endPad=0;}
+    // ED の字幕だけを .srt で取り出せるように控える（ナレスラで字幕を全部消したあと、ED の分だけ取り込み直すため）。時刻はこの .svpz と同じ
+    await ynPut('edsrt',oped&&oped.edSubs&&oped.edSubs.length?{srt:ynSrt(oped.edSubs),at:new Date().toISOString()}:null);
     p.msubSettings=Object.assign({},p.msubSettings||{},{style:'news'});   // 字幕の共通設定のスタイル＝📰 ニュース/報道（ひな形の設定を取り込むときも、ここはニュース/報道にする）   // ED の後ろの無音はツールで入れるので、ナレスラの終了後の無音は 0
     p.fx=Object.assign({},p.fx||{},{bgmVol:0.02});   // BGM の音量は 2%（ひな形を使うときも）
     // BGM：設定で選んだものを入れる（「なし」なら、ひな形の BGM のまま）
@@ -12624,6 +12626,7 @@ async function ynOpedBuild(c){
       c.decorations.push({id:c.newId(),type:'text',imgX1:.5,imgY1:ys[x.i-1],imgX2:.5,imgY2:ys[x.i-1],color:'#ffffff',startTime:r2(t0+x.s),endTime:r2(opEnd),startSil:null,endSil:null,opacity:100,lineWidth:3,animIn:'fade',animOut:'fade',text:`${'①②③'[x.i-1]} ${s}`,textStyle:'simple',align:'center',size:SZ});});
     notes.push(`オープニング ${L.toFixed(1)}秒`);
   }
+  const edSubs=[];
   if(useEd){
     const L=(gapN+edB.length+tailN)/sr;
     const vs=await ynOpedVideoSlide(c,'ed',L);
@@ -12633,12 +12636,12 @@ async function ynOpedBuild(c){
     addTelop(telop.ed,at+1);
     // 字幕：文ごと。話し始めから、次の文の話し始めの直前まで。最後の文は ED の音声の終わり（後ろの無音の直前）まで
     const t0=mainEnd+G,edEnd=t0+edB.length/sr,ts=(YO.ed.times&&YO.ed.times.length)?YO.ed.times:[{text:YO.ed.text,s:0,e:YO.ed.seconds}];
-    ts.forEach((x,i)=>{const nx=ts[i+1],e=nx?t0+nx.s-0.01:edEnd;c.subs.push({id:c.newId(),text:x.text,startTime:r2(t0+x.s),endTime:r2(Math.max(t0+x.s+0.2,e)),startSil:null,endSil:null});});
+    ts.forEach((x,i)=>{const nx=ts[i+1],e=nx?t0+nx.s-0.01:edEnd,sb={id:c.newId(),text:x.text,startTime:r2(t0+x.s),endTime:r2(Math.max(t0+x.s+0.2,e)),startSil:null,endSil:null};c.subs.push(sb);edSubs.push(sb);});
     notes.push(`エンディング ${L.toFixed(1)}秒`);
   }
   ynStatus('音声を書き出しています…','','status3');
   const label=`${String(YA.fileName||'narration').replace(/\.\w+$/,'')}（OP・ED入り）.wav`;
-  return{hasEd:useEd,nar:{file:ynWavParts(parts,nc,sr),name:'narration.wav',label},note:notes.join('・')+'を入れました（音声は WAV）'};
+  return{hasEd:useEd,edSubs,nar:{file:ynWavParts(parts,nc,sr),name:'narration.wav',label},note:notes.join('・')+'を入れました（音声は WAV）'};
 }
 // 出典の仮画像（ナレスラで差し替える）
 function ynPlaceholder(){
@@ -13198,10 +13201,21 @@ function ynBuildPaneHtml(){
     <input type="file" id="yn-tpl" accept=".svpz" onchange="ynLoadTpl(this.files[0])" style="flex:1;min-width:0;font-size:11px;">
   </div>
   <div id="yn-tpl-name" style="font-size:10px;color:var(--text-sub);"></div>
-  ${row(`<button class="main-btn download-btn" style="flex:1;font-size:13px;padding:8px 4px;" onclick="ynExport(this)">💾 .svpz を書き出す</button>`)}
+  ${row(`<button class="main-btn download-btn" style="flex:1;font-size:13px;padding:8px 4px;" onclick="ynExport(this)">💾 .svpz を書き出す</button><button class="btn-sm" style="flex:none;background:#0d9488;color:#fff;" onclick="ynEdSrtSave()" title="最後に書き出した .svpz の、エンディングの字幕だけを .srt で保存します。ナレスラの「📂 字幕取込」で読み込めます（時刻は .svpz と同じ）">📝 ED字幕</button>`)}
   <div id="yn-status3" style="display:none;font-size:11px;"></div>
   <div style="font-size:10px;color:var(--text-sub);" title="中身：スライド画像・元の音声・カット・切り替え・ズーム・強調・コーナーテロップ・字幕・出典（仮画像＋表記）。ひな形の .svpz を選ぶと、全体の設定（透かし・BGM・字幕スタイル・書き出し設定）を引き継ぎます。">ひな形の .svpz を選ぶと、透かし・BGM・字幕・書き出しの設定を引き継ぎます。</div>
 </div>`;
+}
+// 字幕を SRT に（ナレスラの字幕取込が読む形。時刻は 00:00:00,000）
+function ynSrt(subs){
+  const tc=v=>{const ms=Math.max(0,Math.round(v*1000)),h=Math.floor(ms/3600000),m=Math.floor(ms/60000)%60,s=Math.floor(ms/1000)%60;return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')},${String(ms%1000).padStart(3,'0')}`;};
+  return subs.map((x,i)=>`${i+1}\n${tc(x.startTime)} --> ${tc(x.endTime)}\n${String(x.text||'').trim()}\n`).join('\n');
+}
+async function ynEdSrtSave(){
+  const r=await ynGet('edsrt');
+  if(!r||!r.srt){alert('エンディングの字幕がありません。\nエンディングの音声を作ってから「💾 .svpz を書き出す」を押すと、ここで保存できるようになります。');return;}
+  const blob=new Blob(['\ufeff'+r.srt],{type:'text/plain'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=`${ytFileBase('','')}_ED字幕.srt`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);
 }
 async function ynLoadTpl(file){
   if(!file)return;
