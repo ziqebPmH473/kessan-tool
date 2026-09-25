@@ -9577,7 +9577,7 @@ function ytFixReplace(){
     if(n&&v.includes(n))return;   // もう今の定型文になっている
     // 前の定型文の候補：組み立てたときの控え、無ければツールの既定の文面（長いものから探す）
     const up=getDir()==='up'?'上値':'下値';
-    const cands=[a[k]].concat(k==='desc'?[YT_POST_FIXED]:ytGen()?[ygPostFixed(k,true),ygPostFixed(k,false),YT_SNS_FIXED_GEN[k],...(YT_SNS_FIXED_GEN_OLD[k]||[])]:[String(YT_SNS_FIXED[k]||'').replace(/\{下値\/上値\}/g,up)])
+    const cands=[a[k]].concat(k==='desc'?[YT_POST_FIXED]:ytGen()?[ygPostFixed(k,true),ygPostFixed(k,false),YT_SNS_FIXED_GEN[k],...(YT_SNS_FIXED_GEN_OLD[k]||[])]:[YT_SNS_FIXED[k],...(YT_SNS_FIXED_OLD[k]||[])].map(x=>String(x||'').replace(/\{下値\/上値\}/g,up)))
       .map(nl).filter(x=>x&&x!==n).sort((p,q)=>q.length-p.length);
     const o=cands.find(x=>v.includes(x));
     if(o){el.value=v.replace(o,n);done.push(nm);}else miss.push(nm);
@@ -9682,7 +9682,11 @@ const YT_SNS_FIXED={
   yp:'▶ 株価の{下値/上値}や今後のシナリオは、noteで詳しく分析しています（リンクは動画の概要欄に）',
   ig:'▶ 動画はYouTube「すみっこマネー大学」で公開中\n▶ 株価の{下値/上値}や今後のシナリオは、noteで詳しく分析しています\n（どちらもプロフィールのリンクから）',
   l8:'▶ 解説動画と、株価の{下値/上値}や今後のシナリオの分析は、noteにまとめています（プロフィールのリンクから）',
-  tt:'▶ フル版の動画は、YouTubeで「すみっこマネー大学」と検索\n▶ 株価の{下値/上値}や今後のシナリオは、noteでも詳しく分析しています',
+  tt:'▶ 動画は、YouTubeで「すみっこマネー大学」と検索してご覧ください\n▶ 株価の{下値/上値}や今後のシナリオは、noteでも詳しく分析しています',
+};
+// 株価分析の前の既定（共通設定に前の既定のまま入っていれば、新しい既定に入れ替える。手で直した文はそのまま）
+const YT_SNS_FIXED_OLD={
+  tt:['▶ フル版の動画は、YouTubeで「すみっこマネー大学」と検索\n▶ 株価の{下値/上値}や今後のシナリオは、noteでも詳しく分析しています'],   // TikTok に動画は上げないので「フル版」はおかしい（2026-09-26）
 };
 const YT_POST_FIXED=`■使用ツール
 ・素材・チャート分析：TradingView ▶ https://jp.tradingview.com/?aff_id=162125&source=Youtube
@@ -14189,6 +14193,8 @@ function kgApply(){
     const v=st[it.key];
     it.ids.forEach(id=>{const el=document.getElementById(id);if(el&&el.value!==v)el.value=v;});
   });
+  // 株価分析の SNS の定型文：前の既定のままのものは、新しい既定にする
+  Object.keys(YT_SNS_FIXED_OLD).forEach(k=>{const key='yt-f-'+k+'@stock',v=String(st[key]||'').replace(/\r\n/g,'\n').trim();if(v&&YT_SNS_FIXED_OLD[k].includes(v)){st[key]=YT_SNS_FIXED[k];seeded=true;if(ctx==='stock'){const el=document.getElementById('yt-f-'+k);if(el)el.value=st[key];}}});
   // 横動画の Gemini のモデル：前の既定（3.8 Flash＝一覧の一番上）のままのものは「自動」にする（1回だけ。2026-09-25 に自動を追加）
   if(!st._ytAuto){YT_AI_TASKS.forEach(([k])=>{const key='yt-m-'+k;if(st[key]==='gemini-3.8-flash'){st[key]='';const el=document.getElementById(key);if(el)el.value='';}});st._ytAuto=1;seeded=true;}
   if(seeded)kgSave(st);
