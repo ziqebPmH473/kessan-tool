@@ -12510,12 +12510,13 @@ async function ynExport(btn){
 // なので動画の長さ＝その区間の音声の長さ（カットは引かない）。区間の長さに切ってから入れ、切った長さを読み直して確かめる。
 let _ynMb=null;
 function ynMediabunny(){return _ynMb||(_ynMb=import('https://cdn.jsdelivr.net/npm/mediabunny@1.59.0/+esm').catch(e=>{_ynMb=null;throw new Error('動画を切る部品を読み込めませんでした（通信を確認してください）');}));}
-// 動画を先頭から L 秒に切る（音は捨てる）。先頭から切るので、中身は作り直さずにそのまま使う（できない形式のときは作り直しになる）
+// 動画を先頭から L 秒に切る（音は捨てる）。中身は作り直す（そのまま写すと、コマの順番を入れ替えて持つ動画では終わりを数コマ長く残し、
+// 長さが合わなくなる。例：16.52秒に切って 16.63秒）。画質は元と同じくらいの大きさになる「とても高い」
 async function ynTrimVideo(blob,L){
   const M=await ynMediabunny();
   const input=new M.Input({formats:M.ALL_FORMATS,source:new M.BlobSource(blob)});
   const output=new M.Output({format:new M.Mp4OutputFormat(),target:new M.BufferTarget()});
-  const conv=await M.Conversion.init({input,output,trim:{start:0,end:L},audio:{discard:true}});
+  const conv=await M.Conversion.init({input,output,trim:{start:0,end:L},audio:{discard:true},video:{forceTranscode:true,bitrate:M.QUALITY_VERY_HIGH}});
   if(conv.isValid===false)throw new Error('背景動画を切れませんでした（この動画の形式は扱えません。mp4 で作り直してください）');
   await conv.execute();
   return new Blob([output.target.buffer],{type:'video/mp4'});
