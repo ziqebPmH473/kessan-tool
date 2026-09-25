@@ -7900,12 +7900,13 @@ const YT_MODEL_LIST=[['gemini-3.8-flash','Gemini 3.8 Flash（20回/日）'],['ge
 const YT_AI_TASKS=[['cut','カットの判定',''],['oped','OP・EDの案',''],['read','まとまりの読み取り',''],['qr','QRの位置',''],['plan','演出の割り当て',''],['post','記事・投稿文','']];   // 3つ目は既定のモデル（空＝自動）   // 画面の並び＝使う順（音声 → スライド → 演出 → 記事・SNS）
 const YT_MODEL_AUTO='自動（上から順に。上限なら次へ・Lite除く）';
 const ytModelName=m=>((YT_MODEL_LIST.find(x=>x[0]===m)||[])[1]||m).replace(/（.*$/,'');
-// 自動（空）＝一覧の上から順に。上限のときは次へ。選んだときは、そのモデルから
+// 自動（空）＝一覧の上から順に。選んだときは、そのモデルから。どちらも上限のときは一覧の下へ順に（上のモデルへは戻らない）
 function ytModels(task){
   const sel=((document.getElementById('yt-m-'+task)||{}).value)||'';
   // 上限で下へ切り替えるときも Lite には落とさない（3.5 Flash Lite では読み取りの位置が大きくずれて使えなかった。2026-09-21）。Lite は自分で選んだときだけ使う
-  const auto=YT_MODEL_LIST.map(x=>x[0]).filter(m=>!/lite/.test(m));
-  return sel?[sel,...auto.filter(m=>m!==sel)]:auto;
+  const all=YT_MODEL_LIST.map(x=>x[0]),i=all.indexOf(sel);
+  const below=all.slice(i+1).filter(m=>!/lite/.test(m));   // 自動・一覧に無いモデルは i=-1 なので、上から全部
+  return sel&&i>=0?[sel,...below]:sel?[sel,...all.filter(m=>!/lite/.test(m))]:below;
 }
 // Gemini のエラーを、どのモデルで何が起きたかの日本語にする
 function ytAiErr(d,task){
