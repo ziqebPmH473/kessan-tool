@@ -7502,7 +7502,7 @@ function buildVThumb(text,P,catOver){
   const cat=catOver!=null?catOver:(P||window._vdCurP)==='ev'?'決算分析':'株価分析';
   const dt=new Date();
   const dateStr=`${dt.getFullYear()}.${dt.getMonth()+1}.${dt.getDate()}`;
-  const parts=String(text||'').split(/[：:]/);
+  const parts=thumbParts(text);
   const segs=[parseThumbnailMarkup(parts[0]||''),parseThumbnailMarkup(parts[1]||''),parseThumbnailMarkup(parts[2]||'')];
   const fit=(sg,base,weight)=>{const em=thumbTextEm(sg.map(s=>s.text).join(''),weight);if(!em)return base;return Math.max(48,Math.min(base,Math.floor((VSLIDE_W-80)/em)));};
   const tF=fit(segs[0],150,700),mF=fit(segs[1],190,900),bF=fit(segs[2],150,700);
@@ -9361,7 +9361,7 @@ function ytPostApply(){
   // AIが本文にもハッシュタグを入れてくることがある。ツールが付けるぶんと二重になるので、タグだけの行は外す
   const noTag=v=>String(v||'').replace(/\r\n/g,'\n').split('\n').filter(l=>!/^\s*[#＃][^\s#＃]+(\s+[#＃][^\s#＃]+)*\s*$/.test(l)).join('\n').trim();
   // サムネは「上段：中段：下段」の形にそろえる（／や半角:で返ってきても直す）
-  const thumb=s=>String(s||'').trim().replace(/\s*[\/／]\s*/g,'：').replace(/:/g,'：');
+  const thumb=s=>thumbParts(String(s||'').trim().replace(/\s*[\/／\n]\s*/g,'：').replace(/:/g,'：')).join('：');   // 「上段：」などの見出しが付いてきたら外す
   const sns=!j.desc&&!(Array.isArray(j.titles)&&j.titles.length);   // SNSだけを作り直したJSON（概要欄・タイトル・サムネはそのまま）
   if(!sns){
     [1,2,3].forEach(k=>{set('p-t'+k,String((j.titles||[])[k-1]||'').trim());set('p-s'+k,thumb((j.thumbs||[])[k-1]));});
@@ -13902,8 +13902,10 @@ function segsHtml(segs,def){
   return segs.map(s=>`<span style="color:${s.color||def};text-shadow:${sh}">${esc(s.text)}</span>`).join('');
 }
 
+// サムネの文を3段に分ける（「：」区切り）。「上段：〇〇：中段：〇〇：下段：〇〇」のように見出しが付いていたら、見出しは外す
+function thumbParts(text){return String(text||'').split(/[：:]/).filter(p=>!/^\s*[上中下]段\s*$/.test(p));}
 function buildThumbSlide(text){
-  const parts=text.split(/[：:]/);
+  const parts=thumbParts(text);
   const tS=parseThumbnailMarkup(parts[0]||'');
   const mS=parseThumbnailMarkup(parts[1]||'');
   const bS=parseThumbnailMarkup(parts[2]||'');
