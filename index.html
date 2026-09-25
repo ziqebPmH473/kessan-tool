@@ -961,6 +961,49 @@ select.yn-sel option{color:#0f172a;background:#fff;font-weight:400;}
   body.capturing .capture-wrapper { zoom: 1 !important; overflow-x: auto; }
 }
 
+
+/* ===== 決算カレンダー（画面いっぱいに重ねて出す。PJ・保存とは関係しない） ===== */
+.kc{position:fixed;inset:0;z-index:9000;background:#fff;overflow:auto;font-size:13px;color:#1e293b;}
+.kc[hidden]{display:none;}
+.kc-in{max-width:1040px;margin:0 auto;padding:12px 16px 40px;}
+.kc-head{display:flex;align-items:flex-end;gap:6px;flex-wrap:wrap;}
+.kc-head h2{font-size:18px;margin:0 10px 6px 0;}
+.kc-mk{padding:7px 18px;border:1px solid #cbd5e1;border-bottom:none;border-radius:6px 6px 0 0;background:#e2e8f0;color:#475569;font-weight:bold;font-size:13px;cursor:pointer;}
+.kc-mk.on{background:#eab308;color:#1e293b;border-color:#eab308;}
+.kc-close{margin:0 0 6px auto;padding:6px 14px;border:1px solid #cbd5e1;border-radius:6px;background:#f1f5f9;cursor:pointer;font-weight:bold;}
+.kc-bar{height:3px;background:#eab308;margin-bottom:10px;}
+.kc-filter{display:flex;gap:6px;align-items:center;background:#f1f5f9;padding:8px 10px;border-radius:6px;flex-wrap:wrap;}
+.kc-filter input{flex:1;min-width:160px;max-width:320px;padding:5px 8px;border:1px solid #cbd5e1;border-radius:4px;font-size:13px;}
+.kc-filter button{padding:5px 12px;border:1px solid #ca8a04;border-radius:4px;background:#fef9c3;font-weight:bold;cursor:pointer;}
+.kc-note{font-size:11px;color:#64748b;margin:6px 0;}
+.kc-cals{display:flex;align-items:center;gap:6px;margin-top:8px;}
+.kc-nav{flex:none;width:28px;height:60px;border:none;background:none;font-size:30px;color:#94a3b8;cursor:pointer;}
+.kc-nav:hover{color:#475569;}
+.kc-months{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:16px;min-width:0;}
+.kc-mt{text-align:center;font-weight:bold;color:#1e3a8a;margin-bottom:4px;}
+.kc-grid{width:100%;border-collapse:collapse;table-layout:fixed;}
+.kc-grid th{font-size:12px;padding:2px 0;}
+.kc-grid td{border:1px solid #e2e8f0;height:44px;vertical-align:top;padding:2px 3px;cursor:pointer;background:#fff;}
+.kc-grid td.x{cursor:default;background:#fff;}
+.kc-grid td.has{background:#fefce8;}
+.kc-grid td.today{outline:2px solid #fbbf24;outline-offset:-2px;}
+.kc-grid td.sel{background:#fecdd3;outline:2px solid #be123c;outline-offset:-2px;}
+.kc-grid td:not(.x):not(.sel):hover{background:#fef3c7;}
+.kc-d{font-weight:bold;font-size:12px;}
+.kc-n{text-align:right;font-size:11px;color:#57534e;margin-top:6px;}
+.kc-sun{color:#dc2626;}.kc-sat{color:#2563eb;}
+.kc-listhead{display:flex;align-items:baseline;gap:10px;margin:16px 0 6px;flex-wrap:wrap;}
+.kc-listhead b{font-size:15px;}
+.kc-tbl{width:100%;border-collapse:collapse;}
+.kc-tbl th{background:#fef9c3;border:1px solid #e5e7eb;padding:5px 6px;font-size:12px;white-space:nowrap;}
+.kc-tbl td{border:1px solid #e5e7eb;padding:4px 6px;font-size:12px;}
+.kc-tbl td.c{text-align:center;white-space:nowrap;}
+.kc-tbl td.r{text-align:right;white-space:nowrap;}
+.kc-tbl a{color:#1d4ed8;text-decoration:none;}
+.kc-tbl a:hover{text-decoration:underline;}
+.kc-msg{padding:16px;text-align:center;color:#64748b;}
+.kc-err{color:#b91c1c;}
+@media (max-width:700px){.kc-months{grid-template-columns:1fr;}.kc-nav{width:18px;font-size:24px;}.kc-tbl .kc-opt{display:none;}}
     </style>
 </head>
 <body>
@@ -980,6 +1023,7 @@ select.yn-sel option{color:#0f172a;background:#fff;font-weight:400;}
             </select>
             <button type="button" class="kt-pjbtn" onclick="ktPjNew()" title="この種別で新しいPJを始める">＋新規</button>
             <button type="button" class="kt-pjbtn kt-pjdel" onclick="ktPjDelete()" title="開いているPJを消す（確認あり）">削除</button>
+            <button type="button" class="kt-pjbtn" onclick="kcOpen()" title="日本株・米国株の決算発表の予定日をカレンダーで見る">📅 決算カレンダー</button>
             <select id="kt-pj" class="kt-pjsel kt-pjlist" title="開くPJ（作成日 名前）。続きはここから選ぶ" onchange="ktPjChange(this.value)"></select>
         </div>
 
@@ -13750,6 +13794,101 @@ try{
 // 関連記事の候補はキャッシュから復元する（リロードでセレクトが空にならないように）
 try{if(typeof relCacheLoad==='function'&&relCacheLoad())relFillSelect();}catch(e){}
 }));
+
+// =====================================================
+// 決算カレンダー（上の「📅 決算カレンダー」で開く）。PJ・保存には関わらない。
+// 取り先：米国＝Nasdaq（月ごと）、日本＝JPX の決算発表予定日（全部）＋日経の決算発表スケジュール（月ごと）。/api/calendar が読んで返す
+// =====================================================
+const KC={mk:'us',base:null,sel:'',q:'',jpx:null,mon:{jp:{},us:{}},busy:{}};
+const kcIso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const kcMon=(d,n)=>{const x=new Date(d.getFullYear(),d.getMonth()+n,1);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0');};
+const kcEsc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function kcOpen(){
+  if(!KC.base){const t=new Date();KC.base=new Date(t.getFullYear(),t.getMonth(),1);KC.sel=kcIso(t);try{KC.mk=localStorage.getItem('kc-mk')||'us';}catch(e){}}
+  document.getElementById('kc-view').hidden=false;document.body.style.overflow='hidden';
+  kcMarket(KC.mk);
+}
+function kcClose(){document.getElementById('kc-view').hidden=true;document.body.style.overflow='';}
+function kcMarket(mk){
+  KC.mk=mk;try{localStorage.setItem('kc-mk',mk);}catch(e){}
+  document.querySelectorAll('.kc-mk').forEach(b=>b.classList.toggle('on',b.dataset.mk===mk));
+  document.getElementById('kc-qlabel').textContent=mk==='us'?'ティッカー・企業名：':'コード・企業名：';
+  kcLoadShown();
+}
+function kcShift(n){KC.base=new Date(KC.base.getFullYear(),KC.base.getMonth()+n,1);kcLoadShown();}
+function kcPick(d){KC.sel=d;if(KC.q){KC.q='';document.getElementById('kc-q').value='';}kcRender();}
+function kcFilter(){KC.q=document.getElementById('kc-q').value.trim().toLowerCase();kcRender();}
+async function kcGet(q){const r=await fetch('/api/calendar?'+q);const j=await r.json().catch(()=>({ok:false,error:'返事が読めません（'+r.status+'）'}));if(!j.ok)throw new Error(j.error||('エラー '+r.status));return j;}
+// 表示中の2か月ぶんを読む（読んだ月は覚えておく）
+function kcLoadShown(){
+  const mk=KC.mk,ms=[kcMon(KC.base,0),kcMon(KC.base,1)];
+  if(mk==='jp'&&!KC.jpx&&!KC.busy.jpx){KC.busy.jpx=1;kcGet('market=jp&src=jpx').then(j=>{KC.jpx=j;}).catch(e=>{KC.jpx={rows:[],error:'JPX：'+e.message};}).finally(()=>{KC.busy.jpx=0;kcRender();});}
+  for(const m of ms){
+    if(KC.mon[mk][m]||KC.busy[mk+m])continue;
+    KC.busy[mk+m]=1;
+    (async()=>{
+      let rows=[],failed=[];
+      if(mk==='us'){const j=await kcGet('market=us&month='+m);rows=j.rows;failed=j.failed||[];}
+      else{let hm=1;do{const j=await kcGet('market=jp&month='+m+'&hm='+hm);rows.push(...j.rows);hm=j.next;}while(hm);}
+      KC.mon[mk][m]={rows,failed};
+    })().catch(e=>{KC.mon[mk][m]={rows:[],failed:[],error:(mk==='us'?'Nasdaq：':'日経：')+e.message};}).finally(()=>{KC.busy[mk+m]=0;kcRender();});
+  }
+  kcRender();
+}
+// 表示中の2か月の行（日本は JPX を優先し、日経は JPX に載っていない会社だけ足す）
+function kcRows(){
+  const mk=KC.mk,ms=[kcMon(KC.base,0),kcMon(KC.base,1)];let out=[];
+  if(mk==='us'){for(const m of ms)if(KC.mon.us[m])out.push(...KC.mon.us[m].rows);}
+  else{
+    const jr=(KC.jpx&&KC.jpx.rows)||[],near=new Map();
+    for(const r of jr){if(!near.has(r.code))near.set(r.code,[]);near.get(r.code).push(r.date);}
+    const inJpx=(code,date)=>(near.get(code)||[]).some(d=>Math.abs(new Date(d)-new Date(date))<45*864e5);
+    out.push(...jr.filter(r=>ms.includes(r.date.slice(0,7))));
+    for(const m of ms)if(KC.mon.jp[m])out.push(...KC.mon.jp[m].rows.filter(r=>!inJpx(r.code,r.date)));
+  }
+  if(KC.q)out=out.filter(r=>((r.symbol||r.code||'')+' '+(r.name||'')).toLowerCase().includes(KC.q));
+  return out;
+}
+// 時価総額（ドル）→ 「1.2兆ドル」「350億ドル」「80百万ドル」
+function kcCap(n){if(!n)return '—';if(n>=1e12)return (n/1e12).toFixed(2).replace(/\.?0+$/,'')+'兆ドル';if(n>=1e8)return Math.round(n/1e8).toLocaleString()+'億ドル';return Math.round(n/1e6)+'百万ドル';}
+function kcRender(){
+  const v=document.getElementById('kc-view');if(!v||v.hidden)return;
+  const mk=KC.mk,ms=[kcMon(KC.base,0),kcMon(KC.base,1)],rows=kcRows(),cnt={},today=kcIso(new Date());
+  for(const r of rows)cnt[r.date]=(cnt[r.date]||0)+1;
+  const loading=ms.some(m=>!KC.mon[mk][m])||(mk==='jp'&&!KC.jpx);
+  const errs=ms.map(m=>KC.mon[mk][m]&&KC.mon[mk][m].error).concat(mk==='jp'&&KC.jpx&&KC.jpx.error).filter(Boolean);
+  const failed=ms.flatMap(m=>(KC.mon[mk][m]&&KC.mon[mk][m].failed)||[]);
+  // カレンダー（2か月）
+  document.getElementById('kc-months').innerHTML=ms.map(m=>{
+    const [y,mo]=m.split('-').map(Number),first=new Date(y,mo-1,1),days=new Date(y,mo,0).getDate();
+    let h='<div><div class="kc-mt">'+y+'年'+mo+'月</div><table class="kc-grid"><tr>'+['日','月','火','水','木','金','土'].map((w,i)=>'<th class="'+(i===0?'kc-sun':i===6?'kc-sat':'')+'">'+w+'</th>').join('')+'</tr><tr>';
+    let col=0;for(;col<first.getDay();col++)h+='<td class="x"></td>';
+    for(let d=1;d<=days;d++,col++){
+      if(col&&col%7===0)h+='</tr><tr>';
+      const iso=m+'-'+String(d).padStart(2,'0'),n=cnt[iso]||0,w=col%7;
+      h+='<td class="'+(n?'has ':'')+(iso===today?'today ':'')+(iso===KC.sel&&!KC.q?'sel':'')+'" onclick="kcPick(\''+iso+'\')"><div class="kc-d '+(w===0?'kc-sun':w===6?'kc-sat':'')+'">'+d+'</div>'+(n?'<div class="kc-n">'+n+'件</div>':'')+'</td>';
+    }
+    for(;col%7;col++)h+='<td class="x"></td>';
+    return h+'</tr></table></div>';
+  }).join('');
+  // 情報元と読み込みの様子
+  const src=mk==='us'?'情報元：Nasdaq。日付は米国の日付、時刻は寄り前（取引開始前）／引け後（取引終了後）':'情報元：東証（JPX）の決算発表予定日 ＋ 日経の決算発表スケジュール。3月期・9月期の会社は、会社が発表日を決めてから載ります';
+  document.getElementById('kc-src').innerHTML=kcEsc(src)+(loading?' ／ <b>読み込み中…</b>':'')+(errs.length?' ／ <span class="kc-err">読めませんでした（'+kcEsc(errs.join('、'))+'）</span>':'')+(failed.length?' ／ <span class="kc-err">読めなかった日：'+failed.map(d=>+d.slice(5,7)+'/'+ +d.slice(8)).join('、')+'</span>':'');
+  // 一覧（絞り込み中は2か月ぶん全部、ふだんは選んだ日）
+  let list=KC.q?rows:rows.filter(r=>r.date===KC.sel);
+  list=list.slice().sort((a,b)=>a.date.localeCompare(b.date)||(mk==='us'?(b.cap-a.cap):String(a.code).localeCompare(String(b.code))));
+  const [sy,sm,sd]=KC.sel.split('-').map(Number);
+  document.getElementById('kc-ltitle').textContent=KC.q?'「'+document.getElementById('kc-q').value.trim()+'」の検索結果（'+ms.map(m=>+m.slice(5)+'月').join('・')+'）':sy+'年'+sm+'月'+sd+'日（'+'日月火水木金土'[new Date(sy,sm-1,sd).getDay()]+'）';
+  document.getElementById('kc-lcount').textContent=list.length+'件'+(mk==='us'&&list.length>1?'（時価総額の大きい順）':'');
+  const el=document.getElementById('kc-list');
+  if(!list.length){el.innerHTML='<div class="kc-msg">'+(loading?'読み込み中…':KC.q?'見つかりませんでした':'この日の決算発表の予定はありません')+'</div>';return;}
+  if(mk==='us'){
+    el.innerHTML='<table class="kc-tbl"><tr><th>発表日</th><th>時刻</th><th>ティッカー</th><th>銘柄名</th><th class="kc-opt">時価総額</th><th class="kc-opt">予想EPS</th><th class="kc-opt">決算期</th></tr>'+list.map(r=>'<tr><td class="c">'+r.date.replace(/-/g,'/')+'</td><td class="c">'+kcEsc(r.time||'—')+'</td><td class="c"><a href="https://us.kabutan.jp/stocks/'+encodeURIComponent(r.symbol)+'" target="_blank" rel="noopener" title="株探で開く">'+kcEsc(r.symbol)+'</a></td><td>'+kcEsc(r.name)+'</td><td class="r kc-opt">'+kcCap(r.cap)+'</td><td class="r kc-opt">'+kcEsc(r.eps||'—')+'</td><td class="c kc-opt">'+kcEsc(r.fq)+'</td></tr>').join('')+'</table>';
+  }else{
+    el.innerHTML='<table class="kc-tbl"><tr><th>発表日</th><th>コード</th><th>銘柄名</th><th>種別</th><th class="kc-opt">決算期</th><th class="kc-opt">業種</th><th class="kc-opt">市場</th></tr>'+list.map(r=>'<tr><td class="c">'+r.date.replace(/-/g,'/')+'</td><td class="c"><a href="https://kabutan.jp/stock/?code='+encodeURIComponent(r.code)+'" target="_blank" rel="noopener" title="株探で開く">'+kcEsc(r.code)+'</a></td><td>'+kcEsc(r.name)+'</td><td class="c">'+kcEsc(r.kind||'—')+'</td><td class="c kc-opt">'+kcEsc(/^\d{4}-\d{2}$/.test(r.fy)?(+r.fy.slice(5))+'月期':r.fy)+'</td><td class="kc-opt">'+kcEsc(r.industry)+'</td><td class="c kc-opt">'+kcEsc(r.segment)+'</td></tr>').join('')+'</table>';
+  }
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){const v=document.getElementById('kc-view');if(v&&!v.hidden)kcClose();}});
     </script>
 <div class="sa">
 <div id="render-target" style="position:fixed;left:-9999px;top:0;pointer-events:none;"></div>
@@ -13869,6 +14008,34 @@ try{if(typeof relCacheLoad==='function'&&relCacheLoad())relFillSelect();}catch(e
 
 ---
 【システム用の出力指示（最優先・厳守）】各ブロックは必ず見出し「【タイトル】」「【本　文】」「【サムネ構成案】」「【ハッシュタグ】」「【X（旧Twitter）告知文】」「【証券管理ツール用データ】」を行頭に付けて出力し、その直後に内容を ``` で囲んだコードブロックで記載すること。見出しは絶対に省略せず、必ずコードブロックの「外」（``` の前の行）に置くこと。コードブロックだけを並べる出力は禁止。出力前に、タイトル・本文・サムネ構成案・X告知文に、読者へ売買行動を促す表現（買うべき・待つべき・見送るべき・仕込む・利確・損切り等）、読者に確認・監視・想定を求める表現（〜を確認する必要があります・〜を注視する必要があります・〜せねばなりません等）、独自分析への「目標株価」「上値目標」が残っていないかを確認し、残っていれば【売買行動・読者行動表現の変換ルール】に従って直してから出力すること。</script>
+
+
+<!-- 決算カレンダー（上の「📅 決算カレンダー」で開く。PJには入らない） -->
+<div id="kc-view" class="kc" hidden>
+  <div class="kc-in">
+    <div class="kc-head">
+      <h2>📅 決算カレンダー</h2>
+      <button class="kc-mk" data-mk="jp" onclick="kcMarket('jp')">国内株式</button>
+      <button class="kc-mk" data-mk="us" onclick="kcMarket('us')">米国株式</button>
+      <button class="kc-close" onclick="kcClose()">✕ 閉じる</button>
+    </div>
+    <div class="kc-bar"></div>
+    <div class="kc-filter">
+      <label for="kc-q" id="kc-qlabel">コード・企業名：</label>
+      <input type="text" id="kc-q" onkeydown="if(event.key==='Enter')kcFilter()">
+      <button onclick="kcFilter()">絞り込み</button>
+      <button onclick="document.getElementById('kc-q').value='';kcFilter()" style="background:#fff;border-color:#cbd5e1;">解除</button>
+    </div>
+    <div class="kc-note" id="kc-src"></div>
+    <div class="kc-cals">
+      <button class="kc-nav" onclick="kcShift(-1)" title="前の月">‹</button>
+      <div class="kc-months" id="kc-months"></div>
+      <button class="kc-nav" onclick="kcShift(1)" title="次の月">›</button>
+    </div>
+    <div class="kc-listhead"><b id="kc-ltitle"></b><span id="kc-lcount"></span></div>
+    <div id="kc-list"></div>
+  </div>
+</div>
 
 </body>
 </html>
