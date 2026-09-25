@@ -9645,19 +9645,18 @@ function ytPostBuild(snsOnly){
     ytEl('p-tt').value=J([ytVal('p-ttbody'),pts.length?L2+'\n'+bul:'',ygPostFixed('tt'),ytVal('p-tttags')]);
     ytFixRecord();saveState();return;
   }
-  // YouTubeの投稿・Instagram・Lemon8・TikTok：同じ hook と「この動画で分かること」を使い、誘導とnoteの案内は定型文
+  // YouTubeの投稿・Instagram・Lemon8・TikTok：hook（問いかけ）＋ x（この動画が株式投資にどう役立つか）。誘導とnoteの案内は定型文
+  //   動画の中身を並べる箇条書き（この動画で分かること）や Lemon8 の最初の段落は入れない（結論を書いてしまうため）
   if(hook){
-    const pts=ytVal('p-points').split(/\n/).map(s=>s.trim()).filter(Boolean);
-    const L='この動画で分かること',bul=pts.map(s=>'・'+s).join('\n'),num=pts.map((s,i)=>('①②③④⑤⑥⑦⑧⑨⑩'[i]||'・')+' '+s).join('\n');
-    const J=a=>a.filter(Boolean).join('\n\n');
-    ytEl('p-yp').value=[hook,pts.join('／'),ytVal('p-yptags')].filter(Boolean).join('\n');   // YouTubeの投稿は動画が付く。「続きを読む」に隠れないよう3行（空行・定型文・noteなし。noteは別に投稿している）
-    ytEl('p-ig').value=J([hook,pts.length?L+'\n'+bul:'',ytPostFixedText('ig'),ytVal('p-igtags')]);
+    const J=a=>a.filter(Boolean).join('\n\n'),top=[hook,xbody].filter(Boolean).join('\n');
+    ytEl('p-yp').value=[hook,xbody,ytVal('p-yptags')].filter(Boolean).join('\n');   // YouTubeの投稿は動画が付く。「続きを読む」に隠れないよう3行（空行・定型文・noteなし。noteは別に投稿している）
+    ytEl('p-ig').value=J([top,ytPostFixedText('ig'),ytVal('p-igtags')]);
     // 見出し：AIが【#銘柄名（コード）】ごと書く。【】が無いときだけ付ける。TikTok の見出しも同じ（株価分析）
     const l8r=ytVal('p-l8title'),l8=ytGen()?l8r.replace(/^【[^】]*】\s*/,''):(!l8r||/^【/.test(l8r)?l8r:`【#${(getName()||'').replace(/\s+/g,'')}（${getTicker()||''}）】${l8r}`);
     ytEl('p-l8t').value=l8;
     if(!ytGen())ytEl('p-ttt').value=l8;
-    ytEl('p-l8').value=J([ytVal('p-l8intro'),pts.length?L+'\n'+num:'',ytPostFixedText('l8'),ytVal('p-l8tags')]);
-    ytEl('p-tt').value=J([[hook,bul].filter(Boolean).join('\n'),ytPostFixedText('tt'),ytVal('p-tttags')]);
+    ytEl('p-l8').value=J([top,ytPostFixedText('l8'),ytVal('p-l8tags')]);
+    ytEl('p-tt').value=J([top,ytPostFixedText('tt'),ytVal('p-tttags')]);
   }
   ytFixRecord();saveState();
 }
