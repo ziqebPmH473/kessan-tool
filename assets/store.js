@@ -85,9 +85,9 @@
   function pendingSave() {
     const out = {};
     Object.keys(S.pending).forEach(id => {
-      const d = S.pending[id]; out[id] = { kind: d.kind, title: d.title, meta: d.meta, json: d.json, force: !!d.force };
+      const d = S.pending[id]; out[id] = { kind: d.kind, title: d.title, meta: d.meta, json: d.json, force: !!d.force, ver: d.ver != null ? d.ver : (S.versions[id] || 0) };
       // PJ の行は端末にも残す（ver＝この変更のもとになったサーバーの版。開くときに、サーバーが進んでいないかを見る）
-      if (id !== 'shared') { lsSet(PEND_PREFIX + id, JSON.stringify(Object.assign({}, out[id], { ver: S.versions[id] || 0, at: nowIso() }))); S.pendWrote[id] = 1; }
+      if (id !== 'shared') { lsSet(PEND_PREFIX + id, JSON.stringify(Object.assign({}, out[id], { at: nowIso() }))); S.pendWrote[id] = 1; }
     });
     Object.keys(S.pendWrote).forEach(id => { if (!S.pending[id]) { lsSet(PEND_PREFIX + id, null); delete S.pendWrote[id]; } });
     ssSet(PENDING_KEY, Object.keys(out).length ? JSON.stringify(out) : null);
@@ -99,7 +99,8 @@
   // 返すのは画面に出す中身。未送信の方を採るときは S.pending に入れ直す（呼ぶ側が送る）
   function adoptPending(id, doc, kind) {
     const mine = S.pending[id];
-    const p = mine ? { kind: mine.kind, title: mine.title, meta: mine.meta, json: mine.json, force: !!mine.force, ver: S.versions[id] || 0 } : parse(lsGet(PEND_PREFIX + id));
+    // ver は変更を控えたときの版（採るときの S.versions は、いま読んだサーバーの版になっていて、比べても必ず同じになる）
+    const p = mine ? { kind: mine.kind, title: mine.title, meta: mine.meta, json: mine.json, force: !!mine.force, ver: mine.ver != null ? mine.ver : (S.versions[id] || 0) } : parse(lsGet(PEND_PREFIX + id));
     delete S.pending[id];
     const drop = () => { lsSet(PEND_PREFIX + id, null); delete S.pendWrote[id]; };
     if (!p || !p.json) { drop(); return doc ? doc.json : null; }
@@ -110,7 +111,7 @@
     if (!useLocal) useLocal = !confirm('この PJ に、前に送れなかった変更が残っています。\nしかし、その後に別の端末（またはタブ）でも同じ PJ が保存されていました。\n\nOK＝サーバーの内容を使う（送れなかった変更は捨てる）\nキャンセル＝送れなかった変更で上書きする');
     if (!useLocal) { drop(); return doc ? doc.json : null; }
     S.versions[id] = serverVer;
-    S.pending[id] = { kind: p.kind || kind || kindOfId(id), title: p.title || '', meta: p.meta || metaOf(id, p.title || ''), json: p.json, jsonStr: pj, force: !!p.force };
+    S.pending[id] = { kind: p.kind || kind || kindOfId(id), title: p.title || '', meta: p.meta || metaOf(id, p.title || ''), json: p.json, jsonStr: pj, force: !!p.force, ver: serverVer };
     S.pendWrote[id] = 1;
     return p.json;
   }
@@ -187,7 +188,9 @@
     TABS.forEach(t => {
       const d = kd[t];
       let id = S.cur[t];
-      if (id && S.mode === 'server' && !S.loaded[t]) return;   // 中身を画面に入れ終えていない PJ は保存しない（初期値で上書きしないため）
+      // 中身を画面に入れ終えていない PJ は保存しない（初期値で上書きしないため）。起動中（サーバーの一覧を待っている間は mode が 'local'）も止める。
+      // 以前は mode === 'server' のときだけ止めていて、再読み込み直後の保存が分析の欄が空のまま控えられ、一覧が届いたあとに送られていた（2026-09-26）
+      if (id && !S.loaded[t]) return;
       if (id) {
         // 持ち越し：いま画面に無い欄（別の種別の側に移っている横動画の欄など）は、前に保存した値を残す。
         // 行の json は丸ごと置き換わるので、こうしないと消えてしまう
@@ -209,7 +212,7 @@
       delete S.force[t];
       if (j === S.last[id]) return;
       const title = (typeof S.titleOf === 'function') ? (S.titleOf(t, d.json.fields || {}) || '') : d.title;
-      S.pending[id] = { kind: t, title, meta: metaOf(id, title), json: d.json, jsonStr: j }; changed = true;
+      S.pending[id] = { kind: t, title, meta: metaOf(id, title), json: d.json, jsonStr: j, ver: S.versions[id] || 0 }; changed = true;   // ver＝この変更のもとになったサーバーの版
     });
     const sj = JSON.stringify(kd.shared.json);
     if (sj !== S.last.shared) { S.pending.shared = { kind: 'shared', title: '', meta: {}, json: kd.shared.json, jsonStr: sj, force: true }; changed = true; }
