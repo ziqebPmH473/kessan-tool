@@ -8816,7 +8816,7 @@ const ytAud=()=>ytVal('g-aud')||YT_G_AUD_DEFAULT;
 function ytIntent(){
   const s=ytSeries();
   if(ytGen())return `「${ytTheme()||'（テーマ未入力）'}」というテーマの動画${s?`（「${s}」というシリーズで）`:''}`;
-  return `${getName()||'この会社'}の株価${getDir()==='up'?'上昇':'下落'}の原因と強み、今後見るべき点などを分析する動画${s?`（「${s}」というシリーズで）`:''}`;
+  return `個人投資家向けに、${getName()||'この会社'}の株価${getDir()==='up'?'上昇':'下落'}の原因と強み、今後見るべき点などを分析する動画${s?`（「${s}」というシリーズで）`:''}`;
 }
 function ytNotebookPrompt(){
   const up=getDir()==='up',name=getName()||'この会社',min=ytVal('nlm-min')||'12';
