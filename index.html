@@ -12547,7 +12547,7 @@ async function ynVideoProbe(blob){
   return{dur,poster};
 }
 // 16bit の WAV（チャンネルはそのまま）。つなぐ部品を順に直接書き込む（途中の配列を作らない。長い音声でも使う量を抑える）
-// parts：[{src:[チャンネルごとの Float32Array], from, to}（本編の一部）｜{mono:Float32Array}（全チャンネルに同じ音）｜{silence:標本数}]
+// parts：[{src:[チャンネルごとの Float32Array], from, to}（本編の一部）｜{mono:Float32Array, gain}（全チャンネルに同じ音。gain は音量の倍率）｜{silence:標本数}]
 function ynWavParts(parts,nc,sr){
   const n=parts.reduce((a,p)=>a+(p.silence!=null?p.silence:p.mono?p.mono.length:p.to-p.from),0);
   const buf=new ArrayBuffer(44+n*nc*2),dv=new DataView(buf);
@@ -12558,7 +12558,7 @@ function ynWavParts(parts,nc,sr){
   let o=44;
   for(const p of parts){
     if(p.silence!=null){o+=p.silence*nc*2;continue;}   // ArrayBuffer は 0 で始まるので、無音は飛ばすだけ
-    if(p.mono){for(let i=0;i<p.mono.length;i++){const v=q(p.mono[i]);for(let c=0;c<nc;c++){dv.setInt16(o,v,true);o+=2;}}continue;}
+    if(p.mono){const g=p.gain||1;for(let i=0;i<p.mono.length;i++){const v=q(p.mono[i]*g);for(let c=0;c<nc;c++){dv.setInt16(o,v,true);o+=2;}}continue;}
     for(let i=p.from;i<p.to;i++)for(let c=0;c<nc;c++){dv.setInt16(o,q(p.src[c][i]),true);o+=2;}
   }
   return new Blob([buf],{type:'audio/wav'});
@@ -12602,9 +12602,10 @@ async function ynOpedBuild(c){
   }
   const mainN=B.length+(useOp?gapN*2+opB.length:0);
   const src=[];for(let ch=0;ch<nc;ch++)src.push(B.getChannelData(ch));
-  const parts=useOp?[{src,from:0,to:iOp},{silence:gapN},{mono:opB.getChannelData(0)},{silence:gapN},{src,from:iOp,to:B.length}]:[{src,from:0,to:B.length}];
+  const vol=parseFloat(String(kgGet('oped-vol')).replace(/[^0-9.]/g,'')),gain=(isFinite(vol)?Math.max(0,vol):85)/100;   // OP・EDの音量（共通設定。85%＝本編より大きく聞こえないように）
+  const parts=useOp?[{src,from:0,to:iOp},{silence:gapN},{mono:opB.getChannelData(0),gain},{silence:gapN},{src,from:iOp,to:B.length}]:[{src,from:0,to:B.length}];
   const tailN=Math.round(YT_OPED_ED_TAIL*sr);
-  if(useEd)parts.push({silence:gapN},{mono:edB.getChannelData(0)},{silence:tailN});
+  if(useEd)parts.push({silence:gapN},{mono:edB.getChannelData(0),gain},{silence:tailN});
   // 時刻のずらし：OP の位置より後ろは dOp 足す（始まりは OP の位置ちょうどから、終わりは OP の位置より後ろから）
   const fS=t=>useOp&&t>=tOp-1e-6?t+dOp:t, fE=t=>useOp&&t>tOp+1e-6?t+dOp:t, r2=v=>+v.toFixed(2);
   c.slides.forEach(s=>(s.zoomKeyframes||[]).forEach(k=>{k.startTime=r2(fS(k.startTime));k.endTime=r2(fE(k.endTime));}));
@@ -14141,6 +14142,7 @@ const KG_ITEMS=[
   {g:'thumb',key:'th3',label:'3段目の初期値',ids:[],def:'#底値#と%５つの反転サイン%'},
   {g:'voice',key:'tts-voice',label:'台本の声',ids:['vd-tts-voice','ev-tts-voice']},
   {g:'voice',key:'tts-model',label:'台本の声のモデル',ids:['vd-tts-model','ev-tts-model']},
+  {g:'voice',key:'oped-vol',label:'OP・EDの音量（%）',ids:[],def:'85',tip:'横動画の書き出しで、OP・EDの音声にかける大きさ。100＝作ったままの大きさ。100より大きくもできます（大きすぎると音が割れます）'},
   {g:'model',key:'model',label:'縦動画の文章モデル',ids:['vd-model','ev-model']},
   ...YT_AI_TASKS.map(([k,n])=>({g:'ytmodel',key:'yt-m-'+k,label:n,ids:['yt-m-'+k]})),
   {g:'post',key:'fixed-tags',label:'固定タグ',ids:['vd-fixed-tags','ev-fixed-tags'],tip:'X・Instagram・TikTokの投稿文の末尾に必ず付けるタグ（空欄で付けない）'},
