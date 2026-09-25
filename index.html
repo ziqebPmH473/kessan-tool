@@ -9559,7 +9559,7 @@ function ytNoteUrlSet(inp,manual){
 }
 // 定型文の箇所：概要欄は設定タブの「概要欄の定型文」、SNSは見る場所・noteの案内（YT動画は note のURLの有無で変わる）
 function ytFixedFor(k){return k==='desc'?ytVal('p-fixed'):(ytGen()?ygPostFixed(k):ytPostFixedText(k));}
-const YT_FIX_TARGETS=[['desc','p-desc','概要欄'],['yp','p-yp','YouTubeの投稿'],['ig','p-ig','Instagram'],['l8','p-l8','Lemon8'],['tt','p-tt','TikTok']];
+const YT_FIX_TARGETS=[['desc','p-desc','概要欄'],['ig','p-ig','Instagram'],['l8','p-l8','Lemon8'],['tt','p-tt','TikTok']];   // YouTubeの投稿は定型文を入れない
 // 組み立てたときに入れた定型文を控える（あとで「定型文差替」で、その箇所だけを入れ替えるため）
 function ytFixRecord(){const el=ytEl('p-fixapplied');if(!el)return;const o={};YT_FIX_TARGETS.forEach(([k])=>{o[k]=ytFixedFor(k);});el.value=JSON.stringify(o);}
 function ytFixReplace(){
@@ -9605,6 +9605,12 @@ function ygPostFixed(k,has){
   return t;
 }
 function ytPostFixedText(k){return (ytVal('f-'+k)||'').replace(/\{下値\/上値\}/g,getDir()==='up'?'上値':'下値').trim();}
+// Xの文字数（半角1・全角2で数え、280まで＝全角140字。URLは長さによらず23）
+function ytXLen(t){
+  const re=/https?:\/\/\S+/g,urls=String(t).match(re)||[];let n=urls.length*23;
+  for(const ch of String(t).replace(re,'')){const c=ch.codePointAt(0);n+=(c<=0x10FF||(c>=0x2000&&c<=0x200D)||(c>=0x2010&&c<=0x201F)||(c>=0x2032&&c<=0x2037))?1:2;}
+  return n;
+}
 function ytPostBuild(snsOnly){
   const body=ytVal('p-body'),xbody=ytVal('p-xbody'),hook=ytVal('p-hook');
   if(body&&!snsOnly){
@@ -9612,38 +9618,46 @@ function ytPostBuild(snsOnly){
     ytEl('p-desc').value=[body,url?`${ytGen()?'▼ 記事で読む（note）':'▼ さらに詳しい分析はこちら（note）'}\n${url}`:'',fixed,tags].filter(Boolean).join('\n\n');
   }
   if(hook||xbody){
-    // 1行目＝【#銘柄名（コード）】、hook、続きの文、ハッシュタグ、最終行に動画のURL（記事タブのX告知文と同じ。空行は入れない）
-    const head=ytGen()?'':`【#${(getName()||'').replace(/\s+/g,'')}（${getTicker()||''}）】`,yt=ytVal('p-yturl');   // YT動画は1つの銘柄の動画ではないので、1行目の銘柄名は付けない
-    const src=ytGen()?[xbody,ytVal('p-xtags')]:hook?[hook,xbody,ytVal('p-xtags')]:[xbody];   // YT動画：本文（共感 → 告知）→ タグ → URL   // hook が無いのは、SNSの部品が入る前の形のJSON
+    // 株価分析：noteの記事の告知への返信（動画のURL付き）。【#銘柄名（コード）】→ 決まった文 → hook → タグ → 動画のURL（空行は入れない）
+    //   2行目は決まった文。株価分析の動画は決まった7章なので、どの銘柄でも下落（上昇）の理由と強みを扱う。AIの x（続きの文）は使わない
+    //   Xの140字（全角で数える。URLは全角12字ぶん）を超えるときは、後ろのタグから削る
+    // YT動画：本文（共感 → 告知）→ タグ → URL（1つの銘柄の動画ではないので、1行目の銘柄名は付けない）
+    const nm=(getName()||'').replace(/\s+/g,''),head=ytGen()?'':`【#${nm}（${getTicker()||''}）】`,yt=ytVal('p-yturl');
+    const line2=!ytGen()&&hook?`${getDir()==='up'?'上昇':'下落'}の理由と${nm}の強みなどをさらに詳しく分析！`:'';
+    const src=ytGen()?[xbody]:hook?[line2,hook]:[xbody];   // hook が無いのは、SNSの部品が入る前の形のJSON
     const lines=src.filter(Boolean).join('\n').split(/\r?\n/).map(s=>s.trim()).filter(Boolean).filter(s=>!/^【\s*#/.test(s)&&!/^https?:/.test(s));
-    const dup=ytGen()?[]:[(getName()||'').replace(/\s+/g,''),String(getTicker()||'')].filter(Boolean);
+    const dup=ytGen()?[]:[nm,String(getTicker()||'')].filter(Boolean);
     // AIの文の先頭に「【ヨネックス（7906）】」のような銘柄の見出しが付いてきたら外す（1行目の【#銘柄名（コード）】と二重になる）
     const noHead=s=>{const m=s.match(/^【([^】]*)】\s*/);return m&&dup.some(w=>m[1].replace(/[#＃\s]/g,'').includes(w))?s.slice(m[0].length):s;};
     const body=lines.map(s=>noHead(s).replace(/[#＃]([^\s#＃]+)/g,(m,w)=>dup.includes(w)?'':m).replace(/[ 　]{2,}/g,' ').trim()).filter(Boolean);
-    ytEl('p-x').value=[head,...body,yt].filter(Boolean).join('\n');
+    const tags=(ytVal('p-xtags').match(/[#＃][^\s#＃]+/g)||[]).filter(t=>!dup.includes(t.slice(1)));
+    const out=tg=>[head,...body,tg.join(' '),yt].filter(Boolean).join('\n');
+    if(!ytGen())while(tags.length&&ytXLen(out(tags))>280)tags.pop();
+    ytEl('p-x').value=out(tags);
   }
   // YT動画：SNSごとの本文 → この動画で分かること → 見てね（定型文）→ noteの案内（URLがあるときだけ）→ タグ
   if(ytGen()&&(ytVal('p-ypbody')||ytVal('p-igbody')||ytVal('p-l8intro')||ytVal('p-ttbody'))){
     const pts=ytVal('p-points').split(/\n/).map(s=>s.trim()).filter(Boolean);
     const L2='この動画で分かること',bul=pts.map(s=>'・'+s).join('\n'),num=pts.map((s,i)=>('①②③④⑤⑥⑦⑧⑨⑩'[i]||'・')+' '+s).join('\n');
     const J=a=>a.filter(Boolean).join('\n\n');
-    ytEl('p-yp').value=J([ytVal('p-ypbody'),pts.length?L2+'\n'+bul:'',ygPostFixed('yp'),ytVal('p-yptags')]);
+    ytEl('p-yp').value=[ytVal('p-ypbody'),ytVal('p-yptags')].filter(Boolean).join('\n');   // YouTubeの投稿は動画が付く。「続きを読む」に隠れないよう、本文とタグだけ（空行・箇条書き・定型文なし）
     ytEl('p-ig').value=J([ytVal('p-igbody'),pts.length?L2+'\n'+bul:'',ygPostFixed('ig'),ytVal('p-igtags')]);
     ytEl('p-l8t').value=ytVal('p-l8title').replace(/^【[^】]*】\s*/,'');
     ytEl('p-l8').value=J([ytVal('p-l8intro'),pts.length?L2+'\n'+num:'',ygPostFixed('l8'),ytVal('p-l8tags')]);
     ytEl('p-tt').value=J([ytVal('p-ttbody'),pts.length?L2+'\n'+bul:'',ygPostFixed('tt'),ytVal('p-tttags')]);
     ytFixRecord();saveState();return;
   }
-  // YouTubeの投稿・Instagram・Lemon8・TikTok：同じ hook と「この動画で確かめること」を使い、誘導とnoteの案内は定型文
+  // YouTubeの投稿・Instagram・Lemon8・TikTok：同じ hook と「この動画で分かること」を使い、誘導とnoteの案内は定型文
   if(hook){
     const pts=ytVal('p-points').split(/\n/).map(s=>s.trim()).filter(Boolean);
-    const L='この動画で確かめること',bul=pts.map(s=>'・'+s).join('\n'),num=pts.map((s,i)=>('①②③④⑤⑥⑦⑧⑨⑩'[i]||'・')+' '+s).join('\n');
+    const L='この動画で分かること',bul=pts.map(s=>'・'+s).join('\n'),num=pts.map((s,i)=>('①②③④⑤⑥⑦⑧⑨⑩'[i]||'・')+' '+s).join('\n');
     const J=a=>a.filter(Boolean).join('\n\n');
-    ytEl('p-yp').value=J([hook,pts.length?L+'\n'+bul:'',ytPostFixedText('yp'),ytVal('p-yptags')]);
+    ytEl('p-yp').value=[hook,pts.join('／'),ytVal('p-yptags')].filter(Boolean).join('\n');   // YouTubeの投稿は動画が付く。「続きを読む」に隠れないよう3行（空行・定型文・noteなし。noteは別に投稿している）
     ytEl('p-ig').value=J([hook,pts.length?L+'\n'+bul:'',ytPostFixedText('ig'),ytVal('p-igtags')]);
-    // 見出し＝【#銘柄名（コード）】＋AIの言葉（Xの1行目と同じ書き方）
-    const l8=ytVal('p-l8title').replace(/^【[^】]*】\s*/,'');
-    ytEl('p-l8t').value=ytGen()?l8:`【#${(getName()||'').replace(/\s+/g,'')}（${getTicker()||''}）】${l8}`;
+    // 見出し：AIが【#銘柄名（コード）】ごと書く。【】が無いときだけ付ける。TikTok の見出しも同じ（株価分析）
+    const l8r=ytVal('p-l8title'),l8=ytGen()?l8r.replace(/^【[^】]*】\s*/,''):(!l8r||/^【/.test(l8r)?l8r:`【#${(getName()||'').replace(/\s+/g,'')}（${getTicker()||''}）】${l8r}`);
+    ytEl('p-l8t').value=l8;
+    if(!ytGen())ytEl('p-ttt').value=l8;
     ytEl('p-l8').value=J([ytVal('p-l8intro'),pts.length?L+'\n'+num:'',ytPostFixedText('l8'),ytVal('p-l8tags')]);
     ytEl('p-tt').value=J([[hook,bul].filter(Boolean).join('\n'),ytPostFixedText('tt'),ytVal('p-tttags')]);
   }
@@ -14141,7 +14155,7 @@ function kgIsCommon(id){
   return ['vd-tts-voice','ev-tts-voice','vd-tts-model','ev-tts-model','vd-model','ev-model','vd-fixed-tags','ev-fixed-tags','vd-xnote',
     'yt-m-cut','yt-m-oped','yt-m-read','yt-m-qr','yt-m-plan','yt-m-post','yt-p-fixed','yt-f-yp','yt-f-ig','yt-f-l8','yt-f-tt'].includes(id);
 }
-const KG_SNS=[['yp','YouTubeの投稿'],['ig','Instagram'],['l8','Lemon8'],['tt','TikTok']];
+const KG_SNS=[['ig','Instagram'],['l8','Lemon8'],['tt','TikTok']];   // YouTubeの投稿は定型文を使わない（本文とタグだけ）
 // g＝画面の置き場所、ids＝値を入れる元の欄、ctx＝その種類（stock＝株価分析の横動画／gen＝YT動画）のときだけ欄へ入れる、def＝まだ値が無いときの初期値
 const KG_ITEMS=[
   {g:'thumb',key:'th3',label:'3段目の初期値',ids:[],def:'#底値#と%５つの反転サイン%'},
