@@ -7897,13 +7897,15 @@ function earnPrevMode(m){
 // ---- 横動画：Gemini のモデル（作業ごとに設定タブで選ぶ）----
 // 回数の上限のときは、選んだモデルから一覧の順に下のモデルへ切り替える（Lite は除く）。混雑のときは切り替えずに止める（下も混んでいることが多い）
 const YT_MODEL_LIST=[['gemini-3.8-flash','Gemini 3.8 Flash（20回/日）'],['gemini-3.7-flash','Gemini 3.7 Flash（20回/日）'],['gemini-3.6-flash','Gemini 3.6 Flash（20回/日）'],['gemini-3.5-flash','Gemini 3.5 Flash（20回/日）'],['gemini-3-flash-preview','Gemini 3 Flash（20回/日）'],['gemini-3.5-flash-lite','Gemini 3.5 Flash Lite（500回/日）'],['gemini-3.1-flash-lite','Gemini 3.1 Flash Lite（500回/日）'],['gemini-2.5-flash-lite','Gemini 2.5 Flash Lite（20回/日）']];
-const YT_AI_TASKS=[['cut','カットの判定','gemini-3.8-flash'],['oped','OP・EDの案','gemini-3.8-flash'],['read','まとまりの読み取り','gemini-3.8-flash'],['qr','QRの位置','gemini-3.8-flash'],['plan','演出の割り当て','gemini-3.8-flash'],['post','記事・投稿文','gemini-3.8-flash']];   // 画面の並び＝使う順（音声 → スライド → 演出 → 記事・SNS）
+const YT_AI_TASKS=[['cut','カットの判定',''],['oped','OP・EDの案',''],['read','まとまりの読み取り',''],['qr','QRの位置',''],['plan','演出の割り当て',''],['post','記事・投稿文','']];   // 3つ目は既定のモデル（空＝自動）   // 画面の並び＝使う順（音声 → スライド → 演出 → 記事・SNS）
+const YT_MODEL_AUTO='自動（上から順に。上限なら次へ・Lite除く）';
 const ytModelName=m=>((YT_MODEL_LIST.find(x=>x[0]===m)||[])[1]||m).replace(/（.*$/,'');
+// 自動（空）＝一覧の上から順に。上限のときは次へ。選んだときは、そのモデルから
 function ytModels(task){
-  const def=(YT_AI_TASKS.find(x=>x[0]===task)||[])[2]||'gemini-3.8-flash';
-  const sel=((document.getElementById('yt-m-'+task)||{}).value)||def;
+  const sel=((document.getElementById('yt-m-'+task)||{}).value)||'';
   // 上限で下へ切り替えるときも Lite には落とさない（3.5 Flash Lite では読み取りの位置が大きくずれて使えなかった。2026-09-21）。Lite は自分で選んだときだけ使う
-  return [sel,...YT_MODEL_LIST.map(x=>x[0]).filter(m=>m!==sel&&!/lite/.test(m))];
+  const auto=YT_MODEL_LIST.map(x=>x[0]).filter(m=>!/lite/.test(m));
+  return sel?[sel,...auto.filter(m=>m!==sel)]:auto;
 }
 // Gemini のエラーを、どのモデルで何が起きたかの日本語にする
 function ytAiErr(d,task){
@@ -7914,8 +7916,8 @@ function ytAiErr(d,task){
   const why=k=>k==='quota'?'今日の回数の上限':k==='busy'?'混雑':'エラー';
   const tried=Object.values(lastBy).map(x=>`${ytModelName(x.model)}＝${why(x.kind)}`).join('、');
   const last=f[f.length-1];
-  if(d.busy||last.kind==='busy')return `${ytModelName(last.model)} が混雑していて使えませんでした（Google側の一時的な混雑です。下のモデルには切り替えていません）。少し待ってもう一度押すか、設定タブの「${tn}」のモデルを変えてください。［試したモデル：${tried}］`;
-  if(last.kind==='quota')return `使えるモデルがすべて今日の回数の上限でした。明日まで待つか、設定タブの「${tn}」で Lite のモデルを選んでください。［試したモデル：${tried}］`;
+  if(d.busy||last.kind==='busy')return `${ytModelName(last.model)} が混雑していて使えませんでした（Google側の一時的な混雑です。下のモデルには切り替えていません）。少し待ってもう一度押すか、「⚙ 共通設定」の「${tn}」のモデルを変えてください。［試したモデル：${tried}］`;
+  if(last.kind==='quota')return `使えるモデルがすべて今日の回数の上限でした。明日まで待つか、「⚙ 共通設定」の「${tn}」で Lite のモデルを選んでください。［試したモデル：${tried}］`;
   return `${ytModelName(last.model)} でエラーになりました：${last.error}［試したモデル：${tried}］`;
 }
 const YT_CHAPTERS=[
@@ -10016,7 +10018,7 @@ ${[['n','note記事（無料）','表なしで作ります。動画のURLは最�
   ${set('動画の長さ','<input type="number" id="yt-nlm-min" value="12" min="3" max="30" oninput="saveState()" style="width:60px;flex:none;font-size:11px;padding:4px;">','分（構成と音声の指示に入ります）')}
   <div style="font-size:10px;color:var(--text-sub);margin-top:6px;">スライドの色・書体、OP・EDの背景動画とテロップ、BGM、Geminiのモデル、概要欄とSNSの定型文は、上の「⚙ 共通設定」で決めます（すべてのPJで共通）。</div>
   <div class="kg-hide">
-  ${YT_AI_TASKS.map(([k,n,d])=>set(n,`<select id="yt-m-${k}" onchange="saveState()" style="flex:1;min-width:0;font-size:11px;padding:3px;">${YT_MODEL_LIST.map(([v,l])=>`<option value="${v}"${v===d?' selected':''}>${l}</option>`).join('')}</select>`)).join('')}
+  ${YT_AI_TASKS.map(([k,n,d])=>set(n,`<select id="yt-m-${k}" onchange="saveState()" style="flex:1;min-width:0;font-size:11px;padding:3px;"><option value=""${d?'':' selected'}>${YT_MODEL_AUTO}</option>${YT_MODEL_LIST.map(([v,l])=>`<option value="${v}"${v===d?' selected':''}>${l}</option>`).join('')}</select>`)).join('')}
   <textarea id="yt-p-fixed" style="min-height:90px;font-size:11px;">${esc(YT_POST_FIXED)}</textarea>
   ${[['yp','YouTubeの投稿'],['ig','Instagram'],['l8','Lemon8'],['tt','TikTok']].map(([k,n])=>`<textarea id="yt-f-${k}" style="min-height:44px;font-size:11px;">${esc(YT_SNS_FIXED[k])}</textarea>`).join('')}
   </div>
@@ -14112,6 +14114,8 @@ function kgApply(){
     const v=st[it.key];
     it.ids.forEach(id=>{const el=document.getElementById(id);if(el&&el.value!==v)el.value=v;});
   });
+  // 横動画の Gemini のモデル：前の既定（3.8 Flash＝一覧の一番上）のままのものは「自動」にする（1回だけ。2026-09-25 に自動を追加）
+  if(!st._ytAuto){YT_AI_TASKS.forEach(([k])=>{const key='yt-m-'+k;if(st[key]==='gemini-3.8-flash'){st[key]='';const el=document.getElementById(key);if(el)el.value='';}});st._ytAuto=1;seeded=true;}
   if(seeded)kgSave(st);
 }
 // 共通設定の画面で変えたとき
