@@ -910,6 +910,9 @@ select.yn-sel option{color:#0f172a;background:#fff;font-weight:400;}
   body.kt-yt #mode-yt{flex:1;min-height:0;display:flex!important;flex-direction:column;}
   body.kt-yt #yt-root{flex:1;min-height:0;display:flex;flex-direction:column;}
   body.kt-yt #yt-root>[id^="yt-pane-"]{flex:1;min-height:0;overflow-y:auto;}
+  /* 決算・個別銘柄・株価：上の種別・PJの行は動かさず、その下（種別の中身）だけをスクロールする（スクロールバーが種別・PJの行の横まで出ないように） */
+  body:not(.kt-yt) .control-panel{overflow:hidden;}
+  body:not(.kt-yt) .control-panel>[id^="mode-"]{flex:1;min-height:0;overflow-y:auto;}
 }
 /* 株価分析のカード/見出し/ボタンを kessan のコンポーネントに合わせる */
 .sa .ctrl{gap:12px;}
