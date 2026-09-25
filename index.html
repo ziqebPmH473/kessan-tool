@@ -9619,7 +9619,9 @@ function ytPostBuild(snsOnly){
     const src=ytGen()?[xbody,ytVal('p-xtags')]:hook?[hook,xbody,ytVal('p-xtags')]:[xbody];   // YT動画：本文（共感 → 告知）→ タグ → URL   // hook が無いのは、SNSの部品が入る前の形のJSON
     const lines=src.filter(Boolean).join('\n').split(/\r?\n/).map(s=>s.trim()).filter(Boolean).filter(s=>!/^【\s*#/.test(s)&&!/^https?:/.test(s));
     const dup=ytGen()?[]:[(getName()||'').replace(/\s+/g,''),String(getTicker()||'')].filter(Boolean);
-    const body=lines.map(s=>s.replace(/[#＃]([^\s#＃]+)/g,(m,w)=>dup.includes(w)?'':m).replace(/[ 　]{2,}/g,' ').trim()).filter(Boolean);
+    // AIの文の先頭に「【ヨネックス（7906）】」のような銘柄の見出しが付いてきたら外す（1行目の【#銘柄名（コード）】と二重になる）
+    const noHead=s=>{const m=s.match(/^【([^】]*)】\s*/);return m&&dup.some(w=>m[1].replace(/[#＃\s]/g,'').includes(w))?s.slice(m[0].length):s;};
+    const body=lines.map(s=>noHead(s).replace(/[#＃]([^\s#＃]+)/g,(m,w)=>dup.includes(w)?'':m).replace(/[ 　]{2,}/g,' ').trim()).filter(Boolean);
     ytEl('p-x').value=[head,...body,yt].filter(Boolean).join('\n');
   }
   // YT動画：SNSごとの本文 → この動画で分かること → 見てね（定型文）→ noteの案内（URLがあるときだけ）→ タグ
