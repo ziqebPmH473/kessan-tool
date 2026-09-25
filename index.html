@@ -12532,17 +12532,19 @@ async function ynTrimVideo(blob,L){
   await conv.execute();
   return new Blob([output.target.buffer],{type:'video/mp4'});
 }
-// 動画の1コマ目（ナレスラの一覧に出す画像。これが無いと動画のスライドとして読まれない）
-function ynVideoPoster(blob){
-  return new Promise((res,rej)=>{
-    const v=document.createElement('video'),u=URL.createObjectURL(blob);let done=false;
-    const fin=(f,x)=>{if(done)return;done=true;URL.revokeObjectURL(u);f(x);};
-    v.preload='auto';v.muted=true;v.playsInline=true;
-    v.onloadeddata=()=>{try{const c=document.createElement('canvas');c.width=v.videoWidth||1920;c.height=v.videoHeight||1080;c.getContext('2d').drawImage(v,0,0,c.width,c.height);c.toBlob(b=>b?fin(res,b):fin(rej,new Error('動画の1コマ目を取れませんでした')),'image/jpeg',0.88);}catch(e){fin(rej,e);}};
-    v.onerror=()=>fin(rej,new Error('背景動画を読めませんでした'));
-    setTimeout(()=>fin(rej,new Error('背景動画の読み込みが終わりませんでした')),20000);
-    v.src=u;try{v.currentTime=0.001;}catch(e){}
-  });
+// 切った動画の長さと1コマ目（1コマ目は、ナレスラの一覧に出す画像。これが無いと動画のスライドとして読まれない）。
+// 動画の部品（mediabunny）で直接読む。<video> で読むと、書き出し中に別のタブへ移ったとき読み込みが後回しになり、
+// 長さが「読めない」で止まっていた（2026-09-26）
+async function ynVideoProbe(blob){
+  const M=await ynMediabunny();
+  const inp=new M.Input({formats:M.ALL_FORMATS,source:new M.BlobSource(blob)});
+  const dur=await inp.computeDuration(),vt=await inp.getPrimaryVideoTrack();
+  if(!vt)throw new Error('背景動画を読めませんでした');
+  const w=await new M.CanvasSink(vt,{poolSize:1}).getCanvas(await vt.getFirstTimestamp());
+  if(!w)throw new Error('動画の1コマ目を取れませんでした');
+  const c=w.canvas,poster=c.convertToBlob?await c.convertToBlob({type:'image/jpeg',quality:0.88}):await new Promise(r=>c.toBlob(r,'image/jpeg',0.88));
+  if(!poster)throw new Error('動画の1コマ目を取れませんでした');
+  return{dur,poster};
 }
 // 16bit の WAV（チャンネルはそのまま）。つなぐ部品を順に直接書き込む（途中の配列を作らない。長い音声でも使う量を抑える）
 // parts：[{src:[チャンネルごとの Float32Array], from, to}（本編の一部）｜{mono:Float32Array}（全チャンネルに同じ音）｜{silence:標本数}]
@@ -12570,9 +12572,8 @@ async function ynOpedVideoSlide(c,role,L){
   if((rec.dur||mat.dur||0)<L-0.05)throw new Error(`${rn}の背景動画「${mat.name}」は ${(rec.dur||mat.dur||0).toFixed(1)}秒で、必要な ${L.toFixed(1)}秒より短いです。長い動画を登録してください`);
   ynStatus(`${rn}の背景動画を ${L.toFixed(1)}秒に切っています…`,'','status3');
   const cut=await ynTrimVideo(rec.blob,L);
-  const got=await ytVideoDur(cut);
+  const {dur:got,poster}=await ynVideoProbe(cut);
   if(!got||Math.abs(got-L)>0.1)throw new Error(`${rn}の背景動画を切った長さが合いません（必要 ${L.toFixed(2)}秒／切った結果 ${got?got.toFixed(2):'読めない'}秒）。書き出しを止めました`);
-  const poster=await ynVideoPoster(cut);
   const vidId=c.newId(),sid=c.newId();
   c.zip.file(`slides/slide-oped-${role}.jpg`,poster);
   c.zip.file(`動画/vid-${vidId}.mp4`,cut);
