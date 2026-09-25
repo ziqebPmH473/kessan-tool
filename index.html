@@ -11610,7 +11610,7 @@ function ynZonesUndo(btn,i,dir){
   yhMenu(btn,'zones:'+s.name,`${i+1}枚目のまとまり`,dir||'p',()=>({zones:s.zones||[],texts:s.texts||[]}),async v=>{s.zones=(v&&v.zones&&v.zones.length)?v.zones:null;s.texts=(v&&v.texts)||null;await ynSave();ynRender();ynStatus(`${dir==='f'?'↷':'↶'} ${i+1}枚目のまとまりを${dir==='f'?'やり直しました':'戻しました'}`,'ok');});
 }
 function ynPlanUndo(btn,dir){
-  yhMenu(btn,'plan','演出の割り当て',dir||'p',()=>YN.plan,async v=>{YN.plan=v||null;if(YN.plan)try{ynPlanNorm();}catch(e){}_ynPlanSkip=true;await ynPut('plan',YN.plan);ynRender();if(typeof ysRender==='function')ysRender();ynStatus(dir==='f'?'↷ 演出の割り当てをやり直しました':'↶ 演出の割り当てを戻しました','ok','status2');});
+  yhMenu(btn,'plan','演出の割り当て',dir||'p',()=>YN.plan,async v=>{YN.plan=v||null;if(YN.plan)try{ynPlanNorm();}catch(e){}_ynPlanSkip=true;await ynPut('plan',YN.plan);ynRender();if(typeof yaRender==='function')yaRender(true);if(typeof ysRender==='function')ysRender();ynStatus(dir==='f'?'↷ 演出の割り当てをやり直しました':'↶ 演出の割り当てを戻しました','ok','status2');});
 }
 // ---- スライドのリセット（画像ごと全部／まとまりの読み取りだけ）。前の状態は控えるので戻せる ----
 const ynSlidesSnap=()=>({slides:YN.slides.map(x=>({name:x.name,blob:x.blob,zones:x.zones||null,texts:x.texts||null,qrOrig:x.qrOrig||null,qrRect:x.qrRect||null})),plan:YN.plan||null});
@@ -11642,7 +11642,7 @@ async function ynReset(kind,t){
   if(kind==='all'){const rm=new Set(t);YN.slides=YN.slides.filter((x,i)=>!rm.has(i));YN.cur=0;if(!YN.slides.length){const f=ynEl('files');if(f)f.value='';}}
   else t.forEach(i=>{YN.slides[i].zones=null;YN.slides[i].texts=null;});
   if(plan){YN.plan=null;_ynPlanSkip=true;await ynPut('plan',null);}
-  await ynSave();ynRender();if(typeof ysRender==='function')ysRender();
+  await ynSave();ynRender();if(plan&&typeof yaRender==='function')yaRender(true);if(typeof ysRender==='function')ysRender();
   ynStatus(`🗑 ${sc}の${kind==='all'?'画像を外しました':'まとまりの読み取りを消しました'}${plan?'（演出の割り当ても消しました）':''}。戻すときは「↶ 戻す」`,'ok');
 }
 async function ynReadAgain(){
@@ -12059,7 +12059,7 @@ function ynApplyPlan(plan){
   // オープニングの位置：AI が選んだ文（範囲の外なら寄せる）。書いていなければ、2枚目に切り替わる文の前
   if(YO.op&&YO.op.b64)YN.plan.op=plan.op!=null&&isFinite(+plan.op)?{from:+plan.op}:ynOpDefault();
   ynPlanNorm();
-  _ynPlanWhy='割り当てのやり直し前';ynPut('plan',YN.plan);ynRender();
+  _ynPlanWhy='割り当てのやり直し前';ynPut('plan',YN.plan);ynRender();if(typeof yaRender==='function')yaRender(true);   // 右の文の一覧（スライドの帯・OP・ED の行）も描き直す
   ynStatus(`✅ 割り当てました（スライド${sl.length}枚・ズーム${fx.zooms.length}・強調${fx.marks.length}・出典${sources.length}・チャート${charts.length}）${fx.note?`／${fx.note}`:''}`,'ok','status2');
   if(typeof ysRender==='function')ysRender();
 }
