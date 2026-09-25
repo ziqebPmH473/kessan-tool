@@ -508,6 +508,8 @@ select.yn-sel option{color:#0f172a;background:#fff;font-weight:400;}
 .control-panel>.mode-tabs{position:sticky;top:0;z-index:40;background:#e5e7eb;margin-bottom:0!important;padding-bottom:8px;}
 #mode-yt>.yt-exprow{position:sticky;top:var(--kt-tabs-h,51px);z-index:39;background:#e5e7eb;}
 #yt-root>.sa-subtabs{position:sticky;top:calc(var(--kt-tabs-h,51px) + var(--kt-exp-h,32px));z-index:38;background:#e5e7eb;margin-top:0!important;padding-bottom:4px;}
+/* 株価分析の横動画では止めない（中身と一緒にスクロールする。止めると、中身の途中に重なっていた） */
+body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
 .yp-item{margin-top:4px;}
 .yp-head{display:flex;gap:4px;align-items:center;}
 .yp-slot{display:flex;gap:2px;}
