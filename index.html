@@ -1818,6 +1818,7 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
     <div style="display:flex;gap:6px;">
       <button class="btn" id="th-dl-btn" onclick="downloadThumb()" style="flex:1;">⬇ 横のサムネ</button>
       <button class="btn" id="thv-dl-btn" onclick="downloadThumbV()" style="flex:1;" title="Instagram・Lemon8・TikTok に添付">⬇ 縦のサムネ</button>
+      <button class="btn" id="threel-dl-btn" onclick="downloadThumbReel()" style="flex:1;" title="縦のサムネを、ゆっくり寄る動画（mp4・音なし）にする。BGMはインスタのアプリで付ける">⬇ リール動画</button>
     </div>
     <div style="display:flex;gap:6px;"><div id="th-status" style="flex:1;font-size:11px;color:var(--text-sub);min-height:16px;"></div><div id="thv-status" style="flex:1;font-size:11px;color:var(--text-sub);min-height:16px;"></div></div>
     <div class="sa-card" id="th-preview-card" style="display:none;">
@@ -14072,6 +14073,37 @@ async function downloadThumbV(){
     const blob=await renderVideoToBlob({html:thumbVHtml(text),thumb:true});
     const d=new Date(),ds=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
     const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`00_サムネイル_縦_${ds}.png`;a.click();URL.revokeObjectURL(url);
+    st.textContent='✓ ダウンロードしました';setTimeout(()=>st.textContent='',3000);
+  }catch(e){st.textContent='うまく作れませんでした：'+e.message;}
+  finally{btn.disabled=false;}
+}
+// リール動画：縦のサムネ1枚を、ゆっくり寄る動画（mp4・1080×1920・音なし）にする。BGMはインスタのアプリで付ける
+const REEL_SEC=7,REEL_FPS=60,REEL_ZOOM=0.08;   // 長さ（秒）・コマ数・最後に何割大きくするか
+async function downloadThumbReel(){
+  const text=document.getElementById('th-input').value.trim(),st=document.getElementById('thv-status'),btn=document.getElementById('threel-dl-btn');
+  if(!text){st.textContent='テキストを入力してください';return;}
+  btn.disabled=true;st.textContent='動画を作っています…';
+  try{
+    const png=await renderVideoToBlob({html:thumbVHtml(text),thumb:true});
+    const img=await createImageBitmap(png);
+    const M=await ynMediabunny();
+    const cv=document.createElement('canvas');cv.width=VSLIDE_W;cv.height=VSLIDE_H;
+    const cx=cv.getContext('2d');cx.imageSmoothingQuality='high';
+    const output=new M.Output({format:new M.Mp4OutputFormat(),target:new M.BufferTarget()});
+    const src=new M.CanvasSource(cv,{codec:'avc',bitrate:M.QUALITY_HIGH});
+    output.addVideoTrack(src,{frameRate:REEL_FPS});
+    await output.start();
+    const N=REEL_SEC*REEL_FPS;
+    for(let i=0;i<N;i++){
+      const k=1+REEL_ZOOM*(i/(N-1)),w=VSLIDE_W*k,h=VSLIDE_H*k;   // 真ん中を中心に、一定の速さで寄る
+      cx.drawImage(img,(VSLIDE_W-w)/2,(VSLIDE_H-h)/2,w,h);
+      await src.add(i/REEL_FPS,1/REEL_FPS);
+      if(i%60===0)st.textContent=`動画を作っています…（${Math.round(i/N*100)}%）`;
+    }
+    await output.finalize();
+    const blob=new Blob([output.target.buffer],{type:'video/mp4'});
+    const d=new Date(),ds=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+    const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`00_リール_${ds}.mp4`;a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);
     st.textContent='✓ ダウンロードしました';setTimeout(()=>st.textContent='',3000);
   }catch(e){st.textContent='うまく作れませんでした：'+e.message;}
   finally{btn.disabled=false;}
