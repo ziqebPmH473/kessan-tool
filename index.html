@@ -5150,6 +5150,32 @@ function deJargonP0(s){
 //     前期比**+12.5%**の増収→前期比 **+12.5%** の増収、** 強調 **→ **強調** 。
 // 太字ペアは同一行内でのみ対応付ける（** の数が奇数でも行をまたいで壊さないため）。
 // プロンプトでも指示しているが、モデルが守らなくても確実に直すためのコード側後処理。
+// note記事：段落の中は「。」のあとで改行する（1行の改行＝同じ段落の中、空行＝段落の区切り。スマホで1文ずつ読めるように）。
+// 見出し・表・コード・引用・URLだけの行はそのまま。「」（）などの中の「。」では改行しない。箇条書きは、続きの行を項目の字下げにそろえる
+function noteSentenceBreaks(s){
+  if(!s)return s;
+  let code=false;
+  return String(s).split('\n').map(line=>{
+    if(/^\s*(```|~~~)/.test(line)){code=!code;return line;}
+    if(code||!line.trim()||/^\s*(#{1,6}\s|\||>|https?:\/\/\S+\s*$)/.test(line))return line;
+    const li=line.match(/^(\s*)([-*+]|\d+[.)])\s+/),ind=li?' '.repeat(li[0].length):(line.match(/^\s*/)[0]);
+    let out='',depth=0,bold=false;
+    for(let i=0;i<line.length;i++){
+      const c=line[i];out+=c;
+      if(c==='*'&&line[i+1]==='*'){out+='*';i++;bold=!bold;}
+      else if('「『（(【〔'.includes(c))depth++;
+      else if('」』）)】〕'.includes(c))depth=Math.max(0,depth-1);
+      else if(c==='。'&&depth===0){
+        let j=i+1;
+        if(bold){if(line[j]!=='*'||line[j+1]!=='*')continue;out+='**';j+=2;bold=false;}   // 太字の途中では改行しない。「。**」の閉じは、この行に残す
+        while(j<line.length&&/\s/.test(line[j]))j++;  // 後ろの空白は捨てる
+        if(j<line.length)out+='\n'+ind;             // 後ろに文が続くときだけ改行
+        i=j-1;
+      }
+    }
+    return out;
+  }).join('\n');
+}
 function fixBoldBrackets(s){
   if(!s)return s;
   const OPEN=/^[「『（(【〔《〈]/, CLOSE=/[」』）)】〕》〉]$/;
@@ -5566,7 +5592,7 @@ async function geminiArticle(btnEl){
   if(!r.ok){setArtStatus('エラー: '+r.error,'error');return;}
   const p=parseArticleOutput(r.text);
   document.getElementById('art-title').value=fixBoldBrackets(deJargonP0(p.title));
-  document.getElementById('art-body').value=fixBoldBrackets(deJargonP0(p.body));
+  document.getElementById('art-body').value=noteSentenceBreaks(fixBoldBrackets(deJargonP0(p.body)));
   document.getElementById('art-thumb').value=p.thumbnail;
   document.getElementById('art-tags').value=p.hashtags;
   document.getElementById('art-x').value=fixBoldBrackets(deJargonP0(p.xpost));
@@ -9448,7 +9474,7 @@ function ygArtApply(k,text){
   if(!p.title&&!p.body){ygArtStatus(k,'❌ 【タイトル】【本　文】が見つかりません。AIの出力をまるごと貼り付けてください','error');return false;}
   ytEl('a-'+k+'-raw').value=text;
   ytEl('a-'+k+'-title').value=fixBoldBrackets(p.title||'');
-  ytEl('a-'+k+'-body').value=fixBoldBrackets(p.body||'');
+  ytEl('a-'+k+'-body').value=k==='n'?noteSentenceBreaks(fixBoldBrackets(p.body||'')):fixBoldBrackets(p.body||'');   // note だけ「。」で改行（ブログはそのまま）
   ytEl('a-'+k+'-tags').value=p.hashtags||'';
   ygArtUrlApply(false,k);
   saveState();
