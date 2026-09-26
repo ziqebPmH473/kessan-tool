@@ -12517,6 +12517,9 @@ async function ynExport(btn){
     }
     // 切り替え・テロップ・字幕・カット
     const switchPoints=YN.plan.slides.slice(1).map(x=>+x.s.toFixed(2));
+    // スライドの切り替わりちょうどに始まる演出（出典・強調）は、0.1秒あとから始める。
+    // ちょうどだと、ナレスラが前のスライドの演出として扱い、編集で開くと開始が前のスライドにずれていた
+    decorations.forEach(d=>{if(d.endTime-d.startTime>0.3&&switchPoints.some(t=>Math.abs(d.startTime-t)<0.05))d.startTime=+(d.startTime+0.1).toFixed(2);});
     const cornerTelops=YN.plan.slides.map((x,i)=>[x,i]).filter(([x])=>x.corner).map(([x,i])=>({id:++id,text:x.corner,accentColor:'#e91e8c',startSlide:i+1,endSlide:i+1,animIn:.5,animOut:.5,sizeMul:1,posX:78,posY:-85,minChars:6}));
     const kept=ynKeptSents().map(x=>({text:x.text,s:x.s,e:x.e})).sort((a,b)=>a.s-b.s);
     kept.forEach((x,i)=>{
