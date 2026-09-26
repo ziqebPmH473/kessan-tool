@@ -14076,7 +14076,7 @@ async function downloadThumbV(){
   finally{btn.disabled=false;}
 }
 // リール動画：縦のサムネ1枚を、ゆっくり寄る動画（mp4・1080×1920・音なし）にする。BGMはインスタのアプリで付ける
-const REEL_SEC=7,REEL_FPS=60,REEL_ZOOM=0.08;   // 長さ（秒）・コマ数・最後に何割大きくするか
+const REEL_SEC=7,REEL_FPS=60,REEL_ZOOM=0.05;   // 長さ（秒）・コマ数・最後に何割大きくするか
 // SNS の Instagram の見出しのボタンから呼ぶ。進み具合はボタンの文字に出す
 async function downloadThumbReel(btn){
   const text=document.getElementById('th-input').value.trim(),lab=btn.textContent;
