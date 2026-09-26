@@ -7899,7 +7899,7 @@ function earnPrevMode(m){
 // ---- 横動画：Gemini のモデル（作業ごとに設定タブで選ぶ）----
 // 回数の上限のときは、選んだモデルから一覧の順に下のモデルへ切り替える（Lite は除く）。混雑のときは切り替えずに止める（下も混んでいることが多い）
 const YT_MODEL_LIST=[['gemini-3.8-flash','Gemini 3.8 Flash（20回/日）'],['gemini-3.7-flash','Gemini 3.7 Flash（20回/日）'],['gemini-3.6-flash','Gemini 3.6 Flash（20回/日）'],['gemini-3.5-flash','Gemini 3.5 Flash（20回/日）'],['gemini-3-flash-preview','Gemini 3 Flash（20回/日）'],['gemini-3.5-flash-lite','Gemini 3.5 Flash Lite（500回/日）'],['gemini-3.1-flash-lite','Gemini 3.1 Flash Lite（500回/日）'],['gemini-2.5-flash-lite','Gemini 2.5 Flash Lite（20回/日）']];
-const YT_AI_TASKS=[['cut','カットの判定',''],['oped','OP・EDの案',''],['read','まとまりの読み取り',''],['qr','QRの位置',''],['plan','演出の割り当て',''],['post','記事・投稿文','']];   // 3つ目は既定のモデル（空＝自動）   // 画面の並び＝使う順（音声 → スライド → 演出 → 記事・SNS）
+const YT_AI_TASKS=[['cut','カットの判定',''],['oped','OP・EDの案',''],['read','まとまりの読み取り',''],['qr','QRの位置',''],['src','足した出典の読み取り',''],['plan','演出の割り当て',''],['post','記事・投稿文','']];   // 3つ目は既定のモデル（空＝自動）   // 画面の並び＝使う順（音声 → スライド → 演出 → 記事・SNS）
 const YT_MODEL_AUTO='自動（上から順に。上限なら次へ・Lite除く）';
 const ytModelName=m=>((YT_MODEL_LIST.find(x=>x[0]===m)||[])[1]||m).replace(/（.*$/,'');
 // 自動（空）＝一覧の上から順に。選んだときは、そのモデルから。どちらも上限・混雑のときは一覧の下へ順に（上のモデルへは戻らない）
@@ -12749,7 +12749,7 @@ async function ysRestore(){
 function ysPageNo(s){const m=String(s||'').match(/\d+/);return m?Math.max(1,parseInt(m[0],10)):1;}
 // 動画資料の出典一覧に、この画面で直した内容を重ねたもの
 function ytSources(){
-  return ytParseSources().map(s=>{
+  return ytParseSources().concat(ysAdded()).map(s=>{
     const x=Object.assign({},s,YS.edit[s.no]||{});
     // 1つの欄に複数のURLがあるときは全部持つ。使うのは、手で選んだもの → PDF → 先頭 の順
     const us=ytUrlsIn(x.url),pgs=String(x.page||'').split(/[／\/]/).map(v=>v.trim());
@@ -12829,7 +12829,8 @@ function ysRender(){
   const box=document.getElementById('yn-src-list');if(!box)return;
   YS.urls.forEach(u=>URL.revokeObjectURL(u));YS.urls=[];
   const list=ysRows();
-  if(!list.length){box.innerHTML='<div style="font-size:11px;color:var(--text-sub);">「分析」タブの動画資料に出典一覧がありません。</div>';return;}
+  const addBtn='<div style="display:flex;justify-content:flex-end;margin:4px 0;"><button class="ya-nd" onclick="ysEdit(null)" title="動画資料の出典一覧に無い資料（ランキングのページなど）を、URLから足す">＋ 出典を足す</button></div>';
+  if(!list.length){box.innerHTML=addBtn+'<div style="font-size:11px;color:var(--text-sub);">「分析」タブの動画資料に出典一覧がありません。</div>';return;}
   const st=list.map(s=>{const u=!!YN.plan&&!ysWhere(s.no);return u?'off':(YS.imgs[s.no]&&YS.imgs[s.no].blob)?'ok':'ng';});
   const nOk=st.filter(x=>x==='ok').length,nNg=st.filter(x=>x==='ng').length,nOff=st.filter(x=>x==='off').length;
   const sum=`<div class="ys-sum ${nNg?'ng':'ok'}">${YN.plan?'使う出典':'出典'} ${nOk+nNg}件：画像あり ${nOk}／<b>画像なし ${nNg}</b>${nOff?`（未使用 ${nOff}件は不要）`:''}${YN.plan?'':'　※割り当て前なので、使う・使わないはまだ分かりません'}</div>`;
@@ -12868,21 +12869,25 @@ ${g?`<button class="ya-nd" onclick="ysDrop(${i})" title="画像を消す">消す
   });
   // 使っていない出典（割り当て済みで、どこにも差し込まれていない）は、最後にまとめて閉じておく
   const used=rows.filter((h,i)=>st[i]!=='off').join(''),off=rows.filter((h,i)=>st[i]==='off').join('');
-  box.innerHTML=sum+used+(off?`<details class="ys-offbox"${YS.offOpen?' open':''} ontoggle="YS.offOpen=this.open"><summary style="font-size:11px;color:var(--text-sub);cursor:pointer;margin-top:6px;">未使用の出典（${nOff}件）</summary>${off}</details>`:'');
+  box.innerHTML=addBtn+sum+used+(off?`<details class="ys-offbox"${YS.offOpen?' open':''} ontoggle="YS.offOpen=this.open"><summary style="font-size:11px;color:var(--text-sub);cursor:pointer;margin-top:6px;">未使用の出典（${nOff}件）</summary>${off}</details>`:'');
 }
 
 // ---- 出典の中身を直す（資料が違う・チャートはTradingViewにする等）----
+// i＝null は、出典を新しく足す（動画資料の出典一覧に無いもの）
 function ysEdit(i){
-  const s=ysItem(i);if(!s)return;
+  const s=i==null?{no:ysAddNo(),added:true,isNew:true}:ysItem(i);if(!s)return;
   const ov=document.createElement('div');ov.className='ys-ov';
-  const f=(lab,k,v)=>`<label style="display:block;font-size:11px;color:#cbd5e1;margin-bottom:6px;">${lab}<input id="ys-e-${k}" value="${esc(v||'')}" style="width:100%;font-size:12px;padding:4px;margin-top:2px;"></label>`;
-  ov.innerHTML=`<div class="ys-bar"><div class="ys-title">出典${esc(s.no)} を直す</div>
-<button class="btn-sm" style="background:#0d9488;color:#fff;" onclick="ysEditOk(${i})">✓ 保存</button>
-<button class="btn-sm" onclick="ysEditReset(${i})">↩ 元に戻す</button>
+  const f=(lab,k,v,ph)=>`<label style="display:block;font-size:11px;color:#cbd5e1;margin-bottom:6px;">${lab}<input id="ys-e-${k}" value="${esc(v||'')}"${ph?` placeholder="${esc(ph)}"`:''} style="width:100%;font-size:12px;padding:4px;margin-top:2px;"></label>`;
+  const a=!!s.added,arg=i==null?'null':i;
+  ov.innerHTML=`<div class="ys-bar"><div class="ys-title">${s.isNew?'出典を足す':`出典${esc(s.no)} を直す`}</div>
+${a?`<button class="btn-sm" style="background:#4f46e5;color:#fff;" onclick="ysAddAi(this)" title="URLのページをAIが読んで、資料名・撮る場所・表記を埋める">🤖 AIで読む</button>`:''}
+<button class="btn-sm" style="background:#0d9488;color:#fff;" onclick="ysEditOk(${arg})">✓ 保存</button>
+${s.isNew?'':a?`<button class="btn-sm" onclick="ysAddDel(${i})">🗑 この出典を消す</button>`:`<button class="btn-sm" onclick="ysEditReset(${i})">↩ 元に戻す</button>`}
 <button class="btn-sm" onclick="ysEditClose()">✕</button></div>
 <div class="ys-stage" style="align-items:flex-start;"><div style="width:min(720px,90vw);background:#0f172a;padding:12px;border-radius:6px;">
-${f('資料名','name',s.name)}${f('URL','url',s.url)}${f('ページ','page',s.page)}${f('画面に出す表記','label',s.label)}
-<div style="font-size:10px;color:#94a3b8;">動画資料の出典一覧は書き換えません。ここでの直しだけを上書きして使います（チャートをTradingViewにする等）。</div>
+${a?f('URL','url',s.url,'https://…')+f('何の根拠か','note',s.note,'動画で言っていること')+'<div id="ys-e-ai" style="font-size:11px;color:#a5b4fc;margin:-2px 0 8px;"></div>':''}
+${f('資料名','name',s.name)}${a?'':f('URL','url',s.url)}${f('ページ','page',s.page)}${a?f('撮る場所','pos',s.pos):''}${f('画面に出す表記','label',s.label)}
+<div style="font-size:10px;color:#94a3b8;">${a?'自分で足した出典です。差し込む場所は、演出の「演出を足す」で選びます。画像は、撮って「貼り付け」。':'動画資料の出典一覧は書き換えません。ここでの直しだけを上書きして使います（チャートをTradingViewにする等）。'}</div>
 </div></div>`;
   document.body.appendChild(ov);YS.editOv=ov;
 }
@@ -12893,8 +12898,17 @@ function ysKind(i){
   YS.edit[s.no]=d;ysSaveEdit();ysRender();
 }
 function ysEditOk(i){
-  const s=ysItem(i);if(!s)return ysEditClose();
   const v=k=>{const el=document.getElementById('ys-e-'+k);return el?el.value.trim():'';};
+  const s=i==null?null:ysItem(i);
+  if(i==null||(s&&s.added)){
+    if(!v('url')){alert('URLを入れてください');return;}
+    const add=(YS.edit._add=YS.edit._add||[]);
+    const e={no:s?s.no:ysAddNo(),name:v('name')||v('url'),url:v('url'),page:v('page'),pos:v('pos'),label:v('label')||v('name'),note:v('note')};
+    const k=add.findIndex(x=>x.no===e.no);if(k>=0)add[k]=e;else add.push(e);
+    ysSaveEdit();ysEditClose();ysRender();if(YN.plan&&typeof ynRender==='function')ynRender();
+    return;
+  }
+  if(!s)return ysEditClose();
   const base=ytParseSources().find(x=>String(x.no)===String(s.no))||{};
   const d={};['name','url','page','label'].forEach(k=>{if(v(k)!==(base[k]||''))d[k]=v(k);});
   const kind=(YS.edit[s.no]||{}).kind;if(kind)d.kind=kind;
@@ -12905,6 +12919,45 @@ function ysEditOk(i){
 function ysEditReset(i){
   const s=ysItem(i);if(s){delete YS.edit[s.no];ysSaveEdit();}
   ysEditClose();ysRender();
+}
+
+// ---- 自分で足した出典（動画資料の出典一覧に無いもの。ランキングのページなど）----
+// YS.edit._add に入れる（出典の直しと一緒に保存・エクスポートされる）。番号は「追1」「追2」…
+function ysAdded(){return ((YS.edit&&YS.edit._add)||[]).map(a=>Object.assign({},a,{added:true}));}
+function ysAddNo(){const a=(YS.edit&&YS.edit._add)||[];let n=1;while(a.some(x=>x.no==='追'+n))n++;return '追'+n;}
+function ysAddDel(i){
+  const s=ysItem(i);if(!s||!s.added)return;
+  if(!confirm(`出典${s.no}（${s.name}）を消しますか？\n差し込んだ場所と画像も消えます。`))return;
+  YS.edit._add=(YS.edit._add||[]).filter(x=>x.no!==s.no);ysSaveEdit();
+  if(YS.imgs[s.no]){delete YS.imgs[s.no];ysSave();}
+  if(YN.plan&&YN.plan.sources){YN.plan.sources=YN.plan.sources.filter(x=>String(x.no)!==String(s.no));ynPut('plan',YN.plan);if(typeof ynRender==='function')ynRender();}
+  ysEditClose();ysRender();
+}
+// URLのページをAIに読ませて、資料名・撮る場所・表記を埋める。表記の日付は、ページのデータの日付（無ければ今日）
+async function ysAddAi(btn){
+  const g=k=>document.getElementById('ys-e-'+k),msg=g('ai'),url=(g('url').value||'').trim(),note=(g('note').value||'').trim();
+  if(!/^https?:\/\//i.test(url)){msg.textContent='URLを入れてください';return;}
+  const d=new Date(),today=`${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`;
+  const prompt=`次のURLのページを開いて、動画の画面に出す出典の情報を作ってください。
+URL：${url}
+この資料で裏づけたいこと：${note||'（指定なし）'}
+
+出力はJSONだけにする（コードブロック・前置きは不要）。
+{"publisher":"発行元（サイトや会社の名前）","title":"資料名（ページの題名。サイト名は入れない）","date":"ページに書かれているデータの日付（YYYY年M月D日）。書かれていなければ空","page":"元がPDFなら、裏づけたいことが載っているページ番号（1つ）。PDFでなければ空","pos":"裏づけたいことが載っている、ページ内の見出し・表の題名（書かれているとおり）","ok":ページを開けて、裏づけたいことが確かめられたら true、そうでなければ false,"why":"ok が false のときの理由"}`;
+  btn.disabled=true;msg.textContent='読み込み中…（数十秒かかります）';
+  try{
+    const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({prompt,resources:[],files:[],temperature:0.1,url:true,models:ytModels('src')})});
+    const data=await res.json();if(!data.ok)throw new Error(ytAiErr(data,'src'));
+    const m=String(data.text||'').match(/\{[\s\S]*\}/);if(!m)throw new Error('AIの答えを読めませんでした');
+    const j=JSON.parse(m[0]),t=x=>String(x==null?'':x).trim();
+    if(t(j.title))g('name').value=t(j.title);
+    if(t(j.page))g('page').value=t(j.page);
+    if(t(j.pos))g('pos').value=t(j.pos);
+    if(t(j.title))g('label').value=`出典：${t(j.publisher)}「${t(j.title)}」（${t(j.date)||today}時点）`;
+    msg.textContent=j.ok===false?`⚠ 確かめられませんでした：${t(j.why)||'理由なし'}（中身を見て直してください）`:'✅ 埋めました。中身を見てから「✓ 保存」';
+  }catch(e){msg.textContent='❌ '+e.message+'（手で入れても保存できます）';}
+  finally{btn.disabled=false;}
 }
 
 // ---- まとめて取得（まだ画像が無い行だけ。範囲は全体のままなので、あとで ✂ で詰める）----

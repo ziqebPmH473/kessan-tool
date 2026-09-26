@@ -64,6 +64,8 @@ export async function onRequestPost(context) {
   // search: true のときだけ Google 検索を使わせる（最近の出来事を根拠にしたいとき。エンディングの案で使う）。
   // 無料の枠では月5,000回まで（Gemini 3.x、2026-09 時点）。
   if (payload.search === true) body.tools = [{ google_search: {} }];
+  // url: true のときは、プロンプトに書いたURLのページを読ませる（出典を自分で足すときに、資料名・表記を埋める）
+  if (payload.url === true) body.tools = [...(body.tools || []), { url_context: {} }];
 
   // モデルは配列(models)で優先順に受け取り、上限(429)なら次の下位モデルへフォールバックする。
   const models = (Array.isArray(payload.models) && payload.models.length)
