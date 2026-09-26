@@ -12464,7 +12464,8 @@ async function ynExport(btn){
     if(srcPlan.length){
       for(const sp of srcPlan){
         const got=YS.imgs[sp.no];
-        const ref=got&&got.blob?'yt-src'+String(sp.no).replace(/[^0-9A-Za-z]/g,''):'yt-src';
+        // 自分で足した出典（追1…）は「add1」に。英数字だけにすると「追1」が出典1と同じ「yt-src1」になり、出典1の画像が使われていた
+        const ref=got&&got.blob?'yt-src'+String(sp.no).replace(/^追/,'add').replace(/[^0-9A-Za-z]/g,''):'yt-src';
         if(got&&got.blob){
           if(!decImages[ref]){zip.file(`描画画像/${ref}.png`,got.blob);decImages[ref]=`描画画像/${ref}.png`;}
           nGot++;
