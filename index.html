@@ -8913,10 +8913,12 @@ function ytOpenInput(){ytEl('open-for').value='手:'+ytWorkName();saveState();}
 // ---- 出典のリンク確認（AIに任せず、実際に開けるかを機械的に確かめる）----
 const YL={res:null,seen:{}};   // [{no,name,url,ok,status,type,error}]
 const ytUrlsIn=s=>(String(s||'').replace(/<br\s*\/?>/gi,' ').match(/https?:\/\/[^\s|）)」＞><]+/g)||[]).map(u=>u.replace(/[、。,.]+$/,''));
-// 判定は4つ：ok＝問題なし／warn＝転送された・種類が違う・見つからないページの可能性（目で確かめて「確認した」にできる）／ng＝開けない（URLを直すしかない）
+// 判定は3つ：ok＝問題なし／warn＝転送された・種類が違う・見つからないページの可能性・サイトに断られた（403など）（目で確かめて「確認した」にできる）／ng＝開けない（URLを直すしかない）
 // 確かめた結果（YL.res）と「目で確認した」の印（YL.seen＝URLごと）は、欄 yt-link-state に入れて保存する（リロード・種類の切り替え・書き出しで残る）
 const ytUrlKey=u=>String(u||'').trim().replace(/^https?:\/\//i,'').replace(/#.*$/,'').replace(/\/+$/,'').toLowerCase();
 function ytLinkJudge(x){
+  // 403・429・503 は「ページが無い」ではなく、サイトがツール（サーバー）からの読み込みを断っていることが多い。ブラウザでは開けるので、目で確かめて「確認した」にできるようにする
+  if(!x.ok&&[403,429,503].includes(+x.status))return{st:'warn',why:[`ツールからは開けませんでした（${x.status}）。サイトが機械からの読み込みを断っているだけで、ブラウザでは開けることがあります。リンクを押して開き、資料名どおりの資料なら「確認した」を押してください`]};
   if(!x.ok)return{st:'ng',why:[`開けません（${x.status||x.error||'エラー'}）`]};
   const why=[],isPdf=x.type==='application/pdf',isImg=(x.type||'').startsWith('image/');
   if(x.finalUrl&&ytUrlKey(x.finalUrl)!==ytUrlKey(x.url))why.push(`別のURLへ転送されました → ${x.finalUrl}`);
