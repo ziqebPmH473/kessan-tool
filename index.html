@@ -7499,7 +7499,8 @@ function vLogo(cls){return `<img class="v-logo ${cls||''}" src="${VD_LOGO}" alt=
 function vDisc(){return `<div class="v-disc">${esc(VIDEO_DISCLAIMER)}</div>`;}
 
 // 0 サムネ（縦）：note用サムネと同じ記法で、3段を中央に寄せる。透かしロゴは中央
-function buildVThumb(text,P,catOver){
+// bare＝上の分類・日付と、下の「タップで動画を再生」を入れない（横動画の縦のサムネ。縦型のSNS動画のサムネでは入れる）
+function buildVThumb(text,P,catOver,bare){
   const cat=catOver!=null?catOver:(P||window._vdCurP)==='ev'?'決算分析':'株価分析';
   const dt=new Date();
   const dateStr=`${dt.getFullYear()}.${dt.getMonth()+1}.${dt.getDate()}`;
@@ -7510,8 +7511,8 @@ function buildVThumb(text,P,catOver){
   const H=[330,360,330];
   const top=Math.round((VSLIDE_H-H[0]-H[1]-H[2])/2)-40;
   return `<div class="vth">${vLogo('dark')}
-  <div class="vth-top">${cat?`<div class="vth-cat"><i></i>${esc(cat)}</div>`:'<div></div>'}<div class="vth-date">${esc(dateStr)}</div></div>
-  <div class="vth-cta">タップで動画を再生 ▶</div>
+${bare?'':`  <div class="vth-top">${cat?`<div class="vth-cat"><i></i>${esc(cat)}</div>`:'<div></div>'}<div class="vth-date">${esc(dateStr)}</div></div>
+  <div class="vth-cta">タップで動画を再生 ▶</div>`}
   <div style="position:absolute;left:0;right:0;top:${top}px;display:flex;flex-direction:column;">
     <div class="vth-band" style="height:${H[0]}px;"><div class="v-txt" style="font-size:${tF}px;font-weight:700;line-height:1;white-space:nowrap;font-family:${THUMB_FF};">${segsHtml(segs[0],'#ffffff')}</div></div>
     <div class="vth-band" style="height:${H[1]}px;background:#fff;"><div class="v-txt" style="font-size:${mF}px;font-weight:900;line-height:1;white-space:nowrap;font-family:${THUMB_FF};">${segsHtml(segs[1],'#004aad')}</div></div>
@@ -14051,10 +14052,9 @@ function renderThumbPreview(){
   inner.innerHTML=html;
   renderThumbVPreview(text,Math.round(SLIDE_H*sc));
 }
-// 縦のサムネ：上段の分類は、YT動画ならシリーズ名、株価分析・決算分析ならそれぞれの名前
+// 横動画の縦のサムネ（Instagram・Lemon8・TikTok・リール用）：上の分類・日付と、下の「タップで動画を再生」は入れない
 function thumbVHtml(text){
-  const gen=((document.getElementById('th-ctx')||{}).value)==='gen';
-  return buildVThumb(text,null,gen?(typeof ytSeries==='function'?ytSeries():''):null);
+  return buildVThumb(text,null,null,true);
 }
 function renderThumbVPreview(text,h){
   const wrap=document.getElementById('thv-preview-wrap');if(!wrap||!text)return;
