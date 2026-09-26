@@ -579,7 +579,9 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
 .ya-tc{flex:none;width:44px;color:#64748b;font-size:11px;cursor:pointer;} .ya-tc:hover{color:#2563eb;text-decoration:underline;}
 .ya-sp{flex:none;width:12px;font-weight:700;font-size:12px;} .ya-sp.sp1{color:#2563eb;} .ya-sp.sp2{color:#db2777;}
 .ya-ctl{flex:none;width:236px;display:flex;flex-wrap:wrap;gap:2px 4px;align-items:center;font-size:10px;color:#64748b;white-space:nowrap;}
-.ya-tx{flex:1;min-width:0;} .ya-ln.cut .ya-tx{color:#94a3b8;text-decoration:line-through;} .ya-tx del{color:#dc2626;background:#fee2e2;}
+/* 幅が狭いとき（スマホ・並べて表示）は、文を次の行に回して横幅いっぱいで読ませる（1文字ずつ縦に折れていた） */
+.ya-ln{flex-wrap:wrap;} .ya-ctl{flex:0 1 236px;width:auto;min-width:0;}
+.ya-tx{flex:1 1 12em;min-width:0;} .ya-ln.cut .ya-tx{color:#94a3b8;text-decoration:line-through;} .ya-tx del{color:#dc2626;background:#fee2e2;}
 .ya-adj{display:inline-flex;align-items:center;gap:1px;}
 .ya-nd{flex:none;padding:0 4px;font-size:10px;line-height:16px;border:1px solid #cbd5e1;background:#f1f5f9;border-radius:3px;cursor:pointer;}
 .ya-part{display:inline-flex;align-items:center;gap:2px;}
