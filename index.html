@@ -5150,7 +5150,7 @@ function deJargonP0(s){
 //     前期比**+12.5%**の増収→前期比 **+12.5%** の増収、** 強調 **→ **強調** 。
 // 太字ペアは同一行内でのみ対応付ける（** の数が奇数でも行をまたいで壊さないため）。
 // プロンプトでも指示しているが、モデルが守らなくても確実に直すためのコード側後処理。
-// note記事：段落の中は「。」のあとで改行する（1行の改行＝同じ段落の中、空行＝段落の区切り。スマホで1文ずつ読めるように）。
+// note・ブログの記事：段落の中は「。」のあとで改行する（1行の改行＝同じ段落の中、空行＝段落の区切り。スマホで1文ずつ読めるように）。
 // 見出し・表・コード・引用・URLだけの行はそのまま。「」（）などの中の「。」では改行しない。箇条書きは、続きの行を項目の字下げにそろえる
 function noteSentenceBreaks(s){
   if(!s)return s;
@@ -9474,7 +9474,7 @@ function ygArtApply(k,text){
   if(!p.title&&!p.body){ygArtStatus(k,'❌ 【タイトル】【本　文】が見つかりません。AIの出力をまるごと貼り付けてください','error');return false;}
   ytEl('a-'+k+'-raw').value=text;
   ytEl('a-'+k+'-title').value=fixBoldBrackets(p.title||'');
-  ytEl('a-'+k+'-body').value=k==='n'?noteSentenceBreaks(fixBoldBrackets(p.body||'')):fixBoldBrackets(p.body||'');   // note だけ「。」で改行（ブログはそのまま）
+  ytEl('a-'+k+'-body').value=noteSentenceBreaks(fixBoldBrackets(p.body||''));
   ytEl('a-'+k+'-tags').value=p.hashtags||'';
   ygArtUrlApply(false,k);
   saveState();
