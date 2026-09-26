@@ -9469,14 +9469,23 @@ ${note?'・Markdownの表は使わない（noteは表を表示できない）。
 ${doc}`;
 }
 const ygArtStatus=(k,msg,cls)=>ytStatus(msg,cls,'a-'+k+'-status');
+// note記事の注意書き（株価分析の note と同じ文）。導入（最初の段落）のすぐあとに、1つだけ入れる
+const YG_NOTE_DISCLAIMER='※本記事は情報提供を目的としており、特定の銘柄や金融商品の売買を推奨するものではありません。投資判断はご自身の責任でお願いいたします。';
+function ygNoteDisclaimer(body){
+  const blocks=String(body||'').split(/\n{2,}/).map(x=>x.trim()).filter(x=>x&&!/売買を推奨するものではありません/.test(x));
+  let i=blocks.findIndex(x=>!/^#{1,6}\s/.test(x));if(i<0)i=0;
+  blocks.splice(i+1,0,YG_NOTE_DISCLAIMER);
+  return blocks.join('\n\n');
+}
 function ygArtApply(k,text){
   const p=parseArticleOutput(String(text||''));
   if(!p.title&&!p.body){ygArtStatus(k,'❌ 【タイトル】【本　文】が見つかりません。AIの出力をまるごと貼り付けてください','error');return false;}
   ytEl('a-'+k+'-raw').value=text;
   ytEl('a-'+k+'-title').value=fixBoldBrackets(p.title||'');
-  ytEl('a-'+k+'-body').value=noteSentenceBreaks(fixBoldBrackets(p.body||''));
+  const body=noteSentenceBreaks(fixBoldBrackets(p.body||''));
+  ytEl('a-'+k+'-body').value=k==='n'?ygNoteDisclaimer(body):body;   // ブログは、ページの作り（sumikko-money）で注意書きが出る
   ytEl('a-'+k+'-tags').value=p.hashtags||'';
-  ygArtUrlApply(false,k);
+  ygArtUrlApply(false,k);   // 動画のURLは導入のすぐあと（注意書きの上）に入る
   saveState();
   ygArtStatus(k,`✅ 反映しました（本文${(p.body||'').length.toLocaleString()}字）`,'ok');
   return true;
