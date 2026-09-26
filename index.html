@@ -11923,7 +11923,7 @@ ${si>0?`<span class="yn-ed"><span class="yn-lb">切り替える文</span><button
 ${si===0?ynOpCoverLine():''}${rows.map(r=>r[1]).join('')}
 <div class="yn-it yn-add" id="yn-add-row${si}" style="display:none;"><select class="yn-sel t-zoom" id="yn-add-t${si}" onchange="this.className='yn-sel t-'+this.value;ynAddType(${si})">${TYPES.concat([['source','出典']]).map(o=>`<option value="${o[0]}">${o[1]}</option>`).join('')}</select>
 <select class="yn-in yn-srcsel" id="yn-add-s${si}" style="display:none;">${srcOpts}</select>
-<select class="yn-col" id="yn-add-c${si}" title="強調の色（自動＝そのまとまりで控えめに見える色）"><option value="">自動</option>${YN_COLS.map(o=>`<option value="${o[0]}" style="background:${o[0]}">${o[1]}</option>`).join('')}</select>
+<select class="yn-col" id="yn-add-c${si}" style="background:#94a3b8" onchange="this.style.background=this.value||'#94a3b8'" title="強調の色（自動＝そのまとまりで控えめに見える色）"><option value="" style="background:#94a3b8">自動</option>${YN_COLS.map(o=>`<option value="${o[0]}" style="background:${o[0]}">${o[1]}</option>`).join('')}</select>
 <span class="yn-lb">枠</span><input class="yn-in yn-zn" id="yn-add-z${si}" placeholder="2+3/T1">
 <span class="yn-nn"><span class="yn-lb">文</span><input class="yn-in" type="number" id="yn-add-f${si}" placeholder="${x.from}">〜<input class="yn-in" type="number" id="yn-add-e${si}" placeholder="${x.to}"></span>
 <button class="ya-nd" style="background:#0d9488;color:#fff;border-color:#0d9488;" onclick="ynFxAdd(${si})">保存</button><button class="ya-nd" onclick="ynAddOpen(${si},false)">やめる</button><span class="yn-sd">枠＝上の画像の番号（文字はT1）、文＝右の一覧の番号</span></div></div>`);
