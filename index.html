@@ -8945,7 +8945,7 @@ function ytLinkStateText(){
   if(!t.n)return['✅ リンク：確かめるURLはありません（チャートだけ）','ok'];
   if(t.un===t.n)return['⚠ リンク：未確認です。②〜④が終わったら「🔗 出典のリンクを確認」を押してください','error'];
   if(t.un)return[`⚠ リンク：未確認のURLがあります（${t.un}件。資料が変わりました）→ もう一度「🔗 出典のリンクを確認」`,'error'];
-  if(t.ng||t.warn)return[`⚠ リンク：${t.ng?`開けない ${t.ng}件`:''}${t.ng&&t.warn?'・':''}${t.warn?`要確認 ${t.warn}件`:''} → 「②FC」にこの結果が入ります。要確認は、ページを見て問題なければ「✔ 確認した」`,'error'];
+  if(t.ng||t.warn)return[`⚠ リンク：${t.ng?`開けない ${t.ng}件`:''}${t.ng&&t.warn?'・':''}${t.warn?`要確認 ${t.warn}件`:''} → 「②FC」にこの結果が入ります。${t.ng?'開けないものは、下の一覧の赤い行のURLを②〜④で直してください（「確認した」では通せません）。':''}${t.warn?'要確認は、下の一覧の黄色い行にある「✔ 確認した」を、ページを見て問題なければ押してください。':''}`,'error'];
   return[`✅ リンク：${t.n}件すべて問題ありません`,'ok'];
 }
 async function ytCheckLinks(btn){
