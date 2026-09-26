@@ -1817,9 +1817,7 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
     </details>
     <div style="display:flex;gap:6px;">
       <button class="btn" id="th-dl-btn" onclick="downloadThumb()" style="flex:1;">⬇ 横のサムネ</button>
-      <button class="btn" id="thv-dl-btn" onclick="downloadThumbV()" style="flex:1;" title="Instagram・Lemon8・TikTok に添付">⬇ 縦のサムネ</button>
-      <button class="btn" id="threel-dl-btn" onclick="downloadThumbReel()" style="flex:1;" title="縦のサムネを、ゆっくり寄る動画（mp4・音なし）にする。BGMはインスタのアプリで付ける">⬇ リール動画</button>
-    </div>
+      <button class="btn" id="thv-dl-btn" onclick="downloadThumbV()" style="flex:1;" title="Instagram・Lemon8・TikTok に添付">⬇ 縦のサムネ</button>    </div>
     <div style="display:flex;gap:6px;"><div id="th-status" style="flex:1;font-size:11px;color:var(--text-sub);min-height:16px;"></div><div id="thv-status" style="flex:1;font-size:11px;color:var(--text-sub);min-height:16px;"></div></div>
     <div class="sa-card" id="th-preview-card" style="display:none;">
       <h2>プレビュー（横・縦。テキスト変更で自動更新）</h2>
@@ -9999,7 +9997,7 @@ ${yaBuildPaneHtml()}
   <textarea id="yt-p-x" data-yh-slot="yh-slot-x" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;width:100%;box-sizing:border-box;"></textarea>
   <div class="yp-shd"><span title="投稿の種類で「動画」を選び、この動画を選ぶ">▼ YouTubeの投稿</span><span class="yp-slot" id="yh-slot-yp"></span><span class="yp-sbtn"><button class="ya-nd" onclick="copyText(ytVal('p-yp'),this)">投稿文</button></span></div>
   <textarea id="yt-p-yp" data-yh-slot="yh-slot-yp" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;width:100%;box-sizing:border-box;"></textarea>
-  <div class="yp-shd"><span>▼ Instagram</span><span class="yp-slot" id="yh-slot-ig"></span><span class="yp-sbtn"><button class="ya-nd" onclick="downloadThumbV()" title="縦のサムネをダウンロード（サムネイルのタブの文から作ります）">サムネ</button><button class="ya-nd" onclick="copyText(ytVal('p-ig'),this)">投稿文</button></span></div>
+  <div class="yp-shd"><span>▼ Instagram</span><span class="yp-slot" id="yh-slot-ig"></span><span class="yp-sbtn"><button class="ya-nd" onclick="downloadThumbReel(this)" title="縦のサムネを、ゆっくり寄る7秒の動画（mp4・音なし）にしてダウンロード（サムネイルのタブの文から作ります）。BGMはインスタのアプリで付ける">リール動画</button><button class="ya-nd" onclick="copyText(ytVal('p-ig'),this)">投稿文</button></span></div>
   <textarea id="yt-p-ig" data-yh-slot="yh-slot-ig" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;width:100%;box-sizing:border-box;"></textarea>
   <div class="yp-shd"><span>▼ Lemon8</span><span class="yp-slot" id="yh-slot-l8"></span><span class="yp-sbtn"><button class="ya-nd" onclick="downloadThumbV()" title="縦のサムネをダウンロード（サムネイルのタブの文から作ります）">サムネ</button><button class="ya-nd" onclick="copyText(ytVal('p-l8t'),this)">見出し</button><button class="ya-nd" onclick="copyText(ytVal('p-l8'),this)">投稿文</button></span></div>
   <input type="text" id="yt-p-l8t" oninput="saveState()" placeholder="見出し" style="width:100%;box-sizing:border-box;font-size:11px;">
@@ -14079,10 +14077,11 @@ async function downloadThumbV(){
 }
 // リール動画：縦のサムネ1枚を、ゆっくり寄る動画（mp4・1080×1920・音なし）にする。BGMはインスタのアプリで付ける
 const REEL_SEC=7,REEL_FPS=60,REEL_ZOOM=0.08;   // 長さ（秒）・コマ数・最後に何割大きくするか
-async function downloadThumbReel(){
-  const text=document.getElementById('th-input').value.trim(),st=document.getElementById('thv-status'),btn=document.getElementById('threel-dl-btn');
-  if(!text){st.textContent='テキストを入力してください';return;}
-  btn.disabled=true;st.textContent='動画を作っています…';
+// SNS の Instagram の見出しのボタンから呼ぶ。進み具合はボタンの文字に出す
+async function downloadThumbReel(btn){
+  const text=document.getElementById('th-input').value.trim(),lab=btn.textContent;
+  if(!text){alert('サムネイルのタブで、サムネの文を入れてください');return;}
+  btn.disabled=true;btn.textContent='作成中…';
   try{
     const png=await renderVideoToBlob({html:thumbVHtml(text),thumb:true});
     const img=await createImageBitmap(png);
@@ -14098,15 +14097,14 @@ async function downloadThumbReel(){
       const k=1+REEL_ZOOM*(i/(N-1)),w=VSLIDE_W*k,h=VSLIDE_H*k;   // 真ん中を中心に、一定の速さで寄る
       cx.drawImage(img,(VSLIDE_W-w)/2,(VSLIDE_H-h)/2,w,h);
       await src.add(i/REEL_FPS,1/REEL_FPS);
-      if(i%60===0)st.textContent=`動画を作っています…（${Math.round(i/N*100)}%）`;
+      if(i%60===0)btn.textContent=`作成中…${Math.round(i/N*100)}%`;
     }
     await output.finalize();
     const blob=new Blob([output.target.buffer],{type:'video/mp4'});
     const d=new Date(),ds=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
     const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`00_リール_${ds}.mp4`;a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);
-    st.textContent='✓ ダウンロードしました';setTimeout(()=>st.textContent='',3000);
-  }catch(e){st.textContent='うまく作れませんでした：'+e.message;}
-  finally{btn.disabled=false;}
+  }catch(e){alert('リール動画を作れませんでした：'+e.message);}
+  finally{btn.disabled=false;btn.textContent=lab;}
 }
 window.addEventListener('resize',()=>{if(document.getElementById('thumb-view').style.display!=='none')renderThumbPreview();});
 
