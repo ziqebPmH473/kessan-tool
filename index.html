@@ -9961,7 +9961,7 @@ function ytBuildTabHtml(){
 
 <div class="sa-card" style="margin-top:8px;">
   <h2>3. できたスライドを取り込む</h2>
-  <div style="font-size:11px;color:var(--text-sub);">できた画像を読み込みます（ファイル名順）。</div>
+  <div style="font-size:11px;color:var(--text-sub);">できた画像を読み込みます（ファイル名順）。あとから選んだ画像は足されます（同じファイル名は差し替え）。</div>
   <input type="file" id="yn-files" accept="image/*" multiple onchange="ynLoadFiles(this.files)" style="font-size:11px;width:100%;">
   ${row(b('🔍 まとまりを読み取る','ynReadZones(this)','background:#4f46e5;color:#fff;'))}
   <div id="yn-read-state" style="font-size:11px;color:var(--text-sub);"></div>
@@ -11497,10 +11497,19 @@ async function ynLoadFiles(files){
   const list=[...files].filter(f=>/^image\//.test(f.type)).sort((a,b)=>a.name.localeCompare(b.name,'ja',{numeric:true}));
   if(!list.length){alert('画像ファイルを選んでください');return;}
   if(YN.slides.length)await yhPush('slidesAll',ynSlidesSnap(),'画像の読み込みの前');
-  YN.slides=[];
-  for(const f of list)YN.slides.push({name:f.name,blob:f,zones:null});
+  // 前の画像と読み取りは残して足す。同じファイル名は画像を差し替え（読み取りは消す）。新しい画像はファイル名の順の位置に入れる
+  const cmp=(a,b)=>a.localeCompare(b,'ja',{numeric:true});
+  let add=0,rep=0,mid=false;
+  for(const f of list){
+    const old=YN.slides.find(s=>s.name===f.name);
+    if(old){old.blob=f;old.zones=null;old.texts=null;old.qrOrig=null;old.qrRect=null;rep++;continue;}
+    let j=YN.slides.findIndex(s=>cmp(s.name,f.name)>0);if(j<0)j=YN.slides.length;else mid=true;
+    YN.slides.splice(j,0,{name:f.name,blob:f,zones:null});add++;
+  }
+  const fi=ynEl('files');if(fi)fi.value='';   // 同じファイルを続けて選んでも読み込めるように
   await ynSave();ynRender();
-  ynStatus(`✅ ${YN.slides.length}枚を読み込みました。「まとまりを読み取る」を押してください`,'ok');
+  const warn=(mid||rep)&&YN.plan&&YN.plan.slides?' ⚠ 演出の割り当てが指すスライドの番号がずれていることがあります。割り当てを確かめてください':'';
+  ynStatus(`✅ ${add?`${add}枚を足しました`:''}${add&&rep?'・':''}${rep?`${rep}枚を差し替えました（同じファイル名）`:''}（全部で${YN.slides.length}枚）。「まとまりを読み取る」で、まだ読み取っていない枚だけ読み取ります${warn}`,warn?'error':'ok');
 }
 function ynMove(i,d){const j=i+d;if(j<0||j>=YN.slides.length)return;const [s]=YN.slides.splice(i,1);YN.slides.splice(j,0,s);ynSave();ynRender();}
 // スライドの画像を1枚保存（QRを貼ったあとの、いま使っている画像）
