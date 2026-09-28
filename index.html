@@ -12582,6 +12582,12 @@ async function ynExport(btn){
         if(post){post.startTime=E;post.enterAnim={type:'none',durationMs:0};img.animOut='none';}
       }
     }
+    // スライドの最後の文までのズーム（ズームの後から切り替わりまでに、残っている文が無い。カットをはさむ場合も）は、切り替わるまでズームしたままにする（OUTなし）
+    occ.forEach((o,i)=>{
+      if(!isFinite(o.e))return;   // 最後のスライドは切り替わりが無いので、そのまま
+      const E=+o.e.toFixed(2),K=slides[i].zoomKeyframes,last=K.reduce((a,k)=>!a||k.endTime>a.endTime?k:a,null);
+      if(last&&last.endTime<=E+0.05&&adj(last.endTime,E)){last.endTime=E;last.exitAnim={type:'none',durationMs:0};}
+    });
     slides.forEach(s=>s.zoomKeyframes.sort((a,b)=>a.startTime-b.startTime));
     // 切り替え・テロップ・字幕・カット
     const switchPoints=YN.plan.slides.slice(1).map(x=>+x.s.toFixed(2));
