@@ -3419,6 +3419,7 @@ point_2=`;
         window.addEventListener('resize',()=>ktStickyTops());window.addEventListener('load',()=>ktStickyTops());
         function switchMode(mode) {
             try { sessionStorage.setItem('kt-mode', mode); } catch (e) {}
+            try { localStorage.setItem('kt-mode-last', mode); } catch (e) {}   // 新しく開いたときは、最後に開いていた種別で始める
             if (typeof ktPjFill === 'function') { window._ktKind = mode; ktPjFill(); }
             document.body.classList.toggle('kt-yt',mode==='yt');   // YT動画は、タブの中身だけをスクロールする（広い画面）
             setTimeout(ktStickyTops,0);
@@ -4622,7 +4623,8 @@ risk_3=`;
         window.onload = () => { window._ktInitDone = (async () => {
             // サーバー（D1/R2）に保存があれば localStorage に写す。無ければ今までどおり。終わるまで待つ。
             await KTStore.ready({ collect: (tab, st) => { const c = tabIoCollectFields(tab); c.title = ktTabTitle(tab, (st && st.fields) || {}); return c; } });
-            let ktMode0 = 'earnings'; try { ktMode0 = sessionStorage.getItem('kt-mode') || 'earnings'; } catch (e) {}
+            // 種別：このタブで開いていたもの（再読み込み）→ 無ければ、最後に開いていたもの（新しく開いたとき）
+            let ktMode0 = 'earnings'; try { ktMode0 = sessionStorage.getItem('kt-mode') || localStorage.getItem('kt-mode-last') || 'earnings'; } catch (e) {}
             if (!['earnings', 'stock', 'price', 'yt'].includes(ktMode0)) ktMode0 = 'earnings';
             YT_CTX = ktMode0 === 'yt' ? 'gen' : 'stock';
             setupDateSync();
