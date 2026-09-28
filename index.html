@@ -12476,9 +12476,15 @@ async function ynExport(btn){
       const tg=ynZoomTarget(zone);
       if(tg.w>=0.99)continue;   // 倍率が1倍（まとまりが大きく、画面いっぱいのまま）になるズームは入れない。割り当ては残す
       sl.zoomKeyframes.push({id:`zk-yt-${++id}`,startTime:+z.s.toFixed(2),endTime:+z.e.toFixed(2),startSil:null,endSil:null,
-        target:tg,enterAnim:{type:'smooth',durationMs:500},exitAnim:{type:'smooth',durationMs:500}});
+        target:tg,enterAnim:{type:'smooth',durationMs:500},exitAnim:{type:'smooth',durationMs:500},_from:z.from,_to:z.to});
     }
-    slides.forEach(s=>s.zoomKeyframes.sort((a,b)=>a.startTime-b.startTime));
+    // 隣り合う文のズーム（前のズームの最後の文のすぐ次の文から、次のズームが始まる）は、文の間で空けずにつなげる（前の終わり＝次の始まり）
+    const kns=ynKeptSents().map(x=>x.n),kgi=n=>kns.indexOf(n);
+    slides.forEach(s=>{
+      const K=s.zoomKeyframes.sort((a,b)=>a.startTime-b.startTime);
+      K.forEach((k,i)=>{const nx=K[i+1];if(nx&&kgi(k._to)>=0&&kgi(nx._from)-kgi(k._to)===1&&nx.startTime>k.endTime)k.endTime=nx.startTime;});
+      K.forEach(k=>{delete k._from;delete k._to;});
+    });
     // 強調（四角枠・ハイライト・下線）
     const COL={rect:YN_COL.red,highlight:YN_COL.yellow,underline:YN_COL.blue};   // 色が決まっていない古い割り当て用
     // 文字（T番号）の強調は行ごとに1本（同じ時間）。四角枠は行をまとめて囲む。結論の下線は太く
