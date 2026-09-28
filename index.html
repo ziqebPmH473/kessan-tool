@@ -12478,9 +12478,11 @@ async function ynExport(btn){
       sl.zoomKeyframes.push({id:`zk-yt-${++id}`,startTime:+z.s.toFixed(2),endTime:+z.e.toFixed(2),startSil:null,endSil:null,
         target:tg,enterAnim:{type:'smooth',durationMs:500},exitAnim:{type:'smooth',durationMs:500}});
     }
-    // 隣り合う文のズーム（間に、残っている文が1つも無い）は、文の間で空けずにつなげる（前の終わり＝次の始まり）。
+    // 隣り合う文のズーム（間に、カットで残っている話が無い）は、文の間で空けずにつなげる（前の終わり＝次の始まり）。
     // 間の文をカットで消した場合も隣として扱う（文の番号ではなく、残っている文が間にあるかで見る。割り当てのあとにカットした文も外れる）
-    const kSents=ynKeptSents(),adj=(a,b)=>b>=a-0.05&&!kSents.some(x=>x.s>=a-0.02&&x.e<=b+0.02);
+    // 文の一部だけをカットした文もあるので、間にある文の「カットで残った長さ」で見る（0.3秒以下なら話していないとみなす）
+    const edK=yaKeep(),edLen=(a,b)=>b>a?yaToEdit(b,edK)-yaToEdit(a,edK):0;
+    const adj=(a,b)=>b>=a-0.05&&!YA.sents.some(x=>edLen(Math.max(x.s,a),Math.min(x.e,b))>0.3);
     slides.forEach(s=>{
       const K=s.zoomKeyframes.sort((a,b)=>a.startTime-b.startTime);
       K.forEach((k,i)=>{const nx=K[i+1];if(nx&&nx.startTime>k.endTime&&adj(k.endTime,nx.startTime))k.endTime=nx.startTime;});
