@@ -12567,9 +12567,9 @@ async function ynExport(btn){
       }
       decorations.length=0;decorations.push(...keepDec);
     }
-    // 出典・チャートの画像のすぐ前・すぐ後のズーム（間に残っている文が無い。カットをはさむ場合も）は、引かず・寄らずに画像へ切り替える。
-    // ズームの終わり＝画像の始まり、画像の終わり＝ズームの始まりにつなげ、ズームの OUT・IN と画像のフェードをなしにする
-    // （画像はスライドの上に重ねるので、ズーム中は出せない。フェードがあると、画像の後ろでズームが戻る・寄るのが見える）
+    // 出典・チャートの画像のすぐ前・すぐ後のズーム（間に残っている文が無い。カットをはさむ場合も）は、時刻を画像につなげる（ズームの終わり＝画像の始まり、画像の終わり＝ズームの始まり）。
+    // 直前のズームは、引かずに画像へ切り替える（ズームの OUT と画像のフェードインをなしに。フェードがあると、画像の後ろでズームが戻るのが見える）。
+    // 直後のズームは、画像が消えてからズームインする（IN・画像のフェードアウトはそのまま）
     {
       const swT=YN.plan.slides.slice(1).map(x=>x.s),noSw=(a,b)=>!swT.some(t=>t>a+0.05&&t<b-0.05);
       const allK=slides.flatMap(s=>s.zoomKeyframes);
@@ -12579,7 +12579,7 @@ async function ynExport(btn){
         const pre=allK.filter(k=>k.endTime<=S+0.05&&k.startTime<S-0.5&&adj(k.endTime,S)&&noSw(k.endTime,S)).sort((a,c)=>c.endTime-a.endTime)[0];
         if(pre){pre.endTime=S;pre.exitAnim={type:'none',durationMs:0};img.animIn='none';}
         const post=allK.filter(k=>k.startTime>=E-0.05&&k.endTime>E+0.5&&adj(E,k.startTime)&&noSw(E,k.startTime)).sort((a,c)=>a.startTime-c.startTime)[0];
-        if(post){post.startTime=E;post.enterAnim={type:'none',durationMs:0};img.animOut='none';}
+        if(post)post.startTime=E;   // 直後のズームは、画像が消えてからズームイン（IN はそのまま）
       }
     }
     // スライドの最後の文までのズーム（ズームの後から切り替わりまでに、残っている文が無い。カットをはさむ場合も）は、切り替わるまでズームしたままにする（OUTなし）
