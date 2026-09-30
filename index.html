@@ -5625,9 +5625,11 @@ function saArticleInputs(){
   if(!report){alert('「2. ChatGPT分析」のレポートを貼り付けてください');return null;}
   return{prompt:(document.getElementById('gem-article-prompt').textContent||'').trim(),resources:[{label:'株価分析レポート',text:report}]};
 }
+// 手動用は、各ブロックを ``` で囲ませない（ChatGPTの画面は長いコードブロックの表示が遅い。ツールは【見出し】だけで分けるので囲みは要らない）
+const SA_MANUAL_NOFENCE='\n\n【手動用の補足（上の指示より優先）】\n6つのブロックは、コードブロック（```）で囲まない。「【タイトル】」「【本　文】」「【サムネ構成案】」「【ハッシュタグ】」「【X（旧Twitter）告知文】」「【証券管理ツール用データ】」の見出しを行頭に置き、その次の行から中身をそのまま書く。ブロックの前後に説明や感想は書かない。';
 function saCopyArticlePrompt(btn){
   const a=saArticleInputs();if(!a)return;
-  copyText(saManualPrompt(a.prompt,a.resources),btn);
+  copyText(saManualPrompt(a.prompt+SA_MANUAL_NOFENCE,a.resources),btn);
 }
 // 手動：ChatGPTの返答をまるごと貼ると、APIで作ったときと同じように各欄へ分けて入れる。売買表現チェックはAPIを使うので、ボタンで別に
 async function saPasteArticle(){
