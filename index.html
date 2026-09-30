@@ -1571,6 +1571,12 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
       <button class="btn-sm" onclick="copyNBPrompt(this)" style="flex:1;min-width:0;line-height:1.6;background:#475569;color:#fff;">📓 NotebookLM</button>
       <button class="btn-sm" onclick="geminiFormatStock(this)" style="flex:1;min-width:0;line-height:1.6;background:#4f46e5;color:#fff;">📤 出力データ作成</button>
     </div>
+    <details style="margin-top:4px;"><summary style="font-size:11px;color:var(--text-sub);cursor:pointer;" title="プロンプトには株探の取得データとレポートが入っています。ChatGPTに貼って、返ってきた文をコピーしてから「📋 貼り付け」を押すと「2.」の欄に入ります">手動で作る（ChatGPT など。APIが混んでいるとき）</summary>
+      <div class="row" style="flex-wrap:nowrap;margin-top:4px;">
+        <button class="btn-sm" onclick="saCopyFormatPrompt(this)" style="flex:1;min-width:0;background:#475569;color:#fff;">💬 プロンプト</button>
+        <button class="btn-sm" onclick="saPasteFormat()" style="flex:1;min-width:0;">📋 貼り付け</button>
+      </div>
+    </details>
     <div id="gem-status" style="display:none;font-size:11px;margin-top:3px;"></div>
     <details>
       <summary>入力フォーマットを確認する</summary>
@@ -1669,6 +1675,12 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
       </select>
     </div>
     <button class="btn btn-full" id="art-gen-btn" onclick="geminiArticle(this)" style="background:#0d9488;color:#fff;margin-top:6px;">📝 記事・SNSを生成</button>
+    <details style="margin-top:4px;"><summary style="font-size:11px;color:var(--text-sub);cursor:pointer;" title="ChatGPTに貼って、返ってきた文をまるごとコピーしてから「📋 貼り付け」を押すと、下の欄に分けて入ります。売買表現チェックは下のボタンで">手動で作る（ChatGPT など。APIが混んでいるとき）</summary>
+      <div class="row" style="flex-wrap:nowrap;margin-top:4px;">
+        <button class="btn-sm" onclick="saCopyArticlePrompt(this)" style="flex:1;min-width:0;background:#475569;color:#fff;">💬 プロンプト</button>
+        <button class="btn-sm" onclick="saPasteArticle()" style="flex:1;min-width:0;">📋 貼り付け</button>
+      </div>
+    </details>
     <div id="gem-article-status" style="display:none;font-size:11px;margin-top:3px;"></div>
     <button class="btn-sm" id="art-check-btn" onclick="artComplianceCheck(this)" style="margin-top:6px;width:100%;" title="タイトル・本文・サムネ・X投稿文に売買行動を促す表現がないかをAIと禁止語検知で確認し、違反箇所だけを書き換えます（生成時は自動実行）">🔍 売買表現チェック（違反箇所のみ修正）</button>
     <textarea id="art-check" readonly placeholder="売買表現チェックの結果（どこを・どう直したか）がここに出ます" style="min-height:46px;font-size:10px;margin-top:3px;"></textarea>
@@ -5074,18 +5086,45 @@ async function saCallGeminiAnalyze(prompt,resources,opts){
     return{ok:true,text:data.text||'',model:data.model,fellBack:data.fellBack,failures:data.failures||[],usage:data.usage||null};
   }catch(e){return{ok:false,error:(e&&e.message)?e.message:String(e)};}
 }
-// 株価分析：Geminiで整形 → #ta-data に投入して描画（NotebookLM出力の代わり）
-async function geminiFormatStock(btnEl){
+// 手動（ChatGPTなど）に貼るプロンプト。/api/analyze がサーバー側で組み立てる形と同じにする（APIと同じ指示・同じ資料になるように）
+function saManualPrompt(prompt,resources){
+  const res=(resources||[]).map(r=>`【${r.label||'資料'}】\n${r.text||''}`).join('\n\n');
+  return res?`以下の資料のみを根拠として、指示に厳密に従って回答してください。資料に無い情報を創作しないでください。\n\n===== 資料 =====\n${res}\n\n===== 指示 =====\n${prompt}`:prompt;
+}
+// ChatGPTの返答が全体をコードブロックで囲んでいるときは、外側の ``` だけを外す
+function saStripOuterFence(t){
+  const m=String(t||'').trim().match(/^```[^\n]*\n([\s\S]*?)\n?```$/);
+  return m?m[1].trim():String(t||'').trim();
+}
+// 出力データ作成の材料（株探の取得データ＋レポート）。足りなければ知らせて null
+function saFormatResources(){
   const src=getSourceText();
   const report=(document.getElementById('ta-report').value||'').trim();
   const miss=[];
   if(src==null)miss.push('株探の取得データ（📥 自動取得）');
   if(!report)miss.push('分析レポート（ChatGPTレポート欄）');
-  if(miss.length){alert('整形には次が必要です：\n・'+miss.join('\n・'));return;}
-  const resources=[
+  if(miss.length){alert('整形には次が必要です：\n・'+miss.join('\n・'));return null;}
+  return[
     {label:'株探 取得データ',text:src},
     {label:'分析レポート（ファクトチェック済み）',text:report}
   ];
+}
+function saCopyFormatPrompt(btn){
+  const resources=saFormatResources();if(!resources)return;
+  copyText(saManualPrompt(NB_PROMPT+SA_GROUNDING_RULE,resources),btn);
+}
+async function saPasteFormat(){
+  let t;
+  try{t=await navigator.clipboard.readText();}catch(e){alert('クリップボードへのアクセスが拒否されました。「2.」の欄に手動で貼り付けてください。');return;}
+  t=saStripOuterFence(t);
+  if(!t){alert('クリップボードが空です');return;}
+  document.getElementById('ta-data').value=t;
+  renderPrev();
+  saSetGemStatus('貼り付けました（手動）','ok');
+}
+// 株価分析：Geminiで整形 → #ta-data に投入して描画（NotebookLM出力の代わり）
+async function geminiFormatStock(btnEl){
+  const resources=saFormatResources();if(!resources)return;
   // 「自動・高モデル優先」は override なしの high クラス（3.8 Flash 起点のチェーン）として扱う
   const sel=(document.getElementById('gem-model')||{}).value||'';
   const autoHigh=sel==='auto-high';
@@ -5580,19 +5619,32 @@ async function artComplianceCheck(btnEl,silent,opt){
   return{clean,summary};
 }
 
-async function geminiArticle(btnEl){
+// 記事・SNS生成の材料（プロンプトとレポート）。レポートが無ければ知らせて null
+function saArticleInputs(){
   const report=(document.getElementById('ta-report').value||'').trim();
-  if(!report){alert('「2. ChatGPT分析」のレポートを貼り付けてください');return;}
-  const prompt=(document.getElementById('gem-article-prompt').textContent||'').trim();
-  const resources=[{label:'株価分析レポート',text:report}];
-  const ov=(document.getElementById('gem-article-model')||{}).value||'';
-  const o=btnEl?btnEl.textContent:'';
-  if(btnEl){btnEl.disabled=true;btnEl.textContent='生成中…';}
-  setArtStatus('Geminiで記事生成中…（30秒〜1分）','info');
-  const r=await saCallGeminiAnalyze(prompt,resources,{cls:'high',temperature:0.7,modelOverride:ov});
-  if(btnEl){btnEl.disabled=false;btnEl.textContent=o;}
-  if(!r.ok){setArtStatus('エラー: '+r.error,'error');return;}
-  const p=parseArticleOutput(r.text);
+  if(!report){alert('「2. ChatGPT分析」のレポートを貼り付けてください');return null;}
+  return{prompt:(document.getElementById('gem-article-prompt').textContent||'').trim(),resources:[{label:'株価分析レポート',text:report}]};
+}
+function saCopyArticlePrompt(btn){
+  const a=saArticleInputs();if(!a)return;
+  copyText(saManualPrompt(a.prompt,a.resources),btn);
+}
+// 手動：ChatGPTの返答をまるごと貼ると、APIで作ったときと同じように各欄へ分けて入れる。売買表現チェックはAPIを使うので、ボタンで別に
+async function saPasteArticle(){
+  let t;
+  try{t=await navigator.clipboard.readText();}catch(e){alert('クリップボードへのアクセスが拒否されました。「生成全文」の欄に手動で貼り付けてください。');return;}
+  if(!String(t||'').trim()){alert('クリップボードが空です');return;}
+  const p=parseArticleOutput(t);
+  if(!p.title&&!p.body){setArtStatus('【タイトル】【本　文】が見つかりません。ChatGPTの返答をまるごとコピーして貼り付けてください','error');return;}
+  const missing=saArtApply(p,t);
+  document.getElementById('art-check').value='';
+  setArtStatus('貼り付けました（手動） → 関連記事…','info');
+  const rel=await relAuto();
+  setArtStatus(`貼り付けました（手動）${missing.length?' ※'+missing.join('・')+'は全文から確認':''}${rel?' ／ '+rel:''} ／ 売買表現チェックは下のボタンで`,'info');
+  try{exportTabData('price',{light:true});}catch(e){console.warn('export',e);}
+}
+// 生成結果（parseArticleOutput の結果と全文）を各欄に入れる。取れなかった欄の名前を返す
+function saArtApply(p,raw){
   document.getElementById('art-title').value=fixBoldBrackets(deJargonP0(p.title));
   document.getElementById('art-body').value=noteSentenceBreaks(fixBoldBrackets(deJargonP0(p.body)));
   document.getElementById('art-thumb').value=p.thumbnail;
@@ -5602,10 +5654,23 @@ async function geminiArticle(btnEl){
   // 記事URLは記事ごとに変わるため、前回のURLが新しい投稿文に混入しないよう空にする
   document.getElementById('art-url').value='';
   document.getElementById('art-sec').value=buildSecToolTable(p.sectool);
-  document.getElementById('art-raw').value=r.text;
+  document.getElementById('art-raw').value=raw;
   // 値をJSで入れた場合は input イベントが飛ばず保存されないため、明示的に保存する
   if(typeof saveState==='function')saveState();
-  const missing=[!p.title&&'タイトル',!p.body&&'本文',!p.xpost&&'X投稿文',!p.sectool&&'証券管理データ'].filter(Boolean);
+  return[!p.title&&'タイトル',!p.body&&'本文',!p.xpost&&'X投稿文',!p.sectool&&'証券管理データ'].filter(Boolean);
+}
+async function geminiArticle(btnEl){
+  const a=saArticleInputs();if(!a)return;
+  const {prompt,resources}=a;
+  const ov=(document.getElementById('gem-article-model')||{}).value||'';
+  const o=btnEl?btnEl.textContent:'';
+  if(btnEl){btnEl.disabled=true;btnEl.textContent='生成中…';}
+  setArtStatus('Geminiで記事生成中…（30秒〜1分）','info');
+  const r=await saCallGeminiAnalyze(prompt,resources,{cls:'high',temperature:0.7,modelOverride:ov});
+  if(btnEl){btnEl.disabled=false;btnEl.textContent=o;}
+  if(!r.ok){setArtStatus('エラー: '+r.error,'error');return;}
+  const p=parseArticleOutput(r.text);
+  const missing=saArtApply(p,r.text);
   const genMsg=`生成完了（${r.model||'gemini'}${fallNote(r)}${saTokenNote(r.usage)}）${missing.length?' ※'+missing.join('・')+'は全文から確認':''}`;
   // 売買行動を促す表現のチェック（違反箇所だけを書き換える）。失敗しても記事はそのまま残す
   document.getElementById('art-check').value='';
