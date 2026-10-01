@@ -9017,6 +9017,8 @@ const ytUrlKey=u=>String(u||'').trim().replace(/^https?:\/\//i,'').replace(/#.*$
 function ytLinkJudge(x){
   // 403・429・503 は「ページが無い」ではなく、サイトがツール（サーバー）からの読み込みを断っていることが多い。ブラウザでは開けるので、目で確かめて「確認した」にできるようにする
   if(!x.ok&&[403,429,503].includes(+x.status))return{st:'warn',why:[`ツールからは開けませんでした（${x.status}）。サイトが機械からの読み込みを断っているだけで、ブラウザでは開けることがあります。リンクを押して開き、資料名どおりの資料なら「確認した」を押してください`]};
+  // 520〜526 は Cloudflare（ツールのサーバー）がサイトにつなげなかったときの番号（525＝暗号化通信の握手に失敗、など）。ページが無いのではなく、ツール側とサイトの相性なので、ブラウザでは開ける（例：ssl4.eir-parts.net）
+  if(!x.ok&&+x.status>=520&&+x.status<=526)return{st:'warn',why:[`ツールからはつなげませんでした（${x.status}）。ツールのサーバーとこのサイトの通信がうまくいかないだけで、ブラウザでは開けることが多いです。リンクを押して開き、資料名どおりの資料なら「確認した」を押してください`]};
   if(!x.ok)return{st:'ng',why:[`開けません（${x.status||x.error||'エラー'}）`]};
   const why=[],isPdf=x.type==='application/pdf',isImg=(x.type||'').startsWith('image/');
   if(x.finalUrl&&ytUrlKey(x.finalUrl)!==ytUrlKey(x.url))why.push(`別のURLへ転送されました → ${x.finalUrl}`);
