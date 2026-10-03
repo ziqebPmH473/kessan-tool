@@ -9487,7 +9487,7 @@ function ytPostApply(){
 }
 async function ytPostAi(btn,sns){
   let prompt;try{prompt=sns?ytPostPromptSns():ytPostPrompt();}catch(e){ytStatus('❌ '+e.message,'error','post3-status');return;}
-  if(btn)btn.disabled=true;ytStatus('作成中…（数十秒かかります）','','post3-status');
+  if(btn)btn.disabled=true;ytStatus('作成中…（数十秒かかります）','','post3-status');ytStatus('作成中…（数十秒かかります）','','post-status');
   try{
     const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({prompt,resources:[],files:[],temperature:0.6,models:ytModels('post')})});
@@ -10074,6 +10074,7 @@ ${yaBuildPaneHtml()}
 <div id="yt-pane-post" style="display:none;">
 <div class="sa-card">
   <h2 title="材料は、動画資料・レポートの無料範囲・音声の文字起こし（カット後に残る文）です">1. 投稿文を作る</h2>
+  ${row(b('🤖 Gemini APIで生成',"if(!ytVal('p-desc').trim()||confirm('タイトル・サムネイル・概要欄・SNSの投稿文を、AIで全部作り直します。よろしいですか？'))ytPostAi(this)",'background:#4f46e5;color:#fff;','','タイトル・サムネイル・概要欄・SNSの投稿文を、AIで作ります（下の「再生成」と同じ）'))}
   <details class="yt-col" style="margin-top:4px;"><summary style="font-size:11px;color:var(--text-sub);cursor:pointer;">手動で作る（ChatGPT など。APIが混んでいるとき）</summary>
   ${row(b('💬 プロンプト',"try{copyText(ytPostPrompt(),this)}catch(e){alert(e.message)}",G),b('💬 SNSだけのプロンプト',"try{copyText(ytPostPromptSns(),this)}catch(e){alert(e.message)}",G))}
   ${row(b('📋 貼り付け',"ytPaste('post',ytPostApply)"),b('↻ 反映','ytPostApply()'))}
