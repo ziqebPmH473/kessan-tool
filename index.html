@@ -12584,7 +12584,7 @@ async function ynExport(btn){
           return[{...base(),imgX1:b.x0-0.008,imgY1:b.y0-0.01,imgX2:b.x1+0.008,imgY2:b.y1+0.01,opacity:80,lineWidth:6}];}
         return L.map(b=>mk.type==='underline'
           ?{...base(),imgX1:b.x0,imgY1:Math.min(0.99,b.y1+0.003),imgX2:b.x1,imgY2:Math.min(1,b.y1+0.028),opacity:40,lineWidth:6}
-          :{...base(),imgX1:b.x0-0.004,imgY1:b.y0,imgX2:b.x1+0.004,imgY2:b.y1,opacity:24,lineWidth:6});
+          :{...base(),imgX1:b.x0-0.004,imgY1:b.y0,imgX2:b.x1+0.004,imgY2:b.y1,opacity:38,lineWidth:6});   // 濃さはナレスラの種類ごとの初期値にそろえる（下線40・ハイライト38・四角枠80）
       }
       return (mk.zones||[mk.zone]).map(k=>{
         const zone=(S.zones||[])[k-1];if(!zone)return null;
