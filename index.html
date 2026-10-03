@@ -8871,9 +8871,10 @@ function ytNoteUrl(){
     ||vdVal('vd','note-url')||'';
 }
 // シリーズ名（音声タブで直せる）。空欄なら、シリーズ無しとして扱う
-const YT_SERIES_DEFAULT='私が知らない実力株';
+const YT_SERIES_DEFAULT='';                 // 初期値（新しいPJは空＝シリーズ無し）
+const YT_SERIES_RESET='私が知らない実力株';   // 「↺」で入れる値
 function ytSeries(){const el=document.getElementById('yt-series');return el?(el.value||'').trim():YT_SERIES_DEFAULT;}
-function ytSeriesReset(){const el=document.getElementById('yt-series');if(!el)return;el.value=YT_SERIES_DEFAULT;saveState();}
+function ytSeriesReset(){const el=document.getElementById('yt-series');if(!el)return;el.value=YT_SERIES_RESET;saveState();}
 // どういう動画か（意図だけ）。調査・音声・スライド・投稿文のプロンプトで同じ文を使う。細かいことは構成と資料が伝える
 const YT_G_AUD_DEFAULT='個人投資家向けのYouTube番組';
 // 作品の名前（株価分析の動画＝銘柄名、YT動画＝テーマ）。読みがなや保存済み音声が「別の作品のもの」かを見分けるのにも使う
