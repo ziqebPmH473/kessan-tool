@@ -12522,6 +12522,15 @@ async function ynTemplate(){
 async function ynExport(btn){
   if(!YN.plan)  {alert('先に演出を割り当ててください');return;}
   if(!YA.file)  {alert('「音声」タブで音声を読み込んでください');return;}
+  // 出典・チャートの画像を差し込んでいないと仮の画像で書き出される。気づかずにナレスラへ取り込まないよう、先に確認する
+  {const has=k=>!!(YS.imgs[k]&&YS.imgs[k].blob);
+    const miss=(YN.plan.sources||[]).filter(sp=>!has(sp.no)).map(sp=>`出典${sp.no}`)
+      .concat((YN.plan.charts||[]).filter(cp=>!has(cp.id)).map(cp=>`チャート（${cp.ticker} ${cp.interval}）`));
+    if(miss.length&&!confirm(`画像を差し込んでいない出典・チャートがあります（仮の画像のまま書き出されます）
+
+${miss.join('、')}
+
+このまま書き出しますか？`))return;}
   if(btn)btn.disabled=true;
   try{
     if(YN.slides.some(s=>!s.zones||!s.zones.length))ynStatus('⚠ まとまりを読み取っていないスライドがあります（ズーム・強調はその分だけ入りません）','','status3');
