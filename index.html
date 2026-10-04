@@ -1075,12 +1075,12 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
       .control-panel { gap: 12px; }
 
       /* 種別・PJバー（sticky。背景はページ背景と揃える） */
-      .control-panel > .mode-tabs { background: var(--ui-bg); padding-bottom: 10px; gap: 8px; }
+      .control-panel > .mode-tabs { background: var(--ui-bg); padding-bottom: 10px; gap: 6px; }
       .kt-pjsel { height: 38px; border: 1px solid var(--ui-line-strong); border-radius: var(--ui-radius-s); background: var(--ui-surface);
         padding: 0 10px; font-weight: 700; color: var(--ui-ink); box-shadow: 0 1px 2px rgba(15,23,42,.04); }
       .kt-pjsel.kt-pjlist { font-weight: 500; color: var(--ui-ink-2); }
       .kt-pjsel:focus { outline: none; border-color: var(--ui-accent); box-shadow: 0 0 0 3px rgba(37,99,235,.15); }
-      .kt-pjbtn { height: 38px; border: 1px solid var(--ui-line-strong); border-radius: var(--ui-radius-s); background: var(--ui-surface);
+      .kt-pjbtn { height: 38px; padding: 0 9px; border: 1px solid var(--ui-line-strong); border-radius: var(--ui-radius-s); background: var(--ui-surface);
         color: var(--ui-ink-2); padding: 0 12px; box-shadow: 0 1px 2px rgba(15,23,42,.04); transition: .15s; }
       .kt-pjbtn:hover { background: #f8fafc; border-color: #b6c2d1; color: var(--ui-ink); }
       .kt-pjbtn.kt-pjdel { color: #b91c1c; }
@@ -1211,11 +1211,11 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
             </select>
             <button type="button" class="kt-pjbtn" onclick="ktPjNew()" title="この種別で新しいPJを始める">＋新規</button>
             <button type="button" class="kt-pjbtn kt-pjdel" onclick="ktPjDelete()" title="開いているPJを消す（確認あり）">削除</button>
-            <button type="button" class="kt-pjbtn" onclick="kgOpen()" title="すべてのPJで共通の設定（声・モデル・定型文・サムネの初期値・スライドの色・OP/ED・BGM）">⚙ 共通設定</button>
-            <button type="button" class="kt-pjbtn" onclick="kcOpen()" title="日本株・米国株の決算発表の予定日をカレンダーで見る">📅 決算カレンダー</button>
-            <button type="button" class="kt-pjbtn" onclick="tqOpen()" title="文字だけ入れて、横・縦のサムネ画像をダウンロード（noteのまとめ記事など、PJを作らないとき用。保存はしません）">🖼 サムネだけ</button>
-            <button type="button" class="kt-pjbtn" onclick="exportTabData(window._ktKind)" title="開いているPJの内容（裏データ含む）をJSONで保存">📤 エクスポート</button>
-            <button type="button" class="kt-pjbtn" onclick="importTabDataPick(window._ktKind)" title="保存したJSONを読み込んで続きから再開">📥 インポート</button>
+            <button type="button" class="kt-pjbtn" onclick="kgOpen()" title="共通設定：すべてのPJで共通の設定（声・モデル・定型文・サムネの初期値・スライドの色・OP/ED・BGM）">⚙ 設定</button>
+            <button type="button" class="kt-pjbtn" onclick="kcOpen()" title="決算カレンダー：日本株・米国株の決算発表の予定日をカレンダーで見る">📅 予定</button>
+            <button type="button" class="kt-pjbtn" onclick="tqOpen()" title="サムネだけ：文字だけ入れて、横・縦のサムネ画像をダウンロード（noteのまとめ記事など、PJを作らないとき用。保存はしません）">🖼 サムネ</button>
+            <button type="button" class="kt-pjbtn" onclick="exportTabData(window._ktKind)" title="エクスポート：開いているPJの内容（裏データ含む）をJSONで保存">📤 書出</button>
+            <button type="button" class="kt-pjbtn" onclick="importTabDataPick(window._ktKind)" title="インポート：保存したJSONを読み込んで続きから再開">📥 読込</button>
             <select id="kt-pj" class="kt-pjsel kt-pjlist" title="開くPJ（作成日 名前）。続きはここから選ぶ" onchange="ktPjChange(this.value)"></select>
         </div>
 
