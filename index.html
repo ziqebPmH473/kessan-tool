@@ -14739,7 +14739,7 @@ async function tqDownload(kind){
         <label style="font-size:11px;cursor:pointer;display:flex;align-items:center;gap:3px;"><input type="radio" name="tq-preset" value="note" checked onchange="tqRender()"> note</label>
         <label style="font-size:11px;cursor:pointer;display:flex;align-items:center;gap:3px;"><input type="radio" name="tq-preset" value="youtube" onchange="tqRender()"> YouTube</label>
       </div>
-      <textarea id="tq-input" oninput="tqDebounce()" placeholder="上段：中段：下段" style="width:100%;box-sizing:border-box;height:52px;min-height:52px;font-size:12px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:7px;font-family:inherit;"></textarea>
+      <textarea id="tq-input" oninput="tqDebounce()" placeholder="上段：中段：下段" style="width:100%;box-sizing:border-box;height:52px;min-height:52px;font-size:12px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:7px;font-family:inherit;">最高値から*40％下落*：ユニチカ：#底値#と%５つの反転サイン%</textarea>
       <p style="font-size:10px;color:#64748b;margin:4px 0 0;">「：」で上段・中段・下段を区切る。色指定: <span style="color:#ff914d">*オレンジ*</span>　<span style="color:#5ce1e6">#水色#</span>　<span style="color:#ffde59">%黄色%</span></p>
       <div class="tq-dl">
         <button type="button" class="btn" id="tq-dl-h" onclick="tqDownload('h')">⬇ 横のサムネ</button>
