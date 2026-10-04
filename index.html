@@ -1030,6 +1030,12 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
 .kg-area>label{display:block;font-size:11px;color:#475569;margin-top:6px;}
 .kg-area>textarea{width:100%;box-sizing:border-box;font-size:11.5px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:7px;background:#fbfcfe;min-height:52px;font-family:inherit;}
 .kg-box .row{display:flex;}
+.tq-box{max-width:980px;}
+.tq-prev{display:flex;gap:10px;align-items:flex-start;margin-top:10px;flex-wrap:wrap;}
+.tq-prev>div{position:relative;overflow:hidden;border:1px solid #cbd5e1;border-radius:4px;flex:none;background:#000;}
+.tq-dl{display:flex;gap:6px;margin-top:10px;}
+.tq-dl .btn{flex:1;}
+.tq-st{font-size:11px;color:#64748b;min-height:16px;margin-top:4px;}
 @media (max-width:600px){.kg{padding:8px;}.kg-row{flex-wrap:wrap;}.kg-row>label{width:100%;}}
     </style>
     <!-- ===== UIテーマ（操作パネル・外枠のみ）=====
@@ -1207,6 +1213,7 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
             <button type="button" class="kt-pjbtn kt-pjdel" onclick="ktPjDelete()" title="開いているPJを消す（確認あり）">削除</button>
             <button type="button" class="kt-pjbtn" onclick="kgOpen()" title="すべてのPJで共通の設定（声・モデル・定型文・サムネの初期値・スライドの色・OP/ED・BGM）">⚙ 共通設定</button>
             <button type="button" class="kt-pjbtn" onclick="kcOpen()" title="日本株・米国株の決算発表の予定日をカレンダーで見る">📅 決算カレンダー</button>
+            <button type="button" class="kt-pjbtn" onclick="tqOpen()" title="文字だけ入れて、横・縦のサムネ画像をダウンロード（noteのまとめ記事など、PJを作らないとき用。保存はしません）">🖼 サムネだけ</button>
             <button type="button" class="kt-pjbtn" onclick="exportTabData(window._ktKind)" title="開いているPJの内容（裏データ含む）をJSONで保存">📤 エクスポート</button>
             <button type="button" class="kt-pjbtn" onclick="importTabDataPick(window._ktKind)" title="保存したJSONを読み込んで続きから再開">📥 インポート</button>
             <select id="kt-pj" class="kt-pjsel kt-pjlist" title="開くPJ（作成日 名前）。続きはここから選ぶ" onchange="ktPjChange(this.value)"></select>
@@ -14505,6 +14512,71 @@ function kgOpen(){
 }
 function kgClose(){const v=document.getElementById('kg-view');if(v)v.hidden=true;document.body.style.overflow='';}
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){const v=document.getElementById('kg-view');if(v&&!v.hidden)kgClose();}});
+
+// =====================================================
+// サムネだけ（上の「🖼 サムネだけ」で開く）。PJ・保存には関わらない。
+// 横は buildThumbSlide、縦は buildVThumb を使う。どちらも PJ のサムネ欄（th-input）は読まず、ここの欄の文字だけで組む
+// =====================================================
+function tqOpen(){
+  const v=document.getElementById('tq-view');if(!v)return;
+  v.hidden=false;document.body.style.overflow='hidden';
+  tqRender();
+  const ta=document.getElementById('tq-input');if(ta)ta.focus();
+}
+function tqClose(){const v=document.getElementById('tq-view');if(v)v.hidden=true;document.body.style.overflow='';}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){const v=document.getElementById('tq-view');if(v&&!v.hidden)tqClose();}});
+const tqText=()=>((document.getElementById('tq-input')||{}).value||'').trim();
+const tqPreset=()=>((document.querySelector('input[name="tq-preset"]:checked')||{}).value||'note');
+// 横のサムネのHTML。型のずらし（THUMB.offset*）と背景画像（thBgUrl）はPJのサムネ用のグローバルなので、組む間だけ入れ替えて戻す
+function tqHtmlH(text){
+  const keep={offsetTop:THUMB.offsetTop,offsetMid:THUMB.offsetMid,offsetBot:THUMB.offsetBot},bg=thBgUrl;
+  const p=THUMB_PRESETS[tqPreset()]||THUMB_PRESETS.note;
+  try{
+    Object.assign(THUMB,{offsetTop:p.offsetTop,offsetMid:p.offsetMid,offsetBot:p.offsetBot});thBgUrl=null;
+    return buildThumbSlide(text);
+  }finally{Object.assign(THUMB,keep);thBgUrl=bg;}
+}
+const tqHtmlV=text=>buildVThumb(text,null,null,true);
+let tqTimer=null;
+function tqDebounce(){clearTimeout(tqTimer);tqTimer=setTimeout(tqRender,400);}
+function tqRender(){
+  const text=tqText(),row=document.getElementById('tq-prev');if(!row)return;
+  if(!text){row.style.display='none';return;}
+  row.style.display='flex';
+  const A=(row.parentElement.clientWidth||900),gap=10;
+  const h=Math.min(420,Math.floor((A-gap-4)/(SLIDE_W/SLIDE_H+VSLIDE_W/VSLIDE_H)));
+  const fit=(wrapId,inId,W,H,html)=>{
+    const sc=h/H,wrap=document.getElementById(wrapId),inner=document.getElementById(inId);
+    wrap.style.width=Math.round(W*sc)+'px';wrap.style.height=Math.round(H*sc)+'px';
+    inner.style.cssText=`position:absolute;top:0;left:0;width:${W}px;height:${H}px;transform:scale(${sc});transform-origin:top left;pointer-events:none;`;
+    inner.innerHTML=html;
+  };
+  fit('tq-ph','tq-ph-in',SLIDE_W,SLIDE_H,tqHtmlH(text));
+  fit('tq-pv','tq-pv-in',VSLIDE_W,VSLIDE_H,tqHtmlV(text));
+}
+window.addEventListener('resize',()=>{const v=document.getElementById('tq-view');if(v&&!v.hidden)tqRender();});
+async function tqDownload(kind){
+  const text=tqText(),st=document.getElementById('tq-st'),bh=document.getElementById('tq-dl-h'),bv=document.getElementById('tq-dl-v');
+  if(!text){st.textContent='文字を入れてください';return;}
+  bh.disabled=bv.disabled=true;st.textContent='画像を作っています…';
+  try{
+    let blob;
+    if(kind==='v'){
+      blob=await renderVideoToBlob({html:tqHtmlV(text),thumb:true});
+    }else{
+      const cont=document.getElementById('th-render-target');
+      cont.innerHTML=tqHtmlH(text);
+      await new Promise(r=>setTimeout(r,400));
+      const canvas=await html2canvas(cont.querySelector('.th-slide'),{width:SLIDE_W,height:SLIDE_H,scale:2,useCORS:true,allowTaint:true,backgroundColor:'#000000',logging:false});
+      cont.innerHTML='';
+      blob=await new Promise(res=>canvas.toBlob(res,'image/png'));
+    }
+    const d=new Date(),ds=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+    const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`00_サムネイル${kind==='v'?'_縦':''}_${ds}.png`;a.click();URL.revokeObjectURL(url);
+    st.textContent='✓ ダウンロードしました';setTimeout(()=>st.textContent='',3000);
+  }catch(e){st.textContent='うまく作れませんでした：'+e.message;}
+  finally{bh.disabled=bv.disabled=false;}
+}
     </script>
 <div class="sa">
 <div id="render-target" style="position:fixed;left:-9999px;top:0;pointer-events:none;"></div>
@@ -14653,6 +14725,34 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){const v=document.ge
   </div>
 </div>
 
+
+<!-- サムネだけ（上の「🖼 サムネだけ」で開く）。PJ・保存・DBには関わらない。文字だけ入れて横・縦のサムネをダウンロードする -->
+<div id="tq-view" class="kg" hidden onclick="if(event.target===this)tqClose()">
+  <div class="kg-box tq-box">
+    <div class="kg-head">
+      <h2>🖼 サムネだけ</h2>
+      <span class="kg-sub">文字だけ入れて、横・縦のサムネ画像を作ります。PJには保存しません（閉じると消えます）。</span>
+      <button type="button" class="kg-close" onclick="tqClose()">✕ 閉じる</button>
+    </div>
+    <div class="kg-sec">
+      <div style="display:flex;gap:14px;margin:6px 0;">
+        <label style="font-size:11px;cursor:pointer;display:flex;align-items:center;gap:3px;"><input type="radio" name="tq-preset" value="note" checked onchange="tqRender()"> note</label>
+        <label style="font-size:11px;cursor:pointer;display:flex;align-items:center;gap:3px;"><input type="radio" name="tq-preset" value="youtube" onchange="tqRender()"> YouTube</label>
+      </div>
+      <textarea id="tq-input" oninput="tqDebounce()" placeholder="上段：中段：下段" style="width:100%;box-sizing:border-box;height:52px;min-height:52px;font-size:12px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:7px;font-family:inherit;"></textarea>
+      <p style="font-size:10px;color:#64748b;margin:4px 0 0;">「：」で上段・中段・下段を区切る。色指定: <span style="color:#ff914d">*オレンジ*</span>　<span style="color:#5ce1e6">#水色#</span>　<span style="color:#ffde59">%黄色%</span></p>
+      <div class="tq-dl">
+        <button type="button" class="btn" id="tq-dl-h" onclick="tqDownload('h')">⬇ 横のサムネ</button>
+        <button type="button" class="btn" id="tq-dl-v" onclick="tqDownload('v')" title="Instagram・Lemon8・TikTok に添付">⬇ 縦のサムネ</button>
+      </div>
+      <div class="tq-st" id="tq-st"></div>
+      <div class="tq-prev" id="tq-prev" style="display:none;">
+        <div id="tq-ph"><div id="tq-ph-in"></div></div>
+        <div id="tq-pv"><div id="tq-pv-in"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- 共通設定（上の「⚙ 共通設定」で開く）。ここの値は PJ ではなく全体で1つ（kt-common・kt-slide-style など。サーバーの shared の行にも入る） -->
 <div id="kg-view" class="kg" hidden onclick="if(event.target===this)kgClose()">
