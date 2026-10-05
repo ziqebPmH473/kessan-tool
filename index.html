@@ -14338,7 +14338,7 @@ function buildReelQr(brand,url){
   const yt=brand==='yt',color=yt?'#e02424':'#0e8a7a';
   const gen=typeof ytGen==='function'&&ytGen();
   const t1=gen?(yt?(ytVal('p-reel')||'*続きは*｜動画で'):kgGet('reel-nt1@gen')):kgGet(yt?'reel-yt1':'reel-nt1');
-  const t2=gen?(yt?kgGet('reel-yt2@gen'):''):kgGet(yt?'reel-yt2':'reel-nt2');
+  const t2=gen?kgGet(yt?'reel-yt2@gen':'reel-nt2@gen'):kgGet(yt?'reel-yt2':'reel-nt2');
   return `<div class="vqr">
   <div class="vqr-bg">${reelBgSvg(brand,color)}</div>
   <div class="vqr-body">
@@ -14578,7 +14578,8 @@ const KG_ITEMS=[
   {g:'reel',key:'reel-nt2',label:'note：説明',ids:[],def:'詳しい分析は｜noteで',tip:'「｜」で行を分けます。「note」の文字はロゴ付きで出ます'},
   {g:'reel',key:'reel-secs',label:'秒数（サムネ/YouTube/note）',ids:[],def:'3/3.5/4.5',tip:'各スライドを出す長さ。切り替えは0.4秒のフェード'},
   {g:'reelgen',key:'reel-yt2@gen',label:'YouTube：説明',ids:[],def:'YouTubeで解説',tip:'YouTubeの見出し（2行）はPJごとにSNSタブで入れます。「｜」で行を分けます'},
-  {g:'reelgen',key:'reel-nt1@gen',label:'note：見出し',ids:[],def:'もっと詳しい｜分析は｜*note*で',tip:'*で囲んだ所が緑になります。「｜」で行を分けます（3行まで）。YT動画のnoteのスライドは説明なし（見出しだけ）'},
+  {g:'reelgen',key:'reel-nt1@gen',label:'note：見出し',ids:[],def:'もっと詳しい｜分析は',tip:'*で囲んだ所が緑になります。「｜」で行を分けます（3行まで）'},
+  {g:'reelgen',key:'reel-nt2@gen',label:'note：説明',ids:[],def:'noteで',tip:'線の下に出ます。「｜」で行を分けます。「note」の文字はロゴ付きで出ます'},
   {g:'post',key:'yt-p-fixed',label:'概要欄の定型文（使用ツール・AIの注意書き）',ids:['yt-p-fixed'],area:1,def:YT_POST_FIXED},
   ...KG_SNS.map(([k,n])=>({g:'snsstock',key:'yt-f-'+k+'@stock',label:n,ids:['yt-f-'+k],ctx:'stock',area:1,def:YT_SNS_FIXED[k]})),
   ...KG_SNS.map(([k,n])=>({g:'snsgen',key:'yt-f-'+k+'@gen',label:n,ids:['yt-f-'+k],ctx:'gen',area:1,def:YT_SNS_FIXED_GEN[k]})),
