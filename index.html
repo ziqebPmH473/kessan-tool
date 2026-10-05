@@ -725,23 +725,23 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
 .vth-cat i{display:block;width:12px;height:58px;background:#f59e0b;border-radius:3px;}
 .vth-date{font-size:56px;font-weight:900;color:#fff;line-height:1;letter-spacing:1px;}
 .vth-cta{position:absolute;right:56px;bottom:52px;z-index:3;font-size:52px;font-weight:900;color:#f59e0b;line-height:1;}
-/* リールのQRスライド（YouTube誘導・note誘導）。QRはアプリのUIに隠れないよう上寄り（y 1265まで）。下のボタンは見本どおり下に置く（押しても何も起きないので隠れてよい。2026-10-05） */
+/* リールのQRスライド（YouTube誘導・note誘導）。見出し〜ボタンをひとかたまりにして真ん中（y 190〜1500）に寄せる。QRの下端は画面の70%より上（それより下はアプリのUIに隠れた。2026-10-06） */
 .vqr{width:1080px;height:1920px;overflow:hidden;position:relative;font-family:'Noto Sans JP',sans-serif;color:#111827;
   background:#fafafa;background-image:linear-gradient(rgba(15,23,42,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(15,23,42,.045) 1px,transparent 1px);background-size:60px 60px;}
 .vqr::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 45%,rgba(255,255,255,.9),rgba(255,255,255,0) 70%);pointer-events:none;}
 .vqr>*{position:relative;z-index:2;}
-.vqr-head{position:absolute;top:150px;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:28px;font-size:40px;font-weight:700;letter-spacing:.12em;color:#1f2937;}
+.vqr-head{position:absolute;top:190px;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:28px;font-size:40px;font-weight:700;letter-spacing:.12em;color:#1f2937;}
 .vqr-head i{display:block;width:150px;height:3px;background:#1f2937;}
-.vqr-t1{position:absolute;top:225px;left:40px;right:40px;height:350px;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:900;line-height:1.12;letter-spacing:.02em;}
+.vqr-t1{position:absolute;top:265px;left:40px;right:40px;height:350px;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:900;line-height:1.12;letter-spacing:.02em;}
 .vqr-t1 b{font-weight:900;}
-.vqr-ul{position:absolute;top:590px;left:200px;right:200px;height:8px;border-radius:4px;}
-.vqr-t2{position:absolute;top:620px;left:40px;right:40px;height:100px;display:flex;align-items:center;justify-content:center;gap:14px;font-size:62px;font-weight:700;letter-spacing:.06em;white-space:nowrap;}
+.vqr-ul{position:absolute;top:630px;left:200px;right:200px;height:8px;border-radius:4px;}
+.vqr-t2{position:absolute;top:660px;left:40px;right:40px;height:100px;display:flex;align-items:center;justify-content:center;gap:14px;font-size:62px;font-weight:700;letter-spacing:.06em;white-space:nowrap;}
 .vqr-t2 .vqr-brand{display:inline-flex;align-items:center;gap:12px;font-weight:900;letter-spacing:0;}
 .vqr-t2 .vqr-brand svg{width:84px;height:84px;flex:none;}
-.vqr-qr{position:absolute;top:745px;left:50%;width:560px;height:560px;margin-left:-280px;background:#fff;border:3px solid #e2e8f0;box-sizing:border-box;border-radius:40px;box-shadow:0 18px 50px rgba(15,23,42,.14);display:flex;align-items:center;justify-content:center;}
+.vqr-qr{position:absolute;top:785px;left:50%;width:560px;height:560px;margin-left:-280px;background:#fff;border:3px solid #e2e8f0;box-sizing:border-box;border-radius:40px;box-shadow:0 18px 50px rgba(15,23,42,.14);display:flex;align-items:center;justify-content:center;}
 .vqr-qr img,.vqr-qr canvas{width:470px!important;height:470px!important;}
 .vqr-qr .v5-qr-none{font-size:36px;}
-.vqr-btn{position:absolute;top:1600px;left:50%;transform:translateX(-50%);height:116px;padding:0 70px;border-radius:58px;display:flex;align-items:center;gap:22px;color:#fff;font-size:52px;font-weight:900;white-space:nowrap;box-shadow:0 12px 30px rgba(15,23,42,.18);}
+.vqr-btn{position:absolute;top:1385px;left:50%;transform:translateX(-50%);height:116px;padding:0 70px;border-radius:58px;display:flex;align-items:center;gap:22px;color:#fff;font-size:52px;font-weight:900;white-space:nowrap;box-shadow:0 12px 30px rgba(15,23,42,.18);}
 .vqr-btn svg{width:62px;height:62px;flex:none;}
 
 /* ===== SLIDE 1: 現状の整理 ===== */
