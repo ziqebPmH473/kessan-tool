@@ -725,6 +725,24 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
 .vth-cat i{display:block;width:12px;height:58px;background:#f59e0b;border-radius:3px;}
 .vth-date{font-size:56px;font-weight:900;color:#fff;line-height:1;letter-spacing:1px;}
 .vth-cta{position:absolute;right:56px;bottom:52px;z-index:3;font-size:52px;font-weight:900;color:#f59e0b;line-height:1;}
+/* リールのQRスライド（YouTube誘導・note誘導）。Instagram・TikTok の UI がかぶる上12%・下20%には置かない（中身は y 230〜1520） */
+.vqr{width:1080px;height:1920px;overflow:hidden;position:relative;font-family:'Noto Sans JP',sans-serif;color:#111827;
+  background:#fafafa;background-image:linear-gradient(rgba(15,23,42,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(15,23,42,.045) 1px,transparent 1px);background-size:60px 60px;}
+.vqr::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 45%,rgba(255,255,255,.9),rgba(255,255,255,0) 70%);pointer-events:none;}
+.vqr>*{position:relative;z-index:2;}
+.vqr-head{position:absolute;top:236px;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:28px;font-size:40px;font-weight:700;letter-spacing:.12em;color:#1f2937;}
+.vqr-head i{display:block;width:150px;height:3px;background:#1f2937;}
+.vqr-t1{position:absolute;top:330px;left:40px;right:40px;height:370px;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:900;line-height:1.12;letter-spacing:.02em;}
+.vqr-t1 b{font-weight:900;}
+.vqr-ul{position:absolute;top:715px;left:200px;right:200px;height:8px;border-radius:4px;}
+.vqr-t2{position:absolute;top:748px;left:40px;right:40px;height:100px;display:flex;align-items:center;justify-content:center;gap:14px;font-size:62px;font-weight:700;letter-spacing:.06em;white-space:nowrap;}
+.vqr-t2 .vqr-brand{display:inline-flex;align-items:center;gap:12px;font-weight:900;letter-spacing:0;}
+.vqr-t2 .vqr-brand svg{width:84px;height:84px;flex:none;}
+.vqr-qr{position:absolute;top:880px;left:50%;width:560px;height:560px;margin-left:-280px;background:#fff;border:3px solid #e2e8f0;box-sizing:border-box;border-radius:40px;box-shadow:0 18px 50px rgba(15,23,42,.14);display:flex;align-items:center;justify-content:center;}
+.vqr-qr img,.vqr-qr canvas{width:470px!important;height:470px!important;}
+.vqr-qr .v5-qr-none{font-size:36px;}
+.vqr-btn{position:absolute;top:1392px;left:50%;transform:translateX(-50%);height:116px;padding:0 70px;border-radius:58px;display:flex;align-items:center;gap:22px;color:#fff;font-size:52px;font-weight:900;white-space:nowrap;box-shadow:0 12px 30px rgba(15,23,42,.18);}
+.vqr-btn svg{width:62px;height:62px;flex:none;}
 
 /* ===== SLIDE 1: 現状の整理 ===== */
 .s1-wrap{padding:24px 64px 22px;display:flex;flex-direction:column;gap:8px;height:720px;box-sizing:border-box;justify-content:center;}
@@ -7870,7 +7888,8 @@ function vFillDynamic(root){
     if(el.dataset.done)return;el.dataset.done='1';
     try{
       if(typeof QRCode==='undefined')throw new Error('QRCode lib not loaded');
-      new QRCode(el,{text:el.dataset.qr,width:218,height:218,correctLevel:QRCode.CorrectLevel.M});
+      const qs=parseInt(el.dataset.qrSize,10)||218;
+      new QRCode(el,{text:el.dataset.qr,width:qs,height:qs,correctLevel:QRCode.CorrectLevel.M});
     }catch(e){el.innerHTML='<div class="v5-qr-none">QR生成不可</div>';console.warn(e);}
   });
   return Promise.all([...root.querySelectorAll('img')].map(im=>im.complete?Promise.resolve():new Promise(r=>{im.onload=im.onerror=r;})));
@@ -7916,8 +7935,8 @@ async function renderVideoToBlob(slide){
   await new Promise(r=>setTimeout(r,150));
   await vFillDynamic(ct);
   await new Promise(r=>setTimeout(r,250));
-  const el=ct.querySelector(slide.thumb?'.vth':'.vslide');
-  const c=await html2canvas(el,{width:VSLIDE_W,height:VSLIDE_H,scale:2,useCORS:true,allowTaint:true,backgroundColor:slide.thumb?'#000000':'#f8fafc',logging:false});
+  const el=ct.querySelector(slide.sel||(slide.thumb?'.vth':'.vslide'));
+  const c=await html2canvas(el,{width:VSLIDE_W,height:VSLIDE_H,scale:2,useCORS:true,allowTaint:true,backgroundColor:slide.sel==='.vqr'?'#fafafa':slide.thumb?'#000000':'#f8fafc',logging:false});
   ct.innerHTML='';
   return new Promise(res=>c.toBlob(res,'image/png'));
 }
@@ -10118,7 +10137,7 @@ ${yaBuildPaneHtml()}
   <textarea id="yt-p-x" data-yh-slot="yh-slot-x" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;width:100%;box-sizing:border-box;"></textarea>
   <div class="yp-shd"><span title="投稿の種類で「動画」を選び、この動画を選ぶ">▼ YouTubeの投稿</span><span class="yp-slot" id="yh-slot-yp"></span><span class="yp-sbtn"><button class="ya-nd" onclick="copyText(ytVal('p-yp'),this)">投稿文</button></span></div>
   <textarea id="yt-p-yp" data-yh-slot="yh-slot-yp" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;width:100%;box-sizing:border-box;"></textarea>
-  <div class="yp-shd"><span>▼ Instagram</span><span class="yp-slot" id="yh-slot-ig"></span><span class="yp-sbtn"><button class="ya-nd" onclick="downloadThumbReel(this)" title="縦のサムネを、ゆっくり寄る7秒の動画（mp4・音なし）にしてダウンロード（サムネイルのタブの文から作ります）。BGMはインスタのアプリで付ける">リール動画</button><button class="ya-nd" onclick="copyText(ytVal('p-ig'),this)">投稿文</button></span></div>
+  <div class="yp-shd"><span>▼ Instagram</span><span class="yp-slot" id="yh-slot-ig"></span><span class="yp-sbtn"><button class="ya-nd" onclick="downloadThumbReel(this)" title="縦のサムネ → YouTubeのQR → noteのQR の3枚（約11秒・mp4・音なし）をダウンロード。サムネはサムネイルのタブの文、URLは上の「YouTubeのURL」とnoteのURL、文言と秒数は共通設定。BGMはインスタのアプリで付ける">リール動画</button><button class="ya-nd" onclick="copyText(ytVal('p-ig'),this)">投稿文</button></span></div>
   <textarea id="yt-p-ig" data-yh-slot="yh-slot-ig" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;width:100%;box-sizing:border-box;"></textarea>
   <div class="yp-shd"><span>▼ Lemon8</span><span class="yp-slot" id="yh-slot-l8"></span><span class="yp-sbtn"><button class="ya-nd" onclick="downloadThumbV()" title="縦のサムネをダウンロード（サムネイルのタブの文から作ります）">サムネ</button><button class="ya-nd" onclick="copyText(ytVal('p-l8t'),this)">見出し</button><button class="ya-nd" onclick="copyText(ytVal('p-l8'),this)">投稿文</button></span></div>
   <input type="text" id="yt-p-l8t" oninput="saveState()" placeholder="見出し" style="width:100%;box-sizing:border-box;font-size:11px;">
@@ -14257,16 +14276,70 @@ async function downloadThumbV(){
   }catch(e){st.textContent='うまく作れませんでした：'+e.message;}
   finally{btn.disabled=false;}
 }
-// リール動画：縦のサムネ1枚を、ゆっくり寄る動画（mp4・1080×1920・音なし）にする。BGMはインスタのアプリで付ける
-const REEL_SEC=7,REEL_FPS=60,REEL_ZOOM=0.05;   // 長さ（秒）・コマ数・最後に何割大きくするか
+// リール動画（mp4・1080×1920・音なし）：縦のサムネ → YouTubeのQR → noteのQR の3枚を、軽いフェードでつなぐ。BGMはインスタのアプリで付ける
+// 秒数は共通設定（既定 3/3.5/4.5）。サムネだけゆっくり寄り、QRの2枚は止めたまま（投資系は静止画をきれいに切り替える方が信用感が出る）
+const REEL_FPS=60,REEL_ZOOM=0.05,REEL_FADE=0.4;   // コマ数・サムネを最後に何割大きくするか・フェードの秒数
+const REEL_ICON={
+  yt:'<svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="5" fill="#e02424"/><path d="M10 8.5v7l6-3.5z" fill="#fff"/></svg>',
+  ytw:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#fff"/><path d="M10 8v8l6.5-4z" fill="#e02424"/></svg>',
+  note:'<svg viewBox="0 0 24 24"><rect x="3" y="2" width="18" height="20" rx="3" fill="none" stroke="#0e8a7a" stroke-width="2.4"/><path d="M8 8h8M8 12h8M8 16h5" stroke="#0e8a7a" stroke-width="2.4" stroke-linecap="round"/></svg>',
+  notew:'<svg viewBox="0 0 24 24"><rect x="3" y="2" width="18" height="20" rx="3" fill="none" stroke="#fff" stroke-width="2.4"/><path d="M8 8h8M8 12h8M8 16h5" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg>',
+};
+// 文言の {下がった/上がった} を株価の向きで入れ替える（左＝下落、右＝上昇）
+function reelDirText(t){const up=getDir()==='up';return String(t||'').replace(/\{([^{}\/]*)\/([^{}]*)\}/g,(m,a,b)=>up?b:a);}
+// 見出し：*…* を色にする。「｜」で行を分ける（文字の途中では折り返さない）。大きさは、いちばん長い行が幅に収まるまで小さく
+function reelT1Html(t,color){
+  const lines=reelDirText(t).split(/[｜|\n]/).map(l=>l.trim()).filter(Boolean).slice(0,3);
+  const em=Math.max(...lines.map(l=>thumbTextEm(l.replace(/[*#%]/g,''),900)),0.1);
+  const fs=Math.max(80,Math.min(lines.length>1?140:150,Math.floor(1000/em)));
+  const html=lines.map(l=>parseThumbnailMarkup(l).map(sg=>sg.color?`<b style="color:${color}">${esc(sg.text)}</b>`:esc(sg.text)).join('')).join('<br>');
+  return `<div class="vqr-t1" style="font-size:${fs}px;white-space:nowrap;"><div>${html}</div></div>`;
+}
+// 説明：「YouTube」「note」の文字をロゴ付きにする
+function reelT2Html(t,brand){
+  const txt=reelDirText(t),re=brand==='yt'?/YouTube/i:/note/i,m=txt.match(re);
+  if(!m)return `<div class="vqr-t2">${esc(txt)}</div>`;
+  const a=txt.slice(0,m.index),b=txt.slice(m.index+m[0].length);
+  const logo=brand==='yt'?`<span class="vqr-brand">${REEL_ICON.yt}<span style="color:#111827;">YouTube</span></span>`:`<span class="vqr-brand">${REEL_ICON.note}<span style="color:#111827;letter-spacing:.08em;">note</span></span>`;
+  return `<div class="vqr-t2">${a?`<span>${esc(a)}</span>`:''}${logo}${b?`<span>${esc(b)}</span>`:''}</div>`;
+}
+// QRスライド1枚：brand＝'yt'（赤・YouTube誘導）／'note'（緑・note誘導）
+function buildReelQr(brand,url){
+  const yt=brand==='yt',color=yt?'#e02424':'#0e8a7a';
+  const t1=kgGet(yt?'reel-yt1':'reel-nt1'),t2=kgGet(yt?'reel-yt2':'reel-nt2');
+  return `<div class="vqr">
+  <div class="vqr-head"><i></i>すみっこマネー大学<i></i></div>
+  ${reelT1Html(t1,color)}
+  <div class="vqr-ul" style="background:${color};"></div>
+  ${reelT2Html(t2,brand)}
+  <div class="vqr-qr" data-qr="${esc(url)}" data-qr-size="470"></div>
+  <div class="vqr-btn" style="background:${color};">${yt?REEL_ICON.ytw:REEL_ICON.notew}<span>${yt?'YouTubeで見る':'noteで読む'}</span></div>
+</div>`;
+}
+// 共通設定の秒数（3/3.5/4.5）。壊れていれば既定
+function reelSecs(){
+  const a=String(kgGet('reel-secs')||'').split(/[\/,、／]/).map(x=>parseFloat(x));
+  return [a[0]>0?a[0]:3,a[1]>0?a[1]:3.5,a[2]>0?a[2]:4.5];
+}
 // SNS の Instagram の見出しのボタンから呼ぶ。進み具合はボタンの文字に出す
 async function downloadThumbReel(btn){
   const text=document.getElementById('th-input').value.trim(),lab=btn.textContent;
   if(!text){alert('サムネイルのタブで、サムネの文を入れてください');return;}
+  // URLが無いスライドは外す（確認してから）。両方無ければサムネだけの動画
+  const ytUrl=ytVal('p-yturl'),ntUrl=typeof ytNoteUrl==='function'?ytNoteUrl():'';
+  const secs=reelSecs();
+  const plan=[{kind:'thumb',sec:secs[0]}];
+  if(ytUrl)plan.push({kind:'yt',sec:secs[1]});else if(!confirm('YouTubeのURL（SNSタブの上の欄）が空です。YouTubeのスライド無しで作りますか？'))return;
+  if(ntUrl)plan.push({kind:'note',sec:secs[2]});else if(!confirm('noteのURLが空です。noteのスライド無しで作りますか？'))return;
+  if(plan.length===1)plan[0].sec=7;
   btn.disabled=true;btn.textContent='作成中…';
   try{
-    const png=await renderVideoToBlob({html:thumbVHtml(text),thumb:true});
-    const img=await createImageBitmap(png);
+    const imgs=[];
+    for(const p of plan){
+      const html=p.kind==='thumb'?thumbVHtml(text):buildReelQr(p.kind,p.kind==='yt'?ytUrl:ntUrl);
+      const png=await renderVideoToBlob({html,thumb:true,sel:p.kind==='thumb'?'.vth':'.vqr'});
+      imgs.push(await createImageBitmap(png));
+    }
     const M=await ynMediabunny();
     const cv=document.createElement('canvas');cv.width=VSLIDE_W;cv.height=VSLIDE_H;
     const cx=cv.getContext('2d');cx.imageSmoothingQuality='high';
@@ -14274,11 +14347,22 @@ async function downloadThumbReel(btn){
     const src=new M.CanvasSource(cv,{codec:'avc',bitrate:M.QUALITY_HIGH});
     output.addVideoTrack(src,{frameRate:REEL_FPS});
     await output.start();
-    const N=REEL_SEC*REEL_FPS;
+    // 各スライドの開始・終了の時刻
+    let t0=0;const seg=plan.map((p,i)=>{const s={i,start:t0,end:t0+p.sec,zoom:p.kind==='thumb'};t0+=p.sec;return s;});
+    const total=t0,N=Math.round(total*REEL_FPS);
+    const draw=(sg,t,alpha)=>{
+      cx.globalAlpha=alpha;
+      if(sg.zoom){const k=1+REEL_ZOOM*Math.min(1,(t-sg.start)/(sg.end-sg.start)),w=VSLIDE_W*k,h=VSLIDE_H*k;cx.drawImage(imgs[sg.i],(VSLIDE_W-w)/2,(VSLIDE_H-h)/2,w,h);}   // 真ん中を中心に、一定の速さで寄る
+      else cx.drawImage(imgs[sg.i],0,0,VSLIDE_W,VSLIDE_H);
+      cx.globalAlpha=1;
+    };
     for(let i=0;i<N;i++){
-      const k=1+REEL_ZOOM*(i/(N-1)),w=VSLIDE_W*k,h=VSLIDE_H*k;   // 真ん中を中心に、一定の速さで寄る
-      cx.drawImage(img,(VSLIDE_W-w)/2,(VSLIDE_H-h)/2,w,h);
-      await src.add(i/REEL_FPS,1/REEL_FPS);
+      const t=i/REEL_FPS;
+      const cur=seg.find(sg=>t<sg.end)||seg[seg.length-1];
+      draw(cur,t,1);
+      const nx=seg[cur.i+1];
+      if(nx&&t>cur.end-REEL_FADE)draw(nx,t,(t-(cur.end-REEL_FADE))/REEL_FADE);   // 終わりの0.4秒は、次の1枚を重ねていく
+      await src.add(t,1/REEL_FPS);
       if(i%60===0)btn.textContent=`作成中…${Math.round(i/N*100)}%`;
     }
     await output.finalize();
@@ -14453,6 +14537,11 @@ const KG_ITEMS=[
   ...YT_AI_TASKS.map(([k,n])=>({g:'ytmodel',key:'yt-m-'+k,label:n,ids:['yt-m-'+k]})),
   {g:'post',key:'fixed-tags',label:'固定タグ',ids:['vd-fixed-tags','ev-fixed-tags'],tip:'X・Instagram・TikTokの投稿文の末尾に必ず付けるタグ（空欄で付けない）'},
   {g:'post',key:'xnote',label:'note案内文',ids:['vd-xnote'],tip:'縦動画のX投稿文（返信用）の3行目に入れる案内文'},
+  {g:'reel',key:'reel-yt1',label:'YouTube：見出し',ids:[],def:'なぜ｜*{下がった/上がった}？*',tip:'*で囲んだ所が赤になります。「｜」で行を分けます。{下がった/上がった} のように書くと株価の向きで入れ替わります'},
+  {g:'reel',key:'reel-yt2',label:'YouTube：説明',ids:[],def:'{下落/上昇}理由をYouTubeで解説',tip:'「YouTube」の文字はロゴ付きで出ます'},
+  {g:'reel',key:'reel-nt1',label:'note：見出し',ids:[],def:'*{下値/上値}余地*と｜*12ヶ月後*を分析',tip:'*で囲んだ所が緑になります。「｜」で行を分けます。{下値/上値} のように書くと株価の向きで入れ替わります'},
+  {g:'reel',key:'reel-nt2',label:'note：説明',ids:[],def:'もっと詳しい分析はnoteで',tip:'「note」の文字はロゴ付きで出ます'},
+  {g:'reel',key:'reel-secs',label:'秒数（サムネ/YouTube/note）',ids:[],def:'3/3.5/4.5',tip:'各スライドを出す長さ。切り替えは0.4秒のフェード'},
   {g:'post',key:'yt-p-fixed',label:'概要欄の定型文（使用ツール・AIの注意書き）',ids:['yt-p-fixed'],area:1,def:YT_POST_FIXED},
   ...KG_SNS.map(([k,n])=>({g:'snsstock',key:'yt-f-'+k+'@stock',label:n,ids:['yt-f-'+k],ctx:'stock',area:1,def:YT_SNS_FIXED[k]})),
   ...KG_SNS.map(([k,n])=>({g:'snsgen',key:'yt-f-'+k+'@gen',label:n,ids:['yt-f-'+k],ctx:'gen',area:1,def:YT_SNS_FIXED_GEN[k]})),
@@ -14804,6 +14893,12 @@ async function tqDownload(kind){
       <div class="kg-note" style="margin-top:8px;">SNSの投稿文の定型文（誘導とnoteの案内）。直したらSNSタブの「↻ 組み立て直す」で入ります。</div>
       <details open><summary style="cursor:pointer;font-size:11.5px;margin-top:4px;">株価分析の横動画（{下値/上値} は株価の向きで置き換わります）</summary><div id="kg-g-snsstock"></div></details>
       <details><summary style="cursor:pointer;font-size:11.5px;margin-top:4px;">YT動画</summary><div id="kg-g-snsgen"></div></details>
+    </div>
+
+    <div class="kg-sec">
+      <h3>リール動画（Instagram・TikTok）</h3>
+      <div class="kg-note">SNSタブの「リール動画」で作る動画は、縦のサムネ → YouTubeのQR → noteのQR の3枚。2枚目・3枚目の文言と、それぞれの秒数。URLはSNSタブの「YouTubeのURL」と note のURLを使います。</div>
+      <div id="kg-g-reel"></div>
     </div>
 
     <div class="kg-sec">
