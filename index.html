@@ -10116,29 +10116,29 @@ ${yaBuildPaneHtml()}
 </div>
 
 <div class="sa-card" style="margin-top:8px;">
-  <h2>2. タイトル・サムネイル</h2>
-  <div class="sa-sub">▼ タイトル（3案）</div>
-  ${[1,2,3].map(k=>`<div class="yp-item"><div class="yp-head"><span class="yp-no">${k}</span><span class="yp-slot" id="yh-slot-t${k}"></span><span class="yp-sbtn"><button class="ya-nd" onclick="copyText(ytVal('p-t${k}'),this)">コピー</button></span></div><textarea id="yt-p-t${k}" data-yh-slot="yh-slot-t${k}" rows="2" placeholder="タイトル案" oninput="saveState()" style="field-sizing:content;min-height:44px;"></textarea></div>`).join('')}
+  <h2>2. 動画関連</h2>
   <div class="sa-sub">▼ サムネイル（3案）</div>
   <div style="font-size:10px;color:var(--text-sub);">上段：中段：下段、*オレンジ* #水色# %黄色%</div>
   ${[1,2,3].map(k=>`<div class="yp-item"><div class="yp-head"><span class="yp-no">${k}</span><span class="yp-slot" id="yh-slot-s${k}"></span><span class="yp-sbtn"><button class="ya-nd" onclick="copyText(ytVal('p-s${k}'),this)">コピー</button><button class="ya-nd" onclick="ytThumbUse(${k})" title="右のサムネイルの文を、この案で上書きして表示する">サムネに上書き</button></span></div><input type="text" class="yh-field" id="yt-p-s${k}" data-yh-slot="yh-slot-s${k}" placeholder="上段：中段：下段" oninput="saveState()" style="width:100%;box-sizing:border-box;font-size:11px;"></div>`).join('')}
-  <div class="yt-only-gen">
-    <div class="sa-sub" title="リール動画の2枚目（YouTubeのQR）の見出し。「｜」で2行に分ける。*で囲んだ所が赤。次の行に「YouTubeで解説」が続きます">▼ リールの見出し（2行。｜で分ける）</div>
-    <input type="text" id="yt-p-reel" placeholder="例：なぜ｜*今なのか？*" oninput="saveState()" style="width:100%;box-sizing:border-box;font-size:11px;">
-  </div>
+  <div class="sa-sub">▼ タイトル（3案）</div>
+  ${[1,2,3].map(k=>`<div class="yp-item"><div class="yp-head"><span class="yp-no">${k}</span><span class="yp-slot" id="yh-slot-t${k}"></span><span class="yp-sbtn"><button class="ya-nd" onclick="copyText(ytVal('p-t${k}'),this)">コピー</button></span></div><textarea id="yt-p-t${k}" data-yh-slot="yh-slot-t${k}" rows="2" placeholder="タイトル案" oninput="saveState()" style="field-sizing:content;min-height:44px;"></textarea></div>`).join('')}
+  <div class="yp-shd"><span title="本文 → noteの記事リンク → 定型文（設定タブ）→ ハッシュタグ">▼ 概要欄</span><span class="yp-slot" id="yh-slot-desc"></span><span class="yp-sbtn"><button class="ya-nd" onclick="downloadThumb()" title="横のサムネをダウンロード（サムネイルのタブの文から作ります）">サムネ</button><button class="ya-nd" onclick="copyText(ytVal('p-desc'),this)">概要欄</button></span></div>
+  <textarea id="yt-p-desc" data-yh-slot="yh-slot-desc" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;width:100%;box-sizing:border-box;"></textarea>
 </div>
 
 <div class="sa-card" style="margin-top:8px;">
-  <h2>3. 概要欄・SNS</h2>
+  <h2>3. SNS</h2>
   ${set('YouTubeのURL','<input type="text" id="yt-p-yturl" placeholder="動画を上げたあとのURL（Xの投稿文に入ります）" oninput="ytPostUrlSet()" style="flex:1;min-width:0;font-size:11px;"><button class="ya-nd" onclick="ytPaste(\'p-yturl\',ytPostUrlSet)">📋 貼付</button>')}
   ${set('noteの記事URL','<input type="text" id="yt-note-url" placeholder="noteの記事のURL（概要欄・SNS・まとめのスライドのQRに入ります）" oninput="ytNoteInfo()" onchange="ytNoteUrlSet(this)" style="flex:1;min-width:0;font-size:11px;"><button class="ya-nd" onclick="ytPaste(\'note-url\',()=>ytNoteUrlSet(ytEl(\'note-url\')))">📋 貼付</button>')}
   <div id="yt-note-info" style="font-size:10px;color:var(--text-sub);"></div>
   ${set('ハッシュタグ','<input type="text" id="yt-p-tags" placeholder="#銘柄名 #証券コード ほか（概要欄の最後に付きます）" onfocus="this.dataset.prev=this.value" oninput="ytPostTagsSet(this)" style="flex:1;min-width:0;font-size:11px;">')}
+  <div class="yt-only-gen">
+    <div class="sa-sub" title="リール動画の2枚目（YouTubeのQR）の見出し。「｜」で2行に分ける。*で囲んだ所が赤。次の行に「YouTubeで解説」が続きます">▼ リールの見出し（2行。｜で分ける）</div>
+    <input type="text" id="yt-p-reel" placeholder="例：なぜ｜*今なのか？*" oninput="saveState()" style="width:100%;box-sizing:border-box;font-size:11px;">
+  </div>
   <input type="hidden" id="yt-p-body"><input type="hidden" id="yt-p-xbody"><input type="hidden" id="yt-p-hook"><input type="hidden" id="yt-p-announce"><input type="hidden" id="yt-p-ypbody"><input type="hidden" id="yt-p-igbody"><input type="hidden" id="yt-p-ttbody"><textarea id="yt-p-points" style="display:none;"></textarea>
   <input type="hidden" id="yt-p-xtags"><input type="hidden" id="yt-p-yptags"><input type="hidden" id="yt-p-igtags"><input type="hidden" id="yt-p-tttags">
   <input type="hidden" id="yt-p-l8title"><input type="hidden" id="yt-p-fixapplied"><textarea id="yt-p-l8intro" style="display:none;"></textarea><input type="hidden" id="yt-p-l8tags">
-  <div class="yp-shd"><span title="本文 → noteの記事リンク → 定型文（設定タブ）→ ハッシュタグ">▼ 概要欄</span><span class="yp-slot" id="yh-slot-desc"></span><span class="yp-sbtn"><button class="ya-nd" onclick="downloadThumb()" title="横のサムネをダウンロード（サムネイルのタブの文から作ります）">サムネ</button><button class="ya-nd" onclick="copyText(ytVal('p-desc'),this)">概要欄</button></span></div>
-  <textarea id="yt-p-desc" data-yh-slot="yh-slot-desc" oninput="saveState()" style="min-height:0;height:38px;font-size:11px;width:100%;box-sizing:border-box;"></textarea>
   ${row(b('🤖 再生成',"if(confirm('タイトル・サムネイル・概要欄・SNSの投稿文を、AIで全部作り直します。よろしいですか？'))ytPostAi(this)",'background:#4f46e5;color:#fff;','','タイトル・サムネイル・概要欄・SNSの投稿文を、AIで全部作り直します'),b('🤖 SNS再生成','ytPostAi(this,true)','background:#4f46e5;color:#fff;','','概要欄・タイトル・サムネイルは変えずに、SNSの投稿文だけをAIで作り直します'),b('定型文差替','ytFixReplace()','','','欄の今の文面の中で、定型文・YouTubeのURL・noteの記事URL・ハッシュタグの箇所だけを差し替えます（ほかの文は、手で直した分もそのまま）'))}
   <div id="yt-post3-status" style="display:none;font-size:11px;"></div>
   <div class="yp-shd"><span>▼ X</span><span class="yp-slot" id="yh-slot-x"></span><span class="yp-sbtn"><button class="ya-nd" onclick="copyText(ytVal('p-x'),this)">投稿文</button></span></div>
