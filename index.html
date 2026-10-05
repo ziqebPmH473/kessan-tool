@@ -732,18 +732,19 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
 .vqr>*{position:relative;z-index:2;}
 .vqr>.vqr-bg{position:absolute;inset:0;z-index:1;}
 .vqr>.vqr-bg svg{width:1080px;height:1920px;display:block;}
-.vqr-head{position:absolute;top:190px;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:28px;font-size:40px;font-weight:700;letter-spacing:.12em;color:#1f2937;}
+.vqr-head{position:absolute;top:170px;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:28px;font-size:40px;font-weight:700;letter-spacing:.12em;color:#1f2937;}
 .vqr-head i{display:block;width:150px;height:3px;background:#1f2937;}
-.vqr-t1{position:absolute;top:265px;left:40px;right:40px;height:350px;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:900;line-height:1.12;letter-spacing:.02em;}
+.vqr-t1{position:absolute;top:240px;left:40px;right:40px;height:320px;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:900;line-height:1.12;letter-spacing:.02em;}
 .vqr-t1 b{font-weight:900;}
-.vqr-ul{position:absolute;top:630px;left:200px;right:200px;height:8px;border-radius:4px;}
-.vqr-t2{position:absolute;top:660px;left:40px;right:40px;height:100px;display:flex;align-items:center;justify-content:center;gap:14px;font-size:62px;font-weight:700;letter-spacing:.06em;white-space:nowrap;}
+.vqr-ul{position:absolute;top:575px;left:200px;right:200px;height:8px;border-radius:4px;}
+.vqr-t2{position:absolute;top:600px;left:40px;right:40px;height:170px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:64px;font-weight:700;letter-spacing:.06em;line-height:1.25;white-space:nowrap;}
+.vqr-t2>div{display:flex;align-items:center;justify-content:center;gap:14px;}
 .vqr-t2 .vqr-brand{display:inline-flex;align-items:center;gap:12px;font-weight:900;letter-spacing:0;}
 .vqr-t2 .vqr-brand svg{width:84px;height:84px;flex:none;}
-.vqr-qr{position:absolute;top:785px;left:50%;width:560px;height:560px;margin-left:-280px;background:#fff;border:3px solid #e2e8f0;box-sizing:border-box;border-radius:40px;box-shadow:0 18px 50px rgba(15,23,42,.14);display:flex;align-items:center;justify-content:center;}
-.vqr-qr img,.vqr-qr canvas{width:470px!important;height:470px!important;}
+.vqr-qr{position:absolute;top:795px;left:50%;width:540px;height:540px;margin-left:-270px;background:#fff;border:3px solid #e2e8f0;box-sizing:border-box;border-radius:40px;box-shadow:0 18px 50px rgba(15,23,42,.14);display:flex;align-items:center;justify-content:center;}
+.vqr-qr img,.vqr-qr canvas{width:450px!important;height:450px!important;}
 .vqr-qr .v5-qr-none{font-size:36px;}
-.vqr-btn{position:absolute;top:1385px;left:50%;transform:translateX(-50%);height:116px;padding:0 70px;border-radius:58px;display:flex;align-items:center;gap:22px;color:#fff;font-size:52px;font-weight:900;white-space:nowrap;box-shadow:0 12px 30px rgba(15,23,42,.18);}
+.vqr-btn{position:absolute;top:1375px;left:50%;transform:translateX(-50%);height:116px;padding:0 70px;border-radius:58px;display:flex;align-items:center;gap:22px;color:#fff;font-size:52px;font-weight:900;white-space:nowrap;box-shadow:0 12px 30px rgba(15,23,42,.18);}
 .vqr-btn svg{width:62px;height:62px;flex:none;}
 
 /* ===== SLIDE 1: 現状の整理 ===== */
@@ -14297,13 +14298,14 @@ function reelT1Html(t,color){
   const html=lines.map(l=>parseThumbnailMarkup(l).map(sg=>sg.color?`<b style="color:${color}">${esc(sg.text)}</b>`:esc(sg.text)).join('')).join('<br>');
   return `<div class="vqr-t1" style="font-size:${fs}px;white-space:nowrap;"><div>${html}</div></div>`;
 }
-// 説明：「YouTube」「note」の文字をロゴ付きにする
+// 説明：「｜」で行を分ける（見本は「下落理由を／YouTubeで解説」の2行）。「YouTube」「note」の文字はロゴ付きにする。空なら出さない
 function reelT2Html(t,brand){
-  const txt=reelDirText(t),re=brand==='yt'?/YouTube/i:/note/i,m=txt.match(re);
-  if(!m)return `<div class="vqr-t2">${esc(txt)}</div>`;
-  const a=txt.slice(0,m.index),b=txt.slice(m.index+m[0].length);
+  const lines=reelDirText(t).split(/[｜|\n]/).map(l=>l.trim()).filter(Boolean).slice(0,2);
+  if(!lines.length)return '';
+  const re=brand==='yt'?/YouTube/i:/note/i;
   const logo=brand==='yt'?`<span class="vqr-brand">${REEL_ICON.yt}<span style="color:#111827;">YouTube</span></span>`:`<span class="vqr-brand">${REEL_ICON.note}<span style="color:#111827;letter-spacing:.08em;">note</span></span>`;
-  return `<div class="vqr-t2">${a?`<span>${esc(a)}</span>`:''}${logo}${b?`<span>${esc(b)}</span>`:''}</div>`;
+  const row=txt=>{const m=txt.match(re);if(!m)return `<div>${esc(txt)}</div>`;const a=txt.slice(0,m.index),b=txt.slice(m.index+m[0].length);return `<div>${a?`<span>${esc(a)}</span>`:''}${logo}${b?`<span>${esc(b)}</span>`:''}</div>`;};
+  return `<div class="vqr-t2">${lines.map(row).join('')}</div>`;
 }
 // 背景の薄いチャート（写真の代わり）。YouTube＝赤の下落（折れ線・矢印・ローソク足）、note＝緑の上昇（折れ線・棒グラフ）。文字の邪魔にならない薄さ
 function reelBgSvg(brand,color){
@@ -14328,7 +14330,7 @@ function buildReelQr(brand,url){
   ${reelT1Html(t1,color)}
   <div class="vqr-ul" style="background:${color};"></div>
   ${reelT2Html(t2,brand)}
-  <div class="vqr-qr" data-qr="${esc(url)}" data-qr-size="470"></div>
+  <div class="vqr-qr" data-qr="${esc(url)}" data-qr-size="450"></div>
   <div class="vqr-btn" style="background:${color};">${yt?REEL_ICON.ytw:REEL_ICON.notew}<span>${yt?'YouTubeで見る':'noteで読む'}</span></div>
 </div>`;
 }
@@ -14554,9 +14556,9 @@ const KG_ITEMS=[
   {g:'post',key:'fixed-tags',label:'固定タグ',ids:['vd-fixed-tags','ev-fixed-tags'],tip:'X・Instagram・TikTokの投稿文の末尾に必ず付けるタグ（空欄で付けない）'},
   {g:'post',key:'xnote',label:'note案内文',ids:['vd-xnote'],tip:'縦動画のX投稿文（返信用）の3行目に入れる案内文'},
   {g:'reel',key:'reel-yt1',label:'YouTube：見出し',ids:[],def:'なぜ｜*{下がった/上がった}？*',tip:'*で囲んだ所が赤になります。「｜」で行を分けます。{下がった/上がった} のように書くと株価の向きで入れ替わります'},
-  {g:'reel',key:'reel-yt2',label:'YouTube：説明',ids:[],def:'{下落/上昇}理由をYouTubeで解説',tip:'「YouTube」の文字はロゴ付きで出ます'},
+  {g:'reel',key:'reel-yt2',label:'YouTube：説明',ids:[],def:'{下落/上昇}理由を｜YouTubeで解説',tip:'「｜」で行を分けます。「YouTube」の文字はロゴ付きで出ます'},
   {g:'reel',key:'reel-nt1',label:'note：見出し',ids:[],def:'*{下値/上値}余地*と｜*12ヶ月後*を分析',tip:'*で囲んだ所が緑になります。「｜」で行を分けます。{下値/上値} のように書くと株価の向きで入れ替わります'},
-  {g:'reel',key:'reel-nt2',label:'note：説明',ids:[],def:'もっと詳しい分析はnoteで',tip:'「note」の文字はロゴ付きで出ます'},
+  {g:'reel',key:'reel-nt2',label:'note：説明',ids:[],def:'もっと詳しい分析は｜noteで',tip:'「｜」で行を分けます。「note」の文字はロゴ付きで出ます'},
   {g:'reel',key:'reel-secs',label:'秒数（サムネ/YouTube/note）',ids:[],def:'3/3.5/4.5',tip:'各スライドを出す長さ。切り替えは0.4秒のフェード'},
   {g:'post',key:'yt-p-fixed',label:'概要欄の定型文（使用ツール・AIの注意書き）',ids:['yt-p-fixed'],area:1,def:YT_POST_FIXED},
   ...KG_SNS.map(([k,n])=>({g:'snsstock',key:'yt-f-'+k+'@stock',label:n,ids:['yt-f-'+k],ctx:'stock',area:1,def:YT_SNS_FIXED[k]})),
