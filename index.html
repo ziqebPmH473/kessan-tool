@@ -14277,8 +14277,8 @@ async function downloadThumbV(){
   finally{btn.disabled=false;}
 }
 // リール動画（mp4・1080×1920・音なし）：縦のサムネ → YouTubeのQR → noteのQR の3枚を、軽いフェードでつなぐ。BGMはインスタのアプリで付ける
-// 秒数は共通設定（既定 3/3.5/4.5）。サムネだけゆっくり寄り、QRの2枚は止めたまま（投資系は静止画をきれいに切り替える方が信用感が出る）
-const REEL_FPS=60,REEL_ZOOM=0.05,REEL_FADE=0.4;   // コマ数・サムネを最後に何割大きくするか・フェードの秒数
+// 秒数は共通設定（既定 3/3.5/4.5）。どの1枚もゆっくり寄る。QRの2枚はサムネより控えめ（寄る量が少なく、時間も長いのでさらにゆっくり）
+const REEL_FPS=60,REEL_ZOOM=0.05,REEL_ZOOM_QR=0.02,REEL_FADE=0.4;   // コマ数・サムネ／QRを最後に何割大きくするか・フェードの秒数
 const REEL_ICON={
   yt:'<svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="5" fill="#e02424"/><path d="M10 8.5v7l6-3.5z" fill="#fff"/></svg>',
   ytw:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#fff"/><path d="M10 8v8l6.5-4z" fill="#e02424"/></svg>',
@@ -14348,12 +14348,12 @@ async function downloadThumbReel(btn){
     output.addVideoTrack(src,{frameRate:REEL_FPS});
     await output.start();
     // 各スライドの開始・終了の時刻
-    let t0=0;const seg=plan.map((p,i)=>{const s={i,start:t0,end:t0+p.sec,zoom:p.kind==='thumb'};t0+=p.sec;return s;});
+    let t0=0;const seg=plan.map((p,i)=>{const s={i,start:t0,end:t0+p.sec,zoom:p.kind==='thumb'?REEL_ZOOM:REEL_ZOOM_QR};t0+=p.sec;return s;});
     const total=t0,N=Math.round(total*REEL_FPS);
     const draw=(sg,t,alpha)=>{
       cx.globalAlpha=alpha;
-      if(sg.zoom){const k=1+REEL_ZOOM*Math.min(1,(t-sg.start)/(sg.end-sg.start)),w=VSLIDE_W*k,h=VSLIDE_H*k;cx.drawImage(imgs[sg.i],(VSLIDE_W-w)/2,(VSLIDE_H-h)/2,w,h);}   // 真ん中を中心に、一定の速さで寄る
-      else cx.drawImage(imgs[sg.i],0,0,VSLIDE_W,VSLIDE_H);
+      const k=1+sg.zoom*Math.max(0,Math.min(1,(t-sg.start)/(sg.end-sg.start))),w=VSLIDE_W*k,h=VSLIDE_H*k;   // 真ん中を中心に、一定の速さで寄る（フェードで重なる次の1枚は、まだ寄る前）
+      cx.drawImage(imgs[sg.i],(VSLIDE_W-w)/2,(VSLIDE_H-h)/2,w,h);
       cx.globalAlpha=1;
     };
     for(let i=0;i<N;i++){
