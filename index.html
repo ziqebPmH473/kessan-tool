@@ -731,20 +731,23 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
 .vqr::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 45%,rgba(255,255,255,.9),rgba(255,255,255,0) 70%);pointer-events:none;}
 .vqr>*{position:relative;z-index:2;}
 .vqr>.vqr-bg{position:absolute;inset:0;z-index:1;}
+.vqr>.vqr-body{position:absolute;left:0;right:0;top:140px;height:1390px;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.vqr-t1 .vqr-brand{display:inline-flex;align-items:center;gap:.1em;}
+.vqr-t1 .vqr-brand svg{width:.64em;height:.64em;flex:none;}
 .vqr>.vqr-bg svg{width:1080px;height:1920px;display:block;}
-.vqr-head{position:absolute;top:170px;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:28px;font-size:40px;font-weight:700;letter-spacing:.12em;color:#1f2937;}
+.vqr-head{display:flex;align-items:center;justify-content:center;gap:28px;font-size:40px;font-weight:700;letter-spacing:.12em;color:#1f2937;}
 .vqr-head i{display:block;width:150px;height:3px;background:#1f2937;}
-.vqr-t1{position:absolute;top:240px;left:40px;right:40px;height:320px;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:900;line-height:1.12;letter-spacing:.02em;}
+.vqr-t1{margin-top:22px;max-width:1000px;text-align:center;font-weight:900;line-height:1.12;letter-spacing:.02em;}
 .vqr-t1 b{font-weight:900;}
-.vqr-ul{position:absolute;top:575px;left:200px;right:200px;height:8px;border-radius:4px;}
-.vqr-t2{position:absolute;top:600px;left:40px;right:40px;height:170px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:64px;font-weight:700;letter-spacing:.06em;line-height:1.25;white-space:nowrap;}
+.vqr-ul{margin-top:16px;width:680px;height:8px;border-radius:4px;}
+.vqr-t2{margin-top:22px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:64px;font-weight:700;letter-spacing:.06em;line-height:1.25;white-space:nowrap;}
 .vqr-t2>div{display:flex;align-items:center;justify-content:center;gap:14px;}
 .vqr-t2 .vqr-brand{display:inline-flex;align-items:center;gap:12px;font-weight:900;letter-spacing:0;}
 .vqr-t2 .vqr-brand svg{width:84px;height:84px;flex:none;}
-.vqr-qr{position:absolute;top:795px;left:50%;width:540px;height:540px;margin-left:-270px;background:#fff;border:3px solid #e2e8f0;box-sizing:border-box;border-radius:40px;box-shadow:0 18px 50px rgba(15,23,42,.14);display:flex;align-items:center;justify-content:center;}
+.vqr-qr{margin-top:26px;width:540px;height:540px;background:#fff;border:3px solid #e2e8f0;box-sizing:border-box;border-radius:40px;box-shadow:0 18px 50px rgba(15,23,42,.14);display:flex;align-items:center;justify-content:center;}
 .vqr-qr img,.vqr-qr canvas{width:450px!important;height:450px!important;}
 .vqr-qr .v5-qr-none{font-size:36px;}
-.vqr-btn{position:absolute;top:1375px;left:50%;transform:translateX(-50%);height:116px;padding:0 70px;border-radius:58px;display:flex;align-items:center;gap:22px;color:#fff;font-size:52px;font-weight:900;white-space:nowrap;box-shadow:0 12px 30px rgba(15,23,42,.18);}
+.vqr-btn{margin-top:40px;height:116px;padding:0 70px;border-radius:58px;display:flex;align-items:center;gap:22px;color:#fff;font-size:52px;font-weight:900;white-space:nowrap;box-shadow:0 12px 30px rgba(15,23,42,.18);}
 .vqr-btn svg{width:62px;height:62px;flex:none;}
 
 /* ===== SLIDE 1: 現状の整理 ===== */
@@ -14296,12 +14299,17 @@ const REEL_ICON={
 // 文言の {下がった/上がった} を株価の向きで入れ替える（左＝下落、右＝上昇）
 function reelDirText(t){const up=getDir()==='up';return String(t||'').replace(/\{([^{}\/]*)\/([^{}]*)\}/g,(m,a,b)=>up?b:a);}
 // 見出し：*…* を色にする。「｜」で行を分ける（文字の途中では折り返さない）。大きさは、いちばん長い行が幅に収まるまで小さく
-function reelT1Html(t,color){
+function reelT1Html(t,color,brand){
   const lines=reelDirText(t).split(/[｜|\n]/).map(l=>l.trim()).filter(Boolean).slice(0,3);
   const em=Math.max(...lines.map(l=>thumbTextEm(l.replace(/[*#%]/g,''),900)),0.1);
-  const fs=Math.max(80,Math.min(lines.length>1?140:150,Math.floor(1000/em)));
-  const html=lines.map(l=>parseThumbnailMarkup(l).map(sg=>sg.color?`<b style="color:${color}">${esc(sg.text)}</b>`:esc(sg.text)).join('')).join('<br>');
-  return `<div class="vqr-t1" style="font-size:${fs}px;white-space:nowrap;"><div>${html}</div></div>`;
+  const cap=Math.min(150,Math.floor(316/(lines.length*1.12)));   // 行数ぶんが高さ320に入る大きさ（1行150・2行141・3行94）
+  const fs=Math.max(72,Math.min(cap,Math.floor(960/em)));
+  const re=brand==='yt'?/YouTube/i:/note/i,logo=brand==='yt'?REEL_ICON.yt:REEL_ICON.note;
+  const html=lines.map(l=>{
+    const h=parseThumbnailMarkup(l).map(sg=>sg.color?`<b style="color:${color}">${esc(sg.text)}</b>`:esc(sg.text)).join('');
+    return h.replace(re,m=>`<span class="vqr-brand">${logo}${m}</span>`);   // ロゴは語の前に（色はその語の色のまま）
+  }).join('<br>');
+  return `<div class="vqr-t1" style="font-size:${fs}px;white-space:nowrap;">${html}</div>`;
 }
 // 説明：「｜」で行を分ける（見本は「下落理由を／YouTubeで解説」の2行）。「YouTube」「note」の文字はロゴ付きにする。空なら出さない
 function reelT2Html(t,brand){
@@ -14333,12 +14341,14 @@ function buildReelQr(brand,url){
   const t2=gen?(yt?kgGet('reel-yt2@gen'):''):kgGet(yt?'reel-yt2':'reel-nt2');
   return `<div class="vqr">
   <div class="vqr-bg">${reelBgSvg(brand,color)}</div>
-  <div class="vqr-head"><i></i>すみっこマネー大学<i></i></div>
-  ${reelT1Html(t1,color)}
-  <div class="vqr-ul" style="background:${color};"></div>
-  ${reelT2Html(t2,brand)}
-  <div class="vqr-qr" data-qr="${esc(url)}" data-qr-size="450"></div>
-  <div class="vqr-btn" style="background:${color};">${yt?REEL_ICON.ytw:REEL_ICON.notew}<span>${yt?'YouTubeで見る':'noteで読む'}</span></div>
+  <div class="vqr-body">
+    <div class="vqr-head"><i></i>すみっこマネー大学<i></i></div>
+    ${reelT1Html(t1,color,brand)}
+    <div class="vqr-ul" style="background:${color};"></div>
+    ${reelT2Html(t2,brand)}
+    <div class="vqr-qr" data-qr="${esc(url)}" data-qr-size="450"></div>
+    <div class="vqr-btn" style="background:${color};">${yt?REEL_ICON.ytw:REEL_ICON.notew}<span>${yt?'YouTubeで見る':'noteで読む'}</span></div>
+  </div>
 </div>`;
 }
 // 共通設定の秒数（3/3.5/4.5）。壊れていれば既定
@@ -14568,7 +14578,7 @@ const KG_ITEMS=[
   {g:'reel',key:'reel-nt2',label:'note：説明',ids:[],def:'詳しい分析は｜noteで',tip:'「｜」で行を分けます。「note」の文字はロゴ付きで出ます'},
   {g:'reel',key:'reel-secs',label:'秒数（サムネ/YouTube/note）',ids:[],def:'3/3.5/4.5',tip:'各スライドを出す長さ。切り替えは0.4秒のフェード'},
   {g:'reelgen',key:'reel-yt2@gen',label:'YouTube：説明',ids:[],def:'YouTubeで解説',tip:'YouTubeの見出し（2行）はPJごとにSNSタブで入れます。「｜」で行を分けます'},
-  {g:'reelgen',key:'reel-nt1@gen',label:'note：見出し',ids:[],def:'もっと詳しい分析は｜*note*で',tip:'*で囲んだ所が緑になります。「｜」で行を分けます。YT動画のnoteのスライドは説明なし（見出しだけ）'},
+  {g:'reelgen',key:'reel-nt1@gen',label:'note：見出し',ids:[],def:'もっと詳しい｜分析は｜*note*で',tip:'*で囲んだ所が緑になります。「｜」で行を分けます（3行まで）。YT動画のnoteのスライドは説明なし（見出しだけ）'},
   {g:'post',key:'yt-p-fixed',label:'概要欄の定型文（使用ツール・AIの注意書き）',ids:['yt-p-fixed'],area:1,def:YT_POST_FIXED},
   ...KG_SNS.map(([k,n])=>({g:'snsstock',key:'yt-f-'+k+'@stock',label:n,ids:['yt-f-'+k],ctx:'stock',area:1,def:YT_SNS_FIXED[k]})),
   ...KG_SNS.map(([k,n])=>({g:'snsgen',key:'yt-f-'+k+'@gen',label:n,ids:['yt-f-'+k],ctx:'gen',area:1,def:YT_SNS_FIXED_GEN[k]})),
