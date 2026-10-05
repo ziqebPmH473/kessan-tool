@@ -730,6 +730,8 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
   background:#fafafa;background-image:linear-gradient(rgba(15,23,42,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(15,23,42,.045) 1px,transparent 1px);background-size:60px 60px;}
 .vqr::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 45%,rgba(255,255,255,.9),rgba(255,255,255,0) 70%);pointer-events:none;}
 .vqr>*{position:relative;z-index:2;}
+.vqr>.vqr-bg{position:absolute;inset:0;z-index:1;}
+.vqr>.vqr-bg svg{width:1080px;height:1920px;display:block;}
 .vqr-head{position:absolute;top:190px;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:28px;font-size:40px;font-weight:700;letter-spacing:.12em;color:#1f2937;}
 .vqr-head i{display:block;width:150px;height:3px;background:#1f2937;}
 .vqr-t1{position:absolute;top:265px;left:40px;right:40px;height:350px;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:900;line-height:1.12;letter-spacing:.02em;}
@@ -14303,11 +14305,25 @@ function reelT2Html(t,brand){
   const logo=brand==='yt'?`<span class="vqr-brand">${REEL_ICON.yt}<span style="color:#111827;">YouTube</span></span>`:`<span class="vqr-brand">${REEL_ICON.note}<span style="color:#111827;letter-spacing:.08em;">note</span></span>`;
   return `<div class="vqr-t2">${a?`<span>${esc(a)}</span>`:''}${logo}${b?`<span>${esc(b)}</span>`:''}</div>`;
 }
+// 背景の薄いチャート（写真の代わり）。YouTube＝赤の下落（折れ線・矢印・ローソク足）、note＝緑の上昇（折れ線・棒グラフ）。文字の邪魔にならない薄さ
+function reelBgSvg(brand,color){
+  const yt=brand==='yt';
+  const line=yt?'0,430 150,540 270,480 400,680 520,630 660,860 780,810 920,1040 1080,1130':'0,1520 160,1390 300,1450 460,1200 600,1270 760,990 900,1060 1080,800';
+  let marks='';
+  if(yt){
+    marks+=`<path d="M130 330 L360 880" stroke="${color}" stroke-width="34" stroke-linecap="round" opacity=".10"/><path d="M300 900 L395 880 L345 790 Z" fill="${color}" opacity=".10"/>`;   // 大きな下向きの矢印
+    for(let i=0;i<7;i++){const x=600+i*68,h=90+((i*53)%120),y=1380+i*42,up=i%3===1;marks+=`<line x1="${x+14}" y1="${y-40}" x2="${x+14}" y2="${y+h+40}" stroke="${up?'#94a3b8':color}" stroke-width="4" opacity=".16"/><rect x="${x}" y="${y}" width="28" height="${h}" fill="${up?'#94a3b8':color}" opacity=".16"/>`;}   // ローソク足
+  }else{
+    for(let i=0;i<10;i++){const x=90+i*92,h=120+i*48+((i*37)%60);marks+=`<rect x="${x}" y="${1800-h}" width="56" height="${h}" rx="6" fill="${color}" opacity=".12"/>`;}   // 右肩上がりの棒グラフ
+  }
+  return `<svg viewBox="0 0 1080 1920" xmlns="http://www.w3.org/2000/svg"><polyline points="${line}" fill="none" stroke="${color}" stroke-width="16" stroke-linejoin="round" stroke-linecap="round" opacity=".13"/>${marks}</svg>`;
+}
 // QRスライド1枚：brand＝'yt'（赤・YouTube誘導）／'note'（緑・note誘導）
 function buildReelQr(brand,url){
   const yt=brand==='yt',color=yt?'#e02424':'#0e8a7a';
   const t1=kgGet(yt?'reel-yt1':'reel-nt1'),t2=kgGet(yt?'reel-yt2':'reel-nt2');
   return `<div class="vqr">
+  <div class="vqr-bg">${reelBgSvg(brand,color)}</div>
   <div class="vqr-head"><i></i>すみっこマネー大学<i></i></div>
   ${reelT1Html(t1,color)}
   <div class="vqr-ul" style="background:${color};"></div>
