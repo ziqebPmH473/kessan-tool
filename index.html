@@ -4680,7 +4680,12 @@ risk_3=`;
             initSaDates();
 
             // 入力内容の復元（テキストボックス等がリロードで消えないように）→ 各欄へ保存フックを登録
+            // 動画タブの欄（vdInit・ytRestoreFields）は、サーバーの行を読む前の localStorage（前に開いていた画面）から入っている。
+            // 新規（行が無い）種別は restoreState で上書きされず前の内容が残るので、先に全種別を空に戻してから、行のある種別だけ restoreState で入れ直す（2026-10-06）
+            const ktPreReset = KTStore.mode === 'server' && typeof ktResetKindFields === 'function';
+            if (ktPreReset) ['earnings', 'stock', 'price', 'yt'].forEach(k => { try { ktResetKindFields(k); } catch (e) {} });
             const restored = restoreState();
+            if (ktPreReset) try { saveStateNow(); } catch (e) {}   // localStorage も戻した画面に合わせる（行は、触るまで作らない）
             KTStore.markLoaded();   // 行を読めた PJ は、ここで画面に入れ終わった。読めなかった PJ は保存しない（右下の札が赤になる）
             if (typeof ytFixedMigrate === 'function') ytFixedMigrate();
             if (typeof ytModelMigrate === 'function') ytModelMigrate(true);   // 復元で古い定型文に戻るので、ここでも足す
