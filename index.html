@@ -9544,8 +9544,9 @@ async function ytPostAi(btn,sns){
 function ygArticlePrompt(kind){
   const theme=ytTheme();
   if(!theme)throw new Error('「分析」タブにテーマを入力してください');
-  ygLinkGate();
-  const doc=ygReport();   // 記事はレポートから作る（動画の構成には合わせない。事実は動画と同じで、中身を濃くする）
+  // 記事はレポートから作る（動画の構成には合わせない。事実は動画と同じで、中身を濃くする）。
+  // 「3. 構成と出典」と出典リンクの確認は動画用なので、記事では求めない（ygLinkGate は呼ばない）
+  const doc=ygReport();
   if(!doc)throw new Error('「分析」タブに、ファクトチェックを終えたレポートを貼り付けてください');
   const note=kind==='n';
   return `あなたは、${ytAud()}の内容を、記事として分かりやすく伝える書き手です。
