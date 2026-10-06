@@ -5435,6 +5435,12 @@ async function pasteArtUrl(){
 // ・note のエディタで URL 行の末尾に Enter を押すとカードになる（^7201 の記法と同じ挙動）
 // ============================================================
 const REL_HEAD='## あわせて読みたい';
+// 欄の対応表。株価分析の note と YT動画の note で、欄の id と状態表示だけが違う（候補の一覧・キャッシュは共通）
+const REL_STOCK={sel:'art-rel-sel',url:'art-rel-url',intro:'art-rel-intro',body:'art-body',title:'art-title',tags:'art-tags',myUrl:'art-url',
+  code:()=>(typeof getTicker==='function'?getTicker():'')||'',status:(m,c)=>setArtStatus(m,c)};
+const REL_YT={sel:'yt-a-rel-sel',url:'yt-a-rel-url',intro:'yt-a-rel-intro',body:'yt-a-n-body',title:'yt-a-n-title',tags:'yt-a-n-tags',myUrl:'yt-a-noteurl',
+  code:()=>'',status:(m,c)=>ygArtStatus('n',m,c==='info'?'':c)};
+const REL_ALL=[REL_STOCK,REL_YT];
 const REL_CACHE_KEY='kt-note-articles';
 const REL_CACHE_HOURS=6;
 let _relList=[];
@@ -5444,8 +5450,8 @@ function relSetInfo(msg){const el=document.getElementById('art-rel-info');if(el)
 const REL_CODE_RE=/^[0-9]{3,4}[A-Za-z]?$/;
 // どの記事にも付く汎用タグはテーマの一致に数えない（銘柄・業種・材料のタグだけで近さを測る）
 const REL_STOP_TAGS=['株価分析','株式投資','投資','株','日本株','米国株','投資初心者','資産運用','マネー','お金','note','決算','企業分析','株価'];
-function relMyTags(){
-  return relVal('art-tags').split(/[\s　]+/).map(t=>t.replace(/^#/,'').trim()).filter(Boolean);
+function relMyTags(ctx=REL_STOCK){
+  return relVal(ctx.tags).split(/[\s　]+/).map(t=>t.replace(/^#/,'').trim()).filter(Boolean);
 }
 function relCacheLoad(){
   try{const j=JSON.parse(localStorage.getItem(REL_CACHE_KEY)||'null');
@@ -5456,23 +5462,23 @@ function relCacheSave(items){
   try{localStorage.setItem(REL_CACHE_KEY,JSON.stringify({at:Date.now(),items}));}catch(e){}
 }
 // 今回書いている記事そのものを候補から外す
-function relExcluded(it){
-  const myUrl=relVal('art-url').trim();
+function relExcluded(it,ctx=REL_STOCK){
+  const myUrl=relVal(ctx.myUrl).trim();
   if(myUrl&&it.url===myUrl)return true;
-  const myTitle=relVal('art-title').trim();
+  const myTitle=relVal(ctx.title).trim();
   if(myTitle&&(it.title||'').trim()===myTitle)return true;
-  const code=(typeof getTicker==='function'?getTicker():'')||'';
+  const code=ctx.code();
   const d=(Date.now()-Date.parse(it.publishAt||0))/86400000;
   // 同じ銘柄で直近14日以内＝今回公開したばかりの記事とみなす（過去の分析ならリンク先として有効）
   if(code&&(it.tags||[]).some(t=>t===String(code))&&isFinite(d)&&d<14)return true;
   return false;
 }
-function relScore(it){
-  const code=(typeof getTicker==='function'?getTicker():'')||'';
+function relScore(it,ctx=REL_STOCK){
+  const code=ctx.code();
   const tags=(it.tags||[]).map(t=>String(t).toLowerCase());
   let s=0;
   if(code&&tags.includes(String(code).toLowerCase()))s+=25;      // 同じ銘柄の過去記事
-  relMyTags().forEach(t=>{
+  relMyTags(ctx).forEach(t=>{
     if(REL_CODE_RE.test(t)||REL_STOP_TAGS.includes(t))return;
     if(tags.includes(t.toLowerCase()))s+=10;                      // テーマ・業種タグの一致
   });
@@ -5480,16 +5486,16 @@ function relScore(it){
   if(isFinite(d))s+=Math.max(0,12-Math.floor(d/30));              // 新しいものを優先（1年で0）
   return s;
 }
-function relCandidates(){
-  return _relList.filter(it=>it&&it.url&&!relExcluded(it))
-    .map(it=>({it,sc:relScore(it)}))
+function relCandidates(ctx=REL_STOCK){
+  return _relList.filter(it=>it&&it.url&&!relExcluded(it,ctx))
+    .map(it=>({it,sc:relScore(it,ctx)}))
     .sort((a,b)=>b.sc-a.sc||String(b.it.publishAt).localeCompare(String(a.it.publishAt)))
     .map(x=>x.it);
 }
-function relFillSelect(keep){
-  const sel=document.getElementById('art-rel-sel');if(!sel)return;
-  const want=keep||relVal('art-rel-url');
-  const list=relCandidates();                       // スコア順（自動選択はこの先頭）
+function relFillSelect(keep,ctx=REL_STOCK){
+  const sel=document.getElementById(ctx.sel);if(!sel)return;
+  const want=keep||relVal(ctx.url);
+  const list=relCandidates(ctx);                       // スコア順（自動選択はこの先頭）
   const rec=new Set(list.slice(0,3).map(it=>it.url)); // おすすめ上位3件
   // 一覧は探しやすさを優先して日付の降順で並べる
   const byDate=list.slice().sort((a,b)=>String(b.publishAt).localeCompare(String(a.publishAt)));
@@ -5500,11 +5506,11 @@ function relFillSelect(keep){
   if(want&&list.some(it=>it.url===want))sel.value=want;
   return list;
 }
-function relOnPick(){
-  const sel=document.getElementById('art-rel-sel');
-  const u=document.getElementById('art-rel-url');
+function relOnPick(ctx=REL_STOCK){
+  const sel=document.getElementById(ctx.sel);
+  const u=document.getElementById(ctx.url);
   if(u)u.value=sel?sel.value:'';
-  const intro=document.getElementById('art-rel-intro');
+  const intro=document.getElementById(ctx.intro);
   if(intro)intro.value='';     // 選び直したら紹介文は作り直す
   if(typeof saveState==='function')saveState();
 }
@@ -5520,7 +5526,7 @@ async function relFetch(btn,silent){
     if(!res.ok||!d.ok)throw new Error((d&&d.error)||`HTTP ${res.status}`);
     _relList=d.items||[];
     relCacheSave(_relList);
-    relFillSelect();
+    REL_ALL.forEach(c=>relFillSelect(null,c));   // 一覧は共通なので、両方の欄を埋める
     relSetInfo(`${id} の有料記事 ${_relList.length}件（直近${days}日）を取得しました${d.truncated?'／古い分は打ち切り':''}`);
     return true;
   }catch(e){
@@ -5540,9 +5546,9 @@ const REL_INTRO_PROMPT=`あなたは株価分析note記事の編集者です。�
 ・資料にない事実・数値を創作しない。タイトルとタグから読み取れる範囲で書く。
 
 【出力形式】紹介文の1文だけを出力する。前置き・見出し・記号・カギ括弧・コードブロックは付けない。`;
-async function relMakeIntro(item){
+async function relMakeIntro(item,ctx=REL_STOCK){
   const resources=[
-    {label:'いま書いた記事',text:`タイトル: ${relVal('art-title')}\nハッシュタグ: ${relVal('art-tags')}`},
+    {label:'いま書いた記事',text:`タイトル: ${relVal(ctx.title)}\nハッシュタグ: ${relVal(ctx.tags)}`},
     {label:'リンクする過去記事',text:`タイトル: ${item.title||''}\nハッシュタグ: ${(item.tags||[]).map(t=>'#'+t).join(' ')}\n公開日: ${(item.publishAt||'').slice(0,10)}`}
   ];
   // 1文を書くだけなので Lite 系（1日500回）で足りる。上位モデルの枠を使わない。
@@ -5555,27 +5561,27 @@ function relStrip(body){
   const i=String(body||'').indexOf(REL_HEAD);
   return (i<0?String(body||''):String(body).slice(0,i)).replace(/\s+$/,'');
 }
-async function relInsert(btn,silent){
-  const body=document.getElementById('art-body');
-  if(!body||!body.value.trim()){ if(!silent)alert('先に「記事・SNSを生成」を実行してください'); return{ok:false,msg:'関連記事: 本文なし'}; }
-  if(!_relList.length){ const c=relCacheLoad(); if(c)relFillSelect(); }
-  let url=relVal('art-rel-url')||relVal('art-rel-sel');
+async function relInsert(btn,silent,ctx=REL_STOCK){
+  const body=document.getElementById(ctx.body);
+  if(!body||!body.value.trim()){ if(!silent)alert('先に記事を作ってください'); return{ok:false,msg:'関連記事: 本文なし'}; }
+  if(!_relList.length){ const c=relCacheLoad(); if(c)relFillSelect(null,ctx); }
+  let url=relVal(ctx.url)||relVal(ctx.sel);
   if(!url){
-    const list=relFillSelect();
+    const list=relFillSelect(null,ctx);
     if(!list||!list.length){ if(!silent)alert('関連記事の候補がありません。🔄 で一覧を取得してください'); return{ok:false,msg:'関連記事: 候補なし'}; }
     url=list[0].url;
-    const sel=document.getElementById('art-rel-sel');if(sel)sel.value=url;
-    const u=document.getElementById('art-rel-url');if(u)u.value=url;
+    const sel=document.getElementById(ctx.sel);if(sel)sel.value=url;
+    const u=document.getElementById(ctx.url);if(u)u.value=url;
   }
   const item=_relList.find(it=>it.url===url);
   if(!item){ if(!silent)alert('選んだ記事が一覧にありません。🔄 で取得し直してください'); return{ok:false,msg:'関連記事: 候補なし'}; }
-  const introEl=document.getElementById('art-rel-intro');
+  const introEl=document.getElementById(ctx.intro);
   let intro=(introEl?introEl.value:'').trim();
   const o=btn?btn.textContent:'';
   if(!intro){
     if(btn){btn.disabled=true;btn.textContent='作成中…';}
-    if(!silent)setArtStatus('関連記事の紹介文を作成中…','info');
-    intro=await relMakeIntro(item);
+    if(!silent)ctx.status('関連記事の紹介文を作成中…','info');
+    intro=await relMakeIntro(item,ctx);
     if(btn){btn.disabled=false;btn.textContent=o;}
     if(!intro)intro=`${item.title||''} でも、同じ構図を分析しています。`;
     if(introEl)introEl.value=intro;
@@ -5583,20 +5589,20 @@ async function relInsert(btn,silent){
   body.value=relStrip(body.value)+`\n\n${REL_HEAD}\n\n${fixBoldBrackets(deJargonP0(intro))}\n\n${item.url}\n`;
   if(typeof saveState==='function')saveState();
   const msg=`関連記事: ${(item.title||'').slice(0,20)}… を挿入`;
-  if(!silent)setArtStatus(msg,'ok');
+  if(!silent)ctx.status(msg,'ok');
   return{ok:true,msg};
 }
 // 記事生成の最後に自動で実行する。失敗しても記事はそのまま残す
-async function relAuto(){
+async function relAuto(ctx=REL_STOCK){
   try{
     const c=relCacheLoad();
     const stale=!c||!c.items||!c.items.length||(Date.now()-(c.at||0))>REL_CACHE_HOURS*3600000;
-    if(stale)await relFetch(null,true); else relFillSelect();
+    if(stale)await relFetch(null,true); else relFillSelect(null,ctx);
     // 生成のたびに選び直す（前回の銘柄の関連記事が残らないように）
-    const sel=document.getElementById('art-rel-sel');if(sel)sel.value='';
-    const u=document.getElementById('art-rel-url');if(u)u.value='';
-    const introEl=document.getElementById('art-rel-intro');if(introEl)introEl.value='';
-    const r=await relInsert(null,true);
+    const sel=document.getElementById(ctx.sel);if(sel)sel.value='';
+    const u=document.getElementById(ctx.url);if(u)u.value='';
+    const introEl=document.getElementById(ctx.intro);if(introEl)introEl.value='';
+    const r=await relInsert(null,true,ctx);
     return r.msg||'';
   }catch(e){ return '関連記事: 失敗（'+((e&&e.message)||e)+'）'; }
 }
@@ -9665,8 +9671,10 @@ function ygArtApply(k,text){
   return true;
 }
 async function ygArtPaste(k){
-  try{const t=await navigator.clipboard.readText();if(!t.trim()){alert('クリップボードが空です');return;}ygArtApply(k,t);}
-  catch(e){alert('クリップボードを読めませんでした');}
+  let t;
+  try{t=await navigator.clipboard.readText();}catch(e){alert('クリップボードを読めませんでした');return;}
+  if(!t.trim()){alert('クリップボードが空です');return;}
+  if(ygArtApply(k,t)&&k==='n'){const rel=await relAuto(REL_YT);ygArtStatus(k,`✅ 反映しました${rel?' ／ '+rel:''} ／ 売買をすすめる表現のチェックは下のボタンで`,'ok');}
 }
 // note記事の本文に、動画のURLを入れる（最初の段落のあと。URLだけの段落にする）。何度押しても1か所だけ
 function ygArtUrlApply(manual,k){
@@ -9695,7 +9703,9 @@ async function ygArtAi(k,btn){
     if(ygArtApply(k,data.text||'')){
       ygArtStatus(k,'売買をすすめる表現をチェック中…','');
       const ck=await ygArtCheck(k,null);
-      ygArtStatus(k,`✅ 作成しました${ck?' ／ '+ck.summary:''}`,ck&&!ck.clean?'':'ok');
+      // note は、関連記事（あわせて読みたい）を本文の末尾に差し込む（株価分析の note と同じ）。失敗しても記事はそのまま残す
+      const rel=k==='n'?await relAuto(REL_YT):'';
+      ygArtStatus(k,`✅ 作成しました${ck?' ／ '+ck.summary:''}${rel?' ／ '+rel:''}`,ck&&!ck.clean?'':'ok');
     }
   }catch(e){ygArtStatus(k,'❌ '+e.message,'error');}
   finally{if(btn)btn.disabled=false;}
@@ -10237,6 +10247,17 @@ ${[['n','note記事（無料）','表なしで作ります。動画のURLは最�
   <input type="text" id="yt-a-${k}-title" oninput="saveState()" placeholder="タイトル" style="width:100%;box-sizing:border-box;font-size:11px;">
   <textarea id="yt-a-${k}-body" data-yh-slot="yh-slot-a${k}" oninput="saveState()" placeholder="本文" style="min-height:0;height:96px;font-size:11px;width:100%;box-sizing:border-box;"></textarea>
   <input type="text" id="yt-a-${k}-tags" oninput="saveState()" placeholder="ハッシュタグ" style="width:100%;box-sizing:border-box;font-size:11px;">
+  ${i===0?`<div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:6px;">
+    <label style="font-size:11px;color:var(--text-sub);flex:none;">関連記事</label>
+    <select id="yt-a-rel-sel" onchange="relOnPick(REL_YT)" style="flex:1;min-width:0;font-size:11px;padding:4px;"><option value="">（記事を作ると自動で選ばれます）</option></select>
+    <button class="ya-nd" onclick="relFetch(this)" title="noteの公開記事一覧を取り直します">🔄</button>
+  </div>
+  <input type="hidden" id="yt-a-rel-url">
+  <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:4px;">
+    <input type="text" id="yt-a-rel-intro" placeholder="紹介文（空なら挿入時にAIが1文書きます）" oninput="saveState()" style="flex:1;min-width:0;font-size:11px;">
+    <button class="ya-nd" onclick="relInsert(this,false,REL_YT)" style="background:#0d9488;color:#fff;border-color:#0d9488;">📎 本文に挿入</button>
+  </div>
+  <div style="font-size:10px;color:var(--text-sub);" title="株価分析のnoteと同じ一覧（noteの有料記事）から選びます。⭐＝今回の記事との関連が強い候補。noteでURL行の末尾にカーソルを置きEnterでカードになります">本文の末尾に「あわせて読みたい」＋紹介文＋URLを差し込みます。何度押しても差し替わります。</div>`:''}
   <div id="yt-a-${k}-status" style="display:none;font-size:11px;"></div>
 </div>${i===0?`<div class="sa-card" style="margin-top:8px;">${set('noteの記事URL','<input type="text" id="yt-a-noteurl" placeholder="noteに公開したあとのURL（SNSタブの欄と同じ）" oninput="ytArtNoteInput(this,false)" onchange="ytArtNoteInput(this,true)" style="flex:1;min-width:0;font-size:11px;"><button class="ya-nd" onclick="ytPaste(\'a-noteurl\',()=>ytArtNoteInput(ytEl(\'a-noteurl\'),true))">📋 貼付</button>')}</div>`:''}`).join('')}
 <div class="sa-card" style="margin-top:8px;">
@@ -10265,7 +10286,7 @@ ${[['n','note記事（無料）','表なしで作ります。動画のURLは最�
 </div>
 </div>`;
 }
-const YT_PERSIST_IDS=['vd-orient','th-ctx','th-note-text','th-note-preset','yt-th-text','yt-th-preset','yg-th-text','yg-th-preset','yt-g-theme','yt-g-report','yt-g-aud','yt-a-n-raw','yt-a-n-title','yt-a-n-body','yt-a-n-tags','yt-a-b-raw','yt-a-b-title','yt-a-b-body','yt-a-b-tags','yt-a-check','yt-link-state','yt-doc','yt-series','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-t1','yt-p-t2','yt-p-t3','yt-p-s1','yt-p-s2','yt-p-s3','yt-p-body','yt-p-xbody','yt-p-hook','yt-p-announce','yt-p-ypbody','yt-p-igbody','yt-p-ttbody','yt-p-points','yt-p-xtags','yt-p-yptags','yt-p-igtags','yt-p-tttags','yt-p-l8title','yt-p-l8intro','yt-p-l8tags','yt-p-yp','yt-p-ig','yt-p-l8t','yt-p-ttt','yt-p-reel','yt-p-fixapplied','yt-p-l8','yt-p-tt','yt-f-yp','yt-f-ig','yt-f-l8','yt-f-tt','yt-p-yturl','yt-p-tags','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-m-cut','yt-m-read','yt-m-plan','yt-m-post','yt-m-qr','yt-m-oped','yt-yomi','yt-yomi-for','yt-open','yt-open-for','ya-gtext','ya-gap','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan','yt-oped-kind','yt-op-s1','yt-op-s2','yt-op-s3','yt-op-v1','yt-op-v2','yt-op-v3','yt-op-lead','yt-op-tail','yt-ed-v','yt-op-cands','yt-ed-cands','yt-oped-bg'];
+const YT_PERSIST_IDS=['vd-orient','th-ctx','th-note-text','th-note-preset','yt-th-text','yt-th-preset','yg-th-text','yg-th-preset','yt-g-theme','yt-g-report','yt-g-aud','yt-a-n-raw','yt-a-n-title','yt-a-n-body','yt-a-n-tags','yt-a-rel-url','yt-a-rel-intro','yt-a-b-raw','yt-a-b-title','yt-a-b-body','yt-a-b-tags','yt-a-check','yt-link-state','yt-doc','yt-series','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-t1','yt-p-t2','yt-p-t3','yt-p-s1','yt-p-s2','yt-p-s3','yt-p-body','yt-p-xbody','yt-p-hook','yt-p-announce','yt-p-ypbody','yt-p-igbody','yt-p-ttbody','yt-p-points','yt-p-xtags','yt-p-yptags','yt-p-igtags','yt-p-tttags','yt-p-l8title','yt-p-l8intro','yt-p-l8tags','yt-p-yp','yt-p-ig','yt-p-l8t','yt-p-ttt','yt-p-reel','yt-p-fixapplied','yt-p-l8','yt-p-tt','yt-f-yp','yt-f-ig','yt-f-l8','yt-f-tt','yt-p-yturl','yt-p-tags','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-m-cut','yt-m-read','yt-m-plan','yt-m-post','yt-m-qr','yt-m-oped','yt-yomi','yt-yomi-for','yt-open','yt-open-for','ya-gtext','ya-gap','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan','yt-oped-kind','yt-op-s1','yt-op-s2','yt-op-s3','yt-op-v1','yt-op-v2','yt-op-v3','yt-op-lead','yt-op-tail','yt-ed-v','yt-op-cands','yt-ed-cands','yt-oped-bg'];
 // ---- 動画の種類：株価分析の横動画＝stock ／ YT動画タブ＝gen ----
 // 画面と関数は1組だけ。種類を切り替えると、作品ごとの欄（localStorage）と IndexedDB のキーを入れ替える。
 // 株価分析の側は今までのキーのまま、YT動画の側は前に 'gen:' を付ける。設計：docs/design/2026-09-21_YT動画タブ.md
@@ -14514,7 +14535,7 @@ try{
   }
 }catch(e){}
 // 関連記事の候補はキャッシュから復元する（リロードでセレクトが空にならないように）
-try{if(typeof relCacheLoad==='function'&&relCacheLoad())relFillSelect();}catch(e){}
+try{if(typeof relCacheLoad==='function'&&relCacheLoad())REL_ALL.forEach(c=>relFillSelect(null,c));}catch(e){}
 }));
 
 // =====================================================
