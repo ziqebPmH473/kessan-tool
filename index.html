@@ -1247,6 +1247,7 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
         <div class="sa" style="margin-bottom:6px;"><div class="sa-subtabs">
           <button class="sa-subtab active" data-etab="main" onclick="switchEarnTab('main')">📊 決算分析</button>
           <button class="sa-subtab" data-etab="video" onclick="switchEarnTab('video')">🎬 動画</button>
+          <button class="sa-subtab" data-etab="viz" onclick="switchEarnTab('viz')">📽 横動画</button>
         </div></div>
         <div id="earn-tab-main">
         <div class="tool-section">
@@ -1373,6 +1374,51 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
         </div>
         </div><!-- /earn-tab-main -->
         <div id="earn-tab-video" class="sa" style="display:none;flex-direction:column;gap:6px;"></div>
+        <!-- 横動画（決算ビジュアル）：PL・BS・CF の図解アニメ。描画と検証は kessan-visualizer の埋め込み（window.KessanViz）に任せる -->
+        <div id="earn-tab-viz" class="sa" style="display:none;flex-direction:column;gap:6px;">
+          <div class="tool-section">
+            <div class="section-heading">横動画（決算ビジュアル）</div>
+            <div style="font-size:11px;color:var(--text-sub);line-height:1.6;">決算資料の PDF（決算分析タブで添付したもの）から、損益・貸借対照表・キャッシュフロー・推移・セグメント・注目点の図解アニメ（1920×1080）を作ります。数値の抽出は Gemini、評価と図はプログラムが作ります。</div>
+            <div class="input-row" style="margin-top:6px;gap:4px;align-items:center;">
+              <label style="font-size:11px;color:var(--text-sub);flex:none;">モデル</label>
+              <select id="ev-viz-model" style="flex:1;min-width:0;font-size:11px;padding:4px;">
+                <option value="" selected>自動（上位から上限で自動降格）</option>
+                <option value="gemini-3.8-flash">Gemini 3.8 Flash（20回/日）</option>
+                <option value="gemini-3.7-flash">Gemini 3.7 Flash（20回/日）</option>
+                <option value="gemini-3.6-flash">Gemini 3.6 Flash（20回/日）</option>
+                <option value="gemini-3.5-flash">Gemini 3.5 Flash（20回/日）</option>
+                <option value="gemini-3-flash-preview">Gemini 3 Flash（20回/日）</option>
+                <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite（500回/日）</option>
+                <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite（500回/日）</option>
+              </select>
+            </div>
+            <div class="input-row" style="margin-top:4px;">
+              <button class="main-btn" onclick="evVizGenerate(this)" style="flex:1;background:#4f46e5;">🎬 Gemini で動画データを作る</button>
+            </div>
+            <div id="ev-viz-status" style="display:none;font-size:11px;margin-top:3px;"></div>
+            <label style="font-size:11px;color:var(--text-sub);display:flex;align-items:center;gap:4px;margin-top:4px;cursor:pointer;"><input type="checkbox" id="ev-viz-auto" checked> 「📤 出力データ作成」のあとに自動で作る（Gemini をもう1回使います）</label>
+            <details style="margin-top:6px;">
+              <summary style="font-size:11px;color:var(--text-sub);cursor:pointer;" title="プロンプトを ChatGPT などに PDF と一緒に貼り、返ってきた JSON を貼り付けます">手動で作る（ChatGPT など。API が混んでいるとき）</summary>
+              <div class="input-row" style="margin-top:4px;">
+                <button class="btn-sm" onclick="evVizCopyPrompt(this)" style="flex:1;min-width:0;">📋 プロンプトをコピー</button>
+                <button class="btn-sm" onclick="evVizPaste()" style="flex:1;min-width:0;">📋 結果を貼り付け</button>
+              </div>
+              <textarea id="ev-viz-paste" placeholder="AI の出力（json のコードブロックのまま）をここに貼り付け" style="font-size:11px;height:60px;min-height:40px;margin-top:4px;font-family:monospace;"></textarea>
+              <div class="input-row" style="margin-top:4px;">
+                <button class="btn-sm" onclick="evVizLoadPasted()" style="flex:1;min-width:0;background:#4f46e5;color:#fff;">✅ 検証して読み込む</button>
+              </div>
+            </details>
+            <div class="input-row" style="margin-top:6px;">
+              <button class="btn-sub" onclick="evVizDownload('props')" style="flex:1;font-size:11px;">💾 MP4用データ</button>
+              <button class="btn-sub" onclick="evVizDownload('viz')" style="flex:1;font-size:11px;">💾 JSON</button>
+              <button class="btn-sub" onclick="evVizClear()" style="flex:none;font-size:11px;background:#fee2e2;">🗑 消す</button>
+            </div>
+            <div style="font-size:10px;color:var(--text-sub);margin-top:4px;line-height:1.5;">MP4 は kessan-visualizer のフォルダで <code>npm run render -- &lt;MP4用データ.json&gt;</code>。1920×1080・30fps・無音。</div>
+            <!-- 保存用（PJ と一緒に保存される） -->
+            <textarea id="ev-viz-json" style="display:none;"></textarea>
+            <textarea id="ev-viz-settings" style="display:none;"></textarea>
+          </div>
+        </div>
         </div><!-- /mode-earnings -->
 
         <div id="mode-stock" style="display:none;">
@@ -2018,6 +2064,11 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
             <div style="font-size:11px;color:var(--text-sub);">縦スライド 1080×1920 プレビュー（クリックで個別ダウンロード）</div>
             <div class="prev-wrap" id="ev-prev-area"></div>
         </div>
+        <div id="earn-viz-view" class="sa" style="display:none;flex-direction:column;gap:6px;">
+            <div style="font-size:11px;color:var(--text-sub);">横動画（決算ビジュアル）1920×1080 プレビュー。シーンの表示・秒数は下のチップで変えられます</div>
+            <div id="earn-viz-empty" style="padding:30px;text-align:center;color:var(--text-sub);font-size:12px;border:1px dashed var(--border);border-radius:8px;">まだ動画データがありません。左の「🎬 Gemini で動画データを作る」を押してください。</div>
+            <div id="earn-viz-mount"></div>
+        </div>
         <!-- ===== 個別銘柄分析 キャプチャエリア ===== -->
         <div id="capture-area-stock">
 
@@ -2544,6 +2595,8 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
             if (window._earnFetched) complementEarnData(); else renderImage();
             // 整形と同時に動画素材（サムネ・台本・縦スライド・投稿文）も作る（決算分析の動画セクションのチェックで切替）
             if ((document.getElementById('ev-auto') || {}).checked) { try { await geminiVideo('ev'); } catch (e) { console.warn('video gen', e); } }
+            // 横動画（決算ビジュアル）のデータも作る（横動画タブのチェックで切替。Gemini をもう1回使う）
+            if ((document.getElementById('ev-viz-auto') || {}).checked) { try { await evVizGenerate(null, { quiet: true }); } catch (e) { console.warn('viz gen', e); } }
             setGemStatus('gem-earn-status', `整形完了（${r.model || 'gemini'}${fallNote(r)}${tokenNote(r.usage)}）`, 'ok');
             // 処理の最後にタブ内容（裏データ含む）をJSONで書き出す（手動の📤エクスポートと同じ）
             try { exportTabData('earnings'); } catch (e) { console.warn('export', e); }
@@ -8007,21 +8060,24 @@ window._earnTab='main';
 function switchEarnTab(t){
   window._earnTab=t;
   document.querySelectorAll('#mode-earnings .sa-subtab[data-etab]').forEach(b=>b.classList.toggle('active',b.dataset.etab===t));
-  const m=document.getElementById('earn-tab-main'),v=document.getElementById('earn-tab-video');
-  if(m)m.style.display=t==='video'?'none':'';
+  const m=document.getElementById('earn-tab-main'),v=document.getElementById('earn-tab-video'),z=document.getElementById('earn-tab-viz');
+  if(m)m.style.display=t==='main'?'':'none';
   if(v)v.style.display=t==='video'?'flex':'none';
-  earnPrevMode(t==='video'?'video':'image');
+  if(z)z.style.display=t==='viz'?'flex':'none';
+  earnPrevMode(t==='video'?'video':t==='viz'?'viz':'image');
 }
 // ---- 決算分析：右ペインの「横画像／縦スライド」切替 ----
 function earnPrevMode(m){
-  const cap=document.getElementById('capture-area'),vv=document.getElementById('earn-video-view');
+  const cap=document.getElementById('capture-area'),vv=document.getElementById('earn-video-view'),vz=document.getElementById('earn-viz-view');
   const bi=document.getElementById('earn-ptab-image'),bv=document.getElementById('earn-ptab-video');
   if(!cap||!vv)return;
-  cap.style.display=m==='video'?'none':'';
+  cap.style.display=m==='image'?'':'none';
   vv.style.display=m==='video'?'flex':'none';
-  if(bi)bi.classList.toggle('active',m!=='video');
+  if(vz)vz.style.display=m==='viz'?'flex':'none';
+  if(bi)bi.classList.toggle('active',m==='image');
   if(bv)bv.classList.toggle('active',m==='video');
   if(m==='video')renderVideoPrev('ev');
+  if(m==='viz')evVizMount();
 }
 
 // ============================================================
@@ -14712,7 +14768,107 @@ async function tqDownload(kind){
   }catch(e){st.textContent='うまく作れませんでした：'+e.message;}
   finally{bh.disabled=bv.disabled=false;}
 }
-    </script>
+    
+// ============================================================
+// 横動画（決算ビジュアル）  接頭辞 evViz
+// 描画・検証・変換は kessan-visualizer の埋め込みバンドル（window.KessanViz）に任せる。
+// ここでは「PDF を Gemini に渡す」「結果を PJ に保存する」「右ペインに描かせる」だけをする。
+// 設計：C:\work\kessan-visualizer\docs\design\2026-10-06_MVP設計書.md
+// ============================================================
+const EV_VIZ_SCRIPT='https://kessan-visualizer-0qcdd7p452hdo2tqpjogkqyghztjg7qqdoqvrsgc.pages.dev/embed/kessan-viz.js';
+let _evVizLoading=null,_evVizHandle=null,_evVizLastJson='';
+function evVizLoad(){
+  if(window.KessanViz)return Promise.resolve(window.KessanViz);
+  if(_evVizLoading)return _evVizLoading;
+  _evVizLoading=new Promise((res,rej)=>{
+    const sc=document.createElement('script');sc.src=EV_VIZ_SCRIPT+'?v='+Math.floor(Date.now()/3600000);sc.async=true;
+    sc.onload=()=>window.KessanViz?res(window.KessanViz):rej(new Error('KessanViz が見つかりません'));
+    sc.onerror=()=>{_evVizLoading=null;rej(new Error('描画ライブラリを読み込めませんでした（ネットワークを確認してください）'));};
+    document.head.appendChild(sc);
+  });
+  return _evVizLoading;
+}
+function evVizStatus(msg,kind){const el=document.getElementById('ev-viz-status');if(!el)return;el.textContent=msg||'';el.style.display=msg?'block':'none';el.style.color=kind==='error'?'#ef4444':kind==='ok'?'#16a34a':'var(--text-sub)';}
+function evVizData(){try{const j=JSON.parse((document.getElementById('ev-viz-json')||{}).value||'null');return j&&j.visualization?j:null;}catch(e){return null;}}
+function evVizSettings(){try{return JSON.parse((document.getElementById('ev-viz-settings')||{}).value||'null')||null;}catch(e){return null;}}
+function evVizStore(obj){
+  const ta=document.getElementById('ev-viz-json');if(!ta)return;
+  ta.value=obj?JSON.stringify(obj):'';
+  if(typeof saveState==='function')saveState();
+  evVizMount(true);
+}
+// Gemini で PDF → JSON → 検証 → visualization を作って保存する
+async function evVizGenerate(btnEl,opts){
+  opts=opts||{};
+  const files=(window._earnFiles||[]).map(f=>({mimeType:f.mimeType,data:f.data}));
+  if(!files.length){if(!opts.quiet)alert('決算資料（PDF）がありません。「📊 決算分析」タブの「決算資料」に添付してください。');evVizStatus('決算資料（PDF）が未添付です','error');return false;}
+  let KV;try{KV=await evVizLoad();}catch(e){evVizStatus(e.message,'error');return false;}
+  const hint=((document.getElementById('p-name')||{}).value||'')+' '+((document.getElementById('p-code')||{}).value||'');
+  const ov=(document.getElementById('ev-viz-model')||{}).value||'';
+  const label=btnEl?btnEl.innerText:'';if(btnEl){btnEl.disabled=true;btnEl.innerText='作成中…';}
+  evVizStatus('Gemini で財務数値を抽出中…（PDF '+files.length+'件。1〜3分かかることがあります）','info');
+  const r=await callGeminiAnalyze(KV.prompt({companyHint:hint.trim()}),[],{cls:'high',temperature:0.2,modelOverride:ov,files});
+  if(btnEl){btnEl.disabled=false;btnEl.innerText=label;}
+  if(!r.ok){evVizStatus('エラー: '+r.error,'error');return false;}
+  const parsed=KV.parse(r.text);
+  if(!parsed.ok){
+    const ta=document.getElementById('ev-viz-paste');if(ta)ta.value=r.text;
+    evVizStatus('Gemini の出力が形式に合いません（'+parsed.errors.length+'件: '+parsed.errors.slice(0,3).map(e=>e.path+' '+e.message).join(' / ')+'）。「手動で作る」の欄に入れたので、直して「検証して読み込む」を押してください','error');
+    return false;
+  }
+  return evVizCommit(KV,parsed,'gemini:'+(r.model||''));
+}
+function evVizCommit(KV,parsed,source){
+  const isViz=!!(parsed.data&&parsed.data.ratings&&parsed.data.display_unit);
+  const viz=isViz?parsed.data:KV.build(parsed.data);
+  evVizStore({analysis:isViz?null:parsed.data,visualization:viz,source,created:new Date().toISOString()});
+  const warn=(viz.warnings||[]).length+(parsed.warnings||[]).length;
+  evVizStatus('動画データを作りました'+(warn?'（確認したい点 '+warn+'件。右のプレビューの上に出ます）':''),'ok');
+  if(window._earnTab==='viz')earnPrevMode('viz');
+  return true;
+}
+async function evVizCopyPrompt(btn){
+  let KV;try{KV=await evVizLoad();}catch(e){alert(e.message);return;}
+  const hint=((document.getElementById('p-name')||{}).value||'')+' '+((document.getElementById('p-code')||{}).value||'');
+  try{await navigator.clipboard.writeText(KV.prompt({companyHint:hint.trim()}));const t=btn.innerText;btn.innerText='コピーしました';setTimeout(()=>btn.innerText=t,1200);}
+  catch(e){alert('クリップボードに書き込めませんでした');}
+}
+async function evVizPaste(){
+  let t;try{t=await navigator.clipboard.readText();}catch(e){alert('クリップボードへのアクセスが拒否されました。欄に手動で貼り付けてください。');return;}
+  const ta=document.getElementById('ev-viz-paste');if(ta)ta.value=t;
+  evVizLoadPasted();
+}
+async function evVizLoadPasted(){
+  const text=((document.getElementById('ev-viz-paste')||{}).value||'').trim();
+  if(!text){alert('AI の出力を貼り付けてください');return;}
+  let KV;try{KV=await evVizLoad();}catch(e){evVizStatus(e.message,'error');return;}
+  const parsed=KV.parse(text);
+  if(!parsed.ok){evVizStatus('形式エラー '+parsed.errors.length+'件: '+parsed.errors.slice(0,4).map(e=>e.path+' '+e.message).join(' / '),'error');return;}
+  evVizCommit(KV,parsed,'paste');
+}
+function evVizClear(){if(!evVizData())return;if(!confirm('横動画のデータを消しますか？'))return;evVizStore(null);const st=document.getElementById('ev-viz-settings');if(st)st.value='';evVizStatus('消しました','info');}
+function evVizDownload(kind){
+  const d=evVizData();if(!d){alert('まだ動画データがありません');return;}
+  const viz=d.visualization,KV=window.KessanViz;
+  const pid=(viz.company.code||'0000')+'_'+((viz.company.fiscal_period_label||'').match(/\d{4}/)||[''])[0]+viz.company.period_type;
+  const text=kind==='props'?(KV?KV.renderProps(viz,evVizSettings()||undefined):JSON.stringify({visualization:viz,settings:evVizSettings()},null,2)):JSON.stringify(viz,null,2);
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'application/json;charset=utf-8'}));a.download=pid+(kind==='props'?'_render-props.json':'_visualization.json');a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+// 右ペインに描く（データが変わっていなければ描き直さない）
+async function evVizMount(force){
+  const host=document.getElementById('earn-viz-mount'),empty=document.getElementById('earn-viz-empty');if(!host)return;
+  const d=evVizData();
+  if(!d){if(_evVizHandle){try{_evVizHandle.unmount();}catch(e){}_evVizHandle=null;}_evVizLastJson='';host.innerHTML='';if(empty)empty.style.display='';return;}
+  if(empty)empty.style.display='none';
+  const json=JSON.stringify(d.visualization);
+  if(!force&&_evVizHandle&&json===_evVizLastJson)return;
+  let KV;try{KV=await evVizLoad();}catch(e){host.innerHTML='<div style="color:#ef4444;font-size:12px;">'+esc(e.message)+'</div>';return;}
+  const props={visualization:d.visualization,settings:evVizSettings()||KV.defaultSettings(),onChange:(st)=>{const el=document.getElementById('ev-viz-settings');if(el){el.value=JSON.stringify(st);if(typeof saveState==='function')saveState();}}};
+  if(_evVizHandle){_evVizHandle.update(props);}else{_evVizHandle=KV.mount(host,props);}
+  _evVizLastJson=json;
+}
+
+</script>
 <div class="sa">
 <div id="render-target" style="position:fixed;left:-9999px;top:0;pointer-events:none;"></div>
 <div id="th-render-target" style="position:fixed;left:-9999px;top:0;pointer-events:none;"></div>
