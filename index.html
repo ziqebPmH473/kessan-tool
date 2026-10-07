@@ -12157,16 +12157,28 @@ function ynRender(){
   ynReadLabel();
   [...YN.sel].forEach(n=>{if(!YN.slides.some(s=>s.name===n))YN.sel.delete(n);});ynSelInfo();
   const area=document.getElementById('yn-prev');if(!area)return;
-  // 描き直すと中身の高さが一度0になり、見ていた位置が一番上へ飛ぶ。前の位置と、枚ごとの高さを覚えておく
+  // 描き直すと画像が読めるまで高さ0になり、下の行が上へ詰まって見ていた位置がずれる。前の位置と、スライドごとの画像の高さを覚えておく
   const sc=ynScrollBox(area),top0=sc?sc.scrollTop:0,hs={};
   const fk=ynFocusKey(area);
-  area.querySelectorAll('.yn-item[data-n]').forEach(it=>{hs[it.dataset.n]=it.offsetHeight;});
-  // 数字を直すと行が時間の順に並び替わり、直していた欄が上下へ動いて見える（▲▼を続けて押すと別の行を押してしまう）。
-  // 直していた欄（無ければ、押したボタンのある枚）の画面上の高さを覚えておき、描き直したあとも同じ高さに置く
+  if(sc&&sc!==document.scrollingElement)sc.style.overflowAnchor='none';   // ブラウザの自動の位置補正は使わない（こちらで合わせる）
+  area.querySelectorAll('.yn-item[data-n]').forEach(it=>{const b=it.querySelector('.yn-img');if(b&&b.offsetHeight)hs[it.dataset.n.split('#')[0]]=b.offsetHeight;});
+  // 描き直しても画面（見えている位置）を動かさない。数字を直して行が時間の順に並び替わったり、出典などが別の枚へ移ったりしても、
+  // 移った範囲の外の行（その行より上にある行の顔ぶれが、描き直しの前後で同じ行）は、見えている高さのまま置く
   const byFk=k=>[...area.querySelectorAll('[data-fk]')].find(x=>x.dataset.fk===k);
-  const ae0=document.activeElement,itKey=(!fk&&ae0&&area.contains(ae0))?(ae0.closest('.yn-item[data-n]')||{dataset:{}}).dataset.n:null;
-  const anchorEl=()=>fk?byFk(fk):itKey?[...area.querySelectorAll('.yn-item[data-n]')].find(x=>x.dataset.n===itKey):null;
-  const a0=anchorEl(),ay0=a0?a0.getBoundingClientRect().top:null;
+  const aKey=el=>el.dataset.rk?'r:'+el.dataset.rk:'i:'+el.dataset.n;
+  const aTop=el=>(el.dataset.rk?el:(el.querySelector('.yn-hd')||el)).getBoundingClientRect().top;
+  const boxTop=()=>sc&&sc!==document.scrollingElement?sc.getBoundingClientRect().top:0;
+  const cands=()=>[...area.querySelectorAll('.yn-item[data-n],.yn-it[data-rk]')];
+  const ord0=cands().map(aKey),seen0=(()=>{const t=boxTop(),m={};cands().forEach(el=>{const y=aTop(el);if(y>=t)m[aKey(el)]=y;});return m;})();
+  let aK=null,ay0=null;
+  const anchorEl=()=>aK?cands().find(el=>aKey(el)===aK):null;
+  // 描き直したあとに目印を決める：見えていた行を上から見て、上にある行の顔ぶれが前と同じ最初の行（無ければ、見えていた一番上の行）
+  const pickAnchor=()=>{
+    const ord1=cands().map(aKey),pos1={};ord1.forEach((k,i)=>{pos1[k]=i;});
+    const vis=ord0.filter(k=>k in seen0&&k in pos1);if(!vis.length)return;
+    const same=k=>{const i0=ord0.indexOf(k),i1=pos1[k];if(i0!==i1)return false;const a=new Set(ord0.slice(0,i0));return ord1.slice(0,i1).every(x=>a.has(x));};
+    aK=vis.find(same)||vis[0];ay0=seen0[aK];
+  };
   if(!YN.slides.length){area.innerHTML='<div style="font-size:11px;color:var(--text-sub);padding:8px;">「画像」タブでスライド画像を読み込むと、ここに表示されます</div>';return;}
   // 割り当て済みなら、音声で出てくる順（右の一覧と同じ順）に、使う回ごとに1つずつ並べる。使わない枚は後ろ
   const occ=YN.plan&&YN.plan.slides&&YN.plan.slides.length?YN.plan.slides.map((x,k)=>({i:x.no-1,k})).filter(o=>YN.slides[o.i]):[];
@@ -12198,10 +12210,10 @@ function ynRender(){
       const tgt=z.text?`T${z.text}`:(z.zones||[z.zone]).join('+');
       const tip=z.text?tl(z.text):(z.zones||[z.zone]).map(zn).join(' ＋ ');
       const out=z.text&&ynTextOut(z.slide,z.text);
-      return `<div class="yn-it">${typeSel(cur,`ynPlanKind('${kind}',${i},this.value)`,`${kind}:${i}:type`)}${kind==='marks'?colSel(z.color||ynMarkColor(z,'soft'),`ynFxSet('marks',${i},'color',this.value)`,`marks:${i}:color`):''}
+      return `<div class="yn-it" data-rk="${kind}:${i}">${typeSel(cur,`ynPlanKind('${kind}',${i},this.value)`,`${kind}:${i}:type`)}${kind==='marks'?colSel(z.color||ynMarkColor(z,'soft'),`ynFxSet('marks',${i},'color',this.value)`,`marks:${i}:color`):''}
 <span class="yn-lb">${z.text?'文字':'枠'}</span><input class="yn-in yn-zn" value="${tgt}" title="${esc(tip)}（枠は 2+3、文字は T1 のように書く）" data-fk="${kind}:${i}:zones" onchange="ynFxSet('${kind}',${i},'zones',this.value)">${out?'<span class="yn-warn" title="読み取った文字の位置が、入っているまとまりの枠から外れています。書き出しには入ります。ナレスラで位置を確かめてください">⚠位置</span>':''}
 ${nums(kind,i,z)}${tail(kind,i,z)}</div>`;};
-    const fixLine=(kind,i,z,what)=>`<div class="yn-it"><span class="yn-k k-${kind}">${ynKinds[kind]}</span><span class="yn-wh" title="${esc(what)}">${esc(what)}</span>${nums(kind,i,z)}${tail(kind,i,z)}</div>`;
+    const fixLine=(kind,i,z,what)=>`<div class="yn-it" data-rk="${kind}:${i}"><span class="yn-k k-${kind}">${ynKinds[kind]}</span><span class="yn-wh" title="${esc(what)}">${esc(what)}</span>${nums(kind,i,z)}${tail(kind,i,z)}</div>`;
     YN.plan.slides.forEach((x,si)=>{
       const p=order.findIndex(o=>o.k===si),el=p<0?null:document.getElementById('yn-img-'+p);if(!el||!el.parentElement)return;
       const zn=k=>((((YN.slides[x.no-1]||{}).zones||[])[k-1]||{}).label||('まとまり'+k));
@@ -12245,12 +12257,13 @@ ${si===0?ynOpCoverLine():''}${rows.map(r=>r[1]).join('')}
       (s.texts||[]).map((q,k)=>q.lines.map((l,j)=>{const b=ynBox({box:l});
         return `<div class="yn-tline${b.x1>0.96?' edge':''}" style="left:${b.x0*100}%;top:${b.y0*100}%;width:${(b.x1-b.x0)*100}%;height:${(b.y1-b.y0)*100}%;" title="T${k+1} ${esc(YN_TKIND[q.kind]||'')}：${esc(q.label)}">${j===0?`<span>T${k+1}</span>`:''}</div>`;}).join('')).join('')+`</div>`;
   });
-  // 前の高さを仮に保ち、元の位置へ戻す（画像が読めたら仮の高さは外す）
-  // 画像が読めて仮の高さを外すと、行が移った枚の高さが変わって、また欄が動く。そのたびに欄を元の高さへ戻す（自分でスクロールしたあとは戻さない）
+  // 画像の枠は前の高さを仮に保ち（画像が読めたら外す）、目印の行を元の高さへ戻す。画像が読めるたびにもう一度合わせる（自分でスクロールしたあとは合わせない）
   let want=null;
+  pickAnchor();
   const reAnchor=()=>{if(!sc||ay0==null)return;if(want!=null&&Math.abs(sc.scrollTop-want)>1)return;
-    const a=anchorEl();if(!a)return;const d=a.getBoundingClientRect().top-ay0;if(Math.abs(d)>=1)sc.scrollTop+=d;want=sc.scrollTop;};
-  area.querySelectorAll('.yn-item[data-n]').forEach(it=>{const hh=hs[it.dataset.n];if(!hh)return;it.style.minHeight=hh+'px';const im=it.querySelector('img');if(im)im.addEventListener('load',()=>{it.style.minHeight='';reAnchor();},{once:true});});
+    const a=anchorEl();if(!a)return;const d=aTop(a)-ay0;if(Math.abs(d)>=1)sc.scrollTop+=d;want=sc.scrollTop;};
+  order.forEach((o,p)=>{const s=YN.slides[o.i],box=document.getElementById('yn-img-'+p),hh=s&&hs[s.name];if(!box||!hh)return;
+    const im=box.querySelector('img');if(!im||im.complete)return;box.style.minHeight=hh+'px';im.addEventListener('load',()=>{box.style.minHeight='';reAnchor();},{once:true});});
   if(fk){const e=byFk(fk);if(e){e.focus({preventScroll:true});if(e.select)e.select();}}
   if(sc)sc.scrollTop=top0;   // 欄を選び直すと（select）その欄まで画面が動くので、そのあとで元の位置へ戻す
   reAnchor();
