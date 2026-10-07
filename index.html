@@ -14899,6 +14899,19 @@ function evVizDownload(kind){
   const text=kind==='props'?(KV?KV.renderProps(viz,evVizSettings()||undefined):JSON.stringify({visualization:viz,settings:evVizSettings()},null,2)):JSON.stringify(viz,null,2);
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'application/json;charset=utf-8'}));a.download=pid+(kind==='props'?'_render-props.json':'_visualization.json');a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
+// 表紙に使うサムネ画像をツールから取り込む（横＝決算分析の1枚画像、縦＝縦スライドの0枚目サムネ）
+async function evVizCoverImage(orientation){
+  if(orientation==='portrait'){
+    const th=vdThumbText('ev');
+    if(!th)throw new Error('縦のサムネ文がありません（🎬 動画 タブのサムネ欄に入れてください）');
+    return await renderVideoToBlob({html:buildVThumb(th,'ev'),thumb:true});
+  }
+  const area=document.getElementById('capture-area');
+  if(!area||!((document.getElementById('input-data')||{}).value||'').trim())throw new Error('決算分析の画像がまだありません（先に 📤 出力データ作成）');
+  const prevDisp=area.style.display;if(prevDisp==='none')area.style.display='';
+  try{const c=await html2canvas(area,{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false});return c.toDataURL('image/png');}
+  finally{area.style.display=prevDisp;}
+}
 // 右ペインに描く（データが変わっていなければ描き直さない）
 async function evVizMount(force){
   const host=document.getElementById('earn-viz-mount'),empty=document.getElementById('earn-viz-empty');if(!host)return;
@@ -14911,7 +14924,7 @@ async function evVizMount(force){
   // 抽出データ（analysis）が残っていれば、最新の変換ロジックで visualization を作り直す（表示の改善を古い PJ にも効かせる）
   let vizNow=d.visualization;
   if(d.analysis){try{vizNow=KV.build(d.analysis);}catch(e){console.warn('viz rebuild',e);}}
-  const props={visualization:vizNow,settings:evVizSettings()||KV.defaultSettings(),controlsEl:document.getElementById('ev-viz-controls'),onChange:(st)=>{const el=document.getElementById('ev-viz-settings');if(el){el.value=JSON.stringify(st);if(typeof saveState==='function')saveState();}}};
+  const props={visualization:vizNow,settings:evVizSettings()||KV.defaultSettings(),controlsEl:document.getElementById('ev-viz-controls'),importCoverImage:evVizCoverImage,onChange:(st)=>{const el=document.getElementById('ev-viz-settings');if(el){el.value=JSON.stringify(st);if(typeof saveState==='function')saveState();}}};
   if(_evVizHandle){_evVizHandle.update(props);}else{_evVizHandle=KV.mount(host,props);}
   _evVizLastJson=json;
 }
