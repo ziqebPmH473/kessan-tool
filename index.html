@@ -13097,8 +13097,10 @@ const YS={imgs:{},edit:{},crop:null,urls:[]};
 function ysSave(){ynPut('srcimg',YS.imgs);}
 function ysSaveEdit(){ynPut('srcedit',YS.edit);}
 async function ysRestore(){
-  const m=await ynGet('srcimg');YS.imgs=(m&&typeof m==='object')?m:{};
-  const e=await ynGet('srcedit');YS.edit=(e&&typeof e==='object')?e:{};
+  const gen=window._yaGen;   // 読んでいる途中で読み直しが始まったら（起動時の読み込み→YT動画への切り替え）、古い結果で上書きしない
+  const m=await ynGet('srcimg'),e=await ynGet('srcedit');
+  if(gen!==window._yaGen)return;
+  YS.imgs=(m&&typeof m==='object')?m:{};YS.edit=(e&&typeof e==='object')?e:{};
   ysRender();
 }
 function ysPageNo(s){const m=String(s||'').match(/\d+/);return m?Math.max(1,parseInt(m[0],10)):1;}
@@ -13683,12 +13685,18 @@ async function ynPaste(id,after){
   catch(e){alert('クリップボードを読めませんでした。欄に直接貼り付けてください（Ctrl+V）');}
 }
 async function ynRestore(){
-  YO.op=await yaGet('oped:op');YO.ed=await yaGet('oped:ed');
+  const gen=window._yaGen;   // 読んでいる途中で読み直しが始まったら、古い結果で上書きしない
+  const op=await yaGet('oped:op'),ed=await yaGet('oped:ed');
   const a=await ynGet('slides');
-  const pl=await ynGet('plan');if(pl&&pl.slides){YN.plan=pl;try{ynPlanNorm();}catch(e){}}
-  const tp=await ynGet('tpl');if(tp&&tp.name){const el=ynEl('tpl-name');if(el)el.textContent=`ひな形：${tp.name}`;}
+  const pl=await ynGet('plan');
+  const tp=await ynGet('tpl');
+  if(gen!==window._yaGen)return;
+  YO.op=op;YO.ed=ed;
+  if(pl&&pl.slides){YN.plan=pl;try{ynPlanNorm();}catch(e){}}
+  if(tp&&tp.name){const el=ynEl('tpl-name');if(el)el.textContent=`ひな形：${tp.name}`;}
   if(Array.isArray(a)&&a.length)YN.slides=a.map(s=>({name:s.name,blob:s.blob,zones:s.zones||null,texts:s.texts||null,...(s.qrOrig?{qrOrig:s.qrOrig}:{}),...(s.qrRect?{qrRect:s.qrRect}:{})}));
   ynRender();
+  if(typeof ysRender==='function')ysRender();   // 出典の一覧が先に描かれていたら、割り当て（差し込み位置）を入れて描き直す
 }
 
 // ---- 初期化：両タブのHTMLを組み立て、保存値を復元し、保存済み音声を戻す ----
