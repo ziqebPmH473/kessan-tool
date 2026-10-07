@@ -12159,6 +12159,12 @@ function ynRender(){
   const sc=ynScrollBox(area),top0=sc?sc.scrollTop:0,hs={};
   const fk=ynFocusKey(area);
   area.querySelectorAll('.yn-item[data-n]').forEach(it=>{hs[it.dataset.n]=it.offsetHeight;});
+  // 数字を直すと行が時間の順に並び替わり、直していた欄が上下へ動いて見える（▲▼を続けて押すと別の行を押してしまう）。
+  // 直していた欄（無ければ、押したボタンのある枚）の画面上の高さを覚えておき、描き直したあとも同じ高さに置く
+  const byFk=k=>[...area.querySelectorAll('[data-fk]')].find(x=>x.dataset.fk===k);
+  const ae0=document.activeElement,itKey=(!fk&&ae0&&area.contains(ae0))?(ae0.closest('.yn-item[data-n]')||{dataset:{}}).dataset.n:null;
+  const anchorEl=()=>fk?byFk(fk):itKey?[...area.querySelectorAll('.yn-item[data-n]')].find(x=>x.dataset.n===itKey):null;
+  const a0=anchorEl(),ay0=a0?a0.getBoundingClientRect().top:null;
   if(!YN.slides.length){area.innerHTML='<div style="font-size:11px;color:var(--text-sub);padding:8px;">「画像」タブでスライド画像を読み込むと、ここに表示されます</div>';return;}
   // 割り当て済みなら、音声で出てくる順（右の一覧と同じ順）に、使う回ごとに1つずつ並べる。使わない枚は後ろ
   const occ=YN.plan&&YN.plan.slides&&YN.plan.slides.length?YN.plan.slides.map((x,k)=>({i:x.no-1,k})).filter(o=>YN.slides[o.i]):[];
@@ -12238,9 +12244,14 @@ ${si===0?ynOpCoverLine():''}${rows.map(r=>r[1]).join('')}
         return `<div class="yn-tline${b.x1>0.96?' edge':''}" style="left:${b.x0*100}%;top:${b.y0*100}%;width:${(b.x1-b.x0)*100}%;height:${(b.y1-b.y0)*100}%;" title="T${k+1} ${esc(YN_TKIND[q.kind]||'')}：${esc(q.label)}">${j===0?`<span>T${k+1}</span>`:''}</div>`;}).join('')).join('')+`</div>`;
   });
   // 前の高さを仮に保ち、元の位置へ戻す（画像が読めたら仮の高さは外す）
-  area.querySelectorAll('.yn-item[data-n]').forEach(it=>{const hh=hs[it.dataset.n];if(!hh)return;it.style.minHeight=hh+'px';const im=it.querySelector('img');if(im)im.addEventListener('load',()=>{it.style.minHeight='';},{once:true});});
-  if(fk){const e=[...area.querySelectorAll('[data-fk]')].find(x=>x.dataset.fk===fk);if(e){e.focus({preventScroll:true});if(e.select)e.select();}}
+  // 画像が読めて仮の高さを外すと、行が移った枚の高さが変わって、また欄が動く。そのたびに欄を元の高さへ戻す（自分でスクロールしたあとは戻さない）
+  let want=null;
+  const reAnchor=()=>{if(!sc||ay0==null)return;if(want!=null&&Math.abs(sc.scrollTop-want)>1)return;
+    const a=anchorEl();if(!a)return;const d=a.getBoundingClientRect().top-ay0;if(Math.abs(d)>=1)sc.scrollTop+=d;want=sc.scrollTop;};
+  area.querySelectorAll('.yn-item[data-n]').forEach(it=>{const hh=hs[it.dataset.n];if(!hh)return;it.style.minHeight=hh+'px';const im=it.querySelector('img');if(im)im.addEventListener('load',()=>{it.style.minHeight='';reAnchor();},{once:true});});
+  if(fk){const e=byFk(fk);if(e){e.focus({preventScroll:true});if(e.select)e.select();}}
   if(sc)sc.scrollTop=top0;   // 欄を選び直すと（select）その欄まで画面が動くので、そのあとで元の位置へ戻す
+  reAnchor();
 }
 // 欄を直して Tab で次へ移ると、直した値の保存で一覧を描き直すため、移った先の欄が消えてカーソルが一番上へ飛んでいた。
 // 描き直す前に、カーソルのある欄（Tab で欄でない所へ来たときは、その向きで次の欄）を覚えておく
