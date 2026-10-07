@@ -14865,7 +14865,7 @@ async function evVizGenerate(btnEl,opts){
 }
 function evVizCommit(KV,parsed,source){
   const isViz=!!(parsed.data&&parsed.data.ratings&&parsed.data.display_unit);
-  const viz=isViz?parsed.data:KV.build(parsed.data);
+  const viz=isViz?parsed.data:KV.build(parsed.data,evVizExtras());
   evVizStore({analysis:isViz?null:parsed.data,visualization:viz,source,created:new Date().toISOString()});
   const warn=(viz.warnings||[]).length+(parsed.warnings||[]).length;
   evVizStatus('動画データを作りました'+(warn?'（確認したい点 '+warn+'件。右のプレビューの上に出ます）':''),'ok');
@@ -14899,6 +14899,48 @@ function evVizDownload(kind){
   const text=kind==='props'?(KV?KV.renderProps(viz,evVizSettings()||undefined):JSON.stringify({visualization:viz,settings:evVizSettings()},null,2)):JSON.stringify(viz,null,2);
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'application/json;charset=utf-8'}));a.download=pid+(kind==='props'?'_render-props.json':'_visualization.json');a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
+// ---- 横動画に渡す追加データ：株価の推移と業績予想の比較（決算分析の整形データ #input-data から） ----
+// 金額の表示文字列（例「1,234億円」「1兆2,345億円」「12.3億ドル」）→ 億単位の数値。読めなければ null
+function evVizOku(str){
+  if(!str)return null;const t=String(str).replace(/[,，\s]/g,'').replace(/[０-９．]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xfee0));
+  if(/^[-—–−]+$/.test(t))return null;
+  let neg=/^[-−▲△]/.test(t);const body=t.replace(/^[-−▲△+]/,'');
+  let v=0,hit=false;
+  const cho=body.match(/([\d.]+)兆/);if(cho){v+=parseFloat(cho[1])*10000;hit=true;}
+  const oku=body.match(/(?:兆)?([\d.]+)億/);if(oku){v+=parseFloat(oku[1]);hit=true;}
+  const man=body.match(/億([\d.]+)万/);if(man){v+=parseFloat(man[1])/10000;hit=true;}
+  if(!hit){const m=body.match(/([\d.]+)百万/);if(m){v=parseFloat(m[1])/100;hit=true;}}
+  if(!hit){const m=body.match(/^([\d.]+)/);if(!m)return null;v=parseFloat(m[1]);}
+  if(!isFinite(v))return null;return neg?-v:v;
+}
+function evVizPct(str){if(!str)return null;const m=String(str).replace(/[，,]/g,'').match(/-?[\d.]+/);if(!m)return null;const v=parseFloat(m[0]);return isFinite(v)?v:null;}
+function evVizPrice(str){if(!str)return null;const m=String(str).replace(/[，,]/g,'').match(/[\d.]+/);if(!m)return null;const v=parseFloat(m[0]);return isFinite(v)?v:null;}
+function evVizExtras(){
+  const d=evData();if(!d)return {};
+  const out={};
+  // 株価：CHART_DATA（YYYY-MM-DD,始値,高値,安値,終値,出来高;）
+  const raw=((d.CHART_DATA||{}).data||'').trim();
+  if(raw){
+    const prices=[];
+    for(const row of raw.split(';')){const c=row.split(',').map(x=>x.trim());if(c.length<5||!/^\d{4}-\d{2}-\d{2}$/.test(c[0]))continue;const close=parseFloat(c[4]);if(!isFinite(close))continue;prices.push({date:c[0],open:parseFloat(c[1])||null,high:parseFloat(c[2])||null,low:parseFloat(c[3])||null,close,volume:parseFloat(c[5])||null});}
+    if(prices.length>=2){
+      const mr=d.MARKET_REACTION||{};const h=d.HEADER||{};
+      const market=getMarket()==='us'?'us':'jp';
+      let ann=null;const ad=String(h.announcement_date||'');const m1=ad.match(/(\d{4})[\/年.-](\d{1,2})[\/月.-](\d{1,2})/);if(m1)ann=m1[1]+'-'+m1[2].padStart(2,'0')+'-'+m1[3].padStart(2,'0');
+      const pre=evVizPrice(mr.pre_price),post=evVizPrice(mr.post_price);
+      out.market={prices,announcement_date:ann,pre_price:pre!=null?{label:mr.pre_price_label||'決算前',value:pre}:null,post_price:post!=null?{label:mr.post_price_label||'決算後',value:post}:null,price_change_pct:evVizPct(mr.price_change),price_unit:market==='us'?'ドル':'円'};
+    }
+  }
+  // 業績予想：GUIDANCE
+  const g=d.GUIDANCE||{};
+  const rows=[['revenue',g.sales_label||'売上高',g.sales_1,g.sales_2,g.sales_rate,g.sales_progress],['operating_income',g.op_label||'営業利益',g.op_1,g.op_2,g.op_rate,g.op_progress],['net_income',g.ni_label||'純利益',g.ni_1,g.ni_2,g.ni_rate,g.ni_progress]]
+    .filter(([,,a,b])=>(a&&a!=='-')||(b&&b!=='-'))
+    .map(([key,label,a,b,rate,prog])=>({key,label,before_display:a||'—',after_display:b||'—',before_oku:evVizOku(a),after_oku:evVizOku(b),rate_display:(rate&&rate!=='-')?rate:null,progress_pct:evVizPct(prog)}));
+  if(rows.length){
+    out.forecast_revision={status:g.status||'',col1_header:g.col1_header||'前',col2_header:g.col2_header||'後',rows,dividend:(g.div_1||g.div_2)?{before_display:g.div_1||'—',after_display:g.div_2||'—'}:null,reason:g.reason||null};
+  }
+  return out;
+}
 // 表紙に使うサムネ画像をツールから取り込む（横＝決算分析の1枚画像、縦＝縦スライドの0枚目サムネ）
 async function evVizCoverImage(orientation){
   if(orientation==='portrait'){
@@ -14923,7 +14965,7 @@ async function evVizMount(force){
   let KV;try{KV=await evVizLoad();}catch(e){host.innerHTML='<div style="color:#ef4444;font-size:12px;">'+esc(e.message)+'</div>';return;}
   // 抽出データ（analysis）が残っていれば、最新の変換ロジックで visualization を作り直す（表示の改善を古い PJ にも効かせる）
   let vizNow=d.visualization;
-  if(d.analysis){try{vizNow=KV.build(d.analysis);}catch(e){console.warn('viz rebuild',e);}}
+  if(d.analysis){try{vizNow=KV.build(d.analysis,evVizExtras());}catch(e){console.warn('viz rebuild',e);}}
   const props={visualization:vizNow,settings:evVizSettings()||KV.defaultSettings(),controlsEl:document.getElementById('ev-viz-controls'),importCoverImage:evVizCoverImage,onChange:(st)=>{const el=document.getElementById('ev-viz-settings');if(el){el.value=JSON.stringify(st);if(typeof saveState==='function')saveState();}}};
   if(_evVizHandle){_evVizHandle.update(props);}else{_evVizHandle=KV.mount(host,props);}
   _evVizLastJson=json;
