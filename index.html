@@ -15014,6 +15014,13 @@ const evVizAudioStore={
   put:async(k,rec)=>{if(k==='bgm')await KT_YN.put('bgm:viz',rec);else await KT_TTS.put('ev:viz:'+k,rec);},
   del:async k=>{if(k==='bgm')await KT_YN.del('bgm:viz');else await KT_TTS.del('ev:viz:'+k);},
 };
+// 文字起こし（Whisper・語ごとの時刻）：1本の読み上げを台本どおりにシーンへ切り分けるのに使う
+async function evVizTranscribe(blob){
+  const res=await fetch('/api/transcribe?lang=ja',{method:'POST',headers:{'Content-Type':blob.type||'audio/wav'},body:blob});
+  let data={};try{data=await res.json();}catch(e){}
+  if(!res.ok||!data.ok)throw new Error(data.error||('文字起こしに失敗しました（HTTP '+res.status+'）'));
+  return{words:data.words||[]};
+}
 // 「ツールの BGM を使う」：設定 › BGM で選んでいるもの（無ければ登録済みの最初のもの）
 async function evVizImportBgm(){
   const idx=await ytBgmIndex();if(!idx.length)return null;
@@ -15033,7 +15040,7 @@ async function evVizMount(force){
   // 抽出データ（analysis）が残っていれば、最新の変換ロジックで visualization を作り直す（表示の改善を古い PJ にも効かせる）
   let vizNow=d.visualization;
   if(d.analysis){try{vizNow=KV.build(d.analysis,evVizExtras());}catch(e){console.warn('viz rebuild',e);}}
-  const props={visualization:vizNow,settings:evVizSettings()||KV.defaultSettings(),controlsEl:document.getElementById('ev-viz-controls'),importCoverImage:evVizCoverImage,tts:evVizTts,audioStore:evVizAudioStore,importBgm:evVizImportBgm,onChange:(st)=>{const el=document.getElementById('ev-viz-settings');if(el){el.value=JSON.stringify(st);if(typeof saveState==='function')saveState();}}};
+  const props={visualization:vizNow,settings:evVizSettings()||KV.defaultSettings(),controlsEl:document.getElementById('ev-viz-controls'),importCoverImage:evVizCoverImage,tts:evVizTts,audioStore:evVizAudioStore,importBgm:evVizImportBgm,transcribe:evVizTranscribe,onChange:(st)=>{const el=document.getElementById('ev-viz-settings');if(el){el.value=JSON.stringify(st);if(typeof saveState==='function')saveState();}}};
   if(_evVizHandle){_evVizHandle.update(props);}else{_evVizHandle=KV.mount(host,props);}
   _evVizLastJson=json;
 }
