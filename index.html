@@ -14997,6 +14997,30 @@ async function evVizCoverImage(orientation){
   try{const c=await html2canvas(area,{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false});return c.toDataURL('image/png');}
   finally{area.style.display=prevDisp;}
 }
+// ---- 横動画の音声（ナレーション・BGM） ----
+// 読み上げは /api/tts（声・モデルは 🎬 動画タブの決算側の設定 ev-tts-voice / ev-tts-model と同じ）
+async function evVizTts(text){
+  const vEl=document.getElementById('ev-tts-voice'),mEl=document.getElementById('ev-tts-model');
+  const voice=(vEl&&vEl.value)||'Erinome',model=(mEl&&mEl.value)||undefined;
+  const res=await fetch('/api/tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,voice,model})});
+  let data={};try{data=await res.json();}catch(e){}
+  if(!res.ok||!data.ok||!data.audioBase64)throw new Error(data.error||('読み上げに失敗しました（HTTP '+res.status+'）'));
+  const bin=atob(data.audioBase64),bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+  return{blob:new Blob([bytes],{type:data.mimeType||'audio/wav'}),seconds:typeof data.seconds==='number'?data.seconds:null};
+}
+// 音声の保存先：読み上げは KT_TTS の 'ev:viz:<キー>'（PJ ごと・サーバーにも送られる）、BGM は KT_YN の共通キー 'bgm:viz'（全 PJ 共通）
+const evVizAudioStore={
+  get:async k=>{try{return k==='bgm'?await KT_YN.get('bgm:viz'):await KT_TTS.get('ev:viz:'+k);}catch(e){return null;}},
+  put:async(k,rec)=>{if(k==='bgm')await KT_YN.put('bgm:viz',rec);else await KT_TTS.put('ev:viz:'+k,rec);},
+  del:async k=>{if(k==='bgm')await KT_YN.del('bgm:viz');else await KT_TTS.del('ev:viz:'+k);},
+};
+// 「ツールの BGM を使う」：設定 › BGM で選んでいるもの（無ければ登録済みの最初のもの）
+async function evVizImportBgm(){
+  const idx=await ytBgmIndex();if(!idx.length)return null;
+  const sel=ytBgmSelKey();const it=idx.find(x=>x.key===sel)||idx[0];
+  const rec=await ynGet(it.key);if(!rec||!rec.blob)return null;
+  return{blob:rec.blob,name:rec.name||it.name||'BGM'};
+}
 // 右ペインに描く（データが変わっていなければ描き直さない）
 async function evVizMount(force){
   const host=document.getElementById('earn-viz-mount'),empty=document.getElementById('earn-viz-empty');if(!host)return;
@@ -15009,7 +15033,7 @@ async function evVizMount(force){
   // 抽出データ（analysis）が残っていれば、最新の変換ロジックで visualization を作り直す（表示の改善を古い PJ にも効かせる）
   let vizNow=d.visualization;
   if(d.analysis){try{vizNow=KV.build(d.analysis,evVizExtras());}catch(e){console.warn('viz rebuild',e);}}
-  const props={visualization:vizNow,settings:evVizSettings()||KV.defaultSettings(),controlsEl:document.getElementById('ev-viz-controls'),importCoverImage:evVizCoverImage,onChange:(st)=>{const el=document.getElementById('ev-viz-settings');if(el){el.value=JSON.stringify(st);if(typeof saveState==='function')saveState();}}};
+  const props={visualization:vizNow,settings:evVizSettings()||KV.defaultSettings(),controlsEl:document.getElementById('ev-viz-controls'),importCoverImage:evVizCoverImage,tts:evVizTts,audioStore:evVizAudioStore,importBgm:evVizImportBgm,onChange:(st)=>{const el=document.getElementById('ev-viz-settings');if(el){el.value=JSON.stringify(st);if(typeof saveState==='function')saveState();}}};
   if(_evVizHandle){_evVizHandle.update(props);}else{_evVizHandle=KV.mount(host,props);}
   _evVizLastJson=json;
 }
