@@ -11327,6 +11327,11 @@ function yaBuildCutHtml(){
   </div>
   <div style="font-size:10px;color:var(--text-sub);margin-top:4px;">OP・EDの声は、上の「⚙ 共通設定」で決めます。</div>
   ${row(b('🤖 台本作成','ytOpedDraft(\'all\',this)','background:#4f46e5;color:#fff;'),b('🔊 音声生成','ytOpedTtsAll(this)','background:#2563eb;color:#fff;'))}
+  <details class="yt-col" style="margin-top:4px;"><summary style="font-size:11px;color:var(--text-sub);cursor:pointer;" title="プロンプトを ChatGPT などに貼り、返ってきた文をまるごとコピーしてから「📋 貼り付け」を押すと、OP・EDの台本1〜3に入ります">手動で作る（ChatGPT など。APIが混んでいるとき）</summary>
+  ${row(b('💬 台本作成',"try{copyText(ytOpedDraftPrompt('all'),this)}catch(e){alert(e.message)}",G),b('💬 OP台本作成',"try{copyText(ytOpedDraftPrompt('op'),this)}catch(e){alert(e.message)}",G),b('💬 ED台本作成',"try{copyText(ytOpedDraftPrompt('ed'),this)}catch(e){alert(e.message)}",G))}
+  ${row(b('📋 貼り付け',"ytPaste('oped-raw',ytOpedPasteApply)"),b('↻ 反映','ytOpedPasteApply()'))}
+  <textarea id="yt-oped-raw" placeholder="返ってきたJSONを貼り付け（OP・ED どちらでも）" style="min-height:26px;height:26px;font-size:11px;font-family:monospace;"></textarea>
+  </details>
   <div id="yt-oped-all-st" style="display:none;font-size:11px;"></div>
   <div class="sa-sub">▼ オープニング（この動画を見ると何が分かるか）</div>
   ${row(b('🤖 OP台本作成','ytOpedDraft(\'op\',this)','background:#4f46e5;color:#fff;'))}
@@ -11436,18 +11441,36 @@ async function ytOpedDraft(role,btn){
   try{
     const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,temperature:0.6,models:ytModels('oped'),search})});
     const data=await res.json();if(!data.ok)throw new Error(ytAiErr(data,'oped'));
-    const j=ytOpedParseJson(data.text);
-    for(const r of roles){
-      const list=role==='all'?j[r]:(j.candidates||j[r]);
-      const cands=Array.isArray(list)?list.slice(0,3):[];
-      if(!cands.length)throw new Error(`${r==='op'?'オープニング':'エンディング'}の台本が入っていませんでした`);
-      ytEl(r==='op'?'op-cands':'ed-cands').value=JSON.stringify(cands);
-      YO_PICK[r]=null;ytOpedRenderCands(r,true);   // 作った直後は開く
-      st(`✅ 台本を${role==='all'?'OP・ED それぞれ':''}${cands.length}つ作りました。選ぶと下の欄に入ります（直してから音声生成を押してください）`,'ok');
-    }
-    saveState();
+    const n=ytOpedApplyCands(ytOpedParseJson(data.text),roles);
+    st(`✅ 台本を${role==='all'?'OP・ED それぞれ':''}${n}つ作りました。選ぶと下の欄に入ります（直してから音声生成を押してください）`,'ok');
   }catch(e){st('❌ '+esc(e.message),'error');}
   finally{if(btn)btn.disabled=false;}
+}
+// 台本の JSON を案の欄に入れる。roles：入れる区切り（['op','ed'] なら {op,ed}、片方なら {candidates} か {op}/{ed}）。入れた案の数を返す
+function ytOpedApplyCands(j,roles){
+  let n=0;
+  for(const r of roles){
+    const list=roles.length>1?j[r]:(j.candidates||j[r]);
+    const cands=Array.isArray(list)?list.slice(0,3):[];
+    if(!cands.length)throw new Error(`${r==='op'?'オープニング':'エンディング'}の台本が入っていませんでした`);
+    ytEl(r==='op'?'op-cands':'ed-cands').value=JSON.stringify(cands);
+    YO_PICK[r]=null;ytOpedRenderCands(r,true);   // 作った直後は開く
+    n=cands.length;
+  }
+  saveState();
+  return n;
+}
+// 手動（ChatGPT など）の結果を貼ったとき。OP と ED のどちらの JSON かは中身で見分ける（OP は points、ED は text）
+function ytOpedPasteApply(){
+  try{
+    const raw=ytVal('oped-raw');if(!raw)throw new Error('返ってきたJSONを欄に貼り付けてください');
+    const j=ytOpedParseJson(raw);
+    let roles=['op','ed'].filter(r=>Array.isArray(j[r]));
+    if(!roles.length&&Array.isArray(j.candidates)){const c=j.candidates[0]||{};roles=[c.points?'op':'ed'];}
+    if(!roles.length)throw new Error('台本を読み取れませんでした（OP・ED の台本が入っていません）');
+    const n=ytOpedApplyCands(j,roles);
+    ytOpedSt('all',`✅ 台本を${roles.map(r=>r==='op'?'OP':'ED').join('・')}に${n}つ入れました。選ぶと下の欄に入ります（直してから音声生成を押してください）`,'ok');
+  }catch(e){ytOpedSt('all','❌ '+esc(e.message),'error');}
 }
 // OP と ED の音声を続けて作る（文が空の方は飛ばす）。それぞれのメッセージは各区切りの音声生成の下、まとめは一番上の欄
 async function ytOpedTtsAll(btn){
