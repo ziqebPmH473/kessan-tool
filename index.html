@@ -1247,7 +1247,7 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
         <div class="sa" style="margin-bottom:6px;"><div class="sa-subtabs">
           <button class="sa-subtab active" data-etab="main" onclick="switchEarnTab('main')">📊 決算分析</button>
           <button class="sa-subtab" data-etab="video" onclick="switchEarnTab('video')">🎬 動画</button>
-          <button class="sa-subtab" data-etab="viz" onclick="switchEarnTab('viz')">📽 横動画</button>
+          <button class="sa-subtab" data-etab="viz" onclick="switchEarnTab('viz')">📽 分析動画</button>
         </div></div>
         <div id="earn-tab-main">
         <div class="tool-section">
@@ -1374,10 +1374,10 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
         </div>
         </div><!-- /earn-tab-main -->
         <div id="earn-tab-video" class="sa" style="display:none;flex-direction:column;gap:6px;"></div>
-        <!-- 横動画（決算ビジュアル）：PL・BS・CF の図解アニメ。描画と検証は kessan-visualizer の埋め込み（window.KessanViz）に任せる -->
+        <!-- 分析動画（決算ビジュアル）：PL・BS・CF の図解アニメ。描画と検証は kessan-visualizer の埋め込み（window.KessanViz）に任せる -->
         <div id="earn-tab-viz" class="sa" style="display:none;flex-direction:column;gap:6px;">
           <div class="tool-section">
-            <div class="section-heading">横動画（決算ビジュアル）</div>
+            <div class="section-heading">分析動画（決算ビジュアル）</div>
             <div style="font-size:11px;color:var(--text-sub);line-height:1.6;">決算資料の PDF（決算分析タブで添付したもの）から、損益・貸借対照表・キャッシュフロー・推移・セグメント・注目点の図解アニメ（1920×1080）を作ります。数値の抽出は Gemini、評価と図はプログラムが作ります。</div>
             <div class="input-row" style="margin-top:6px;gap:4px;align-items:center;">
               <label style="font-size:11px;color:var(--text-sub);flex:none;">モデル</label>
@@ -1396,7 +1396,7 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
               <button class="main-btn" onclick="evVizGenerate(this)" style="flex:1;background:#4f46e5;">🎬 Gemini で動画データを作る</button>
             </div>
             <div id="ev-viz-status" style="display:none;font-size:11px;margin-top:3px;"></div>
-            <div style="font-size:11px;color:var(--text-sub);margin-top:4px;">「📤 出力データ作成」を押すと、横動画のデータも続けて自動で作られます（Gemini をもう1回使います）。ここのボタンは作り直し用です。</div>
+            <div style="font-size:11px;color:var(--text-sub);margin-top:4px;">「📤 出力データ作成」で分析動画のデータも同時に作られます。ここのボタンは作り直し用です。</div>
             <details style="margin-top:6px;">
               <summary style="font-size:11px;color:var(--text-sub);cursor:pointer;" title="プロンプトを ChatGPT などに PDF と一緒に貼り、返ってきた JSON を貼り付けます">手動で作る（ChatGPT など。API が混んでいるとき）</summary>
               <div class="input-row" style="margin-top:4px;">
@@ -2601,8 +2601,8 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
             if (window._earnFetched) complementEarnData(); else renderImage();
             // 整形と同時に動画素材（サムネ・台本・縦スライド・投稿文）も作る（決算分析の動画セクションのチェックで切替）
             if ((document.getElementById('ev-auto') || {}).checked) { try { await geminiVideo('ev'); } catch (e) { console.warn('video gen', e); } }
-            // 横動画（決算ビジュアル）のデータも作る（横動画タブのチェックで切替。Gemini をもう1回使う）
-            // 横動画（決算ビジュアル）のデータも続けて作る（Gemini をもう1回使う）
+            // 分析動画（決算ビジュアル）のデータも作る（分析動画タブのチェックで切替。Gemini をもう1回使う）
+            // 分析動画（決算ビジュアル）のデータも続けて作る（Gemini をもう1回使う）
             let vizNote = '';
             try {
                 let okViz = false;
@@ -2612,11 +2612,11 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
                     else console.warn('同梱 JSON が形式に合わないため2回目を呼びます', parsed.errors.slice(0, 3));
                 }
                 if (!okViz) {
-                    setGemStatus('gem-earn-status', '整形完了。横動画のデータを別途作成中…（1〜3分）', 'info');
+                    setGemStatus('gem-earn-status', '整形完了。分析動画のデータを別途作成中…（1〜3分）', 'info');
                     okViz = await evVizGenerate(null, { quiet: true });
                 }
-                vizNote = okViz ? (split.json ? '／横動画データも作成（同時）' : '／横動画データも作成') : '／横動画データは失敗（📽 横動画 タブで再実行できます）';
-            } catch (e) { console.warn('viz gen', e); vizNote = '／横動画データは失敗（📽 横動画 タブで再実行できます）'; }
+                vizNote = okViz ? (split.json ? '／分析動画データも作成（同時）' : '／分析動画データも作成') : '／分析動画データは失敗（📽 分析動画 タブで再実行できます）';
+            } catch (e) { console.warn('viz gen', e); vizNote = '／分析動画データは失敗（📽 分析動画 タブで再実行できます）'; }
             setGemStatus('gem-earn-status', `整形完了（${r.model || 'gemini'}${fallNote(r)}${tokenNote(r.usage)}）${vizNote}`, 'ok');
             // 処理の最後にタブ内容（裏データ含む）をJSONで書き出す（手動の📤エクスポートと同じ）
             try { exportTabData('earnings'); } catch (e) { console.warn('export', e); }
@@ -14834,7 +14834,7 @@ async function tqDownload(kind){
 }
     
 // ============================================================
-// 横動画（決算ビジュアル）  接頭辞 evViz
+// 分析動画（決算ビジュアル）  接頭辞 evViz
 // 描画・検証・変換は kessan-visualizer の埋め込みバンドル（window.KessanViz）に任せる。
 // ここでは「PDF を Gemini に渡す」「結果を PJ に保存する」「右ペインに描かせる」だけをする。
 // 設計：C:\work\kessan-visualizer\docs\design\2026-10-06_MVP設計書.md
@@ -14910,7 +14910,7 @@ async function evVizLoadPasted(){
   if(!parsed.ok){evVizStatus('形式エラー '+parsed.errors.length+'件: '+parsed.errors.slice(0,4).map(e=>e.path+' '+e.message).join(' / '),'error');return;}
   evVizCommit(KV,parsed,'paste');
 }
-function evVizClear(){if(!evVizData())return;if(!confirm('横動画のデータを消しますか？'))return;evVizStore(null);const st=document.getElementById('ev-viz-settings');if(st)st.value='';evVizStatus('消しました','info');}
+function evVizClear(){if(!evVizData())return;if(!confirm('分析動画のデータを消しますか？'))return;evVizStore(null);const st=document.getElementById('ev-viz-settings');if(st)st.value='';evVizStatus('消しました','info');}
 function evVizDownload(kind){
   const d=evVizData();if(!d){alert('まだ動画データがありません');return;}
   const viz=d.visualization,KV=window.KessanViz;
@@ -14918,7 +14918,7 @@ function evVizDownload(kind){
   const text=kind==='props'?(KV?KV.renderProps(viz,evVizSettings()||undefined):JSON.stringify({visualization:viz,settings:evVizSettings()},null,2)):JSON.stringify(viz,null,2);
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'application/json;charset=utf-8'}));a.download=pid+(kind==='props'?'_render-props.json':'_visualization.json');a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
-// ---- 横動画に渡す追加データ：株価の推移と業績予想の比較（決算分析の整形データ #input-data から） ----
+// ---- 分析動画に渡す追加データ：株価の推移と業績予想の比較（決算分析の整形データ #input-data から） ----
 // 金額の表示文字列（例「1,234億円」「1兆2,345億円」「12.3億ドル」）→ 億単位の数値。読めなければ null
 function evVizOku(str){
   if(!str)return null;const t=String(str).replace(/[,，\s]/g,'').replace(/[０-９．]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xfee0));
@@ -14997,7 +14997,7 @@ async function evVizCoverImage(orientation){
   try{const c=await html2canvas(area,{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false});return c.toDataURL('image/png');}
   finally{area.style.display=prevDisp;}
 }
-// ---- 横動画の音声（ナレーション・BGM） ----
+// ---- 分析動画の音声（ナレーション・BGM） ----
 // 読み上げは /api/tts（声・モデルは 🎬 動画タブの決算側の設定 ev-tts-voice / ev-tts-model と同じ）
 async function evVizTts(text){
   const vEl=document.getElementById('ev-tts-voice'),mEl=document.getElementById('ev-tts-model');
