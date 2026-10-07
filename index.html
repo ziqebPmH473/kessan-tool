@@ -2587,11 +2587,16 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
             const label = btnEl ? btnEl.innerText : '';
             if (btnEl) { btnEl.disabled = true; btnEl.innerText = '整形中…'; }
             setGemStatus('gem-earn-status', `Geminiで整形中…（決算資料${files.length}件）`, 'info');
-            const r = await callGeminiAnalyze(buildEarnNBPrompt() + GROUNDING_RULE, resources, { cls: 'high', temperature: 0.2, modelOverride: ov, files });
+            // 横動画のデータも同じ呼び出しで作る（末尾に動画用の JSON を出させる）。取れなければ後で2回目を呼ぶ
+            let KVjoin = null;
+            try { KVjoin = await evVizLoad(); } catch (e) { console.warn('KessanViz load', e); }
+            const joinPrompt = KVjoin ? evVizJoinPrompt(KVjoin) : '';
+            const r = await callGeminiAnalyze(buildEarnNBPrompt() + GROUNDING_RULE + joinPrompt, resources, { cls: 'high', temperature: 0.2, modelOverride: ov, files });
             if (btnEl) { btnEl.disabled = false; btnEl.innerText = label; }
 
             if (!r.ok) { setGemStatus('gem-earn-status', 'エラー: ' + r.error, 'error'); return; }
-            document.getElementById('input-data').value = r.text;
+            const split = evVizSplitResponse(r.text);
+            document.getElementById('input-data').value = split.text;
             // 株探の確定値で自動補完（自動取得済みのときのみ。ボタンは手動リカバリ用に残す）
             if (window._earnFetched) complementEarnData(); else renderImage();
             // 整形と同時に動画素材（サムネ・台本・縦スライド・投稿文）も作る（決算分析の動画セクションのチェックで切替）
@@ -2600,9 +2605,17 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
             // 横動画（決算ビジュアル）のデータも続けて作る（Gemini をもう1回使う）
             let vizNote = '';
             try {
-                setGemStatus('gem-earn-status', '整形完了。続けて横動画のデータを作成中…（1〜3分）', 'info');
-                const okViz = await evVizGenerate(null, { quiet: true });
-                vizNote = okViz ? '／横動画データも作成' : '／横動画データは失敗（📽 横動画 タブで再実行できます）';
+                let okViz = false;
+                if (KVjoin && split.json) {
+                    const parsed = KVjoin.parse(split.json);
+                    if (parsed.ok) { okViz = evVizCommit(KVjoin, parsed, 'gemini:' + (r.model || '') + ' (同時)'); }
+                    else console.warn('同梱 JSON が形式に合わないため2回目を呼びます', parsed.errors.slice(0, 3));
+                }
+                if (!okViz) {
+                    setGemStatus('gem-earn-status', '整形完了。横動画のデータを別途作成中…（1〜3分）', 'info');
+                    okViz = await evVizGenerate(null, { quiet: true });
+                }
+                vizNote = okViz ? (split.json ? '／横動画データも作成（同時）' : '／横動画データも作成') : '／横動画データは失敗（📽 横動画 タブで再実行できます）';
             } catch (e) { console.warn('viz gen', e); vizNote = '／横動画データは失敗（📽 横動画 タブで再実行できます）'; }
             setGemStatus('gem-earn-status', `整形完了（${r.model || 'gemini'}${fallNote(r)}${tokenNote(r.usage)}）${vizNote}`, 'ok');
             // 処理の最後にタブ内容（裏データ含む）をJSONで書き出す（手動の📤エクスポートと同じ）
@@ -14946,6 +14959,30 @@ function evVizExtras(){
     out.forecast_revision={status:g.status||'',col1_header:g.col1_header||'前',col2_header:g.col2_header||'後',rows,dividend:(g.div_1||g.div_2)?{before_display:g.div_1||'—',after_display:g.div_2||'—'}:null,reason:g.reason||null};
   }
   return out;
+}
+// 画像用プロンプトの末尾に足す「動画用 JSON も続けて出す」指示
+function evVizJoinPrompt(KV){
+  const hint=((document.getElementById('p-name')||{}).value||'')+' '+((document.getElementById('p-code')||{}).value||'');
+  return '\n\n===== 追加出力（動画用 JSON）=====\n'+
+    '上の【出力フォーマット】のテキストをすべて出し終えたら、空行を1つ置いてから、続けて次の指示に従い JSON を1つ出力してください。\n'+
+    '・この JSON だけは ```json と ``` で囲むこと（上のルール10「コードブロック不要」はテキスト部分にだけ適用）。\n'+
+    '・テキスト部分の中に JSON や ``` を混ぜないこと。\n\n'+
+    KV.prompt({companyHint:hint.trim()});
+}
+// 応答を「テキスト部分」と「末尾の JSON コードブロック」に分ける。JSON が無ければ json は null
+function evVizSplitResponse(text){
+  const t=String(text||'');
+  const i=t.indexOf('```json');
+  if(i<0){
+    // 囲みが無いが末尾が { ... } で終わる場合も拾う
+    const j=t.lastIndexOf('\n{');
+    if(j>0&&t.trim().endsWith('}')){const cand=t.slice(j+1);try{JSON.parse(cand);return {text:t.slice(0,j).trim(),json:cand};}catch(e){}}
+    return {text:t.trim(),json:null};
+  }
+  const rest=t.slice(i+7);
+  const k=rest.indexOf('```');
+  const json=(k>=0?rest.slice(0,k):rest).trim();
+  return {text:t.slice(0,i).trim(),json:json||null};
 }
 // 表紙に使うサムネ画像をツールから取り込む（横＝決算分析の1枚画像、縦＝縦スライドの0枚目サムネ）
 async function evVizCoverImage(orientation){
