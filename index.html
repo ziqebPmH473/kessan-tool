@@ -10310,7 +10310,9 @@ const YT_PERSIST_IDS=['vd-orient','th-ctx','th-note-text','th-note-preset','yt-t
 // ---- 動画の種類：株価分析の横動画＝stock ／ YT動画タブ＝gen ----
 // 画面と関数は1組だけ。種類を切り替えると、作品ごとの欄（localStorage）と IndexedDB のキーを入れ替える。
 // 株価分析の側は今までのキーのまま、YT動画の側は前に 'gen:' を付ける。設計：docs/design/2026-09-21_YT動画タブ.md
-let YT_CTX=(()=>{try{return localStorage.getItem('kt-yt-ctx')==='gen'?'gen':'stock';}catch(e){return 'stock';}})();
+// 始めの種類は、このタブで開く種別（起動時の ktMode0 と同じ決め方）から決める。localStorage の kt-yt-ctx は全部のタブで共有なので、
+// 別のタブで株価分析を開くと stock になり、YT動画のタブを再読み込みした直後の読み込み（出典の画像など）が株価分析の側を読んでいた
+let YT_CTX=(()=>{try{return (sessionStorage.getItem('kt-mode')||localStorage.getItem('kt-mode-last'))==='yt'?'gen':'stock';}catch(e){return 'stock';}})();
 const ytGen=()=>YT_CTX==='gen';
 const ytKey=k=>(ytGen()&&k!=='tpl')?'gen:'+k:k;   // ナレスラのひな形（tpl）は共通
 
