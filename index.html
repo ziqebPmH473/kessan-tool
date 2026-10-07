@@ -12153,7 +12153,6 @@ function ynReadLabel(){
 }
 // いちばん近い、縦に動かせる入れ物（無ければページ）
 function ynScrollBox(el){for(let p=el.parentElement;p;p=p.parentElement){const o=getComputedStyle(p).overflowY;if((o==='auto'||o==='scroll')&&p.scrollHeight>p.clientHeight)return p;}return document.scrollingElement;}
-let _ynKeepOrder=false;
 function ynRender(){
   ynReadLabel();
   [...YN.sel].forEach(n=>{if(!YN.slides.some(s=>s.name===n))YN.sel.delete(n);});ynSelInfo();
@@ -12174,8 +12173,6 @@ function ynRender(){
   const order=occ.concat(YN.slides.map((s,i)=>({i,k:-1})).filter(o=>!occ.some(q=>q.i===o.i)));
   const nth=(p)=>order.slice(0,p+1).filter(o=>o.i===order[p].i).length,times=i=>order.filter(o=>o.i===i).length;
   // 開いている「＋ 追加」の行は、描き直しのあとも開いたまま・入力中の値のままにする（欄を直した直後に押すと、保存→描き直しで閉じられていた）
-  // 数字を直した直後（ynFxSet）だけ、いまの行の並びを覚えておく
-  let ord=null;if(_ynKeepOrder){ord={};area.querySelectorAll('.yn-it[data-rk]').forEach((r,k)=>{ord[r.dataset.rk]=k;});}_ynKeepOrder=false;
   const addKeep={},addFocus=(document.activeElement&&/^yn-add-/.test(document.activeElement.id||''))?document.activeElement.id:'';
   area.querySelectorAll('.yn-add').forEach(r=>{if(r.style.display==='none')return;addKeep[r.id]={};r.querySelectorAll('input,select').forEach(e=>{addKeep[r.id][e.id]=e.value;});});
   area.innerHTML=order.map((o,p)=>{const i=o.i,s=YN.slides[i];return `<div class="yn-item" data-n="${esc(s.name)}${o.k>=0?'#'+o.k:''}"><div class="yn-hd"><input type="checkbox" class="yn-pick" data-i="${i}" ${YN.sel.has(s.name)?'checked':''} onchange="ynSelToggle(${i},this.checked)" title="選ぶ（読み取り直す・位置を補正・リセット・Web版の読み取りを、選んだ枚だけにする）"><b>スライド${i+1}</b>${times(i)>1?`<span class="yn-twice">${nth(p)}回目</span>`:''}${o.k<0&&occ.length?'<span class="yn-twice" style="background:#94a3b8;">使わない</span>':''} <b>${esc(ynSlideTitle(i))}</b> <span title="${esc(s.name)}">${esc(ynShortName(i))}</span> <span>${s.zones?`${s.zones.length}か所`:'未読み取り'}</span>
@@ -12201,10 +12198,10 @@ function ynRender(){
       const tgt=z.text?`T${z.text}`:(z.zones||[z.zone]).join('+');
       const tip=z.text?tl(z.text):(z.zones||[z.zone]).map(zn).join(' ＋ ');
       const out=z.text&&ynTextOut(z.slide,z.text);
-      return `<div class="yn-it" data-rk="${kind}:${i}">${typeSel(cur,`ynPlanKind('${kind}',${i},this.value)`,`${kind}:${i}:type`)}${kind==='marks'?colSel(z.color||ynMarkColor(z,'soft'),`ynFxSet('marks',${i},'color',this.value)`,`marks:${i}:color`):''}
+      return `<div class="yn-it">${typeSel(cur,`ynPlanKind('${kind}',${i},this.value)`,`${kind}:${i}:type`)}${kind==='marks'?colSel(z.color||ynMarkColor(z,'soft'),`ynFxSet('marks',${i},'color',this.value)`,`marks:${i}:color`):''}
 <span class="yn-lb">${z.text?'文字':'枠'}</span><input class="yn-in yn-zn" value="${tgt}" title="${esc(tip)}（枠は 2+3、文字は T1 のように書く）" data-fk="${kind}:${i}:zones" onchange="ynFxSet('${kind}',${i},'zones',this.value)">${out?'<span class="yn-warn" title="読み取った文字の位置が、入っているまとまりの枠から外れています。書き出しには入ります。ナレスラで位置を確かめてください">⚠位置</span>':''}
 ${nums(kind,i,z)}${tail(kind,i,z)}</div>`;};
-    const fixLine=(kind,i,z,what)=>`<div class="yn-it" data-rk="${kind}:${i}"><span class="yn-k k-${kind}">${ynKinds[kind]}</span><span class="yn-wh" title="${esc(what)}">${esc(what)}</span>${nums(kind,i,z)}${tail(kind,i,z)}</div>`;
+    const fixLine=(kind,i,z,what)=>`<div class="yn-it"><span class="yn-k k-${kind}">${ynKinds[kind]}</span><span class="yn-wh" title="${esc(what)}">${esc(what)}</span>${nums(kind,i,z)}${tail(kind,i,z)}</div>`;
     YN.plan.slides.forEach((x,si)=>{
       const p=order.findIndex(o=>o.k===si),el=p<0?null:document.getElementById('yn-img-'+p);if(!el||!el.parentElement)return;
       const zn=k=>((((YN.slides[x.no-1]||{}).zones||[])[k-1]||{}).label||('まとまり'+k));
@@ -12216,9 +12213,7 @@ ${nums(kind,i,z)}${tail(kind,i,z)}</div>`;};
       YN.plan.marks.forEach((z,i)=>{if(z.slide===x.no&&(!twice||inS(z)))rows.push([z.s,fxLine('marks',i,z,z.type,zn,tl)]);});
       (YN.plan.sources||[]).forEach((z,i)=>{if(inS(z))rows.push([z.s,fixLine('sources',i,z,`出典${String(z.no)}：${z.name||''}`)]);});
       (YN.plan.charts||[]).forEach((z,i)=>{if(inS(z))rows.push([z.s,fixLine('charts',i,z,`${z.ticker} ${z.interval} ${z.start}〜${z.end}${z.note?`（${z.note}）`:''}`)]);});
-      // 数字を直したあとの描き直しでは、前の並びのまま（時間の順に並べ替えると、直した行が上下の行と入れ替わって一覧がずれる）
-      const rk=r=>(r[1].match(/data-rk="([^"]+)"/)||[])[1];
-      rows.sort((a,b)=>{const ka=ord&&ord[rk(a)],kb=ord&&ord[rk(b)];return (ka!=null&&kb!=null)?ka-kb:a[0]-b[0];});
+      rows.sort((a,b)=>a[0]-b[0]);
       const first=(sents.find(q=>q.n===x.from)||{}).text||'';
       const srcOpts=ytSources().map(s=>`<option value="${esc(String(s.no))}">出典${esc(String(s.no))}：${esc(s.name||'')}${s.kind==='chart'?'（チャート）':''}</option>`).join('')||'<option value="">出典一覧がありません</option>';
       el.insertAdjacentHTML('afterend',`<div class="yn-plan"><div class="yn-hd2"><button class="ya-nd yn-addbtn" onclick="ynAddOpen(${si},true)" title="このスライドに演出を足す">＋ 追加</button> 表示 ${yaTc(te(x.s))}〜${yaTc(te(x.e))}（${ynEditLen(x.s,x.e).toFixed(1)}秒・カット後）／文 ${x.from}〜${x.to}／テロップ <input class="yn-in" style="width:9em;" value="${esc(x.corner||'')}" placeholder="なし" data-fk="corner:${si}" onchange="ynCornerSet(${si},this.value)" title="動画の右上に出すコーナー名（空にすると出さない）"></div>
@@ -12537,7 +12532,7 @@ function ynFxSet(kind,i,field,v){
     if(!g){ynStatus(`文${it.from}〜${it.to}は全部「削る」にしている文なので、演出を付けられません`,'error','status2');Object.assign(it,keep);ynRender();return;}
     Object.assign(it,g);
   }
-  ynPut('plan',YN.plan);setTimeout(()=>{_ynKeepOrder=true;ynRender();if(typeof ysRender==='function')ysRender();},0);   // カーソルが次の欄へ移ってから描き直す。行は並べ替えない
+  ynPut('plan',YN.plan);setTimeout(()=>{ynRender();if(typeof ysRender==='function')ysRender();},0);   // カーソルが次の欄へ移ってから描き直す
 }
 // 追加の入力行を出す／しまう
 function ynAddOpen(no,on){   // no＝何番目の表示か（YN.plan.slides の位置）
