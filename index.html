@@ -14845,7 +14845,7 @@ function evVizLoad(){
   if(window.KessanViz)return Promise.resolve(window.KessanViz);
   if(_evVizLoading)return _evVizLoading;
   _evVizLoading=new Promise((res,rej)=>{
-    const sc=document.createElement('script');sc.src=EV_VIZ_SCRIPT+'?v='+Math.floor(Date.now()/3600000);sc.async=true;
+    const sc=document.createElement('script');sc.src=EV_VIZ_SCRIPT+'?v='+Math.floor(Date.now()/600000);  // 10分ごとに取り直す（更新をすぐ反映）sc.async=true;
     sc.onload=()=>window.KessanViz?res(window.KessanViz):rej(new Error('KessanViz が見つかりません'));
     sc.onerror=()=>{_evVizLoading=null;rej(new Error('描画ライブラリを読み込めませんでした（ネットワークを確認してください）'));};
     document.head.appendChild(sc);
