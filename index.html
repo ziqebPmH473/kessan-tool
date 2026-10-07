@@ -12764,8 +12764,11 @@ ${miss.join('、')}
     // 隣り合う文のズーム（間に、カットで残っている話が無い）は、文の間で空けずにつなげる（前の終わり＝次の始まり）。
     // 間の文をカットで消した場合も隣として扱う（文の番号ではなく、残っている文が間にあるかで見る。割り当てのあとにカットした文も外れる）
     // 文の一部だけをカットした文もあるので、間にある文の「カットで残った長さ」で見る（0.3秒以下なら話していないとみなす）
+    // 右の一覧で「削る」にした文（取り消し線の文）は、間に無いものとする。削る文の切り取りは声の出だしに合わせて後ろへずらすので、
+    // 文の頭の無音が残り、時刻だけで見ると「話している」になっていた（例：文が88.56秒〜、切り取りは89.26秒〜）
     const edK=yaKeep(),edLen=(a,b)=>b>a?yaToEdit(b,edK)-yaToEdit(a,edK):0;
-    const adj=(a,b)=>b>=a-0.05&&!YA.sents.some(x=>edLen(Math.max(x.s,a),Math.min(x.e,b))>0.3);
+    const cutWhole=new Set(YA.cuts.filter(c=>c.on&&!c.part).map(c=>c.n));   // 右の一覧の取り消し線と同じ見方
+    const adj=(a,b)=>b>=a-0.05&&!YA.sents.some((x,i)=>!cutWhole.has(i+1)&&edLen(Math.max(x.s,a),Math.min(x.e,b))>0.3);
     slides.forEach(s=>{
       const K=s.zoomKeyframes.sort((a,b)=>a.startTime-b.startTime);
       K.forEach((k,i)=>{const nx=K[i+1];if(nx&&nx.startTime>k.endTime&&adj(k.endTime,nx.startTime))k.endTime=nx.startTime;});
