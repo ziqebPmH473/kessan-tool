@@ -1396,7 +1396,7 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
               <button class="main-btn" onclick="evVizGenerate(this)" style="flex:1;background:#4f46e5;">🎬 Gemini で動画データを作る</button>
             </div>
             <div id="ev-viz-status" style="display:none;font-size:11px;margin-top:3px;"></div>
-            <label style="font-size:11px;color:var(--text-sub);display:flex;align-items:center;gap:4px;margin-top:4px;cursor:pointer;"><input type="checkbox" id="ev-viz-auto" checked> 「📤 出力データ作成」のあとに自動で作る（Gemini をもう1回使います）</label>
+            <div style="font-size:11px;color:var(--text-sub);margin-top:4px;">「📤 出力データ作成」を押すと、横動画のデータも続けて自動で作られます（Gemini をもう1回使います）。ここのボタンは作り直し用です。</div>
             <details style="margin-top:6px;">
               <summary style="font-size:11px;color:var(--text-sub);cursor:pointer;" title="プロンプトを ChatGPT などに PDF と一緒に貼り、返ってきた JSON を貼り付けます">手動で作る（ChatGPT など。API が混んでいるとき）</summary>
               <div class="input-row" style="margin-top:4px;">
@@ -2597,8 +2597,14 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
             // 整形と同時に動画素材（サムネ・台本・縦スライド・投稿文）も作る（決算分析の動画セクションのチェックで切替）
             if ((document.getElementById('ev-auto') || {}).checked) { try { await geminiVideo('ev'); } catch (e) { console.warn('video gen', e); } }
             // 横動画（決算ビジュアル）のデータも作る（横動画タブのチェックで切替。Gemini をもう1回使う）
-            if ((document.getElementById('ev-viz-auto') || {}).checked) { try { await evVizGenerate(null, { quiet: true }); } catch (e) { console.warn('viz gen', e); } }
-            setGemStatus('gem-earn-status', `整形完了（${r.model || 'gemini'}${fallNote(r)}${tokenNote(r.usage)}）`, 'ok');
+            // 横動画（決算ビジュアル）のデータも続けて作る（Gemini をもう1回使う）
+            let vizNote = '';
+            try {
+                setGemStatus('gem-earn-status', '整形完了。続けて横動画のデータを作成中…（1〜3分）', 'info');
+                const okViz = await evVizGenerate(null, { quiet: true });
+                vizNote = okViz ? '／横動画データも作成' : '／横動画データは失敗（📽 横動画 タブで再実行できます）';
+            } catch (e) { console.warn('viz gen', e); vizNote = '／横動画データは失敗（📽 横動画 タブで再実行できます）'; }
+            setGemStatus('gem-earn-status', `整形完了（${r.model || 'gemini'}${fallNote(r)}${tokenNote(r.usage)}）${vizNote}`, 'ok');
             // 処理の最後にタブ内容（裏データ含む）をJSONで書き出す（手動の📤エクスポートと同じ）
             try { exportTabData('earnings'); } catch (e) { console.warn('export', e); }
         }
