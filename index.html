@@ -2079,12 +2079,11 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
         </div>
         <div id="earn-viz-view" class="sa" style="display:none;flex-direction:column;gap:6px;">
             <div style="font-size:11px;color:var(--text-sub);">横動画（決算ビジュアル）1920×1080 プレビュー。シーンの表示・秒数・書き出しは左のパネルで</div>
-            <!-- サムネ（先頭の「サムネ」シーン）。横・縦で別の文。出力データ作成で自動で入り、直すと動画にも入る -->
+            <!-- サムネ（先頭の「サムネ」シーン）。横・縦で別の文（どちらを出すかは動画の「向き」に合わせる）。出力データ作成で自動で入り、直すと動画にも入る -->
             <div id="earn-viz-th" class="sa-card" style="display:flex;flex-direction:column;gap:4px;">
                 <div style="display:flex;align-items:center;gap:6px;">
                     <span class="sa-sub" style="margin:0;">サムネ</span>
-                    <button type="button" class="btn-sm ev-th-tab" data-evth="h" onclick="evThSwitch('h')">横</button>
-                    <button type="button" class="btn-sm ev-th-tab" data-evth="v" onclick="evThSwitch('v')">縦</button>
+                    <span id="ev-th-orient" style="font-size:11px;font-weight:700;color:#0d9488;" title="縦・横は、動画の「向き」に合わせて切り替わります"></span>
                     <span id="ev-th-st" style="font-size:11px;color:var(--text-sub);margin-left:auto;"></span>
                 </div>
                 <textarea id="ev-viz-th-h" oninput="evThInput('h')" placeholder="上段：中段：下段（📤 出力データ作成で自動で入ります）" style="height:46px;min-height:46px;"></textarea>
@@ -8214,7 +8213,7 @@ function earnPrevMode(m){
   if(bv)bv.classList.toggle('active',m==='video');
   if(m==='video')renderVideoPrev('ev');
   if(m==='viz'){
-    evVizMount();evThSwitch(_evThKind);
+    evVizMount();evThSwitch(evThOrientKind());
     // サムネの文がまだ無い PJ（この機能より前に作った PJ）は、開いたときに整形データから入れる
     if(!evThVal('h')&&!evThVal('v')&&evData()){evThAutoFill();evThApply();}
   }
@@ -15144,9 +15143,11 @@ function evVizSplitResponse(text){
 // 文を変えると画像を作り直して、動画の設定（cover_image_landscape／_portrait）に入れる
 const evThVal=k=>((document.getElementById('ev-viz-th-'+k)||{}).value||'').trim();
 let _evThKind='h',_evThTimer=null;
+// 縦・横は動画の「向き」に合わせる（向きを変えると、ここの欄も切り替わる）
+const evThOrientKind=()=>{const st=evVizSettings();return st&&st.orientation==='portrait'?'v':'h';};
 function evThSwitch(k){
   _evThKind=k;
-  document.querySelectorAll('.ev-th-tab').forEach(b=>{const on=b.dataset.evth===k;b.style.background=on?'#475569':'';b.style.color=on?'#fff':'';});
+  const lb=document.getElementById('ev-th-orient');if(lb)lb.textContent=k==='v'?'縦（1080×1920）':'横（1920×1080）';
   ['h','v'].forEach(x=>{const t=document.getElementById('ev-viz-th-'+x);if(t)t.style.display=x===k?'':'none';});
   evThPreview();
 }
@@ -15273,7 +15274,7 @@ async function evVizMount(force){
   // 抽出データ（analysis）が残っていれば、最新の変換ロジックで visualization を作り直す（表示の改善を古い PJ にも効かせる）
   let vizNow=d.visualization;
   if(d.analysis){try{vizNow=KV.build(d.analysis,evVizExtras());}catch(e){console.warn('viz rebuild',e);}}
-  const props={visualization:vizNow,settings:evVizSettings()||evVizDefaultSettings(KV),controlsEl:document.getElementById('ev-viz-controls'),importCoverImage:evVizCoverImage,tts:evVizTts,audioStore:evVizAudioStore,importBgm:evVizImportBgm,transcribe:evVizTranscribe,onChange:(st)=>{const el=document.getElementById('ev-viz-settings');if(el){el.value=JSON.stringify(st);if(typeof saveState==='function')saveState();}}};
+  const props={visualization:vizNow,settings:evVizSettings()||evVizDefaultSettings(KV),controlsEl:document.getElementById('ev-viz-controls'),importCoverImage:evVizCoverImage,tts:evVizTts,audioStore:evVizAudioStore,importBgm:evVizImportBgm,transcribe:evVizTranscribe,onChange:(st)=>{const el=document.getElementById('ev-viz-settings');if(el){el.value=JSON.stringify(st);if(typeof saveState==='function')saveState();}const k=st&&st.orientation==='portrait'?'v':'h';if(k!==_evThKind)evThSwitch(k);}};
   if(_evVizHandle){_evVizHandle.update(props);}else{_evVizHandle=KV.mount(host,props);}
   _evVizLastJson=json;
 }
