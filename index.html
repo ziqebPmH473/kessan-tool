@@ -2079,6 +2079,20 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
         </div>
         <div id="earn-viz-view" class="sa" style="display:none;flex-direction:column;gap:6px;">
             <div style="font-size:11px;color:var(--text-sub);">横動画（決算ビジュアル）1920×1080 プレビュー。シーンの表示・秒数・書き出しは左のパネルで</div>
+            <!-- サムネ（先頭の「サムネ」シーン）。横・縦で別の文。出力データ作成で自動で入り、直すと動画にも入る -->
+            <div id="earn-viz-th" class="sa-card" style="display:flex;flex-direction:column;gap:4px;">
+                <div style="display:flex;align-items:center;gap:6px;">
+                    <span class="sa-sub" style="margin:0;">サムネ</span>
+                    <button type="button" class="btn-sm ev-th-tab" data-evth="h" onclick="evThSwitch('h')">横</button>
+                    <button type="button" class="btn-sm ev-th-tab" data-evth="v" onclick="evThSwitch('v')">縦</button>
+                    <span id="ev-th-st" style="font-size:11px;color:var(--text-sub);margin-left:auto;"></span>
+                </div>
+                <textarea id="ev-viz-th-h" oninput="evThInput('h')" placeholder="上段：中段：下段（📤 出力データ作成で自動で入ります）" style="height:46px;min-height:46px;"></textarea>
+                <textarea id="ev-viz-th-v" oninput="evThInput('v')" placeholder="上段：中段：下段（📤 出力データ作成で自動で入ります）" style="height:46px;min-height:46px;display:none;"></textarea>
+                <input type="hidden" id="ev-viz-th-auto">
+                <p style="font-size:10px;color:var(--text-sub);margin:0;">「：」で上段・中段・下段を区切る。色指定: <span style="color:#ff914d">*オレンジ*</span>　<span style="color:#5ce1e6">#水色#</span>　<span style="color:#ffde59">%黄色%</span></p>
+                <div id="ev-th-prev" style="position:relative;overflow:hidden;border:1px solid var(--border);border-radius:4px;align-self:flex-start;"><div id="ev-th-prev-in"></div></div>
+            </div>
             <div id="earn-viz-empty" style="padding:30px;text-align:center;color:var(--text-sub);font-size:12px;border:1px dashed var(--border);border-radius:8px;">まだ動画データがありません。左の「🎬 Gemini で動画データを作る」を押してください。</div>
             <div id="earn-viz-mount"></div>
         </div>
@@ -2611,6 +2625,7 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
             document.getElementById('input-data').value = split.text;
             // 株探の確定値で自動補完（自動取得済みのときのみ。ボタンは手動リカバリ用に残す）
             if (window._earnFetched) complementEarnData(); else renderImage();
+            evThAutoFill();   // 分析動画のサムネの文（整形データから）
             // 整形と同時に動画素材（サムネ・台本・縦スライド・投稿文）も作る（決算分析の動画セクションのチェックで切替）
             if ((document.getElementById('ev-auto') || {}).checked) { try { await geminiVideo('ev'); } catch (e) { console.warn('video gen', e); } }
             // 分析動画（決算ビジュアル）のデータも作る（分析動画タブのチェックで切替。Gemini をもう1回使う）
@@ -2698,6 +2713,7 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
             const text = split.text.slice(h).replace(/\n?```\s*$/, '').trim();
             document.getElementById('input-data').value = text;
             if (window._earnFetched) complementEarnData(); else { renderImage(); saveState(); }
+            evThAutoFill();   // 分析動画のサムネの文（整形データから）
             let vizNote;
             if (!split.json) vizNote = '／分析動画のデータ（json）が答えに入っていません';
             else {
@@ -8197,7 +8213,11 @@ function earnPrevMode(m){
   if(bi)bi.classList.toggle('active',m==='image');
   if(bv)bv.classList.toggle('active',m==='video');
   if(m==='video')renderVideoPrev('ev');
-  if(m==='viz')evVizMount();
+  if(m==='viz'){
+    evVizMount();evThSwitch(_evThKind);
+    // サムネの文がまだ無い PJ（この機能より前に作った PJ）は、開いたときに整形データから入れる
+    if(!evThVal('h')&&!evThVal('v')&&evData()){evThAutoFill();evThApply();}
+  }
 }
 
 // ============================================================
@@ -13862,7 +13882,7 @@ async function ynRestore(){
 // ============================================================
 const TAB_IO_FORMAT=1;
 const TAB_IO={
-  earnings:{label:'決算分析',  roots:['#mode-earnings','#capture-area','#earn-video-view'], codeId:'p-code',        nameId:'p-name'},
+  earnings:{label:'決算分析',  roots:['#mode-earnings','#capture-area','#earn-video-view','#earn-viz-th'], codeId:'p-code',        nameId:'p-name'},
   stock:   {label:'個別銘柄分析',roots:['#mode-stock','#capture-area-stock'],                 codeId:'sa-code-input', nameId:'sa-name-input'},
   price:   {label:'株価分析',  roots:['#mode-price','#capture-area-price'],                 codeId:'inp-ticker',    nameId:'inp-name'},
   // YT動画：横動画のパネル（#yt-root）は、このタブを開いている間だけ #mode-yt の中にある。
@@ -14917,9 +14937,9 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){const v=document.ge
 const tqText=()=>((document.getElementById('tq-input')||{}).value||'').trim();
 const tqPreset=()=>((document.querySelector('input[name="tq-preset"]:checked')||{}).value||'note');
 // 横のサムネのHTML。型のずらし（THUMB.offset*）と背景画像（thBgUrl）はPJのサムネ用のグローバルなので、組む間だけ入れ替えて戻す
-function tqHtmlH(text){
+function tqHtmlH(text,preset){
   const keep={offsetTop:THUMB.offsetTop,offsetMid:THUMB.offsetMid,offsetBot:THUMB.offsetBot},bg=thBgUrl;
-  const p=THUMB_PRESETS[tqPreset()]||THUMB_PRESETS.note;
+  const p=THUMB_PRESETS[preset||tqPreset()]||THUMB_PRESETS.note;
   try{
     Object.assign(THUMB,{offsetTop:p.offsetTop,offsetMid:p.offsetMid,offsetBot:p.offsetBot});thBgUrl=null;
     return buildThumbSlide(text);
@@ -15020,6 +15040,7 @@ function evVizCommit(KV,parsed,source){
   const isViz=!!(parsed.data&&parsed.data.ratings&&parsed.data.display_unit);
   const viz=isViz?parsed.data:KV.build(parsed.data,evVizExtras());
   evVizStore({analysis:isViz?null:parsed.data,visualization:viz,source,created:new Date().toISOString()});
+  evThApply();   // 右の画面のサムネの文から、サムネ画像も入れる
   const warn=(viz.warnings||[]).length+(parsed.warnings||[]).length;
   evVizStatus('動画データを作りました'+(warn?'（確認したい点 '+warn+'件。右のプレビューの上に出ます）':''),'ok');
   if(window._earnTab==='viz')earnPrevMode('viz');
@@ -15118,18 +15139,79 @@ function evVizSplitResponse(text){
   const json=(k>=0?rest.slice(0,k):rest).trim();
   return {text:t.slice(0,i).trim(),json:json||null};
 }
-// 表紙に使うサムネ画像をツールから取り込む（横＝決算分析の1枚画像、縦＝縦スライドの0枚目サムネ）
-async function evVizCoverImage(orientation){
-  if(orientation==='portrait'){
-    const th=vdThumbText('ev');
-    if(!th)throw new Error('縦のサムネ文がありません（🎬 動画 タブのサムネ欄に入れてください）');
-    return await renderVideoToBlob({html:buildVThumb(th,'ev'),thumb:true});
+// ---- 分析動画のサムネ（右の画面の「サムネ」。横・縦で別の文） ----
+// 文は出力データ作成のあとに整形データから自動で入れる（evThumbText。縦スライドのサムネと同じ組み方）。直した文は上書きしない
+// 文を変えると画像を作り直して、動画の設定（cover_image_landscape／_portrait）に入れる
+const evThVal=k=>((document.getElementById('ev-viz-th-'+k)||{}).value||'').trim();
+let _evThKind='h',_evThTimer=null;
+function evThSwitch(k){
+  _evThKind=k;
+  document.querySelectorAll('.ev-th-tab').forEach(b=>{const on=b.dataset.evth===k;b.style.background=on?'#475569':'';b.style.color=on?'#fff':'';});
+  ['h','v'].forEach(x=>{const t=document.getElementById('ev-viz-th-'+x);if(t)t.style.display=x===k?'':'none';});
+  evThPreview();
+}
+function evThPreview(){
+  const k=_evThKind,text=evThVal(k),wrap=document.getElementById('ev-th-prev'),inner=document.getElementById('ev-th-prev-in');if(!wrap||!inner)return;
+  if(!text){wrap.style.display='none';return;}
+  wrap.style.display='';
+  const W=k==='v'?VSLIDE_W:SLIDE_W,H=k==='v'?VSLIDE_H:SLIDE_H,h=k==='v'?320:Math.min(240,Math.floor(((wrap.parentElement.clientWidth||600)-4)*H/W));
+  const sc=h/H;wrap.style.width=Math.round(W*sc)+'px';wrap.style.height=Math.round(H*sc)+'px';
+  inner.style.cssText=`position:absolute;top:0;left:0;width:${W}px;height:${H}px;transform:scale(${sc});transform-origin:top left;pointer-events:none;`;
+  inner.innerHTML=k==='v'?buildVThumb(text,'ev'):tqHtmlH(text,'youtube');
+}
+function evThInput(k){
+  if(typeof saveState==='function')saveState();
+  evThPreview();
+  clearTimeout(_evThTimer);_evThTimer=setTimeout(()=>evThApply([k]),1200);
+}
+// 整形データからサムネの文を入れる。空の欄と、前に自動で入れた文のままの欄だけ（直した文は残す）
+function evThAutoFill(){
+  const t=evThumbText(),au=document.getElementById('ev-viz-th-auto');if(!t||!au)return;
+  ['h','v'].forEach(k=>{const el=document.getElementById('ev-viz-th-'+k);if(el&&(!el.value.trim()||el.value===au.value))el.value=t;});
+  au.value=t;if(typeof saveState==='function')saveState();evThPreview();
+}
+// 画像（1920px までの JPEG の data URL。動画側の取り込みと同じ形）
+async function evThImage(k,text){
+  let src;
+  if(k==='v')src=await renderVideoToBlob({html:buildVThumb(text,'ev'),thumb:true});
+  else{
+    const cont=document.getElementById('th-render-target');
+    cont.innerHTML=tqHtmlH(text,'youtube');
+    await new Promise(r=>setTimeout(r,400));
+    try{src=(await html2canvas(cont.querySelector('.th-slide'),{width:SLIDE_W,height:SLIDE_H,scale:1920/SLIDE_W,useCORS:true,allowTaint:true,backgroundColor:'#000000',logging:false})).toDataURL('image/png');}
+    finally{cont.innerHTML='';}
   }
-  const area=document.getElementById('capture-area');
-  if(!area||!((document.getElementById('input-data')||{}).value||'').trim())throw new Error('決算分析の画像がまだありません（先に 📤 出力データ作成）');
-  const prevDisp=area.style.display;if(prevDisp==='none')area.style.display='';
-  try{const c=await html2canvas(area,{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false});return c.toDataURL('image/png');}
-  finally{area.style.display=prevDisp;}
+  const url=typeof src==='string'?src:URL.createObjectURL(src);
+  try{
+    const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error('サムネの画像を読めませんでした'));i.src=url;});
+    const sc=Math.min(1,1920/Math.max(img.width,img.height)),c=document.createElement('canvas');
+    c.width=Math.round(img.width*sc);c.height=Math.round(img.height*sc);c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+    return c.toDataURL('image/jpeg',0.85);
+  }finally{if(typeof src!=='string')URL.revokeObjectURL(url);}
+}
+// 文から画像を作り、動画の設定に入れる（分析動画のデータがまだ無ければ、作ったときに入れる）
+async function evThApply(kinds){
+  if(!evVizData())return;
+  kinds=kinds||['h','v'];
+  const st0=document.getElementById('ev-th-st');if(st0)st0.textContent='サムネを動画に入れています…';
+  try{
+    const KV=window.KessanViz||await evVizLoad();
+    const imgs={};
+    for(const k of kinds){const t=evThVal(k);imgs[k]=t?await evThImage(k,t):null;}
+    const st=evVizSettings()||evVizDefaultSettings(KV);   // 画像を作る間に動画側で変えた分も含めて、最新の設定に入れる
+    if('h' in imgs)st.cover_image_landscape=imgs.h;
+    if('v' in imgs)st.cover_image_portrait=imgs.v;
+    const el=document.getElementById('ev-viz-settings');if(el)el.value=JSON.stringify(st);
+    if(typeof saveState==='function')saveState();
+    evVizMount(true);
+    if(st0){st0.textContent='✓ 動画に入れました';setTimeout(()=>{if(st0.textContent==='✓ 動画に入れました')st0.textContent='';},2500);}
+  }catch(e){if(st0)st0.textContent='サムネを作れませんでした：'+e.message;}
+}
+// 動画側の「ツールのサムネを取り込む」：右の画面のサムネの文から作る
+async function evVizCoverImage(orientation){
+  const k=orientation==='portrait'?'v':'h',t=evThVal(k);
+  if(!t)throw new Error(`${k==='v'?'縦':'横'}のサムネの文がありません（右の画面の「サムネ」に入れてください）`);
+  return await evThImage(k,t);
 }
 // ---- 分析動画の音声（ナレーション・BGM） ----
 // 読み上げは /api/tts（声・モデルは 🎬 動画タブの決算側の設定 ev-tts-voice / ev-tts-model と同じ）
