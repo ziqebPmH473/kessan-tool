@@ -1,6 +1,7 @@
 # kessan-tool（決算ツール）作業ルール
 
 決算の1枚画像・note記事・YouTube横動画を作るツール。本体は `index.html` の1ファイル（中に `<script>`）、サーバ側は `functions/`。
+分析動画（決算ビジュアル）の部品 `assets/kessan-viz.js` は `C:\work\kessan-visualizer` で作る。直したら向こうで `npm run to-tool` → こちらで `assets/kessan-viz.js` をコミット＆プッシュ（こちらの版で反映が分かる）。
 
 ## タスク管理
 

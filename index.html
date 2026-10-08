@@ -14992,13 +14992,15 @@ async function tqDownload(kind){
 // ここでは「PDF を Gemini に渡す」「結果を PJ に保存する」「右ペインに描かせる」だけをする。
 // 設計：C:\work\kessan-visualizer\docs\design\2026-10-06_MVP設計書.md
 // ============================================================
-const EV_VIZ_SCRIPT='https://kessan-visualizer-0qcdd7p452hdo2tqpjogkqyghztjg7qqdoqvrsgc.pages.dev/embed/kessan-viz.js';
+// 部品は kessan-visualizer で作り、まとめたファイルをこのサイトの assets/ に入れて一緒に公開する（kessan-visualizer で npm run to-tool → こちらをコミット）。
+// こうすると、直したことが画面の版（vYYYYMMDD-HHMM）で分かる
+const EV_VIZ_SCRIPT='assets/kessan-viz.js';
 let _evVizLoading=null,_evVizHandle=null,_evVizLastJson='';
 function evVizLoad(){
   if(window.KessanViz)return Promise.resolve(window.KessanViz);
   if(_evVizLoading)return _evVizLoading;
   _evVizLoading=new Promise((res,rej)=>{
-    const sc=document.createElement('script');sc.src=EV_VIZ_SCRIPT+'?v='+Math.floor(Date.now()/600000);  // 10分ごとに取り直す（更新をすぐ反映）sc.async=true;
+    const sc=document.createElement('script');sc.src=EV_VIZ_SCRIPT+'?v='+encodeURIComponent(((document.getElementById('app-version')||{}).textContent||'').trim());sc.async=true;   // 版が変わったら取り直す
     sc.onload=()=>window.KessanViz?res(window.KessanViz):rej(new Error('KessanViz が見つかりません'));
     sc.onerror=()=>{_evVizLoading=null;rej(new Error('描画ライブラリを読み込めませんでした（ネットワークを確認してください）'));};
     document.head.appendChild(sc);
