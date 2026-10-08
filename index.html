@@ -3808,7 +3808,8 @@ point_2=`;
 
         // ===== 取得済みデータで「2.データ入力」の空欄を補完（再取得はしない） =====
         // 既存テキストの「空欄の key=」だけを埋める（section を見て対象を限定）。'---' '-' も空欄扱い
-        function patchDataText(text, fields) {
+        // force＝入っている値も上書きする（自動取得を押し直したとき。株探から取る項目だけが fields に入る）
+        function patchDataText(text, fields, force) {
             const lines = text.split('\n');
             let sec = null;
             for (let i = 0; i < lines.length; i++) {
@@ -3818,7 +3819,7 @@ point_2=`;
                 const kv = lines[i].match(/^(\s*)([A-Za-z0-9_]+)=(.*)$/);
                 if (kv && sec && fields[sec] && fields[sec][kv[2]] != null) {
                     const cur = kv[3].trim();
-                    if (!cur || cur === '---' || cur === '-') lines[i] = `${kv[1]}${kv[2]}=${fields[sec][kv[2]]}`;
+                    if (force || !cur || cur === '---' || cur === '-') lines[i] = `${kv[1]}${kv[2]}=${fields[sec][kv[2]]}`;
                 }
             }
             return lines.join('\n');
@@ -3923,7 +3924,7 @@ reason_4=`;
         }
 
         // ボタン：決算分析 2.補完（再取得しない。取得済み _earnFetched を使う）
-        function complementEarnData() {
+        function complementEarnData(force) {
             const ef = window._earnFetched;
             if (!ef) { alert('先に「📥 自動取得」で株探データを取得してください（このボタンは再取得しません）'); return; }
             const d = ef.d || {};
@@ -3947,7 +3948,7 @@ reason_4=`;
             if (ef.price_change) F.MARKET_REACTION.price_change = ef.price_change;
             const ta = document.getElementById('input-data');
             if (!ta.value.trim()) { alert('先にNotebookLMの出力を「2.」に貼り付けてください（空欄を補完します）'); return; }
-            ta.value = patchDataText(ta.value, F);
+            ta.value = patchDataText(ta.value, F, force === true);
             renderImage();
             saveState();
         }
@@ -4147,7 +4148,12 @@ reason_4=`;
                 const reactPhrase = _reactionPhrase(prePrice, postPrice);
                 if (reactPhrase) reactEl.value = reactPhrase;
 
-                // ※取得値は「2.データ入力」へは書かない（そこはNotebookLMの"出力"を貼る場所）。
+                // 「2.」の欄にもう出力データがあれば、株探から取る項目（株価・チャート・PER など）を取り直した値で上書きし、
+                // 1枚画像と分析動画（株価の推移は「2.」の欄から作る）も描き直す。まだ空なら書かない（出力データ作成のときに入る）
+                if ((document.getElementById('input-data').value || '').trim()) {
+                    complementEarnData(true);
+                    if (typeof evVizRebuild === 'function') await evVizRebuild();
+                }
 
                 saveState();
                 if (btnEl) btnEl.innerText = '✔ 取得完了';
@@ -15036,6 +15042,12 @@ async function evVizGenerate(btnEl,opts){
     return false;
   }
   return evVizCommit(KV,parsed,'gemini:'+(r.model||''));
+}
+// 「2.」の欄が変わったとき（自動取得の押し直しなど）：抽出データから動画データを作り直して保存する（株価の推移・業績予想は「2.」の欄から入る）
+async function evVizRebuild(){
+  const d=evVizData();if(!d||!d.analysis)return false;
+  let KV;try{KV=await evVizLoad();}catch(e){return false;}
+  try{evVizStore({...d,visualization:KV.build(d.analysis,evVizExtras())});return true;}catch(e){console.warn('viz rebuild',e);return false;}
 }
 function evVizCommit(KV,parsed,source){
   const isViz=!!(parsed.data&&parsed.data.ratings&&parsed.data.display_unit);
