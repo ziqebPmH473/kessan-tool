@@ -1340,6 +1340,18 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
                 <button class="main-btn" onclick="geminiFormatEarn(this)" style="flex:1; background:#4f46e5;">📤 出力データ作成</button>
             </div>
             <div id="gem-earn-status" style="display:none; font-size:11px; margin-top:3px;"></div>
+            <details style="margin-top:4px;" ontoggle="if(this.open)evVizLoad().catch(()=>{})">
+                <summary style="font-size:11px; color:var(--text-sub); cursor:pointer;" title="「💬 プロンプトをコピー」でプロンプトのコピーと添付ZIP（決算資料・株探の取得データ・分析レポート）の保存が同時に行われます。ChatGPTにZIPを添付してプロンプトを貼り、返ってきた答えを全部コピーして「📋 貼り付けて展開」を押すと、2. の欄と分析動画のデータに入ります。">手動で作る（ChatGPT など。APIが混んでいるとき）</summary>
+                <div style="font-size:11px; color:var(--text-sub); margin-top:4px;" title="ChatGPTの答えは、右下のコピーボタンで全部コピーしてください。">ZIPを添付してプロンプトを貼り、答えを全部コピーして貼り付け。</div>
+                <div class="input-row" style="margin-top:4px;">
+                    <button class="btn-sm" onclick="earnManualCopy(this)" style="flex:1; min-width:0; background:#475569; color:#fff;">💬 プロンプトをコピー</button>
+                    <button class="btn-sm" onclick="earnManualPaste()" style="flex:1; min-width:0;">📋 貼り付けて展開</button>
+                </div>
+                <textarea id="earn-manual-paste" placeholder="ChatGPT の答え（テキストと json のコードブロック）をここに貼り付け" style="font-size:11px; height:52px; min-height:40px; margin-top:4px; font-family:monospace;"></textarea>
+                <div class="input-row" style="margin-top:4px;">
+                    <button class="btn-sm" onclick="earnManualApply()" style="flex:1; min-width:0;">✅ 欄の内容で展開</button>
+                </div>
+            </details>
             <label style="font-size:11px; color:var(--text-sub); display:flex; align-items:center; gap:4px; margin-top:4px; cursor:pointer;"><input type="checkbox" id="ev-auto" checked> 整形後に動画（台本・縦スライド・投稿文）も自動生成</label>
             <details style="margin-top:6px;">
                 <summary style="font-size:11px; color:var(--text-sub); cursor:pointer;">notebookLM用</summary>
@@ -2619,6 +2631,88 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
             } catch (e) { console.warn('viz gen', e); vizNote = '／分析動画データは失敗（📽 分析動画 タブで再実行できます）'; }
             setGemStatus('gem-earn-status', `整形完了（${r.model || 'gemini'}${fallNote(r)}${tokenNote(r.usage)}）${vizNote}`, 'ok');
             // 処理の最後にタブ内容（裏データ含む）をJSONで書き出す（手動の📤エクスポートと同じ）
+            try { exportTabData('earnings'); } catch (e) { console.warn('export', e); }
+        }
+
+        // ---- 決算タブ：出力データ作成＋分析動画データを ChatGPT で一括（手動。API が混んでいるとき） ----
+        // 中身は geminiFormatEarn と同じプロンプト。資料は API の resources／files の代わりに ZIP で渡す。
+        // 「💬 プロンプトをコピー」でコピーと ZIP の保存を同時に行い、答えは「📋 貼り付けて展開」で 2. の欄と分析動画に分ける
+        const EARN_MANUAL_SRC = '株探取得データ.txt', EARN_MANUAL_REPORT = '分析レポート.md';
+        function earnManualPrompt(KV) {
+            const names = (window._earnFiles || []).map(f => f.name).join('、');
+            return `添付のZIPを展開し、中のファイルをすべて読んでから作業してください。PDFは表も含めて全ページ読んでください。
+・${EARN_MANUAL_SRC}：株探 取得データ
+・${EARN_MANUAL_REPORT}：分析レポート（ファクトチェック済み）
+・${names}：決算資料
+
+` + buildEarnNBPrompt() + GROUNDING_RULE +
+                `\n\n## ChatGPT で作るときの変更\nルール9に代わり、[CHART_DATA] の data= は空欄のままにしてください（ツールが株探の値で埋めます）。` +
+                evVizJoinPrompt(KV);
+        }
+        async function earnManualCopy(btn) {
+            const src = getEarnSourceText();
+            const report = (document.getElementById('fc-report').value || '').trim();
+            const fileList = window._earnFiles || [];
+            const miss = [];
+            if (src == null) miss.push('株探の取得データ（📥 自動取得）');
+            if (!report) miss.push('分析レポート（FCレポート貼付欄）');
+            if (!fileList.length) miss.push('決算資料PDF（添付欄）');
+            if (miss.length) { alert('次が必要です：\n・' + miss.join('\n・')); return; }
+            let KV;
+            try { KV = window.KessanViz || await evVizLoad(); } catch (e) { alert(e.message); return; }
+            copyText(earnManualPrompt(KV), btn);
+            try {
+                const zip = new JSZip();
+                zip.file(EARN_MANUAL_SRC, src);
+                zip.file(EARN_MANUAL_REPORT, report);
+                const used = new Set([EARN_MANUAL_SRC, EARN_MANUAL_REPORT]);
+                fileList.forEach((f, i) => {
+                    let n = f.name || `決算資料${i + 1}.pdf`;
+                    if (used.has(n)) n = `${i + 1}_${n}`;
+                    used.add(n);
+                    zip.file(n, f.data, { base64: true });
+                });
+                const blob = await zip.generateAsync({ type: 'blob' });
+                const code = (document.getElementById('p-code').value || '').trim(), name = (document.getElementById('p-name').value || '').trim();
+                const base = [code, name].filter(Boolean).join('_').replace(/[\\/:*?"<>|]/g, '') || '決算';
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob); a.download = `${base}_ChatGPT添付.zip`;
+                document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+                setGemStatus('gem-earn-status', '✅ プロンプトをコピーし、添付ZIPを保存しました。ChatGPTにZIPを添付してプロンプトを貼ってください', 'ok');
+            } catch (e) { setGemStatus('gem-earn-status', 'ZIPを作れませんでした: ' + ((e && e.message) || e), 'error'); }
+        }
+        async function earnManualPaste() {
+            let t;
+            try { t = await navigator.clipboard.readText(); }
+            catch (e) { alert('クリップボードを読めませんでした。欄に手で貼り付けて「✅ 欄の内容で展開」を押してください。'); return; }
+            document.getElementById('earn-manual-paste').value = t;
+            earnManualApply();
+        }
+        async function earnManualApply() {
+            const raw = (document.getElementById('earn-manual-paste').value || '').trim();
+            if (!raw) { alert('ChatGPT の答えを貼り付けてください'); return; }
+            const split = evVizSplitResponse(raw);
+            const h = split.text.indexOf('[HEADER]');
+            if (h < 0) { setGemStatus('gem-earn-status', '出力データ（[HEADER] から始まる部分）が見つかりません。答えを全部コピーして貼り付けてください', 'error'); return; }
+            // 前置きの文や、テキストを囲んだコードブロックの印は外す
+            const text = split.text.slice(h).replace(/\n?```\s*$/, '').trim();
+            document.getElementById('input-data').value = text;
+            if (window._earnFetched) complementEarnData(); else { renderImage(); saveState(); }
+            let vizNote;
+            if (!split.json) vizNote = '／分析動画のデータ（json）が答えに入っていません';
+            else {
+                try {
+                    const KV = await evVizLoad();
+                    const parsed = KV.parse(split.json);
+                    if (parsed.ok) vizNote = evVizCommit(KV, parsed, 'chatgpt (同時)') ? '／分析動画データも作成' : '／分析動画データは失敗';
+                    else {
+                        const ta = document.getElementById('ev-viz-paste'); if (ta) ta.value = split.json;
+                        vizNote = `／分析動画のデータが形式に合いません（${parsed.errors.length}件）。📽 分析動画 タブの「手動で作る」の欄に入れたので、直して「検証して読み込む」を押してください`;
+                    }
+                } catch (e) { vizNote = '／分析動画データは失敗（' + ((e && e.message) || e) + '）'; }
+            }
+            setGemStatus('gem-earn-status', '展開しました（2. の欄）' + vizNote, /失敗|合いません|入っていません/.test(vizNote) ? 'error' : 'ok');
+            // API の「📤 出力データ作成」と同じく、最後にタブ内容を JSON で書き出す
             try { exportTabData('earnings'); } catch (e) { console.warn('export', e); }
         }
 
