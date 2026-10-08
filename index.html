@@ -14820,6 +14820,8 @@ function kgIsCommon(id){
   return ['vd-tts-voice','ev-tts-voice','vd-tts-model','ev-tts-model','vd-model','ev-model','vd-fixed-tags','ev-fixed-tags','vd-xnote',
     'yt-m-cut','yt-m-oped','yt-m-read','yt-m-qr','yt-m-plan','yt-m-post','yt-p-fixed','yt-f-yp','yt-f-ig','yt-f-l8','yt-f-tt'].includes(id);
 }
+// 分析動画のシーン（kessan-visualizer の src/schema/settings.ts の SCENE_ORDER・SCENE_DEFAULTS と同じ並び・秒数）
+const EV_VIZ_SCENES=[['thumbnail','サムネ',1],['cover','表紙',4],['summary','決算ハイライト',8],['stock_price','株価の推移',8],['pl_waterfall','損益の構造',8],['income_trend','業績の推移',9],['forecast','業績予想の比較',8],['balance_sheet','貸借対照表',11],['cash_flow','キャッシュフロー',9],['segments','セグメント',8],['highlights','注目ポイント',9],['conclusion','総括',8]];
 const KG_SNS=[['ig','Instagram'],['l8','Lemon8'],['tt','TikTok']];   // YouTubeの投稿は定型文を使わない（本文とタグだけ）
 // g＝画面の置き場所、ids＝値を入れる元の欄、ctx＝その種類（stock＝株価分析の横動画／gen＝YT動画）のときだけ欄へ入れる、def＝まだ値が無いときの初期値
 const KG_ITEMS=[
@@ -14842,6 +14844,7 @@ const KG_ITEMS=[
   {g:'post',key:'yt-p-fixed',label:'概要欄の定型文（使用ツール・AIの注意書き）',ids:['yt-p-fixed'],area:1,def:YT_POST_FIXED},
   ...KG_SNS.map(([k,n])=>({g:'snsstock',key:'yt-f-'+k+'@stock',label:n,ids:['yt-f-'+k],ctx:'stock',area:1,def:YT_SNS_FIXED[k]})),
   ...KG_SNS.map(([k,n])=>({g:'snsgen',key:'yt-f-'+k+'@gen',label:n,ids:['yt-f-'+k],ctx:'gen',area:1,def:YT_SNS_FIXED_GEN[k]})),
+  ...EV_VIZ_SCENES.map(([id,n,sec])=>({g:'viz',key:'viz-sec-'+id,label:n+'（秒）',ids:[],def:String(sec)})),
 ];
 const kgCtx=()=>(typeof YT_CTX!=='undefined'&&YT_CTX==='gen')?'gen':'stock';
 function kgStore(){let v=null;try{v=JSON.parse(localStorage.getItem(KG_KEY)||'null');}catch(e){}return v&&typeof v==='object'?v:{};}
@@ -15160,6 +15163,23 @@ async function evVizImportBgm(){
   return{blob:rec.blob,name:rec.name||it.name||'BGM'};
 }
 // 右ペインに描く（データが変わっていなければ描き直さない）
+// 新しい PJ のシーン設定：秒数は ⚙ 設定 の「分析動画」の値（空・範囲外ならツールの既定）
+function evVizSecDefault(id){const v=parseFloat(String(kgGet('viz-sec-'+id)).replace(/[０-９．]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xfee0)));return isFinite(v)&&v>=0.5&&v<=60?v:null;}
+function evVizWithSecDefaults(st){return {...st,scenes:(st.scenes||[]).map(s=>{const v=evVizSecDefault(s.id);return v==null?s:{...s,duration_sec:v};})};}
+function evVizDefaultSettings(KV){return evVizWithSecDefaults(KV.defaultSettings());}
+// ⚙ 設定：開いている PJ の秒数を初期値にする／初期値を開いている PJ に入れる
+function kgVizFromPj(){
+  const st=evVizSettings();if(!st||!st.scenes){alert('開いているPJに分析動画のデータがありません（決算のPJで分析動画を作ってから押してください）');return;}
+  const s=kgStore();st.scenes.forEach(x=>{if(EV_VIZ_SCENES.some(([id])=>id===x.id))s['viz-sec-'+x.id]=String(x.duration_sec);});kgSave(s);kgBuild();
+}
+function kgVizToPj(){
+  if(!evVizData()){alert('開いているPJに分析動画のデータがありません');return;}
+  const el=document.getElementById('ev-viz-settings');if(!el)return;
+  const cur=evVizSettings();
+  if(cur&&!confirm('開いているPJの各シーンの秒数を、この初期値に置き換えますか？'))return;
+  el.value=cur?JSON.stringify(evVizWithSecDefaults(cur)):'';   // まだ設定が無ければ、描くときに初期値で作られる
+  if(typeof saveState==='function')saveState();evVizMount(true);alert('入れました');
+}
 async function evVizMount(force){
   const host=document.getElementById('earn-viz-mount'),empty=document.getElementById('earn-viz-empty');if(!host)return;
   const d=evVizData();
@@ -15171,7 +15191,7 @@ async function evVizMount(force){
   // 抽出データ（analysis）が残っていれば、最新の変換ロジックで visualization を作り直す（表示の改善を古い PJ にも効かせる）
   let vizNow=d.visualization;
   if(d.analysis){try{vizNow=KV.build(d.analysis,evVizExtras());}catch(e){console.warn('viz rebuild',e);}}
-  const props={visualization:vizNow,settings:evVizSettings()||KV.defaultSettings(),controlsEl:document.getElementById('ev-viz-controls'),importCoverImage:evVizCoverImage,tts:evVizTts,audioStore:evVizAudioStore,importBgm:evVizImportBgm,transcribe:evVizTranscribe,onChange:(st)=>{const el=document.getElementById('ev-viz-settings');if(el){el.value=JSON.stringify(st);if(typeof saveState==='function')saveState();}}};
+  const props={visualization:vizNow,settings:evVizSettings()||evVizDefaultSettings(KV),controlsEl:document.getElementById('ev-viz-controls'),importCoverImage:evVizCoverImage,tts:evVizTts,audioStore:evVizAudioStore,importBgm:evVizImportBgm,transcribe:evVizTranscribe,onChange:(st)=>{const el=document.getElementById('ev-viz-settings');if(el){el.value=JSON.stringify(st);if(typeof saveState==='function')saveState();}}};
   if(_evVizHandle){_evVizHandle.update(props);}else{_evVizHandle=KV.mount(host,props);}
   _evVizLastJson=json;
 }
@@ -15410,6 +15430,16 @@ async function evVizMount(force){
       <div class="kg-note">SNSタブの「リール動画」で作る動画は、縦のサムネ → YouTubeのQR → noteのQR の3枚。2枚目・3枚目の文言と、それぞれの秒数。URLはSNSタブの「YouTubeのURL」と note のURLを使います（無いスライドは外れます）。</div>
       <details open><summary style="cursor:pointer;font-size:11.5px;margin-top:4px;">株価分析（{下値/上値} などは株価の向きで置き換わります）</summary><div id="kg-g-reel"></div></details>
       <details><summary style="cursor:pointer;font-size:11.5px;margin-top:4px;">YT動画（YouTubeの見出しはPJごと。SNSタブの「リールの見出し」）</summary><div id="kg-g-reelgen"></div></details>
+    </div>
+
+    <div class="kg-sec">
+      <h3>分析動画（決算ビジュアル）</h3>
+      <div class="kg-note" title="読み上げがあるシーンは、読み上げが長ければその長さまで伸びます。すでに分析動画を作ったPJは変わりません（「開いているPJに入れる」で入れられます）。">各シーンの秒数の初期値。新しいPJは、この秒数で始まります。</div>
+      <div id="kg-g-viz"></div>
+      <div class="kg-row" style="margin-top:6px;">
+        <button type="button" class="btn-sm" onclick="kgVizFromPj()" title="開いている決算のPJで調整した秒数を、そのまま初期値にします" style="flex:1;min-width:0;">開いているPJの秒数を取り込む</button>
+        <button type="button" class="btn-sm" onclick="kgVizToPj()" title="開いている決算のPJの秒数を、上の初期値に置き換えます" style="flex:1;min-width:0;">開いているPJに入れる</button>
+      </div>
     </div>
 
     <div class="kg-sec">
