@@ -1427,6 +1427,8 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
             </div>
             <div style="font-size:10px;color:var(--text-sub);margin-top:4px;line-height:1.5;">MP4 は下の「MP4 を書き出す」でブラウザだけで作れます（Chrome / Edge、数分）。1920×1080・30fps・無音。高画質が要るときは「💾 MP4用データ」を kessan-visualizer の <code>npm run render</code> に渡す。</div>
             <div id="ev-viz-controls" style="margin-top:8px;"></div>
+            <!-- 読み上げの切れ目の調整（元の1本の音声を残しておき、読み上げを呼ばずに切り直す） -->
+            <div id="ev-viz-cutbox" style="display:none;margin-top:8px;padding:6px;border:1px solid var(--border,#e2e8f0);border-radius:6px;font-size:11px;"></div>
             <!-- 保存用（PJ と一緒に保存される） -->
             <textarea id="ev-viz-json" style="display:none;"></textarea>
             <textarea id="ev-viz-settings" style="display:none;"></textarea>
@@ -15252,12 +15254,15 @@ async function evVizTts(text){
   let data={};try{data=await res.json();}catch(e){}
   if(!res.ok||!data.ok||!data.audioBase64)throw new Error(data.error||('読み上げに失敗しました（HTTP '+res.status+'）'));
   const bin=atob(data.audioBase64),bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
-  return{blob:new Blob([bytes],{type:data.mimeType||'audio/wav'}),seconds:typeof data.seconds==='number'?data.seconds:null};
+  const blob=new Blob([bytes],{type:data.mimeType||'audio/wav'});
+  // 複数シーンをつないだ読み上げ（空行区切り）は、元の1本を残す（あとで切れ目だけ直せるように）
+  if(/\n\n/.test(text)){try{await KT_TTS.put('ev:viz:full',{blob,text,at:Date.now()});}catch(e){console.warn('viz full',e);}}
+  return{blob,seconds:typeof data.seconds==='number'?data.seconds:null};
 }
 // 音声の保存先：読み上げは KT_TTS の 'ev:viz:<キー>'（PJ ごと・サーバーにも送られる）、BGM は KT_YN の共通キー 'bgm:viz'（全 PJ 共通）
 const evVizAudioStore={
   get:async k=>{try{return k==='bgm'?await KT_YN.get('bgm:viz'):await KT_TTS.get('ev:viz:'+k);}catch(e){return null;}},
-  put:async(k,rec)=>{if(k==='bgm')await KT_YN.put('bgm:viz',rec);else await KT_TTS.put('ev:viz:'+k,rec);},
+  put:async(k,rec)=>{if(k==='bgm')await KT_YN.put('bgm:viz',rec);else{await KT_TTS.put('ev:viz:'+k,rec);evVizCutRenderSoon();}},
   del:async k=>{if(k==='bgm')await KT_YN.del('bgm:viz');else await KT_TTS.del('ev:viz:'+k);},
 };
 // 文字起こし（Whisper・語ごとの時刻）：1本の読み上げを台本どおりにシーンへ切り分けるのに使う
@@ -15273,6 +15278,114 @@ async function evVizImportBgm(){
   const sel=ytBgmSelKey();const it=idx.find(x=>x.key===sel)||idx[0];
   const rec=await ynGet(it.key);if(!rec||!rec.blob)return null;
   return{blob:rec.blob,name:rec.name||it.name||'BGM'};
+}
+// ---- 読み上げの切れ目の調整 ----
+// 「音声を作る」は台本をつないで読み上げ1回 → シーンごとに切る。切れ目がずれたときに、残しておいた元の1本（ev:viz:full）を
+// 読み上げを呼ばずに切り直す。今の切れ目は、いま保存されている各シーンの音声の長さから求める。
+// WAV（PCM 16bit）を読む。読めなければ null
+function evVizWavRead(buf){
+  const v=new DataView(buf);const tag=o=>String.fromCharCode(v.getUint8(o),v.getUint8(o+1),v.getUint8(o+2),v.getUint8(o+3));
+  if(buf.byteLength<44||tag(0)!=='RIFF'||tag(8)!=='WAVE')return null;
+  let o=12,fmt=null,data=null;
+  while(o+8<=buf.byteLength){const id=tag(o),len=v.getUint32(o+4,true);if(id==='fmt ')fmt={ch:v.getUint16(o+10,true),rate:v.getUint32(o+12,true),bits:v.getUint16(o+22,true)};else if(id==='data'){data={off:o+8,len:Math.min(len,buf.byteLength-o-8)};break;}o+=8+len+(len&1);}
+  if(!fmt||!data||fmt.bits!==16)return null;
+  const n=Math.floor(data.len/(2*fmt.ch)),pcm=new Float32Array(n);
+  for(let i=0;i<n;i++){let x=0;for(let c=0;c<fmt.ch;c++)x+=v.getInt16(data.off+(i*fmt.ch+c)*2,true);pcm[i]=x/fmt.ch/32768;}
+  return{pcm,rate:fmt.rate};
+}
+async function evVizPcm(blob){
+  const buf=await blob.arrayBuffer();const w=evVizWavRead(buf);if(w)return w;
+  const Ctx=window.AudioContext||window.webkitAudioContext;const ctx=new Ctx();
+  try{const ab=await ctx.decodeAudioData(buf.slice(0));const pcm=new Float32Array(ab.length);for(let c=0;c<ab.numberOfChannels;c++){const d=ab.getChannelData(c);for(let i=0;i<ab.length;i++)pcm[i]+=d[i]/ab.numberOfChannels;}return{pcm,rate:ab.sampleRate};}
+  finally{try{ctx.close();}catch(e){}}
+}
+function evVizWav(pcm,rate){
+  const n=pcm.length,buf=new ArrayBuffer(44+n*2),v=new DataView(buf),w=(o,t)=>{for(let i=0;i<t.length;i++)v.setUint8(o+i,t.charCodeAt(i));};
+  w(0,'RIFF');v.setUint32(4,36+n*2,true);w(8,'WAVE');w(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,rate,true);v.setUint32(28,rate*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,'data');v.setUint32(40,n*2,true);
+  for(let i=0;i<n;i++){const x=Math.max(-1,Math.min(1,pcm[i]));v.setInt16(44+i*2,x<0?x*32768:x*32767,true);}
+  return new Blob([buf],{type:'audio/wav'});
+}
+let _evCut=null,_evCutTimer=null,_evCutAudio=null;   // _evCut = {full:{pcm,rate,blob,url}, ids, texts, cuts:[秒], orig:[秒]}
+function evVizCutRenderSoon(){clearTimeout(_evCutTimer);_evCutTimer=setTimeout(()=>evVizCutLoad().catch(e=>console.warn('viz cut',e)),600);}
+// 元の1本と、それがどのシーンの台本か（保存した音声の文と照らし合わせる）を読み、今の切れ目を求める
+async function evVizCutLoad(){
+  const box=document.getElementById('ev-viz-cutbox');if(!box)return;
+  const hide=()=>{box.style.display='none';box.innerHTML='';_evCut=null;};
+  const st=evVizSettings();if(!st||!st.scenes)return hide();
+  let full=null;try{full=await KT_TTS.get('ev:viz:full');}catch(e){}
+  if(!full||!full.blob||!full.text)return hide();
+  let texts=String(full.text).split(/\n\n+/).map(t=>t.trim()).filter(Boolean);
+  if(texts.length&&/^次の文章を.*この指示文は読まない/.test(texts[0]))texts.shift();   // 話す速さの指示
+  const ids=[],segs=[];
+  for(const t of texts){
+    let hit=null;
+    for(const sc of st.scenes){if(ids.includes(sc.id))continue;let rec=null;try{rec=await KT_TTS.get('ev:viz:nar:'+sc.id);}catch(e){}if(rec&&rec.blob&&(rec.text||'').trim()===t){hit={id:sc.id,rec};break;}}
+    if(!hit)return hide();   // 台本を直して作り直したシーンがある＝元の1本と合わない
+    ids.push(hit.id);segs.push(hit.rec);
+  }
+  if(ids.length<2)return hide();
+  const f=await evVizPcm(full.blob);
+  const lens=[];for(const r of segs){const p=await evVizPcm(r.blob);lens.push(p.pcm.length/p.rate);}
+  const total=f.pcm.length/f.rate;let acc=0;const cuts=[];
+  if(Math.abs(lens.reduce((x,y)=>x+y,0)-total)>0.3)return hide();   // 1シーンだけ作り直した音声がある＝元の1本の切り分けではない
+  for(let i=0;i<lens.length-1;i++){acc+=lens[i];cuts.push(Math.min(total,acc));}
+  if(_evCut&&_evCut.full.url)URL.revokeObjectURL(_evCut.full.url);
+  _evCut={full:{...f,blob:full.blob,url:URL.createObjectURL(full.blob)},ids,texts,cuts,orig:cuts.slice(),total};
+  evVizCutDraw();
+}
+function evVizCutDraw(){
+  const box=document.getElementById('ev-viz-cutbox');if(!box||!_evCut)return;
+  const st=evVizSettings()||{scenes:[]};const name=id=>((st.scenes.find(x=>x.id===id)||{}).title)||id;
+  const c=_evCut,changed=c.cuts.some((x,i)=>Math.abs(x-c.orig[i])>1e-6);
+  const B=(label,on,tip)=>`<button class="btn-sm" onclick="${on}" title="${tip||''}" style="flex:none;min-width:0;padding:2px 6px;font-size:11px;">${label}</button>`;
+  box.style.display='block';
+  box.innerHTML=`<div style="font-weight:700;margin-bottom:2px;">🎚 音声の切れ目</div>
+  <div style="color:var(--text-sub);margin-bottom:4px;">読み上げは作り直さずに、元の1本の音声を切り直します（読み上げの回数は使いません）。▶で切れ目の前後を聞いて、ずらしてください。</div>
+  ${c.cuts.map((t,i)=>`<div style="display:flex;align-items:center;gap:3px;margin-top:3px;flex-wrap:wrap;">
+    <span style="flex:1;min-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(c.texts[i])}｜${esc(c.texts[i+1])}">${esc(name(c.ids[i]))} ｜ ${esc(name(c.ids[i+1]))}</span>
+    <span style="font-variant-numeric:tabular-nums;min-width:44px;text-align:right;${Math.abs(t-c.orig[i])>1e-6?'color:#d97706;font-weight:700;':''}">${t.toFixed(2)}秒</span>
+    ${B('−0.5',`evVizCutMove(${i},-0.5)`,'0.5秒前へ')}${B('−0.1',`evVizCutMove(${i},-0.1)`,'0.1秒前へ')}${B('+0.1',`evVizCutMove(${i},0.1)`,'0.1秒後ろへ')}${B('+0.5',`evVizCutMove(${i},0.5)`,'0.5秒後ろへ')}
+    ${B('▶',`evVizCutPlay(${i})`,'切れ目の前後2秒を聞く（切れ目で一瞬止まります）')}
+  </div>`).join('')}
+  <div style="display:flex;gap:4px;margin-top:6px;">
+    <button class="btn-sm" onclick="evVizCutApply(this)" ${changed?'':'disabled'} style="flex:1;min-width:0;background:#4f46e5;color:#fff;">✂ この切れ目で切り直す</button>
+    <button class="btn-sm" onclick="_evCut.cuts=_evCut.orig.slice();evVizCutDraw();" ${changed?'':'disabled'} style="flex:none;min-width:0;">元に戻す</button>
+  </div>`;
+}
+function evVizCutMove(i,d){
+  const c=_evCut;if(!c)return;
+  const lo=(i>0?c.cuts[i-1]:0)+0.1,hi=(i<c.cuts.length-1?c.cuts[i+1]:c.total)-0.1;
+  c.cuts[i]=Math.round(Math.min(hi,Math.max(lo,c.cuts[i]+d))*100)/100;evVizCutDraw();
+}
+// 切れ目の前後を聞く：前の2秒 → 0.4秒止める → 後ろの2秒（どこで切れるかが分かるように）
+function evVizCutPlay(i){
+  const c=_evCut;if(!c)return;const t=c.cuts[i];
+  const el=_evCutAudio||(_evCutAudio=new Audio());el.pause();clearTimeout(el._kt);
+  if(el.src!==c.full.url)el.src=c.full.url;
+  const play=(from,to,next)=>{const a=Math.max(0,from);el.currentTime=a;el.play().then(()=>{el._kt=setTimeout(()=>{el.pause();if(next)el._kt=setTimeout(next,400);},Math.max(0,to-a)*1000);}).catch(()=>{});};
+  el.onloadedmetadata=null;
+  const go=()=>play(t-2,t,()=>play(t,t+2,null));
+  if(el.readyState>=1)go();else el.onloadedmetadata=go;
+}
+// 残しておいた1本を今の切れ目で切り、各シーンの音声と秒数を入れ直す
+async function evVizCutApply(btn){
+  const c=_evCut;if(!c)return;
+  if(btn){btn.disabled=true;btn.innerText='切り直し中…';}
+  try{
+    const {pcm,rate}=c.full,bounds=[0,...c.cuts.map(t=>Math.round(t*rate)),pcm.length];
+    const secs={};
+    for(let i=0;i<c.ids.length;i++){
+      const part=pcm.subarray(bounds[i],bounds[i+1]),sec=Math.round(part.length/rate*10)/10;
+      await KT_TTS.put('ev:viz:nar:'+c.ids[i],{blob:evVizWav(part,rate),text:c.texts[i],seconds:sec});secs[c.ids[i]]=sec;
+    }
+    const el=document.getElementById('ev-viz-settings'),st=evVizSettings();
+    if(el&&st&&st.narration){const nar={...st.narration};for(const id of c.ids){const n=nar[id];if(n&&(n.text||'').trim()===c.texts[c.ids.indexOf(id)])nar[id]={...n,seconds:secs[id]};}el.value=JSON.stringify({...st,narration:nar});if(typeof saveState==='function')saveState();}
+    // 部品は音声を最初に描くときに読むので、描き直す
+    if(_evVizHandle){try{_evVizHandle.unmount();}catch(e){}_evVizHandle=null;}
+    await evVizMount(true);
+    c.orig=c.cuts.slice();evVizCutDraw();
+    evVizStatus('音声の切れ目を直しました（読み上げは使っていません）','ok');
+  }catch(e){alert('切り直せませんでした：'+((e&&e.message)||e));if(btn){btn.disabled=false;btn.innerText='✂ この切れ目で切り直す';}}
 }
 // 右ペインに描く（データが変わっていなければ描き直さない）
 // 新しい PJ のシーン設定：秒数は ⚙ 設定 の「分析動画」の値（空・範囲外ならツールの既定）
@@ -15295,7 +15408,7 @@ function kgVizToPj(){
 async function evVizMount(force){
   const host=document.getElementById('earn-viz-mount'),empty=document.getElementById('earn-viz-empty');if(!host)return;
   const d=evVizData();
-  if(!d){if(_evVizHandle){try{_evVizHandle.unmount();}catch(e){}_evVizHandle=null;}_evVizLastJson='';host.innerHTML='';if(empty)empty.style.display='';return;}
+  if(!d){if(_evVizHandle){try{_evVizHandle.unmount();}catch(e){}_evVizHandle=null;}_evVizLastJson='';host.innerHTML='';if(empty)empty.style.display='';evVizCutRenderSoon();return;}
   if(empty)empty.style.display='none';
   const json=JSON.stringify(d.visualization);
   if(!force&&_evVizHandle&&json===_evVizLastJson)return;
@@ -15306,6 +15419,7 @@ async function evVizMount(force){
   const props={visualization:vizNow,settings:evVizSettings()||evVizDefaultSettings(KV),controlsEl:document.getElementById('ev-viz-controls'),importCoverImage:evVizCoverImage,tts:evVizTts,audioStore:evVizAudioStore,importBgm:evVizImportBgm,transcribe:evVizTranscribe,onChange:(st)=>{const el=document.getElementById('ev-viz-settings');if(el){el.value=JSON.stringify(st);if(typeof saveState==='function')saveState();}const k=st&&st.orientation==='portrait'?'v':'h';if(k!==_evThKind)evThSwitch(k);}};
   if(_evVizHandle){_evVizHandle.update(props);}else{_evVizHandle=KV.mount(host,props);}
   _evVizLastJson=json;
+  evVizCutRenderSoon();
 }
 
 </script>
