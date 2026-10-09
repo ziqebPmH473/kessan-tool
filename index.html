@@ -3657,7 +3657,7 @@ point_2=`;
             document.getElementById('mode-stock').style.display   = mode === 'stock'    ? '' : 'none';
             document.getElementById('capture-area').style.display       = mode === 'earnings' ? '' : 'none';
             if (mode === 'earnings' && typeof switchEarnTab === 'function') requestAnimationFrame(() => switchEarnTab(window._earnTab || 'main'));
-            else { const evv = document.getElementById('earn-video-view'); if (evv) evv.style.display = 'none'; }
+            else { ['earn-video-view','earn-viz-view'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; }); }   // 決算の動画・分析動画の右側も隠す（別の種別に残っていた）
             document.getElementById('capture-area-stock').style.display = mode === 'stock'    ? 'flex' : 'none';
 
             document.getElementById('mode-price').style.display         = mode === 'price' ? '' : 'none';
