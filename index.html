@@ -11936,8 +11936,10 @@ function ynParseVision(raw){
   const cn=v=>YN_COL[String(v||'').toLowerCase()]?String(v).toLowerCase():null;
   const bx=b=>Array.isArray(b)&&b.length===4&&b.every(v=>isFinite(+v))?b.map(Number):null;
   let zs=[],ts=[];
-  if(a>=0&&(o<0||a<o)){const m=s.match(/\[[\s\S]*\]/);if(!m)throw new Error('JSONが返りませんでした');zs=JSON.parse(m[0]);}
-  else{const m=s.match(/\{[\s\S]*\}/);if(!m)throw new Error('JSONが返りませんでした');const j=JSON.parse(m[0]);zs=j.zones||[];ts=j.texts||[];}
+  // 閉じかっこの前の余計な「,」は外してから読む（AIの書き方の崩れで止まらないように）
+  const jp=t=>{try{return JSON.parse(t);}catch(e){try{return JSON.parse(t.replace(/,\s*([\]}])/g,'$1'));}catch(e2){console.warn('[yn] 読めなかった答え',t);throw e;}}};
+  if(a>=0&&(o<0||a<o)){const m=s.match(/\[[\s\S]*\]/);if(!m)throw new Error('JSONが返りませんでした');zs=jp(m[0]);}
+  else{const m=s.match(/\{[\s\S]*\}/);if(!m)throw new Error('JSONが返りませんでした');const j=jp(m[0]);zs=j.zones||[];ts=j.texts||[];}
   const zones=zs.filter(z=>bx(z.box)).map(z=>({label:String(z.label||'').slice(0,40),text:String(z.text||'').slice(0,300),box:bx(z.box),col:{strong:cn(z.strong),soft:cn(z.soft)}}));
   const texts=ts.map(x=>({label:String(x.label||'').slice(0,60),kind:YN_TKIND[x.kind]?x.kind:'heading',zone:(+x.zone>=1&&+x.zone<=zones.length)?+x.zone:0,
     lines:(Array.isArray(x.lines)?x.lines:[]).map(bx).filter(Boolean)})).filter(x=>x.lines.length).slice(0,24);
@@ -11971,7 +11973,7 @@ async function ynReadZones(btn,only){
       const part=await ynBlobToPart(s.blob,1024);
       const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({prompt:YN_VISION_PROMPT,resources:[],temperature:0,files:[{name:part.name,mimeType:part.mimeType,data:part.data}],
-          models:ytModels('read')})});
+          json:true,models:ytModels('read')})});
       const data=await res.json();
       if(!data.ok)throw new Error(`${i+1}枚目: ${ytAiErr(data,'read')}`);
       ytRunUsed('read',data);

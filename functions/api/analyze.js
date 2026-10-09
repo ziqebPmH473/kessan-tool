@@ -66,6 +66,8 @@ export async function onRequestPost(context) {
   if (payload.search === true) body.tools = [{ google_search: {} }];
   // url: true のときは、プロンプトに書いたURLのページを読ませる（出典を自分で足すときに、資料名・表記を埋める）
   if (payload.url === true) body.tools = [...(body.tools || []), { url_context: {} }];
+  // json: true のときは、答えを JSON の形式で返させる（書き方の崩れで読めなくなるのを防ぐ。検索・URL読みとは一緒に使えない）
+  if (payload.json === true && !body.tools) body.generationConfig.responseMimeType = "application/json";
 
   // モデルは配列(models)で優先順に受け取り、上限(429)なら次の下位モデルへフォールバックする。
   const models = (Array.isArray(payload.models) && payload.models.length)
