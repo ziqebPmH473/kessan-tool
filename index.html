@@ -2081,7 +2081,7 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
         </div>
         <div id="earn-viz-view" class="sa" style="display:none;flex-direction:column;gap:6px;">
             <div style="font-size:11px;color:var(--text-sub);">横動画（決算ビジュアル）1920×1080 プレビュー。シーンの表示・秒数・書き出しは左のパネルで</div>
-            <!-- サムネ（先頭の「サムネ」シーン）。横・縦で別の文（どちらを出すかは動画の「向き」に合わせる）。出力データ作成で自動で入り、直すと動画にも入る -->
+            <!-- サムネ（先頭の「サムネ」シーン）。横・縦は同じ文（見せる型は動画の「向き」に合わせる）。出力データ作成で自動で入り、直すと動画にも入る -->
             <div id="earn-viz-th" class="sa-card" style="display:flex;flex-direction:column;gap:4px;">
                 <div style="display:flex;align-items:center;gap:6px;">
                     <span class="sa-sub" style="margin:0;">サムネ</span>
@@ -15185,7 +15185,7 @@ function evVizSplitResponse(text){
   const json=(k>=0?rest.slice(0,k):rest).trim();
   return {text:t.slice(0,i).trim(),json:json||null};
 }
-// ---- 分析動画のサムネ（右の画面の「サムネ」。横・縦で別の文） ----
+// ---- 分析動画のサムネ（右の画面の「サムネ」。横・縦は同じ文） ----
 // 文は出力データ作成のあとに整形データから自動で入れる（evVizThumbText。上段に株価の動きを足す）。直した文は上書きしない
 // 文を変えると画像を作り直して、動画の設定（cover_image_landscape／_portrait）に入れる
 const evThVal=k=>((document.getElementById('ev-viz-th-'+k)||{}).value||'').trim();
@@ -15207,10 +15207,12 @@ function evThPreview(){
   inner.style.cssText=`position:absolute;top:0;left:0;width:${W}px;height:${H}px;transform:scale(${sc});transform-origin:top left;pointer-events:none;`;
   inner.innerHTML=k==='v'?buildVThumb(text,'ev'):tqHtmlH(text,'youtube');
 }
+// 縦・横は同じ文（片方を直すと、もう片方も同じにして両方の画像を作り直す）
 function evThInput(k){
+  const src=document.getElementById('ev-viz-th-'+k),o=document.getElementById('ev-viz-th-'+(k==='v'?'h':'v'));if(src&&o)o.value=src.value;
   if(typeof saveState==='function')saveState();
   evThPreview();
-  clearTimeout(_evThTimer);_evThTimer=setTimeout(()=>evThApply([k]),1200);
+  clearTimeout(_evThTimer);_evThTimer=setTimeout(()=>evThApply(['h','v']),1200);
 }
 // 整形データからサムネの文を入れる。空の欄と、前に自動で入れた文のままの欄だけ（直した文は残す）
 function evThAutoFill(){
