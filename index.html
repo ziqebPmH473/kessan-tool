@@ -9950,13 +9950,13 @@ function ytFixReplace(){
     // 欄にいま入っている文面の中で、前の定型文の箇所だけを入れ替える（ほかの文は、手で直した分もそのまま）
     const nl=x=>String(x||'').replace(/\r\n/g,'\n').trim();
     const n=nl(ytFixedFor(k)),v=el.value.replace(/\r\n/g,'\n');
-    if(n&&v.includes(n))return;   // もう今の定型文になっている
     // 前の定型文の候補：組み立てたときの控え、無ければツールの既定の文面（長いものから探す）
+    //   今の定型文が前の定型文の一部（1行目が同じなど）のことがあるので、先に前の定型文を探す。今の定型文の一部になっている候補は使わない
     const up=getDir()==='up'?'上値':'下値';
-    const cands=[a[k]].concat(k==='desc'?[YT_POST_FIXED]:ytGen()?[ygPostFixed(k,true),ygPostFixed(k,false),YT_SNS_FIXED_GEN[k],...(YT_SNS_FIXED_GEN_OLD[k]||[])]:[YT_SNS_FIXED[k],...(YT_SNS_FIXED_OLD[k]||[])].map(x=>String(x||'').replace(/\{下値\/上値\}/g,up)))
-      .map(nl).filter(x=>x&&x!==n).sort((p,q)=>q.length-p.length);
+    const cands=[a[k]].concat(k==='desc'?[YT_POST_FIXED]:ytGen()?[ygPostFixed(k,true),ygPostFixed(k,false),YT_SNS_FIXED_GEN[k],...(YT_SNS_FIXED_GEN_OLD[k]||[]),...[YT_SNS_FIXED[k],...(YT_SNS_FIXED_OLD[k]||[])].flatMap(x=>['下値','上値'].map(w=>String(x||'').replace(/\{下値\/上値\}/g,w)))]:[YT_SNS_FIXED[k],...(YT_SNS_FIXED_OLD[k]||[])].map(x=>String(x||'').replace(/\{下値\/上値\}/g,up)))
+      .map(nl).filter(x=>x&&x!==n&&!n.includes(x)).sort((p,q)=>q.length-p.length);
     const o=cands.find(x=>v.includes(x));
-    if(o){el.value=v.replace(o,n);done.push(nm);}else miss.push(nm);
+    if(o){el.value=v.replace(o,n);done.push(nm);}else if(!(n&&v.includes(n)))miss.push(nm);   // 見つからず、今の定型文も無いとき
   });
   ytFixRecord();saveState();
   ytStatus(`✅ URL・ハッシュタグ${done.length?`・定型文（${done.join('・')}）`:''}の箇所を差し替えました${miss.length?`　⚠ ${miss.join('・')}は、前の定型文が見つからないので、定型文は差し替えていません（手で直してください）`:''}`,miss.length?'':'ok','post3-status');
@@ -10604,7 +10604,7 @@ function ytFixedMigrate(){
   if(typeof YT_CTX!=='undefined'&&YT_CTX==='gen')['yp','ig','l8','tt'].forEach(k=>{
     const el=document.getElementById('yt-f-'+k);if(!el)return;
     const v=el.value.replace(/\r\n/g,'\n').trim();
-    if(!v||YT_SNS_FIXED_GEN_OLD[k].includes(v))el.value=YT_SNS_FIXED_GEN[k];
+    if(!v||YT_SNS_FIXED_GEN_OLD[k].includes(v)||[YT_SNS_FIXED[k],...(YT_SNS_FIXED_OLD[k]||[])].includes(v))el.value=YT_SNS_FIXED_GEN[k];   // 株価分析の文が残っていたら、YT動画の文にする
   });
   const fx=document.getElementById('yt-p-fixed');
   if(fx&&fx.value&&!/ナレスラ/.test(fx.value)&&/TradingView.*/.test(fx.value))fx.value=fx.value.replace(/(TradingView.*)/,'$1\n・動画作成アプリ：ナレスラ ▶ https://naresla.com');
@@ -14906,12 +14906,15 @@ function kgApply(){
   const st=kgStore(),ctx=kgCtx();let seeded=false;
   KG_ITEMS.forEach(it=>{
     if(!it.ids.length||(it.ctx&&it.ctx!==ctx))return;
-    if(st[it.key]===undefined){const el=document.getElementById(it.ids[0]);if(!el)return;st[it.key]=el.value;seeded=true;}
+    // 種類ごとの欄（SNSの定型文）は、欄にもう一方の種類の文が残っているので、初期値から作る（YT動画に株価分析の文が入っていた。2026-10-10）
+    if(st[it.key]===undefined){const el=document.getElementById(it.ids[0]);if(!el)return;st[it.key]=it.ctx&&it.def!=null?it.def:el.value;seeded=true;}
     const v=st[it.key];
     it.ids.forEach(id=>{const el=document.getElementById(id);if(el&&el.value!==v)el.value=v;});
   });
   // 株価分析の SNS の定型文：前の既定のままのものは、新しい既定にする
   Object.keys(YT_SNS_FIXED_OLD).forEach(k=>{const key='yt-f-'+k+'@stock',v=String(st[key]||'').replace(/\r\n/g,'\n').trim();if(v&&YT_SNS_FIXED_OLD[k].includes(v)){st[key]=YT_SNS_FIXED[k];seeded=true;if(ctx==='stock'){const el=document.getElementById('yt-f-'+k);if(el)el.value=st[key];}}});
+  // YT動画の SNS の定型文：株価分析の文（今の既定・前の既定）が入っていたら、YT動画の既定にする
+  KG_SNS.forEach(([k])=>{const key='yt-f-'+k+'@gen',v=String(st[key]||'').replace(/\r\n/g,'\n').trim();if(v&&[YT_SNS_FIXED[k],...(YT_SNS_FIXED_OLD[k]||[])].includes(v)){st[key]=YT_SNS_FIXED_GEN[k];seeded=true;if(ctx==='gen'){const el=document.getElementById('yt-f-'+k);if(el)el.value=st[key];}}});
   // 横動画の Gemini のモデル：前の既定（3.8 Flash＝一覧の一番上）のままのものは「自動」にする（1回だけ。2026-09-25 に自動を追加）
   if(!st._ytAuto){YT_AI_TASKS.forEach(([k])=>{const key='yt-m-'+k;if(st[key]==='gemini-3.8-flash'){st[key]='';const el=document.getElementById(key);if(el)el.value='';}});st._ytAuto=1;seeded=true;}
   if(seeded)kgSave(st);
