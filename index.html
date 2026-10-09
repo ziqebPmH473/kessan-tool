@@ -15053,6 +15053,10 @@ async function evVizRebuild(){
 function evVizCommit(KV,parsed,source){
   const isViz=!!(parsed.data&&parsed.data.ratings&&parsed.data.display_unit);
   const viz=isViz?parsed.data:KV.build(parsed.data,evVizExtras());
+  // 台本も同時に作る（データが新しくなったので、前の台本は作り直す。直した文も消える）。
+  // 部品まかせだと、台本は左の音声の欄が最初に出たときにしか作られず、作り直したデータでは前の台本が残っていた
+  const stEl=document.getElementById('ev-viz-settings');
+  if(stEl&&KV.narrationScript&&KV.applyScript){try{stEl.value=JSON.stringify(KV.applyScript(evVizSettings()||evVizDefaultSettings(KV),KV.narrationScript(viz),true));}catch(e){console.warn('viz script',e);}}
   evVizStore({analysis:isViz?null:parsed.data,visualization:viz,source,created:new Date().toISOString()});
   evThApply();   // 右の画面のサムネの文から、サムネ画像も入れる
   const warn=(viz.warnings||[]).length+(parsed.warnings||[]).length;
