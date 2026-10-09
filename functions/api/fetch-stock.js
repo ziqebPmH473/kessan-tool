@@ -114,7 +114,8 @@ function parseKabuka(html) {
 function parseTopPageUs(html) {
   const out = {};
   const nm = html.match(/og:title['"]?\s*content=['"]([^'"【]+)/);
-  if (nm) out.name = nm[1].trim();
+  // og:title 例: "ペプシコ (PepsiCo, Inc.)【PEP】…"。括弧内の英語の社名は入れない（「ペプシコ」だけにする）
+  if (nm) out.name = nm[1].replace(/\s*[(（][^()（）]*[A-Za-z][^()（）]*[)）]\s*$/, "").trim();
   const mc = html.match(/時価総額<\/span>\s*<span[^>]*>([^<]+)<\/span>/);
   if (mc) out.marketCap = cellText(mc[1]);
   const per = html.match(/>PER<\/div>\s*<div[^>]*>([\d.,]+)\s*<span/);
