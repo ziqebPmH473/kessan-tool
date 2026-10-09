@@ -8195,7 +8195,7 @@ function evThumbText(){
   const bot=/修正/.test(g.status||'')?`#${g.status}#も`:'市場の反応は？';
   return `${top}：${mid}：${bot}`;
 }
-// 分析動画のサムネ文言：上段＝今回の評価＋決算後の株価の動き（例「過去最高益で15％下落」）。下段は evThumbText と同じ
+// 分析動画のサムネ文言：上段＝今回の評価＋決算後の株価の動き（例「過去最高益で15％下落」）、中段＝社名、下段＝「図解でかんたん解説」（決まった文）
 // PTS（米国株は時間外）は値がその時々で変わるので、台本と同じく数字を書かずに「大幅高」などで言う（±1%未満＝ほぼ変わらず、±5%未満＝小幅）
 function evVizThumbText(){
   const d=evData()||{};const hd=d.HEADER||{},mr=d.MARKET_REACTION||{};
@@ -8207,9 +8207,8 @@ function evVizThumbText(){
     else if(a<1)mv='株価は横ばい';
     else mv=(a>=10?Math.round(a):Math.round(a*10)/10)+'％'+(pct>0?'上昇':'下落');
   }
-  const t=evThumbText().split('：');
-  t[0]=mv?`${label}で#${mv}#`:label;
-  return t.join('：');
+  const mid=VD_CFG.ev.name()||hd.company||'';
+  return `${mv?`${label}で#${mv}#`:label}：${mid}：図解でかんたん解説`;
 }
 // サムネ文言：株価分析は「サムネイル」タブ（note用）のテキストをそのまま使う
 function vdThumbText(P){return P==='vd'?((document.getElementById('th-input')||{}).value||'').trim():vdVal('ev','th-input');}
