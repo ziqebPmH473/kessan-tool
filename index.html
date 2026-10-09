@@ -8249,7 +8249,7 @@ function earnPrevMode(m){
 // ・スライドは「スライド作成」タブの6枚を土台に組み直す（1280×720 で組み、1.5倍で 1920×1080 に画像化）
 // ============================================================
 // ---- 横動画：Gemini のモデル（作業ごとに設定タブで選ぶ）----
-// 回数の上限のときは、選んだモデルから一覧の順に下のモデルへ切り替える（Lite は除く）。混雑のときは切り替えずに止める（下も混んでいることが多い）
+// 回数の上限・混雑・時間切れのときは、同じモデルでやり直さずに、選んだモデルから一覧の順に下のモデルへ切り替える（Lite は除く。切り替えは functions/api/analyze.js）
 const YT_MODEL_LIST=[['gemini-3.8-flash','Gemini 3.8 Flash（20回/日）'],['gemini-3.7-flash','Gemini 3.7 Flash（20回/日）'],['gemini-3.6-flash','Gemini 3.6 Flash（20回/日）'],['gemini-3.5-flash','Gemini 3.5 Flash（20回/日）'],['gemini-3-flash-preview','Gemini 3 Flash（20回/日）'],['gemini-3.5-flash-lite','Gemini 3.5 Flash Lite（500回/日）'],['gemini-3.1-flash-lite','Gemini 3.1 Flash Lite（500回/日）'],['gemini-2.5-flash-lite','Gemini 2.5 Flash Lite（20回/日）']];
 const YT_AI_TASKS=[['cut','カットの判定',''],['oped','OP・EDの案',''],['read','まとまりの読み取り',''],['qr','QRの位置',''],['src','足した出典の読み取り',''],['plan','演出の割り当て',''],['post','記事・投稿文','']];   // 3つ目は既定のモデル（空＝自動）   // 画面の並び＝使う順（音声 → スライド → 演出 → 記事・SNS）
 const YT_MODEL_AUTO='自動（上から順に。上限なら次へ・Lite除く）';
@@ -15681,7 +15681,7 @@ async function evVizMount(force){
     <div class="kg-sec">
       <h3>AIのモデル</h3>
       <div id="kg-g-model"></div>
-      <div class="kg-note" title="回数の上限のときは、選んだモデルから一覧の順に下のモデルへ自動で切り替えます（Lite には切り替えません。読み取りの位置が大きくずれて使えなかったため）。混雑のときは切り替えずに止まるので、ここで別のモデルを選んでもう一度押してください。">横動画（Gemini）：上限のときは下のモデルへ自動で切り替え（Lite除く）。混雑で止まったら、別のモデルを選んでもう一度。</div>
+      <div class="kg-note" title="回数の上限・混雑・時間切れのときは、同じモデルでやり直さずに、選んだモデルから一覧の順に下のモデルへ自動で切り替えます（Lite には切り替えません。読み取りの位置が大きくずれて使えなかったため）。すべてだめで止まったら、ここで別のモデルを選んでもう一度押してください。">横動画（Gemini）：上限・混雑のときは下のモデルへ自動で切り替え（Lite除く）。止まったら、別のモデルを選んでもう一度。</div>
       <div id="kg-g-ytmodel"></div>
     </div>
 
