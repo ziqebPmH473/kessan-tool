@@ -15044,11 +15044,21 @@ async function evVizGenerate(btnEl,opts){
   }
   return evVizCommit(KV,parsed,'gemini:'+(r.model||''));
 }
+const EV_VIZ_PRICE_SCENES=['cover','stock_price'];   // 台本に株価・発表日が入るシーン（部品の narrationScript と同じキー）
 // 「2.」の欄が変わったとき（自動取得の押し直しなど）：抽出データから動画データを作り直して保存する（株価の推移・業績予想は「2.」の欄から入る）
 async function evVizRebuild(){
   const d=evVizData();if(!d||!d.analysis)return false;
   let KV;try{KV=await evVizLoad();}catch(e){return false;}
-  try{evVizStore({...d,visualization:KV.build(d.analysis,evVizExtras())});return true;}catch(e){console.warn('viz rebuild',e);return false;}
+  try{
+    const viz=KV.build(d.analysis,evVizExtras());
+    // 台本は、株価が入る文（表紙の発表日・株価の動き）だけ新しい数字で作り直す。ほかのシーンの台本（直した文も）はそのまま
+    const st=evVizSettings(),stEl=document.getElementById('ev-viz-settings');
+    if(st&&st.narration&&stEl&&KV.narrationScript&&KV.applyScript){
+      const all=KV.narrationScript(viz),pick={};EV_VIZ_PRICE_SCENES.forEach(k=>{if(all[k])pick[k]=all[k];});
+      try{stEl.value=JSON.stringify(KV.applyScript(st,pick,true));}catch(e){console.warn('viz script',e);}
+    }
+    evVizStore({...d,visualization:viz});return true;
+  }catch(e){console.warn('viz rebuild',e);return false;}
 }
 function evVizCommit(KV,parsed,source){
   const isViz=!!(parsed.data&&parsed.data.ratings&&parsed.data.display_unit);
