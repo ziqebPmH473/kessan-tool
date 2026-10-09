@@ -8423,7 +8423,7 @@ function ygStructPrompt(fc=false){
 ${ytAud()}の構成作家です。
 
 ## 目的
-「${ytTheme()}」というテーマで ${ytVal('nlm-min')||'12'}分 の動画${ytSeries()?`（「${ytSeries()}」というシリーズで）`:''}を作成します。添付ファイル「${YG_REPORT_FILE}」が、その根拠資料（ファクトチェック済みのレポート）です。
+「${ytTheme()}」というテーマで ${ytVal('struct-min')||'8'}分 の動画${ytSeries()?`（「${ytSeries()}」というシリーズで）`:''}を作成します。添付ファイル「${YG_REPORT_FILE}」が、その根拠資料（ファクトチェック済みのレポート）です。
 このレポートをもとに、動画の構成と、画面に出す出典の一覧を作ります。
 
 ## やること
@@ -10250,6 +10250,7 @@ function ytBuildTabHtml(){
   <div class="sa-sub yt-only-stock">▼ ChatGPT 調査プロンプト</div>
   <div class="sa-sub yt-only-gen" style="display:none;">▼ 3. 構成と出典（レポートのファクトチェックが済んでから。①も②も、「💾 添付」で保存したレポートを添付）</div>
   <div class="yt-only-stock">${row(b('💬 ①調査',"ytCopy('research',this)",G),b('✅ ②FC',"ytCopy('fc',this)",G),b('🔁 ③再CK',"ytCopy('recheck',this)",G),b('🔧 ④修正',"ytCopy('fix',this)",G))}</div>
+  <div class="yt-only-gen" style="display:none;">${set('動画の尺','<select id="yt-struct-min" onchange="saveState()" style="width:auto;flex:none;font-size:11px;padding:3px;"><option value="8" selected>短め（8分）</option><option value="12">通常（12分）</option></select>','①構成の指示だけに入ります')}</div>
   <div class="yt-only-gen" style="display:none;">${row(`<button class="btn-sm" onclick="ygReportDownload(this)" title="レポートをファイル（レポート.md）に保存します。ChatGPTに添付してください" style="flex:1;min-width:0;background:#0d9488;color:#fff;">💾 添付</button>`,b('💬 ①構成',"ytCopy('research',this)",G))}</div>
   <div id="yt-doc-box" class="yt-col">
     <textarea id="yt-doc" placeholder="ChatGPTの動画資料をここに貼り付け（②〜④を誤りがなくなるまで繰り返す）" style="min-height:36px;"></textarea>
@@ -10415,7 +10416,7 @@ ${[['n','note記事（無料）','表なしで作ります。動画のURLは最�
   ${set('試聴の前後','<input type="number" id="ya-ctx" value="2" min="0" max="10" step="0.5" style="width:60px;flex:none;font-size:11px;padding:4px;">','秒（音声カットの▶・試聴で、前後に足す長さ）')}
   <div class="yt-only-gen" style="display:none;">${set('番組の説明','<input type="text" id="yt-g-aud" value="'+YT_G_AUD_DEFAULT+'" oninput="saveState()" style="flex:1;min-width:0;font-size:11px;padding:4px;">','')}
   <div style="font-size:10px;color:var(--text-sub);">ChatGPTへの指示の「あなたの役割」に入れる、番組の説明です。</div></div>
-  ${set('動画の長さ','<input type="number" id="yt-nlm-min" value="12" min="3" max="30" oninput="saveState()" style="width:60px;flex:none;font-size:11px;padding:4px;">','分（構成と音声の指示に入ります）')}
+  ${set('動画の長さ','<input type="number" id="yt-nlm-min" value="12" min="3" max="30" oninput="saveState()" style="width:60px;flex:none;font-size:11px;padding:4px;">','分（音声の指示に入ります）')}
   <div style="font-size:10px;color:var(--text-sub);margin-top:6px;">スライドの色・書体、OP・EDの背景動画とテロップ、BGM、Geminiのモデル、概要欄とSNSの定型文は、上の「⚙ 共通設定」で決めます（すべてのPJで共通）。</div>
   <div class="kg-hide">
   ${YT_AI_TASKS.map(([k,n,d])=>set(n,`<select id="yt-m-${k}" onchange="saveState()" style="flex:1;min-width:0;font-size:11px;padding:3px;"><option value=""${d?'':' selected'}>${YT_MODEL_AUTO}</option>${YT_MODEL_LIST.map(([v,l])=>`<option value="${v}"${v===d?' selected':''}>${l}</option>`).join('')}</select>`)).join('')}
@@ -10425,7 +10426,7 @@ ${[['n','note記事（無料）','表なしで作ります。動画のURLは最�
 </div>
 </div>`;
 }
-const YT_PERSIST_IDS=['vd-orient','th-ctx','th-note-text','th-note-preset','yt-th-text','yt-th-preset','yg-th-text','yg-th-preset','yt-g-theme','yt-g-report','yt-g-aud','yt-a-n-raw','yt-a-n-title','yt-a-n-body','yt-a-n-tags','yt-a-rel-url','yt-a-rel-intro','yt-a-b-raw','yt-a-b-title','yt-a-b-body','yt-a-b-tags','yt-a-check','yt-link-state','yt-doc','yt-series','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-t1','yt-p-t2','yt-p-t3','yt-p-s1','yt-p-s2','yt-p-s3','yt-p-body','yt-p-xbody','yt-p-hook','yt-p-announce','yt-p-ypbody','yt-p-igbody','yt-p-ttbody','yt-p-points','yt-p-xtags','yt-p-yptags','yt-p-igtags','yt-p-tttags','yt-p-l8title','yt-p-l8intro','yt-p-l8tags','yt-p-yp','yt-p-ig','yt-p-l8t','yt-p-ttt','yt-p-reel','yt-p-fixapplied','yt-p-l8','yt-p-tt','yt-f-yp','yt-f-ig','yt-f-l8','yt-f-tt','yt-p-yturl','yt-p-tags','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-m-cut','yt-m-read','yt-m-plan','yt-m-post','yt-m-qr','yt-m-oped','yt-yomi','yt-yomi-for','yt-open','yt-open-for','ya-gtext','ya-gap','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan','yt-oped-kind','yt-op-s1','yt-op-s2','yt-op-s3','yt-op-v1','yt-op-v2','yt-op-v3','yt-op-lead','yt-op-tail','yt-ed-v','yt-op-cands','yt-ed-cands','yt-oped-bg'];
+const YT_PERSIST_IDS=['vd-orient','th-ctx','th-note-text','th-note-preset','yt-th-text','yt-th-preset','yg-th-text','yg-th-preset','yt-g-theme','yt-g-report','yt-g-aud','yt-a-n-raw','yt-a-n-title','yt-a-n-body','yt-a-n-tags','yt-a-rel-url','yt-a-rel-intro','yt-a-b-raw','yt-a-b-title','yt-a-b-body','yt-a-b-tags','yt-a-check','yt-link-state','yt-doc','yt-series','yt-struct-min','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-t1','yt-p-t2','yt-p-t3','yt-p-s1','yt-p-s2','yt-p-s3','yt-p-body','yt-p-xbody','yt-p-hook','yt-p-announce','yt-p-ypbody','yt-p-igbody','yt-p-ttbody','yt-p-points','yt-p-xtags','yt-p-yptags','yt-p-igtags','yt-p-tttags','yt-p-l8title','yt-p-l8intro','yt-p-l8tags','yt-p-yp','yt-p-ig','yt-p-l8t','yt-p-ttt','yt-p-reel','yt-p-fixapplied','yt-p-l8','yt-p-tt','yt-f-yp','yt-f-ig','yt-f-l8','yt-f-tt','yt-p-yturl','yt-p-tags','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-m-cut','yt-m-read','yt-m-plan','yt-m-post','yt-m-qr','yt-m-oped','yt-yomi','yt-yomi-for','yt-open','yt-open-for','ya-gtext','ya-gap','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan','yt-oped-kind','yt-op-s1','yt-op-s2','yt-op-s3','yt-op-v1','yt-op-v2','yt-op-v3','yt-op-lead','yt-op-tail','yt-ed-v','yt-op-cands','yt-ed-cands','yt-oped-bg'];
 // ---- 動画の種類：株価分析の横動画＝stock ／ YT動画タブ＝gen ----
 // 画面と関数は1組だけ。種類を切り替えると、作品ごとの欄（localStorage）と IndexedDB のキーを入れ替える。
 // 株価分析の側は今までのキーのまま、YT動画の側は前に 'gen:' を付ける。設計：docs/design/2026-09-21_YT動画タブ.md
