@@ -8195,6 +8195,22 @@ function evThumbText(){
   const bot=/修正/.test(g.status||'')?`#${g.status}#も`:'市場の反応は？';
   return `${top}：${mid}：${bot}`;
 }
+// 分析動画のサムネ文言：上段＝今回の評価＋決算後の株価の動き（例「過去最高益で15％下落」）。下段は evThumbText と同じ
+// PTS（米国株は時間外）は値がその時々で変わるので、台本と同じく数字を書かずに「大幅高」などで言う（±1%未満＝ほぼ変わらず、±5%未満＝小幅）
+function evVizThumbText(){
+  const d=evData()||{};const hd=d.HEADER||{},mr=d.MARKET_REACTION||{};
+  const label=hd.result_label?`*${hd.result_label}*`:'決算発表';
+  const pct=evVizPct(mr.price_change);let mv='';
+  if(pct!=null){
+    const a=Math.abs(pct),venue=String(mr.post_price_label||'').match(/PTS|時間外/i);
+    if(venue)mv=venue[0]+(a<1?'ほぼ変わらず':(a<5?'小幅':'大幅')+(pct>0?'高':'安'));
+    else if(a<1)mv='株価は横ばい';
+    else mv=(a>=10?Math.round(a):Math.round(a*10)/10)+'％'+(pct>0?'上昇':'下落');
+  }
+  const t=evThumbText().split('：');
+  t[0]=mv?`${label}で#${mv}#`:label;
+  return t.join('：');
+}
 // サムネ文言：株価分析は「サムネイル」タブ（note用）のテキストをそのまま使う
 function vdThumbText(P){return P==='vd'?((document.getElementById('th-input')||{}).value||'').trim():vdVal('ev','th-input');}
 
@@ -15170,7 +15186,7 @@ function evVizSplitResponse(text){
   return {text:t.slice(0,i).trim(),json:json||null};
 }
 // ---- 分析動画のサムネ（右の画面の「サムネ」。横・縦で別の文） ----
-// 文は出力データ作成のあとに整形データから自動で入れる（evThumbText。縦スライドのサムネと同じ組み方）。直した文は上書きしない
+// 文は出力データ作成のあとに整形データから自動で入れる（evVizThumbText。上段に株価の動きを足す）。直した文は上書きしない
 // 文を変えると画像を作り直して、動画の設定（cover_image_landscape／_portrait）に入れる
 const evThVal=k=>((document.getElementById('ev-viz-th-'+k)||{}).value||'').trim();
 let _evThKind='h',_evThTimer=null;
@@ -15198,7 +15214,7 @@ function evThInput(k){
 }
 // 整形データからサムネの文を入れる。空の欄と、前に自動で入れた文のままの欄だけ（直した文は残す）
 function evThAutoFill(){
-  const t=evThumbText(),au=document.getElementById('ev-viz-th-auto');if(!t||!au)return;
+  const t=evVizThumbText(),au=document.getElementById('ev-viz-th-auto');if(!t||!au)return;
   ['h','v'].forEach(k=>{const el=document.getElementById('ev-viz-th-'+k);if(el&&(!el.value.trim()||el.value===au.value))el.value=t;});
   au.value=t;if(typeof saveState==='function')saveState();evThPreview();
 }
