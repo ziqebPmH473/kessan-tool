@@ -6386,7 +6386,7 @@ function buildS3(d){
   if(p0)scenPrices.push(p0);
   if(consPrice)scenPrices.push(consPrice);
   rows.forEach(r=>{
-    r.range.replace(/[\d,]+/g,m=>{const n=parseFloat(m.replace(/,/g,''));if(!isNaN(n))scenPrices.push(n);});
+    r.range.replace(/\d[\d,]*(?:\.\d+)?/g,m=>{const n=parseFloat(m.replace(/,/g,''));if(!isNaN(n))scenPrices.push(n);});   // 小数（$104.00 など）を1つの数として拾う
   });
   const scenMin=scenPrices.length?Math.min(...scenPrices):0;
   const scenMax=scenPrices.length?Math.max(...scenPrices):1;
@@ -6416,7 +6416,7 @@ function buildS3(d){
 
   // Zone positions for each scenario
   function zoneStyle(r){
-    const nums=[];r.range.replace(/[\d,]+/g,m=>{const n=parseFloat(m.replace(/,/g,''));if(!isNaN(n))nums.push(n);});
+    const nums=[];r.range.replace(/\d[\d,]*(?:\.\d+)?/g,m=>{const n=parseFloat(m.replace(/,/g,''));if(!isNaN(n))nums.push(n);});
     if(nums.length<1)return'';
     const lo=Math.min(...nums),hi=Math.max(...nums);
     return `left:${pct(lo)}%;width:${Math.max(0.5,pct(hi)-pct(lo))}%;`;
