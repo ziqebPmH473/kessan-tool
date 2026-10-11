@@ -12619,8 +12619,10 @@ function ynFxTidy(zooms,marks){
   const note=[nSwap?`ズームと四角の入れ替え${nSwap}`:'',nMerge?`続くズーム${nMerge}個を1回にまとめて四角枠に`:'',nWide?`ズームを広げて強調を入れた${nWide}`:'',nDrop?`全体に近いズーム${nDrop}個を外した`:''].filter(Boolean).join('・');
   return{zooms:res,marks:M,note:note?`ツールで整えた：${note}`:''};
 }
-// 強調の色：そのまとまり（文字なら入っているまとまり）の読み取りで返った色。無ければ強い＝赤、控えめは種類ごとの色
+// 強調の色：⚙ 共通設定で種類ごとの色を選んでいればその色（初期値 四角枠＝緑・下線＝赤・ハイライト＝黄）
+// 「自動」のときは、そのまとまり（文字なら入っているまとまり）の読み取りで返った色。無ければ強い＝赤、控えめは種類ごとの色
 function ynMarkColor(it,str){
+  const fix=kgGet('mark-'+it.type);if(fix&&YN_COLS.some(o=>o[0]===fix))return fix;
   const S=YN.slides[it.slide-1]||{},Z=S.zones||[];
   const zk=it.text?(((S.texts||[])[it.text-1]||{}).zone||0):((it.zones||[])[0]||0);
   const c=zk&&Z[zk-1]&&Z[zk-1].col&&Z[zk-1].col[str];
@@ -12922,7 +12924,7 @@ ${miss.join('、')}
       K.forEach((k,i)=>{const nx=K[i+1];if(nx&&nx.startTime>k.endTime&&adj(k.endTime,nx.startTime))k.endTime=nx.startTime;});
     });
     // 強調（四角枠・ハイライト・下線）
-    const COL={rect:YN_COL.red,highlight:YN_COL.yellow,underline:YN_COL.blue};   // 色が決まっていない古い割り当て用
+    const COL={rect:kgGet('mark-rect')||YN_COL.red,highlight:kgGet('mark-highlight')||YN_COL.yellow,underline:kgGet('mark-underline')||YN_COL.blue};   // 色が決まっていない古い割り当て用
     // 文字（T番号）の強調は行ごとに1本（同じ時間）。四角枠は行をまとめて囲む。結論の下線は太く
     const decorations=YN.plan.marks.flatMap(mk=>{
       const S=YN.slides[mk.slide-1]||{};
@@ -14898,6 +14900,8 @@ const KG_ITEMS=[
   {g:'post',key:'yt-p-fixed',label:'概要欄の定型文（使用ツール・AIの注意書き）',ids:['yt-p-fixed'],area:1,def:YT_POST_FIXED},
   ...KG_SNS.map(([k,n])=>({g:'snsstock',key:'yt-f-'+k+'@stock',label:n,ids:['yt-f-'+k],ctx:'stock',area:1,def:YT_SNS_FIXED[k]})),
   ...KG_SNS.map(([k,n])=>({g:'snsgen',key:'yt-f-'+k+'@gen',label:n,ids:['yt-f-'+k],ctx:'gen',area:1,def:YT_SNS_FIXED_GEN[k]})),
+  ...[['rect','四角枠',YN_COL.green],['underline','下線',YN_COL.red],['highlight','ハイライト',YN_COL.yellow]].map(([t,n,c])=>({g:'mark',key:'mark-'+t,label:n,ids:[],def:c,
+    sel:[['','自動（読み取りの色）'],...YN_COLS],tip:'割り当てで付く'+n+'の色。自動＝Geminiの読み取りで、そのまとまりの背景から見て選んだ色'})),
   ...EV_VIZ_SCENES.map(([id,n,sec])=>({g:'viz',key:'viz-sec-'+id,label:n+'（秒）',ids:[],def:String(sec)})),
 ];
 const kgCtx=()=>(typeof YT_CTX!=='undefined'&&YT_CTX==='gen')?'gen':'stock';
@@ -14948,6 +14952,7 @@ function kgBuild(){
     const v=kgGet(it.key),o=opts(it),tip=it.tip?` title="${esc(it.tip)}"`:'';
     let h;
     if(it.area)h=`<div class="kg-area"${tip}><label>${esc(it.label)}</label><textarea data-k="${esc(it.key)}" oninput="kgSet(this.dataset.k,this.value)">${esc(v)}</textarea></div>`;
+    else if(it.sel)h=`<div class="kg-row"${tip}><label>${esc(it.label)}</label><select data-k="${esc(it.key)}" style="background:${v||'#94a3b8'};color:#fff;" onchange="kgSet(this.dataset.k,this.value);this.style.background=this.value||'#94a3b8'">${it.sel.map(([c,n])=>`<option value="${c}" style="background:${c||'#94a3b8'}">${esc(n)}</option>`).join('')}</select></div>`;
     else if(o!=null)h=`<div class="kg-row"${tip}><label>${esc(it.label)}</label><select data-k="${esc(it.key)}" onchange="kgSet(this.dataset.k,this.value)">${o}</select></div>`;
     else h=`<div class="kg-row"${tip}><label>${esc(it.label)}</label><input type="text" data-k="${esc(it.key)}" value="${esc(v)}" oninput="kgSet(this.dataset.k,this.value)"></div>`;
     (groups[it.g]=groups[it.g]||[]).push(h);
@@ -15712,6 +15717,12 @@ async function evVizMount(force){
       <div class="kg-row"><label>基調色</label><input type="text" data-slide-color="base" oninput="ytColorSave()"></div>
       <div class="kg-row"><label>見出し</label><input type="text" data-slide-color="head" oninput="ytColorSave()"></div>
       <div class="kg-row"><label>書体</label><input type="text" data-slide-color="font" oninput="ytColorSave()"></div>
+    </div>
+
+    <div class="kg-sec">
+      <h3>強調の色（ズーム・強調の割り当て）</h3>
+      <div class="kg-note">割り当てで付く四角枠・下線・ハイライトの色。変えると、これから割り当てる分に入ります（割り当て済みの色はそのまま）。</div>
+      <div id="kg-g-mark"></div>
     </div>
 
     <div class="kg-sec">
