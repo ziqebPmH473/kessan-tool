@@ -12329,6 +12329,7 @@ function ynRender(){
   };
   if(!YN.slides.length){area.innerHTML='<div style="font-size:11px;color:var(--text-sub);padding:8px;">「画像」タブでスライド画像を読み込むと、ここに表示されます</div>';return;}
   // 割り当て済みなら、音声で出てくる順（右の一覧と同じ順）に、使う回ごとに1つずつ並べる。使わない枚は後ろ
+  if(YN.plan)try{ynPlanNorm();}catch(e){}   // 音声タブで削る文を変えたあとも、切り替えの文と表示の範囲を合わせる（並びを決める前に）
   const occ=YN.plan&&YN.plan.slides&&YN.plan.slides.length?YN.plan.slides.map((x,k)=>({i:x.no-1,k})).filter(o=>YN.slides[o.i]):[];
   const order=occ.concat(YN.slides.map((s,i)=>({i,k:-1})).filter(o=>!occ.some(q=>q.i===o.i)));
   const nth=(p)=>order.slice(0,p+1).filter(o=>o.i===order[p].i).length,times=i=>order.filter(o=>o.i===i).length;
@@ -12639,10 +12640,14 @@ function ynTextOut(slide,tx){
 function ynPlanNorm(){
   const P=YN.plan;if(!P||!P.slides||!P.slides.length)return;
   ['zooms','marks'].forEach(k=>(P[k]||[]).forEach(it=>{if(it.zones&&it.zones.length>1)it.zones=ynTrimNested(it.zones,it.slide);}));
+  const ns=ynKeptSents().map(x=>x.n);
+  // 切り替えの文を割り当てのあとで「削る」にしたときは、その後で最初に残る文で切り替える
+  //   （削る文のままだと前のスライドが1文に縮み、間の文がどのスライドにも入らず、出典が出ない・前へ後へが効かなかった。2026-10-12）
+  if(ns.length)P.slides.forEach(x=>{if(!ns.includes(x.from)){const q=ns.find(n=>n>x.from);if(q!=null)x.from=q;}});
   P.slides.sort((a,b)=>(a.from-b.from)||(a.no-b.no));
   // 同じスライドを2回以上使ってよい（離れた箇所で同じ内容に戻るとき）。ナレスラへは、使う回ごとに1枚ずつ置く
   P.slides=P.slides.filter((x,i,a)=>!(i>0&&a[i-1].no===x.no));   // 続けて同じスライドは1つにまとめる
-  const ns=ynKeptSents().map(x=>x.n);if(!ns.length)return;
+  if(!ns.length)return;
   P.slides.forEach((x,i)=>{
     const nx=P.slides[i+1];
     x.to=nx?ns[Math.max(ns.indexOf(x.from),ns.indexOf(nx.from)-1)]||x.from:ns[ns.length-1];
