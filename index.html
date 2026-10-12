@@ -14913,6 +14913,9 @@ const KG_ITEMS=[
   ...KG_SNS.map(([k,n])=>({g:'snsgen',key:'yt-f-'+k+'@gen',label:n,ids:['yt-f-'+k],ctx:'gen',area:1,def:YT_SNS_FIXED_GEN[k]})),
   ...[['rect','四角枠',YN_COL.green],['underline','下線',YN_COL.red],['highlight','ハイライト',YN_COL.yellow]].map(([t,n,c])=>({g:'mark',key:'mark-'+t,label:n,ids:[],def:c,
     sel:[['','自動（読み取りの色）'],...YN_COLS],tip:'割り当てで付く'+n+'の色。自動＝Geminiの読み取りで、そのまとまりの背景から見て選んだ色'})),
+  {g:'vizaudio',key:'viz-bgm',label:'BGM',ids:[],def:'1',opts:[['1','入れる'],['0','入れない']],tip:'新しいPJの分析動画で、BGMを入れるかどうか。BGMの曲は全PJ共通（分析動画の「ツールの BGM を使う」で入れたもの）'},
+  {g:'vizaudio',key:'viz-bgm-vol',label:'BGMの音量（%）',ids:[],def:'3',tip:'新しいPJの分析動画のBGMの音量。読み上げの邪魔にならないよう小さめ（3%くらい）'},
+  {g:'vizaudio',key:'viz-speed',label:'読み上げの速さ',ids:[],def:'fast',opts:[['normal','ふつう'],['fast','少し速め'],['faster','速め']],tip:'新しいPJの分析動画の読み上げの速さ（音声を作るときの指示）'},
   ...EV_VIZ_SCENES.map(([id,n,sec])=>({g:'viz',key:'viz-sec-'+id,label:n+'（秒）',ids:[],def:String(sec)})),
 ];
 const kgCtx=()=>(typeof YT_CTX!=='undefined'&&YT_CTX==='gen')?'gen':'stock';
@@ -14963,6 +14966,7 @@ function kgBuild(){
     const v=kgGet(it.key),o=opts(it),tip=it.tip?` title="${esc(it.tip)}"`:'';
     let h;
     if(it.area)h=`<div class="kg-area"${tip}><label>${esc(it.label)}</label><textarea data-k="${esc(it.key)}" oninput="kgSet(this.dataset.k,this.value)">${esc(v)}</textarea></div>`;
+    else if(it.opts)h=`<div class="kg-row"${tip}><label>${esc(it.label)}</label><select data-k="${esc(it.key)}" onchange="kgSet(this.dataset.k,this.value)">${it.opts.map(([c,n])=>`<option value="${esc(c)}">${esc(n)}</option>`).join('')}</select></div>`;
     else if(it.sel)h=`<div class="kg-row"${tip}><label>${esc(it.label)}</label><select data-k="${esc(it.key)}" style="background:${v||'#94a3b8'};color:#fff;" onchange="kgSet(this.dataset.k,this.value);this.style.background=this.value||'#94a3b8'">${it.sel.map(([c,n])=>`<option value="${c}" style="background:${c||'#94a3b8'}">${esc(n)}</option>`).join('')}</select></div>`;
     else if(o!=null)h=`<div class="kg-row"${tip}><label>${esc(it.label)}</label><select data-k="${esc(it.key)}" onchange="kgSet(this.dataset.k,this.value)">${o}</select></div>`;
     else h=`<div class="kg-row"${tip}><label>${esc(it.label)}</label><input type="text" data-k="${esc(it.key)}" value="${esc(v)}" oninput="kgSet(this.dataset.k,this.value)"></div>`;
@@ -15477,18 +15481,26 @@ async function evVizCutApply(btn,quiet){
 // 右ペインに描く（データが変わっていなければ描き直さない）
 // 新しい PJ のシーン設定：秒数は ⚙ 設定 の「分析動画」の値（空・範囲外ならツールの既定）
 function evVizSecDefault(id){const v=parseFloat(String(kgGet('viz-sec-'+id)).replace(/[０-９．]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xfee0)));return isFinite(v)&&v>=0.5&&v<=60?v:null;}
-function evVizWithSecDefaults(st){return {...st,scenes:(st.scenes||[]).map(s=>{const v=evVizSecDefault(s.id);return v==null?s:{...s,duration_sec:v};})};}
+// 共通設定の初期値（各シーンの秒数と、音声＝BGM・音量・速さ）を設定に入れる。新しいPJと「開いているPJに入れる」で使う
+function evVizWithSecDefaults(st){
+  const vol=parseFloat(String(kgGet('viz-bgm-vol')).replace(/[０-９．]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xfee0)));
+  const speed=String(kgGet('viz-speed')||'fast'),audio={...(st.audio||{}),bgm:String(kgGet('viz-bgm'))!=='0',speed:['normal','fast','faster'].includes(speed)?speed:'fast'};
+  if(isFinite(vol)&&vol>=0&&vol<=100)audio.bgm_volume=Math.round(vol)/100;
+  return {...st,audio,scenes:(st.scenes||[]).map(s=>{const v=evVizSecDefault(s.id);return v==null?s:{...s,duration_sec:v};})};
+}
 function evVizDefaultSettings(KV){return evVizWithSecDefaults(KV.defaultSettings());}
 // ⚙ 設定：開いている PJ の秒数を初期値にする／初期値を開いている PJ に入れる
 function kgVizFromPj(){
   const st=evVizSettings();if(!st||!st.scenes){alert('開いているPJに分析動画のデータがありません（決算のPJで分析動画を作ってから押してください）');return;}
-  const s=kgStore();st.scenes.forEach(x=>{if(EV_VIZ_SCENES.some(([id])=>id===x.id))s['viz-sec-'+x.id]=String(x.duration_sec);});kgSave(s);kgBuild();
+  const s=kgStore();st.scenes.forEach(x=>{if(EV_VIZ_SCENES.some(([id])=>id===x.id))s['viz-sec-'+x.id]=String(x.duration_sec);});
+  const a=st.audio||{};if(a.bgm!=null)s['viz-bgm']=a.bgm?'1':'0';if(a.bgm_volume!=null)s['viz-bgm-vol']=String(Math.round(a.bgm_volume*100));if(a.speed)s['viz-speed']=a.speed;
+  kgSave(s);kgBuild();
 }
 function kgVizToPj(){
   if(!evVizData()){alert('開いているPJに分析動画のデータがありません');return;}
   const el=document.getElementById('ev-viz-settings');if(!el)return;
   const cur=evVizSettings();
-  if(cur&&!confirm('開いているPJの各シーンの秒数を、この初期値に置き換えますか？'))return;
+  if(cur&&!confirm('開いているPJの音声の設定（BGM・音量・速さ）と各シーンの秒数を、この初期値に置き換えますか？'))return;
   el.value=cur?JSON.stringify(evVizWithSecDefaults(cur)):'';   // まだ設定が無ければ、描くときに初期値で作られる
   if(typeof saveState==='function')saveState();evVizMount(true);alert('入れました');
 }
@@ -15753,11 +15765,13 @@ async function evVizMount(force){
 
     <div class="kg-sec">
       <h3>分析動画（決算ビジュアル）</h3>
-      <div class="kg-note" title="読み上げがあるシーンは、読み上げが長ければその長さまで伸びます。すでに分析動画を作ったPJは変わりません（「開いているPJに入れる」で入れられます）。">各シーンの秒数の初期値。新しいPJは、この秒数で始まります。</div>
+      <div class="kg-note">音声の初期値。新しいPJは、この値で始まります（すでに分析動画を作ったPJは変わりません。下の「開いているPJに入れる」で入れられます）。</div>
+      <div id="kg-g-vizaudio"></div>
+      <div class="kg-note" style="margin-top:8px;" title="読み上げがあるシーンは、読み上げが長ければその長さまで伸びます。すでに分析動画を作ったPJは変わりません（「開いているPJに入れる」で入れられます）。">各シーンの秒数の初期値。新しいPJは、この秒数で始まります。</div>
       <div id="kg-g-viz"></div>
       <div class="kg-row" style="margin-top:6px;">
-        <button type="button" class="btn-sm" onclick="kgVizFromPj()" title="開いている決算のPJで調整した秒数を、そのまま初期値にします" style="flex:1;min-width:0;">開いているPJの秒数を取り込む</button>
-        <button type="button" class="btn-sm" onclick="kgVizToPj()" title="開いている決算のPJの秒数を、上の初期値に置き換えます" style="flex:1;min-width:0;">開いているPJに入れる</button>
+        <button type="button" class="btn-sm" onclick="kgVizFromPj()" title="開いている決算のPJで調整した音声の設定と秒数を、そのまま初期値にします" style="flex:1;min-width:0;">開いているPJの設定を取り込む</button>
+        <button type="button" class="btn-sm" onclick="kgVizToPj()" title="開いている決算のPJの音声の設定と秒数を、上の初期値に置き換えます" style="flex:1;min-width:0;">開いているPJに入れる</button>
       </div>
     </div>
 
