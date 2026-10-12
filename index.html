@@ -8198,7 +8198,7 @@ function evThumbText(){
   const bot=/修正/.test(g.status||'')?`#${g.status}#も`:'市場の反応は？';
   return `${top}：${mid}：${bot}`;
 }
-// 分析動画のサムネ文言：上段＝今回の評価＋決算後の株価の動き（例「過去最高益で15％下落」）、中段＝社名、下段＝「図解でかんたん解説」（決まった文）
+// 分析動画のサムネ文言：上段＝今回の評価＋決算後の株価の動き（例「過去最高益で15％下落」）、中段＝社名、下段＝⚙ 共通設定の「決算の分析動画：3段目」（決まった文。初期値「図解で%決算解説%」）
 // PTS（米国株は時間外）は値がその時々で変わるので、台本と同じく数字を書かずに「大幅高」などで言う（±1%未満＝ほぼ変わらず、±5%未満＝小幅）
 function evVizThumbText(){
   const d=evData()||{};const hd=d.HEADER||{},mr=d.MARKET_REACTION||{};
@@ -8211,7 +8211,8 @@ function evVizThumbText(){
     else mv=(a>=10?Math.round(a):Math.round(a*10)/10)+'％'+(pct>0?'上昇':'下落');
   }
   const mid=VD_CFG.ev.name()||hd.company||'';
-  return `${mv?`${label}で#${mv}#`:label}：${mid}：図解でかんたん解説`;
+  const bot=String(kgGet('ev-th3')||'').trim()||'図解で%決算解説%';
+  return `${mv?`${label}で#${mv}#`:label}：${mid}：${bot}`;
 }
 // サムネ文言：株価分析は「サムネイル」タブ（note用）のテキストをそのまま使う
 function vdThumbText(P){return P==='vd'?((document.getElementById('th-input')||{}).value||'').trim():vdVal('ev','th-input');}
@@ -14890,7 +14891,8 @@ const EV_VIZ_SCENES=[['thumbnail','サムネ',1],['cover','表紙',4],['summary'
 const KG_SNS=[['ig','Instagram'],['l8','Lemon8'],['tt','TikTok']];   // YouTubeの投稿は定型文を使わない（本文とタグだけ）
 // g＝画面の置き場所、ids＝値を入れる元の欄、ctx＝その種類（stock＝株価分析の横動画／gen＝YT動画）のときだけ欄へ入れる、def＝まだ値が無いときの初期値
 const KG_ITEMS=[
-  {g:'thumb',key:'th3',label:'3段目の初期値',ids:[],def:'#底値#と%５つの反転サイン%'},
+  {g:'thumb',key:'th3',label:'株価分析：3段目の初期値',ids:[],def:'#底値#と%５つの反転サイン%'},
+  {g:'thumb',key:'ev-th3',label:'決算の分析動画：3段目',ids:[],def:'図解で%決算解説%',tip:'決算の分析動画のサムネの3段目（決まった文）。上段＝今回の評価と株価の動き、中段＝社名は自動。色指定: *オレンジ* #水色# %黄色%'},
   {g:'voice',key:'tts-voice',label:'台本の声',ids:['vd-tts-voice','ev-tts-voice']},
   {g:'voice',key:'tts-model',label:'台本の声のモデル',ids:['vd-tts-model','ev-tts-model']},
   {g:'voice',key:'oped-vol',label:'OP・EDの音量（%）',ids:[],def:'85',tip:'横動画の書き出しで、OP・EDの音声にかける大きさ。100＝作ったままの大きさ。100より大きくもできます（大きすぎると音が割れます）'},
@@ -15695,7 +15697,7 @@ async function evVizMount(force){
 
     <div class="kg-sec">
       <h3>サムネイル</h3>
-      <div class="kg-note">株価分析のサムネの3段目（自動で入らないところ）。新しいPJは、この文で始まります。</div>
+      <div class="kg-note">サムネの3段目（自動で入らないところ）。株価分析は新しいPJがこの文で始まり、決算の分析動画は組み立てるたびにこの文が入ります。</div>
       <div id="kg-g-thumb"></div>
     </div>
 
