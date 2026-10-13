@@ -13981,18 +13981,19 @@ function artPubRender(){
   if(!el||!f||typeof KTStore==='undefined')return;
   const id=KTStore.cur.price||'';const mine=(f.value||'').trim();
   const md=d=>{const x=new Date(d);return isNaN(x)?'':`${x.getMonth()+1}/${x.getDate()}`;};
-  const week=d=>{const a=artPubWeekStart(d),b=new Date(a);b.setDate(b.getDate()+6);return `${md(a)}〜${md(b)}の週`;};
+  // 今週なら「今週」、違う週なら「10/12〜の週」
+  const week=d=>artPubWeekStart(d).getTime()===artPubWeekStart(new Date()).getTime()?'今週':`${md(artPubWeekStart(d))}〜の週`;
   const names=list=>list.map((x,i)=>`${i+1}本目 ${md(x.at)} ${(x.row.meta||{}).title||x.row.title||'（名前なし）'}`).join('\n');
   if(mine&&!isNaN(Date.parse(mine))){
     const list=artPubList(mine);const inList=list.some(x=>x.id===id);
     const ord=inList?list.findIndex(x=>x.id===id)+1:list.filter(x=>x.at<mine).length+1;
     const total=inList?list.length:list.length+1;
     const d=new Date(mine);const p=n=>String(n).padStart(2,'0');
-    el.textContent=`公開日 ${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())}：${week(mine)}の ${ord}本目（この週の公開 ${total}本）`;
+    el.textContent=`公開日 ${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())}　${week(mine)} ${ord}本目／${total}本`;
     el.title=names(list)||'';undo.style.display='';
   }else{
     const list=artPubList(new Date());
-    el.textContent=`まだ公開していません。いま公開すると ${week(new Date())}の ${list.length+1}本目（この週の公開 ${list.length}本）`;
+    el.textContent=`未公開　いま公開すると今週 ${list.length+1}本目（公開済み ${list.length}本）`;
     el.title=names(list)||'この週に公開したPJはまだありません';undo.style.display='none';
   }
 }
