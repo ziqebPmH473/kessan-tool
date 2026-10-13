@@ -38,6 +38,7 @@
     cur: {},                // kind → id（このタブ）
     created: {},            // id → 作成時刻（新しく作った行）
     sub: {},                // id → 用途（株価分析のその後 など。今は入れ物だけ）
+    published: {},          // id → note に公開した日時（ISO）。一覧の meta に入れて、週何本目かを数える
     base: {},               // kind → 空で開いているときの、いちばん最近の JSON（ユーザーが触るまで追いかける）
     touched: {},            // kind → 'input'（欄を打った・貼った）| 'click'（何か押した）。空の PJ に行を作る合図
     titleOf: null,          // (kind, fields) → 見出し。行の中身（持ち越し込み）から作る
@@ -177,7 +178,8 @@
     const ls = (docs.shared && docs.shared.json && docs.shared.json.ls) || {};
     LS_SYNC.forEach(k => lsSet(k, ls[k] != null ? ls[k] : null));
   }
-  const metaOf = (id, title) => ({ created: S.created[id] || (S.rows[id] && (S.rows[id].meta || {}).created) || (S.rows[id] && S.rows[id].createdAt) || nowIso(), title: title || '', sub: S.sub[id] || (S.rows[id] && (S.rows[id].meta || {}).sub) || '' });
+  const metaOf = (id, title) => ({ created: S.created[id] || (S.rows[id] && (S.rows[id].meta || {}).created) || (S.rows[id] && S.rows[id].createdAt) || nowIso(), title: title || '', sub: S.sub[id] || (S.rows[id] && (S.rows[id].meta || {}).sub) || '',
+    published: S.published[id] !== undefined ? S.published[id] : ((S.rows[id] && (S.rows[id].meta || {}).published) || '') });
 
   // ---- 入力内容の保存 ----
   function saveState(state, byTab) {
@@ -738,5 +740,24 @@
     set onChange(fn) { S.onChange = fn; },
     get status() { return S.status; },
     setSub(kind, sub) { const id = S.cur[kind]; if (!id) return; S.sub[id] = sub || ''; S.force[kind] = true; try { if (typeof window.saveStateNow === 'function') window.saveStateNow(); } catch (e) {} },
+    // note に公開した日時を meta に入れる（空＝取り消し）。json が変わっていなくても行を送り直す
+    setPublished(kind, iso) {
+      const id = S.cur[kind]; if (!id) return false;
+      S.published[id] = iso || '';
+      if (S.rows[id]) { S.rows[id].meta = Object.assign({}, S.rows[id].meta || {}, { published: iso || '' }); }
+      S.force[kind] = true;
+      try { if (typeof window.saveStateNow === 'function') window.saveStateNow(); } catch (e) {}
+      // 欄が変わっていなくて行が作られなかったときは、最後に送った中身のまま meta だけ変えて送り直す
+      if (!S.pending[id] && S.last[id]) {
+        const json = parse(S.last[id]);
+        if (json) {
+          const title = (S.rows[id] && S.rows[id].title) || '';
+          S.pending[id] = { kind, title, meta: metaOf(id, title), json, jsonStr: S.last[id], ver: S.versions[id] || 0 };
+          pendingSave();
+          if (S.mode === 'server') { setStatus('saving'); schedulePush(PUSH_DELAY); }
+        }
+      } else if (S.pending[id]) S.pending[id].meta = metaOf(id, S.pending[id].title);
+      return true;
+    },
   };
 })();

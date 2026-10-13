@@ -1783,6 +1783,12 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
     <textarea id="art-body" placeholder="生成後にnote記事本文が入ります" style="min-height:130px;"></textarea>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">ハッシュタグ</label><button class="btn-sm" onclick="copyText(document.getElementById('art-tags').value,this)">📋 コピー</button></div>
     <textarea id="art-tags" placeholder="生成後にハッシュタグが入ります" rows="2" style="height:46px;min-height:46px;"></textarea>
+    <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:6px;">
+      <button class="btn-sm" id="art-pub-btn" onclick="artPublished(this)" style="flex:none;background:#0d9488;color:#fff;" title="noteに公開したら押します。押した日が公開日になり、その週の何本目かを数えます（週は月曜〜日曜。公開日を入れたPJをまとめて数えます）">✅ 公開した</button>
+      <span id="art-pub-info" style="flex:1;min-width:0;font-size:11px;color:var(--text-sub);"></span>
+      <button class="btn-sm" id="art-pub-undo" onclick="artPublished(this,true)" style="flex:none;display:none;" title="公開日を消します">取り消す</button>
+    </div>
+    <input type="text" id="art-pub" style="display:none;">   <!-- hidden だと value が初期値ごと変わり、PJ切り替えのリセットで消えないので text を隠して使う -->
     <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:10px;">
       <label style="font-size:11px;color:var(--text-sub);flex:none;">関連記事</label>
       <select id="art-rel-sel" onchange="relOnPick()" style="flex:1;min-width:0;font-size:11px;padding:4px;"><option value="">（記事生成時に自動で選ばれます）</option></select>
@@ -4186,7 +4192,7 @@ reason_4=`;
             'ta-report', 'ta-data', 'th-input',
             'gem-model', 'gem-months', 'gem-article-model',
             's6-axis-min', 's6-axis-max', 's6-axis-step',
-            'art-title', 'art-body', 'art-thumb', 'art-tags', 'art-x', 'art-yt', 'art-url', 'art-sec', 'art-raw', 'art-check', 'note-id', 'art-rel-days', 'art-rel-url', 'art-rel-intro',
+            'art-title', 'art-body', 'art-thumb', 'art-tags', 'art-x', 'art-yt', 'art-url', 'art-sec', 'art-raw', 'art-check', 'note-id', 'art-rel-days', 'art-rel-url', 'art-rel-intro', 'art-pub',
         ];
         const PERSIST_RADIO_NAMES = ['sa-market', 'sa-compare-mode', 'mkt', 'dir'];
 
@@ -13954,8 +13960,46 @@ function ktPjFill(){
   if(document.activeElement===sel&&!window._ktSwitching){sel._ktLater=true;return;}
   if(sel._ktHtml!==h){sel.innerHTML=h;sel._ktHtml=h;}
   if(!window._ktSwitching&&sel.value!==want)sel.value=want;
+  try{artPubRender();}catch(e){}
 }
 async function ktPjRefresh(){try{await KTStore.refreshRows();}catch(e){}ktPjFill();}
+// ---- 記事タブ：noteに公開した日と、その週の何本目か（メンバーシップの「週1本／週2本」に合わせて公開範囲を変えるため）----
+// 公開日は hidden の art-pub（PJのjson）と、一覧の meta.published（KTStore.setPublished）の両方に持つ。数えるときは一覧の meta を使う（全種類のPJが対象）
+function artPubWeekStart(d){const x=new Date(d);x.setHours(0,0,0,0);x.setDate(x.getDate()-((x.getDay()+6)%7));return x;}   // 月曜 0:00
+function artPubList(weekOf){
+  const rows=(typeof KTStore!=='undefined'&&KTStore.rows)||{};const wk=artPubWeekStart(weekOf).getTime();
+  return Object.keys(rows).map(id=>({id,row:rows[id],at:String((rows[id].meta||{}).published||'')}))
+    .filter(x=>x.at&&!isNaN(Date.parse(x.at))&&artPubWeekStart(x.at).getTime()===wk)
+    .sort((a,b)=>a.at.localeCompare(b.at));
+}
+function artPubRender(){
+  const el=document.getElementById('art-pub-info'),undo=document.getElementById('art-pub-undo'),f=document.getElementById('art-pub');
+  if(!el||!f||typeof KTStore==='undefined')return;
+  const id=KTStore.cur.price||'';const mine=(f.value||'').trim();
+  const md=d=>{const x=new Date(d);return isNaN(x)?'':`${x.getMonth()+1}/${x.getDate()}`;};
+  const week=d=>{const a=artPubWeekStart(d),b=new Date(a);b.setDate(b.getDate()+6);return `${md(a)}〜${md(b)}の週`;};
+  const names=list=>list.map((x,i)=>`${i+1}本目 ${md(x.at)} ${(x.row.meta||{}).title||x.row.title||'（名前なし）'}`).join('\n');
+  if(mine&&!isNaN(Date.parse(mine))){
+    const list=artPubList(mine);const inList=list.some(x=>x.id===id);
+    const ord=inList?list.findIndex(x=>x.id===id)+1:list.filter(x=>x.at<mine).length+1;
+    const total=inList?list.length:list.length+1;
+    const d=new Date(mine);const p=n=>String(n).padStart(2,'0');
+    el.textContent=`公開日 ${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())}：${week(mine)}の ${ord}本目（この週の公開 ${total}本）`;
+    el.title=names(list)||'';undo.style.display='';
+  }else{
+    const list=artPubList(new Date());
+    el.textContent=`まだ公開していません。いま公開すると ${week(new Date())}の ${list.length+1}本目（この週の公開 ${list.length}本）`;
+    el.title=names(list)||'この週に公開したPJはまだありません';undo.style.display='none';
+  }
+}
+function artPublished(btn,undo){
+  const f=document.getElementById('art-pub');if(!f)return;
+  if(undo){if(!confirm('公開日を消しますか？'))return;f.value='';}
+  else{if(f.value&&!confirm('公開日が入っています。今日に入れ直しますか？'))return;f.value=new Date().toISOString();}
+  if(typeof saveStateNow==='function')saveStateNow();   // 新規のPJなら、ここで行ができる
+  if(typeof KTStore!=='undefined'&&KTStore.setPublished&&!KTStore.setPublished('price',f.value))alert('PJがまだ保存されていないので、公開日を一覧に入れられませんでした。記事を作ってから押してください。');
+  artPubRender();
+}
 function ktKindChange(kind){ktOpen(kind,null);}
 // プルダウンから離れたとき、選んでいる間に止めていた組み直しをする
 document.addEventListener('focusout',e=>{if(e.target&&e.target.id==='kt-pj'&&e.target._ktLater){e.target._ktLater=false;setTimeout(ktPjFill,0);}},true);
