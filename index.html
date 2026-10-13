@@ -3214,10 +3214,14 @@ point_2=`;
                 document.getElementById('out-op-label').innerText = data.GUIDANCE.op_label || '営業利益';
                 document.getElementById('out-ni-label').innerText = data.GUIDANCE.ni_label || '純利益';
 
-                document.getElementById('out-sales-2').innerHTML = colorize(data.GUIDANCE.sales_2);
-                document.getElementById('out-op-2').innerHTML = colorize(data.GUIDANCE.op_2);
-                document.getElementById('out-ni-2').innerHTML = colorize(data.GUIDANCE.ni_2);
-                document.getElementById('out-div-2').innerHTML = colorize(data.GUIDANCE.div_2);
+                // 据え置きのとき、AI が数字を1列目（sales_1 など）に入れて2列目を「-」にすることがある（6217 津田駒工業 2026-10-14）。2列目が空なら1列目を通期予想として使う
+                const gFlat = statusStr.includes('据え置き') || statusStr.includes('修正なし');
+                const gBlank = v => !v || v === '-' || v === '---' || v === '—';
+                const gPick = (b, a) => (gFlat && gBlank(b) && !gBlank(a)) ? a : b;
+                document.getElementById('out-sales-2').innerHTML = colorize(gPick(data.GUIDANCE.sales_2, data.GUIDANCE.sales_1));
+                document.getElementById('out-op-2').innerHTML = colorize(gPick(data.GUIDANCE.op_2, data.GUIDANCE.op_1));
+                document.getElementById('out-ni-2').innerHTML = colorize(gPick(data.GUIDANCE.ni_2, data.GUIDANCE.ni_1));
+                document.getElementById('out-div-2').innerHTML = colorize(gPick(data.GUIDANCE.div_2, data.GUIDANCE.div_1));
 
                 const sProg = data.GUIDANCE.sales_progress;
                 const oProg = data.GUIDANCE.op_progress;
@@ -15237,11 +15241,17 @@ function evVizExtras(){
   }
   // 業績予想：GUIDANCE
   const g=d.GUIDANCE||{};
+  // 据え置きのとき、AI が数字を1列目（sales_1）に入れて2列目を「-」にすることがある。2列目が空なら1列目を通期予想として両側に入れる（予想スライドは据え置きだと2列目＝after を1本の棒で出す）
+  const gFlat=/据え置き|据置|変更なし|修正なし/.test(g.status||'');
+  const gBlank=v=>!v||v==='-'||v==='---'||v==='—';
+  const gFix=(a,b)=>(gFlat&&gBlank(b)&&!gBlank(a))?[a,a]:[a,b];
   const rows=[['revenue',g.sales_label||'売上高',g.sales_1,g.sales_2,g.sales_rate,g.sales_progress],['operating_income',g.op_label||'営業利益',g.op_1,g.op_2,g.op_rate,g.op_progress],['net_income',g.ni_label||'純利益',g.ni_1,g.ni_2,g.ni_rate,g.ni_progress]]
     .filter(([,,a,b])=>(a&&a!=='-')||(b&&b!=='-'))
-    .map(([key,label,a,b,rate,prog])=>({key,label,before_display:a||'—',after_display:b||'—',before_oku:evVizOku(a),after_oku:evVizOku(b),rate_display:(rate&&rate!=='-')?rate:null,progress_pct:evVizPct(prog)}));
+    .map(([key,label,a0,b0,rate,prog])=>{const [a,b]=gFix(a0,b0);return{key,label,before_display:a||'—',after_display:b||'—',before_oku:evVizOku(a),after_oku:evVizOku(b),rate_display:(rate&&rate!=='-')?rate:null,progress_pct:evVizPct(prog)};});
   if(rows.length){
-    out.forecast_revision={status:g.status||'',col1_header:g.col1_header||'前',col2_header:g.col2_header||'後',rows,dividend:(g.div_1||g.div_2)?{before_display:g.div_1||'—',after_display:g.div_2||'—'}:null,reason:g.reason||null};
+    const [dv1,dv2]=gFix(g.div_1,g.div_2);
+    const col2=(gFlat&&gBlank(g.col2_header))?(g.col1_header&&!gBlank(g.col1_header)?g.col1_header:'通期予想'):(g.col2_header||'後');
+    out.forecast_revision={status:g.status||'',col1_header:g.col1_header||'前',col2_header:col2,rows,dividend:(dv1||dv2)?{before_display:dv1||'—',after_display:dv2||'—'}:null,reason:g.reason||null};
   }
   return out;
 }
