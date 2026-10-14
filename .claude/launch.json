@@ -32,6 +32,21 @@
         "--r2=MEDIA"
       ],
       "port": 8798
+    },
+    {
+      "name": "viz-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "C:/work/kessan-visualizer",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5173",
+        "--strictPort"
+      ],
+      "port": 5173
     }
   ]
 }
