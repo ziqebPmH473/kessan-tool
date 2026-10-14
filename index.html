@@ -2556,8 +2556,23 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
             const files = window._earnFiles || [];
             if (!files.length) { box.innerHTML = '<span style="font-size:11px; color:var(--text-sub);">（決算資料は未添付）</span>'; return; }
             box.innerHTML = files.map((f, i) =>
-                `<span style="display:inline-flex; align-items:center; gap:4px; background:#eef2ff; border:1px solid #c7d2fe; border-radius:5px; padding:2px 6px; font-size:11px;">📄 ${escHtml(f.name)} <span style="color:var(--text-sub);">${fmtSize(f.size)}</span> <button type="button" onclick="removeEarnFile(${i})" title="削除" style="border:none; background:none; color:#dc2626; cursor:pointer; font-size:13px; line-height:1; padding:0;">✕</button></span>`
+                `<span style="display:inline-flex; align-items:center; gap:4px; background:#eef2ff; border:1px solid #c7d2fe; border-radius:5px; padding:2px 6px; font-size:11px;">📄 <a href="#" onclick="openEarnFile(${i});return false;" title="新しいタブで開く" style="color:#1e3a8a; text-decoration:underline;">${escHtml(f.name)}</a> <span style="color:var(--text-sub);">${fmtSize(f.size)}</span> <button type="button" onclick="removeEarnFile(${i})" title="削除" style="border:none; background:none; color:#dc2626; cursor:pointer; font-size:13px; line-height:1; padding:0;">✕</button></span>`
             ).join('');
+        }
+
+        // 添付した決算資料（base64 で持っている）を新しいタブで開く
+        function openEarnFile(i) {
+            const f = (window._earnFiles || [])[i];
+            if (!f || !f.data) { alert('ファイルの中身がありません。添付し直してください。'); return; }
+            try {
+                const bin = atob(f.data);
+                const bytes = new Uint8Array(bin.length);
+                for (let k = 0; k < bin.length; k++) bytes[k] = bin.charCodeAt(k);
+                const url = URL.createObjectURL(new Blob([bytes], { type: f.mimeType || 'application/pdf' }));
+                const w = window.open(url, '_blank');
+                if (!w) alert('ポップアップがブロックされました。ブラウザの設定で許可してください。');
+                setTimeout(() => URL.revokeObjectURL(url), 60000);
+            } catch (e) { alert('ファイルを開けませんでした: ' + ((e && e.message) || e)); }
         }
 
         async function addEarnFiles(fileList) {
