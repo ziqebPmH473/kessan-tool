@@ -69,7 +69,9 @@
 
   // ---- 小物 ----
   const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
-  const lsSet = (k, v) => { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} };
+  // 書けたら true。localStorage がいっぱい（約5MB）だと setItem が例外になる。黙って握りつぶすと、古い中身が残ったまま画面に戻って
+  // それを保存してしまう（2026-10-14、PR TIMES の PJ が空で上書きされた）ので、失敗は覚えておく
+  const lsSet = (k, v) => { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); return true; } catch (e) { S.lsFail = (S.lsFail || 0) + 1; console.warn('[store] localStorage に書けませんでした', k, String(v || '').length, e && e.message); return false; } };
   const ssGet = k => { try { return sessionStorage.getItem(k); } catch (e) { return null; } };
   const ssSet = (k, v) => { try { if (v == null) sessionStorage.removeItem(k); else sessionStorage.setItem(k, v); } catch (e) {} };
   const parse = s => { try { return JSON.parse(s || 'null'); } catch (e) { return null; } };
@@ -94,6 +96,10 @@
     ssSet(PENDING_KEY, Object.keys(out).length ? JSON.stringify(out) : null);
   }
   const isCur = id => TABS.some(t => S.cur && S.cur[t] === id);
+  // 「大きい中身 → ほぼ空」か（前が 20KB 超で、新しいのが 2KB 未満）。空の画面を保存して消してしまう事故の見分け
+  const looksWiped = (prevStr, nextStr) => !!prevStr && prevStr.length > 20000 && (nextStr || '').length < 2000;
+  // 起動・PJ を開いてから 15 秒以内か（空で上書きする事故はこの間に起きる。ユーザーが手で空にして打ち直すのは止めない）
+  const justOpened = () => Date.now() - (S.openedAt || 0) < 15000;
   // 開いている PJ の、サーバーと合った中身を端末に残す（つながらないときの起動で、その PJ の中身を画面に出すため）
   function cacheDoc(id, jsonStr) { if (id && id !== 'shared' && isCur(id) && jsonStr) lsSet(DOC_PREFIX + id, jsonStr); }
   // PJ を開くとき：端末に残っている未送信の行（このタブの S.pending か kt-pend:<id>）があれば、どちらを使うか決める。
@@ -107,6 +113,7 @@
     if (!p || !p.json) { drop(); return doc ? doc.json : null; }
     const pj = JSON.stringify(p.json);
     if (doc && JSON.stringify(doc.json) === pj) { drop(); return doc.json; }   // もう届いている（閉じる直前に送れていた）
+    if (doc && looksWiped(JSON.stringify(doc.json), pj)) { console.warn('[store] 未送信の分がほぼ空なので捨てます', id); drop(); return doc.json; }   // 空の画面が控えられていた（事故の名残り）。サーバーの中身を使う
     const serverVer = doc ? doc.version : 0;
     let useLocal = serverVer === (Number(p.ver) || 0);   // サーバーが進んでいなければ、未送信の方が新しい
     if (!useLocal) useLocal = !confirm('この PJ に、前に送れなかった変更が残っています。\nしかし、その後に別の端末（またはタブ）でも同じ PJ が保存されていました。\n\nOK＝サーバーの内容を使う（送れなかった変更は捨てる）\nキャンセル＝送れなかった変更で上書きする');
@@ -174,7 +181,9 @@
     return state;
   }
   function applyDocsToLocal(docs) {
-    lsSet(LS_KEY, JSON.stringify(docsToState(docs)));
+    // 画面に戻す中身はメモリにも持つ（restoreState は KTStore.takeState() でこれを使う。localStorage に書けなかったときに古い中身を戻さないため）
+    S.bootState = docsToState(docs);
+    lsSet(LS_KEY, JSON.stringify(S.bootState));
     const ls = (docs.shared && docs.shared.json && docs.shared.json.ls) || {};
     LS_SYNC.forEach(k => lsSet(k, ls[k] != null ? ls[k] : null));
   }
@@ -201,6 +210,8 @@
         if (prev && prev.radios) d.json.radios = Object.assign({}, prev.radios, d.json.radios);
       }
       const j = JSON.stringify(d.json);
+      // 大きい中身（画像や台本が入っている）を、ほぼ空の中身で上書きしそうなときは止める（画面に中身が入っていないのに保存しようとしている）
+      if (id && !S.force[t] && justOpened() && looksWiped(S.last[id], j)) { console.warn('[store] 空の内容で上書きしそうなので保存しません', id, (S.last[id] || '').length, j.length); setStatus('notloaded', 'この PJ の中身が画面に入っていません（空の内容で上書きしないため保存を止めています）。押して読み直してください'); return; }
       if (!id) {
         // 空で開いている：ユーザーが触るまでは行を作らない（初期化や描き直しで欄が変わっても増やさない）
         const touched = S.touched[t];
@@ -549,6 +560,7 @@
       return (p && p.json) || c || null;
     }
     const j = adoptPending(id, doc, kind);
+    S.openedAt = Date.now();
     metaSave(); pendingSave();
     if (S.pending[id]) { setStatus('saving'); schedulePush(300); }
     return j;
@@ -691,6 +703,15 @@
       }
       TABS.forEach(t => { if (S.cur[t] && !S.rows[S.cur[t]]) S.cur[t] = null; });   // 消された PJ を指していたら空に
       curSave();
+      // 端末に残した写し（kt-doc:）は開いている PJ の分だけにする（決算分析の PJ はサムネ画像で 1 件 500KB ほど。溜まると localStorage の上限に当たって書けなくなる）。
+      // 未送信（kt-pend:）は、消された PJ の分だけ捨てる
+      try {
+        const keys = []; for (let i = 0; i < localStorage.length; i++) keys.push(localStorage.key(i));
+        keys.forEach(k => {
+          if (k.startsWith(DOC_PREFIX) && !isCur(k.slice(DOC_PREFIX.length))) lsSet(k, null);
+          if (k.startsWith(PEND_PREFIX) && !S.rows[k.slice(PEND_PREFIX.length)]) lsSet(k, null);
+        });
+      } catch (e) {}
       await migrateLocalMedia();
 
       // 開く行を読む（このタブの PJ と shared）
@@ -709,6 +730,7 @@
       TABS.forEach(t => { const id = S.cur[t]; if (!id) return; const j = adoptPending(id, docs[id], t); if (j) merged[id] = { kind: t, json: j }; });
       Object.keys(S.pending).forEach(id => { if (id !== 'shared' && !isCur(id)) delete S.pending[id]; });   // 開いていない PJ の分は、端末に残したまま（開いたときに送る）
       applyDocsToLocal(merged);
+      S.openedAt = Date.now();
       metaSave(); pendingSave();
       if (TABS.some(t => !S.docOk[t])) setStatus('notloaded');
       else if (Object.keys(S.pending).length) { setStatus('saving'); schedulePush(300); } else setStatus('saved');
@@ -730,6 +752,9 @@
       if (S.status === 'notloaded' && TABS.every(t => !S.cur[t] || S.loaded[t])) setStatus(Object.keys(S.pending).length ? 'saving' : 'saved');
     },
     isLoaded(kind) { return !S.cur[kind] || !!S.loaded[kind]; },
+    // 起動・PJ を開いたときに画面へ戻す中身（メモリ）。1回取り出したら消す（それ以外のときは localStorage から）
+    takeState() { const st = S.bootState || null; S.bootState = null; return st; },
+    get lsFail() { return S.lsFail || 0; },
     // その PJ に、端末に残った未送信の変更があるか（PJ の一覧に印を出す）
     hasPending(id) { return !!S.pending[id] || !!lsGet(PEND_PREFIX + id); },
     set titleOf(fn) { S.titleOf = fn; },

@@ -4254,8 +4254,9 @@ reason_4=`;
         document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveStateNow(); });
 
         function restoreState() {
-            let state;
-            try { state = JSON.parse(localStorage.getItem(SA_STORAGE_KEY) || 'null'); } catch (e) { state = null; }
+            // サーバーから読んだ中身はメモリから（localStorage に書けなかったとき、古い中身を画面に戻して保存してしまわないため。2026-10-14）
+            let state = (window.KTStore && typeof KTStore.takeState === 'function') ? KTStore.takeState() : null;
+            if (!state) try { state = JSON.parse(localStorage.getItem(SA_STORAGE_KEY) || 'null'); } catch (e) { state = null; }
             if (!state) return false;
             if (state.fields) {
                 Object.keys(state.fields).forEach(id => {
