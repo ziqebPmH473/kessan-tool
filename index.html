@@ -1431,6 +1431,11 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
               <label style="font-size:11px;color:var(--text-sub);flex:none;" title="動画の「業績予想の比較」に出す理由の文。空なら「2.」のデータの文をそのまま使います">予想の理由</label>
               <input type="text" id="ev-fc-reason" placeholder="空なら「2.」のデータの文（長ければここで短く）" oninput="evVizReasonInput()" style="flex:1;min-width:0;font-size:11px;padding:4px;">
             </div>
+            <!-- 抽出データ（文・数字）を画面で直す。部品の KessanViz.mountEdit。直すと動画データを作り直してプレビューに反映 -->
+            <details id="ev-viz-editbox" style="margin-top:6px;" ontoggle="evVizEditToggle(this)">
+              <summary style="font-size:11px;color:var(--text-sub);cursor:pointer;" title="スライドに出る文（見出し・注目ポイント・総括のもとになる文）と数字（損益・貸借対照表・CF・推移・セグメント）を直せます。不要な期やセグメントは消せます">✏ データを直す（文・数字・不要な行の削除）</summary>
+              <div id="ev-viz-edit" style="margin-top:4px;"></div>
+            </details>
             <div id="ev-viz-controls" style="margin-top:8px;"></div>
             <!-- 読み上げの切れ目の調整（元の1本の音声を残しておき、読み上げを呼ばずに切り直す） -->
             <div id="ev-viz-cutbox" style="display:none;margin-top:8px;padding:6px;border:1px solid var(--border,#e2e8f0);border-radius:6px;font-size:11px;"></div>
@@ -15150,6 +15155,41 @@ function evVizStore(obj){
   ta.value=obj?JSON.stringify(obj):'';
   if(typeof saveState==='function')saveState();
   evVizMount(true);
+  evVizEditRefresh();
+}
+// ---- データを直す（文・数字）：部品の編集画面を <details> の中に出す ----
+let _evEditHandle=null,_evEditTimer=null;
+function evVizEditToggle(det){if(det&&det.open)evVizEditRefresh();}
+// 開いていれば、いまの抽出データで編集画面を出し直す（PJ を切り替えたとき・作り直したときも）
+async function evVizEditRefresh(){
+  const det=document.getElementById('ev-viz-editbox'),host=document.getElementById('ev-viz-edit');
+  if(!det||!host||!det.open)return;
+  const d=evVizData();
+  if(!d||!d.analysis){
+    if(_evEditHandle){try{_evEditHandle.unmount();}catch(e){}_evEditHandle=null;}
+    host.innerHTML='<div style="font-size:11px;color:var(--text-sub);">直せる元データ（抽出データ）がありません。「Gemini で動画データを作る」か「手動で作る」で作ると直せます。</div>';
+    return;
+  }
+  let KV;try{KV=await evVizLoad();}catch(e){host.innerHTML='<div style="color:#ef4444;font-size:12px;">'+esc(e.message)+'</div>';return;}
+  if(!KV.mountEdit){host.innerHTML='<div style="font-size:11px;color:var(--text-sub);">部品が古いので直せません（再読み込みしてください）</div>';return;}
+  const hl=(d.visualization&&d.visualization.highlights)||null;
+  const props={analysis:d.analysis,highlightTitles:hl?{good:(hl.good||[]).map(x=>x.title),watch:(hl.watch||[]).map(x=>x.title)}:null,onChange:evVizEditApply};
+  if(_evEditHandle){_evEditHandle.update(props);}else{host.innerHTML='';_evEditHandle=KV.mountEdit(host,props);}
+}
+// 直した抽出データを保存し、少し待ってから動画データを作り直す（台本は変えない。見出しを変えたら「台本を作り直す」で）
+function evVizEditApply(analysis){
+  const d=evVizData();if(!d)return;
+  const ta=document.getElementById('ev-viz-json');if(!ta)return;
+  ta.value=JSON.stringify({...d,analysis});
+  if(typeof saveState==='function')saveState();
+  clearTimeout(_evEditTimer);
+  _evEditTimer=setTimeout(async()=>{
+    const cur=evVizData();if(!cur||!cur.analysis)return;
+    let KV;try{KV=await evVizLoad();}catch(e){return;}
+    let viz=cur.visualization;
+    try{viz=KV.build(cur.analysis,evVizExtras());}catch(e){console.warn('viz rebuild (edit)',e);evVizStatus('直した内容で動画データを作れませんでした: '+((e&&e.message)||e),'error');return;}
+    evVizStore({...cur,visualization:viz});
+  },400);
 }
 // Gemini で PDF → JSON → 検証 → visualization を作って保存する
 async function evVizGenerate(btnEl,opts){
