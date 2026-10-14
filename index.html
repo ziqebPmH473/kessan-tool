@@ -1426,6 +1426,11 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
               <button class="btn-sub" onclick="evVizClear()" style="flex:none;font-size:11px;background:#fee2e2;">🗑 消す</button>
             </div>
             <div style="font-size:10px;color:var(--text-sub);margin-top:4px;line-height:1.5;">MP4 は下の「MP4 を書き出す」でブラウザだけで作れます（Chrome / Edge、数分）。1920×1080・30fps・無音。高画質が要るときは「💾 MP4用データ」を kessan-visualizer の <code>npm run render</code> に渡す。</div>
+            <!-- 業績予想の比較に出す理由の文。空なら「2.」のデータ（GUIDANCE.reason）の文をそのまま使う。打ち替えると動画データを作り直して反映する -->
+            <div class="input-row" style="margin-top:6px;gap:4px;align-items:center;">
+              <label style="font-size:11px;color:var(--text-sub);flex:none;" title="動画の「業績予想の比較」に出す理由の文。空なら「2.」のデータの文をそのまま使います">予想の理由</label>
+              <input type="text" id="ev-fc-reason" placeholder="空なら「2.」のデータの文（長ければここで短く）" oninput="evVizReasonInput()" style="flex:1;min-width:0;font-size:11px;padding:4px;">
+            </div>
             <div id="ev-viz-controls" style="margin-top:8px;"></div>
             <!-- 読み上げの切れ目の調整（元の1本の音声を残しておき、読み上げを呼ばずに切り直す） -->
             <div id="ev-viz-cutbox" style="display:none;margin-top:8px;padding:6px;border:1px solid var(--border,#e2e8f0);border-radius:6px;font-size:11px;"></div>
@@ -15169,6 +15174,9 @@ async function evVizGenerate(btnEl,opts){
 }
 const EV_VIZ_PRICE_SCENES=['cover','stock_price'];   // 台本に株価・発表日が入るシーン（部品の narrationScript と同じキー）
 // 「2.」の欄が変わったとき（自動取得の押し直しなど）：抽出データから動画データを作り直して保存する（株価の推移・業績予想は「2.」の欄から入る）
+// 「予想の理由」の欄：打ち替えたら少し待って動画データを作り直す（台本は変えない）
+let _evReasonTimer=null;
+function evVizReasonInput(){clearTimeout(_evReasonTimer);_evReasonTimer=setTimeout(()=>{evVizRebuild();},500);}
 async function evVizRebuild(){
   const d=evVizData();if(!d||!d.analysis)return false;
   let KV;try{KV=await evVizLoad();}catch(e){return false;}
@@ -15268,7 +15276,8 @@ function evVizExtras(){
   if(rows.length){
     const [dv1,dv2]=gFix(g.div_1,g.div_2);
     const col2=(gFlat&&gBlank(g.col2_header))?(g.col1_header&&!gBlank(g.col1_header)?g.col1_header:'通期予想'):(g.col2_header||'後');
-    out.forecast_revision={status:g.status||'',col1_header:g.col1_header||'前',col2_header:col2,rows,dividend:(dv1||dv2)?{before_display:dv1||'—',after_display:dv2||'—'}:null,reason:g.reason||null};
+    const reasonOv=((document.getElementById('ev-fc-reason')||{}).value||'').trim();   // 画面で打ち替えた文があればそれ
+    out.forecast_revision={status:g.status||'',col1_header:g.col1_header||'前',col2_header:col2,rows,dividend:(dv1||dv2)?{before_display:dv1||'—',after_display:dv2||'—'}:null,reason:reasonOv||g.reason||null};
   }
   return out;
 }
