@@ -15801,7 +15801,8 @@ async function dgLoadItems(force){
     _dgItems=items;_dgLoadedKey=key;
     const host=document.getElementById('dg-mount'),empty=document.getElementById('dg-empty');
     if(empty)empty.style.display=items.length?'none':'';
-    let settings=dgSettings()||KV.digest.defaultSettings(dgVal('dg-date')||undefined);
+    // 保存した設定に無い項目（あとから足した効果音など）は既定で補う
+    let settings={...KV.digest.defaultSettings(dgVal('dg-date')||undefined),...(dgSettings()||{})};
     // 日付：銘柄の発表日（いちばん新しい日）。手で変えていなければ追従
     const dates=items.map(it=>it.priced).filter(Boolean).sort();
     if(dates.length){const d=dates[dates.length-1];if(!settings.date_auto||settings.date===settings.date_auto)settings={...settings,date:d,date_auto:d};else settings={...settings,date_auto:d};}
@@ -15846,7 +15847,7 @@ function dgMmss(sec){const s=Math.floor(sec);return String(Math.floor(s/60)).pad
 async function dgDescRender(force){
   const ta=document.getElementById('dg-desc');if(!ta)return;
   let KV;try{KV=await evVizLoad();}catch(e){return;}
-  const settings=dgSettings()||KV.digest.defaultSettings(dgVal('dg-date')||undefined);
+  const settings={...KV.digest.defaultSettings(dgVal('dg-date')||undefined),...(dgSettings()||{})};
   const items=_dgItems;
   const chapters=KV.digest.timeline(items.map(it=>({visualization:it.visualization,settings:it.settings})),settings);
   const d=dgVal('dg-date');const m=String(d).match(/(\d{4})-(\d{2})-(\d{2})/);const jp=m?parseInt(m[2],10)+'月'+parseInt(m[3],10)+'日':'';
