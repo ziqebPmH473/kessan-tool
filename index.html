@@ -15484,7 +15484,7 @@ function evVizQuiet(pcm,rate){
   for(let k=0;k<q.length;k++){let sum=0;const a=k*win,b=Math.min(pcm.length,a+win);for(let j=a;j<b;j++)sum+=pcm[j]*pcm[j];q[k]=Math.sqrt(sum/Math.max(1,b-a))<th?1:0;}
   return{q,win};
 }
-const EV_CUT_HEAD=0.1,EV_CUT_TAIL=0.2;   // シーンの音声の頭・お尻に残す無音（秒）。間はシーンの後ろの余白（0.5秒）でとる
+const EV_CUT_HEAD=0.1,EV_CUT_TAIL=0.2;   // シーンの音声の頭・お尻に残す無音（秒）。間はシーンの後ろの余白（初期値1.5秒）でとる
 // 切れ目 t（秒）が無音の中なら、次の声の EV_CUT_HEAD 秒前に寄せる（スライドが変わってから声が出るまでを短く）
 function evVizSnapCut(t,qz,rate){
   const {q,win}=qz,k0=Math.min(q.length-1,Math.max(0,Math.round(t*rate/win)));
