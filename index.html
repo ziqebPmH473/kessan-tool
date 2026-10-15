@@ -15813,7 +15813,7 @@ async function dgLoadItems(force){
     const noteUrl=dgNoteUrl();
     if(!settings.note_qr||settings.note_qr_url!==noteUrl){settings={...settings,note_qr:await dgQr(noteUrl),note_qr_url:noteUrl};}
     dgSet('dg-settings',JSON.stringify(settings));if(settings.date)dgSet('dg-date',settings.date);
-    const props={items:items.map(it=>({visualization:it.visualization,settings:it.settings,narration:it.narration,after_hours:it.afterHours,announced:it.announced})),settings,controlsEl:document.getElementById('dg-controls'),tts:evVizTts,audioStore:dgAudioStore,importBgm:evVizImportBgm,speed:kgGet('viz-speed')||'fast',
+    const props={items:items.map(it=>({visualization:it.visualization,settings:it.settings,narration:it.narration,after_hours:it.afterHours,announced:it.announced})),settings,controlsEl:document.getElementById('dg-controls'),tts:dgTts,audioStore:dgAudioStore,importBgm:evVizImportBgm,transcribe:evVizTranscribe,speed:kgGet('viz-speed')||'fast',
       onChange:st=>{dgSet('dg-settings',JSON.stringify(st));if(st.date)dgSet('dg-date',st.date);dgTouch();dgTitle();dgDescSoon();dgThAuto();}};
     if(_dgHandle){_dgHandle.update(props);}else if(host){_dgHandle=KV.digest.mount(host,props);}
     const silent=items.filter(it=>!Object.keys(it.narration).length).map(it=>it.visualization.company.name);
@@ -15833,6 +15833,16 @@ function dgTitle(){
   const names=_dgItems.map(it=>it.visualization.company.name);
   const t=(m?parseInt(m[2],10)+'/'+parseInt(m[3],10)+' ':'')+'決算まとめ'+(names.length?'（'+names.join('・')+'）':'');
   if(dgVal('dg-title')!==t){dgSet('dg-title',t);if(typeof saveState==='function')saveState();}
+}
+// 読み上げ：分析動画と同じ /api/tts（声・モデルも同じ）。分析動画の evVizTts と違い、1本の音声を決算 PJ の 'ev:viz:full' に残さない
+async function dgTts(text){
+  const vEl=document.getElementById('ev-tts-voice'),mEl=document.getElementById('ev-tts-model');
+  const voice=(vEl&&vEl.value)||'Erinome',model=(mEl&&mEl.value)||undefined;
+  const res=await fetch('/api/tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,voice,model})});
+  let data={};try{data=await res.json();}catch(e){}
+  if(!res.ok||!data.ok||!data.audioBase64)throw new Error(data.error||('読み上げに失敗しました（HTTP '+res.status+'）'));
+  const bin=atob(data.audioBase64),bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+  return{blob:new Blob([bytes],{type:data.mimeType||'audio/wav'}),seconds:typeof data.seconds==='number'?data.seconds:null};
 }
 // 冒頭・最後の読み上げの保存先（この PJ の KT_TTS 'dg:…'）。BGM は分析動画と同じ共通のもの
 const dgAudioStore={
@@ -15856,8 +15866,8 @@ async function dgDescRender(force){
   lines.push(jp+'に発表された注目企業の決算をまとめて解説します。');
   lines.push('業績の変化や増減益の背景、今後の見通しなどをコンパクトに整理しています。');
   lines.push('');
-  lines.push('■ さらに詳しい株価分析はnoteで公開中');
-  lines.push('すみっこマネー大学のnoteでは、企業の業績だけでなく、株価の下値目安や今後のシナリオなどを分析しています。');
+  lines.push('■ noteで銘柄分析を公開中');
+  lines.push('個別銘柄の業績・事業の強み・株価の動きを分析した記事を公開しています。');
   lines.push('▼ noteはこちら');
   lines.push(noteUrl);
   lines.push('');
