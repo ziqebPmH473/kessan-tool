@@ -15023,6 +15023,11 @@ const KG_SNS=[['ig','Instagram'],['l8','Lemon8'],['tt','TikTok']];   // YouTube�
 // 決算まとめの最後の文（読み上げ）の初期値。共通設定（dg-outro）が空ならこれ
 // 決算まとめの概要欄の注意書き。図解はツールが数値から描く（生成AIの絵ではない）ので、横動画の定型文（YT_POST_FIXED）とは分ける（すみぽん 2026-10-16）
 const DG_FIXED_DEF='ナレーションや分析には生成AIを使用しています。';
+// 前の既定（3行）が共通設定に保存されていたら、新しい1行に置き換える（手で直した文はそのまま）
+const DG_FIXED_OLD=[`本動画にはAI生成コンテンツが含まれています。
+ナレーションの音声と、決算内容の分析・要約に生成AIを活用しています（図解はツールが決算の数値から描いています）。
+内容の正確性には十分配慮していますが、最終的な判断はご自身でお願いいたします。`];
+function dgFixedMigrate(){try{const v=String(kgGet('dg-fixed')||'').trim();if(v&&DG_FIXED_OLD.some(o=>o.trim()===v))kgSet('dg-fixed',DG_FIXED_DEF);}catch(e){}}
 const DG_OUTRO_DEF='noteでも、決算の解説を発信しています。詳しくは概要欄のリンクか、QRコードを読み込んでご覧ください。';
 const KG_ITEMS=[
   {g:'thumb',key:'th3',label:'株価分析：3段目の初期値',ids:[],def:'#底値#と%５つの反転サイン%'},
@@ -15044,7 +15049,7 @@ const KG_ITEMS=[
   {g:'reelgen',key:'reel-nt2@gen',label:'note：説明',ids:[],def:'noteで',tip:'線の下に出ます。「｜」で行を分けます。「note」の文字はロゴ付きで出ます'},
   {g:'post',key:'yt-p-fixed',label:'概要欄の定型文（使用ツール・AIの注意書き）',ids:['yt-p-fixed'],area:1,def:YT_POST_FIXED},
   {g:'digest',key:'note-url',label:'note のトップURL',ids:[],def:'',tip:'決算まとめの概要欄の「▼ noteはこちら」と、最後のスライドの QR コードに使います（https://note.com/… ）。空なら note のトップ https://note.com/ になります'},
-  {g:'digest',key:'dg-fixed',label:'概要欄の注意書き（AI の利用について）',ids:[],area:1,def:DG_FIXED_DEF,tip:'決算まとめの概要欄に入れる定型文。横動画の定型文（使用ツール・AIの注意書き）とは別'},
+  {g:'digest',key:'dg-fixed',label:'概要欄：AI の利用の1行（目次の下に入ります）',ids:[],area:1,def:DG_FIXED_DEF,tip:'決算まとめの概要欄で、目次の下・注意事項の上に入れる文。初期値は「ナレーションや分析には生成AIを使用しています。」。空にすると初期値に戻ります'},
   {g:'digest',key:'dg-outro',label:'最後の文（読み上げ）',ids:[],area:1,def:DG_OUTRO_DEF,tip:'決算まとめの最後の読み上げ文の初期値。まとめの PJ でも直せます（直していない PJ は、ここを変えると追従します）'},
   ...KG_SNS.map(([k,n])=>({g:'snsstock',key:'yt-f-'+k+'@stock',label:n,ids:['yt-f-'+k],ctx:'stock',area:1,def:YT_SNS_FIXED[k]})),
   ...KG_SNS.map(([k,n])=>({g:'snsgen',key:'yt-f-'+k+'@gen',label:n,ids:['yt-f-'+k],ctx:'gen',area:1,def:YT_SNS_FIXED_GEN[k]})),
@@ -15114,6 +15119,7 @@ function kgBuild(){
 }
 function kgOpen(){
   const v=document.getElementById('kg-view');if(!v)return;
+  if(typeof dgFixedMigrate==='function')dgFixedMigrate();
   const ov=document.querySelector('#kg-view select[data-oped-voice="voice"]');if(ov&&!ov.options.length)ov.innerHTML=VD_VOICE_OPTIONS;
   kgBuild();
   try{ytColorFill();ytOpedTelopFill();ytOpedVoiceFill();}catch(e){}
@@ -15881,6 +15887,7 @@ async function dgDescRender(force){
   if(outro)lines.push(dgMmss(outro.startSec)+' noteのご案内');
   if(!items.length&&intro)lines.push('00:00 オープニング');
   lines.push('');
+  dgFixedMigrate();
   const fixed=String(kgGet('dg-fixed')||DG_FIXED_DEF).trim();
   if(fixed)lines.push(fixed);
   lines.push('本動画は情報提供を目的としており、特定の銘柄の売買を推奨するものではありません。');
