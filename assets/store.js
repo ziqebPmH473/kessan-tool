@@ -26,7 +26,7 @@
   // localStorage：送れていない行を PJ ごとに残す（タブを閉じても消えない。次にその PJ を開いたときに送る）／PJ の最後にサーバーと合った中身（つながらないときの起動に使う）
   const PEND_PREFIX = 'kt-pend:';
   const DOC_PREFIX = 'kt-doc:';
-  const TABS = ['earnings', 'stock', 'price', 'yt'];
+  const TABS = ['earnings', 'stock', 'price', 'yt', 'digest'];   // digest＝決算まとめ（複数の決算 PJ の分析動画を1本に）
   const EXTRA = { earnings: 'earnFetched', stock: 'fetched', price: 'priceFetched' };
   const PUSH_DELAY = 900;
   const OPEN_LAST_ON_NEW_TAB = false;    // 新しいタブは空で始める（続きは PJ の一覧から選ぶ）。true にすると「最後に開いた PJ」を開く
@@ -401,6 +401,19 @@
         await local.put(fk, val);
         if (S.mode !== 'server') return;
         S.mediaQueue[ns + '/' + fk] = 1; metaSave(); runMedia();
+      },
+      // 開いていない PJ のファイルを読む（決算まとめ：ほかの決算 PJ の読み上げ音声）。端末内に無ければサーバーから。書き込みはしない
+      async getFor(pid, key) {
+        await S.readyWait;
+        if (!pid) return null;
+        const fk = pid + '/' + key;
+        let lv = null; try { lv = await local.get(fk); } catch (e) {}
+        if (lv != null || S.mode !== 'server') return lv;
+        try {
+          const r = await api(mediaUrl(ns, fk), { method: 'GET' });
+          if (!r.ok) return null;
+          return await decode(await r.json());
+        } catch (e) { return null; }
       },
       async del(key) {
         await S.readyWait;

@@ -1232,6 +1232,7 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
                 <option value="stock">📈 個別銘柄</option>
                 <option value="price">📉 株価</option>
                 <option value="yt">🎬 YT動画</option>
+                <option value="digest">🧩 決算まとめ</option>
             </select>
             <button type="button" class="kt-pjbtn" onclick="ktPjNew()" title="この種別で新しいPJを始める">＋新規</button>
             <button type="button" class="kt-pjbtn kt-pjdel" onclick="ktPjDelete()" title="開いているPJを消す（確認あり）">削除</button>
@@ -1576,6 +1577,43 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
 
         <!-- YT動画（テーマを問わない横動画）。中身は、株価分析の横動画のパネル（#yt-root）をそのままここへ移して使う -->
         <div id="mode-yt" class="sa" style="display:none;"></div>
+        <!-- 🧩 決算まとめ：作成済みの決算 PJ の分析動画を選んで並べ、冒頭と最後を付けて1本に（1 PJ = 1 日分）。部品は KessanViz.digest（assets/kessan-viz.js） -->
+        <div id="mode-digest" class="sa" style="display:none;flex-direction:column;gap:6px;">
+          <div class="tool-section">
+            <div class="section-heading">決算まとめ動画</div>
+            <div style="font-size:11px;color:var(--text-sub);line-height:1.6;">作成済みの決算分析の「分析動画」を選んで並べると、冒頭 → 各銘柄 → note の案内 の順で 1 本の横動画（1920×1080）になります。各銘柄の動画は、その PJ に保存してある文・音声のまま（先頭のサムネだけ外します）。</div>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:6px;">
+              <span style="font-size:11px;font-weight:700;">銘柄（チェックで入れる・▲▼で並び）</span>
+              <input type="search" data-dg="filter" placeholder="絞り込み" oninput="dgRenderList()" style="margin-left:auto;width:110px;font-size:11px;padding:3px 6px;">
+            </div>
+            <div id="dg-list" style="display:flex;flex-direction:column;gap:2px;margin-top:4px;max-height:260px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:4px;background:#fff;"></div>
+            <div id="dg-status" style="display:none;font-size:11px;margin-top:3px;"></div>
+            <div id="dg-controls" style="margin-top:8px;"></div>
+            <!-- 概要欄（説明 → note → 目次 → 定型文 → 注意 → タグ）。区切りの秒数は部品から -->
+            <details id="dg-descbox" style="margin-top:8px;" open>
+              <summary style="font-size:11px;color:var(--text-sub);cursor:pointer;" title="YouTube の概要欄に貼る文。目次の開始時間は動画の長さから自動で入ります">📝 概要欄（目次の時間は自動）</summary>
+              <div class="input-row" style="margin-top:4px;gap:4px;align-items:center;">
+                <label style="font-size:11px;color:var(--text-sub);flex:none;">note の URL</label>
+                <input type="text" id="dg-note-url" placeholder="https://note.com/…（note のトップや、まとめ記事）" oninput="dgDescSoon()" style="flex:1;min-width:0;font-size:11px;">
+              </div>
+              <div class="input-row" style="margin-top:4px;">
+                <button class="btn-sm" onclick="dgDescRender(true)" style="flex:1;min-width:0;" title="いまの銘柄・時間で概要欄を作り直します（手で直した文は消えます）">🔄 作り直す</button>
+                <button class="btn-sm" onclick="dgCopy('dg-desc',this)" style="flex:1;min-width:0;background:#16a34a;color:#fff;">📋 コピー</button>
+              </div>
+              <textarea id="dg-desc" style="font-size:11px;height:220px;min-height:80px;margin-top:4px;line-height:1.5;"></textarea>
+              <div class="input-row" style="margin-top:4px;gap:4px;align-items:center;">
+                <label style="font-size:11px;color:var(--text-sub);flex:none;">タイトル案</label>
+                <input type="text" id="dg-yt-title" style="flex:1;min-width:0;font-size:11px;">
+                <button class="btn-sm" onclick="dgCopy('dg-yt-title',this)" style="flex:none;" title="コピー">📋</button>
+              </div>
+            </details>
+            <!-- 保存用（PJ と一緒に保存される）：日付・一覧の名前・選んだ PJ（並び順）・部品の設定 -->
+            <input type="hidden" id="dg-date">
+            <input type="hidden" id="dg-title">
+            <textarea id="dg-ids" style="display:none;"></textarea>
+            <textarea id="dg-settings" style="display:none;"></textarea>
+          </div>
+        </div>
         <div id="mode-price" class="sa" style="display:none;">
 <div class="ctrl">
   <div class="sa-subtabs">
@@ -1844,6 +1882,11 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
     </div>
 
     <div class="capture-wrapper">
+        <div id="capture-area-digest" class="sa" style="display:none;flex-direction:column;gap:6px;padding:8px;">
+            <div style="font-size:11px;color:var(--text-sub);">決算まとめ 1920×1080 プレビュー。文・音声・書き出しは左のパネルで</div>
+            <div id="dg-empty" style="padding:30px;text-align:center;color:var(--text-sub);font-size:12px;border:1px dashed var(--border);border-radius:8px;">左で銘柄をチェックすると、ここに動画が出ます。</div>
+            <div id="dg-mount"></div>
+        </div>
         <div id="capture-area-price" class="sa" style="display:none;">
 <div class="prev-area">
   <div class="prev-tabs">
@@ -2534,7 +2577,7 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
             kindOf: k => (k === 'earn' ? 'earnings' : ktYtKind()),
             legacy: k => ({ kind: k === 'earn' ? 'earnings' : 'price', key: k }) });
         const KT_TTS   = KTStore.mediaNs('tts',   ktIdbNs('kessanTool-vdTts', 'parts'), {       // スライドごとの音声（ev:＝決算の動画、vd:＝横動画）
-            kindOf: k => (k.startsWith('ev:') ? 'earnings' : ktYtKind()),
+            kindOf: k => (k.startsWith('ev:') ? 'earnings' : k.startsWith('dg:') ? 'digest' : ktYtKind()),
             legacy: k => ({ kind: k.startsWith('ev:') ? 'earnings' : 'price', key: k }) });
         const KT_YA    = KTStore.mediaNs('ya',    ktIdbNs('kessanTool-ytAudio', 'kv'), {        // 横動画：ナレーション音声と作業状態
             kindOf: () => ktYtKind(), legacy: ktLegacyYt });
@@ -3696,6 +3739,9 @@ point_2=`;
 
             document.getElementById('mode-price').style.display         = mode === 'price' ? '' : 'none';
             document.getElementById('mode-yt').style.display            = mode === 'yt' ? '' : 'none';
+            document.getElementById('mode-digest').style.display        = mode === 'digest' ? 'flex' : 'none';
+            document.getElementById('capture-area-digest').style.display = mode === 'digest' ? 'flex' : 'none';
+            if (mode === 'digest' && typeof dgShow === 'function') setTimeout(dgShow, 0);   // rAF は裏のタブで動かないので使わない
             document.getElementById('capture-area-price').style.display = (mode === 'price' || mode === 'yt') ? '' : 'none';   // YT動画の右側は、株価分析の横動画と同じもの
             if (typeof ytModeApply === 'function') ytModeApply(mode === 'yt');
 
@@ -4893,7 +4939,7 @@ risk_3=`;
             await KTStore.ready({ collect: (tab, st) => { const c = tabIoCollectFields(tab); c.title = ktTabTitle(tab, (st && st.fields) || {}); return c; } });
             // 種別：このタブで開いていたもの（再読み込み）→ 無ければ、最後に開いていたもの（新しく開いたとき）
             let ktMode0 = 'earnings'; try { ktMode0 = sessionStorage.getItem('kt-mode') || localStorage.getItem('kt-mode-last') || 'earnings'; } catch (e) {}
-            if (!['earnings', 'stock', 'price', 'yt'].includes(ktMode0)) ktMode0 = 'earnings';
+            if (!['earnings', 'stock', 'price', 'yt', 'digest'].includes(ktMode0)) ktMode0 = 'earnings';
             YT_CTX = ktMode0 === 'yt' ? 'gen' : 'stock';
             setupDateSync();
 
@@ -4908,7 +4954,7 @@ risk_3=`;
             // 動画タブの欄（vdInit・ytRestoreFields）は、サーバーの行を読む前の localStorage（前に開いていた画面）から入っている。
             // 新規（行が無い）種別は restoreState で上書きされず前の内容が残るので、先に全種別を空に戻してから、行のある種別だけ restoreState で入れ直す（2026-10-06）
             const ktPreReset = KTStore.mode === 'server' && typeof ktResetKindFields === 'function';
-            if (ktPreReset) ['earnings', 'stock', 'price', 'yt'].forEach(k => { try { ktResetKindFields(k); } catch (e) {} });
+            if (ktPreReset) ['earnings', 'stock', 'price', 'yt', 'digest'].forEach(k => { try { ktResetKindFields(k); } catch (e) {} });
             const restored = restoreState();
             if (ktPreReset) try { saveStateNow(); } catch (e) {}   // localStorage も戻した画面に合わせる（行は、触るまで作らない）
             // リンク確認の結果（YL）は、画面を組み立てたときに古い欄から読んでいるので、戻した欄から読み直す
@@ -13965,6 +14011,7 @@ const TAB_IO={
   // YT動画：横動画のパネル（#yt-root）は、このタブを開いている間だけ #mode-yt の中にある。
   // 右側のサムネイル（#thumb-view）は株価分析と共用の画面なので、YT動画を開いている間だけ YT動画の欄として扱う（tabIoElements）
   yt:      {label:'YT動画',    roots:['#mode-yt'],                                           codeId:null,            nameId:'yt-g-theme'},
+  digest:  {label:'決算まとめ', roots:['#mode-digest'],                                       codeId:null,            nameId:'dg-title'},
 };
 // ============================================================
 // PJ の一覧・切り替え・新規・削除（上の1行）
@@ -14080,6 +14127,7 @@ function ktVdState(P,json){
 // 種別ごとの「欄を入れたあとの描き直し」（起動時の後半と同じこと）
 function ktKindAfterOpen(kind,json){
   const j=json||{};
+  if(kind==='digest'){try{dgAfterOpen(json);}catch(e){console.warn('[digest]',e);}return;}
   if(kind==='earnings'){
     window._earnFetched=j.earnFetched||null;
     if(!json){const p=document.getElementById('p-date');if(p){p.value=new Date().toISOString().split('T')[0];p.dispatchEvent(new Event('change'));}const ah=document.getElementById('p-post-after-hours');if(ah)ah.checked=true;}
@@ -14113,6 +14161,7 @@ function ktKindAfterOpen(kind,json){
 }
 // 種別ごとのファイル（PDF・音声・スライド・サムネ背景）を読み直す
 async function ktKindReload(kind){
+  if(kind==='digest'){await dgLoadItems(true);return;}
   if(kind==='earnings'){
     window._earnFiles=[];await restoreEarnFiles();
   }
@@ -15635,6 +15684,177 @@ async function evVizMount(force){
   evVizCutRenderSoon();
 }
 
+
+// ============================================================
+// 🧩 決算まとめ：作成済みの決算 PJ の分析動画を選んで並べ、冒頭と最後を付けて 1 本に（部品は KessanViz.digest）
+// 欄（PJ に保存）：dg-date（日付）・dg-title（一覧の名前）・dg-ids（選んだ決算 PJ の id。並び順。JSON）・dg-settings（部品の設定 JSON）・dg-note-url・dg-desc（概要欄）・dg-yt-title
+// ほかの PJ の動画データ・設定は KTStore.fetchDocs、読み上げ音声は KT_TTS.getFor（開いていない PJ のファイルを読む）
+// ============================================================
+let _dgHandle=null,_dgItems=[],_dgLoadedKey='',_dgLoading=null,_dgDescTimer=null;
+function dgVal(id){const el=document.getElementById(id);return el?el.value:'';}
+function dgSet(id,v){const el=document.getElementById(id);if(el)el.value=v==null?'':v;}
+function dgIds(){try{const a=JSON.parse(dgVal('dg-ids')||'[]');return Array.isArray(a)?a.filter(x=>typeof x==='string'):[];}catch(e){return [];}}
+function dgSettings(){try{return JSON.parse(dgVal('dg-settings')||'null')||null;}catch(e){return null;}}
+function dgStatus(msg,kind){const el=document.getElementById('dg-status');if(!el)return;el.textContent=msg||'';el.style.display=msg?'block':'none';el.style.color=kind==='error'?'#ef4444':kind==='ok'?'#16a34a':'var(--text-sub)';}
+function dgTouch(){try{KTStore.touch('digest','input');}catch(e){}if(typeof saveState==='function')saveState();}
+// 新規・PJ を開いたあと
+function dgToday(){const d=new Date(),p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());}   // 端末の日付（toISOString は UTC なので深夜にずれる）
+function dgAfterOpen(json){
+  if(!json||!dgVal('dg-date'))dgSet('dg-date',dgToday());
+  _dgLoadedKey='';   // 前の PJ の銘柄が残らないよう読み直す
+  if(_dgHandle){try{_dgHandle.unmount();}catch(e){}_dgHandle=null;}
+  const host=document.getElementById('dg-mount');if(host)host.innerHTML='';
+  dgRenderList();
+}
+// タブを開いたとき
+function dgShow(){dgRenderList();dgLoadItems();}
+// ---- 銘柄の一覧（決算 PJ）。選んだものを上に並び順で、その下に残り ----
+function dgRenderList(){
+  const box=document.getElementById('dg-list');if(!box||typeof KTStore==='undefined')return;
+  const ids=dgIds();const rows={};KTStore.listProjects('earnings').forEach(r=>{rows[r.id]=r;});
+  const fl=((document.querySelector('#mode-digest [data-dg="filter"]')||{}).value||'').trim().toLowerCase();
+  const label=id=>{const r=rows[id];if(!r)return id+'（見つかりません）';const m=r.meta||{};return (m.title||r.title||'（名前なし）')+' <span style="color:var(--text-sub);">'+ktFmtDate(m.created||r.createdAt).slice(0,10)+'</span>';};
+  let h='';
+  ids.forEach((id,i)=>{
+    h+='<div style="display:flex;align-items:center;gap:4px;font-size:11px;padding:2px 2px;background:#eef2ff;border-radius:4px;">'
+      +'<input type="checkbox" checked onchange="dgToggle(\''+esc(id)+'\')" title="外す">'
+      +'<span style="flex:none;width:1.4em;text-align:center;font-weight:700;color:#4f46e5;">'+(i+1)+'</span>'
+      +'<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+label(id)+'</span>'
+      +'<button class="btn-sm" onclick="dgMove(\''+esc(id)+'\',-1)" '+(i===0?'disabled':'')+' style="flex:none;padding:0 5px;font-size:10px;" title="上へ">▲</button>'
+      +'<button class="btn-sm" onclick="dgMove(\''+esc(id)+'\',1)" '+(i===ids.length-1?'disabled':'')+' style="flex:none;padding:0 5px;font-size:10px;" title="下へ">▼</button>'
+      +'</div>';
+  });
+  const rest=KTStore.listProjects('earnings').filter(r=>!ids.includes(r.id)).filter(r=>!fl||label(r.id).toLowerCase().includes(fl)).slice(0,80);
+  if(ids.length&&rest.length)h+='<div style="border-top:1px solid var(--border);margin:3px 0;"></div>';
+  rest.forEach(r=>{
+    h+='<div style="display:flex;align-items:center;gap:4px;font-size:11px;padding:2px 2px;">'
+      +'<input type="checkbox" onchange="dgToggle(\''+esc(r.id)+'\')" title="入れる">'
+      +'<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+label(r.id)+'</span>'
+      +'</div>';
+  });
+  if(!h)h='<div style="font-size:11px;color:var(--text-sub);padding:4px;">決算分析の PJ がありません（サーバーの一覧が届いていないときは、少し待ってから開き直してください）</div>';
+  box.innerHTML=h;
+}
+function dgToggle(id){const ids=dgIds();const i=ids.indexOf(id);if(i>=0)ids.splice(i,1);else ids.push(id);dgSet('dg-ids',JSON.stringify(ids));dgTouch();dgRenderList();dgLoadItems();}
+function dgMove(id,d){const ids=dgIds();const i=ids.indexOf(id),j=i+d;if(i<0||j<0||j>=ids.length)return;ids.splice(i,1);ids.splice(j,0,id);dgSet('dg-ids',JSON.stringify(ids));dgTouch();dgRenderList();dgLoadItems();}
+// ---- 選んだ PJ の動画データ・設定・読み上げ音声を読んで、部品に渡す ----
+async function dgLoadItems(force){
+  if(window._ktKind!=='digest')return;
+  const ids=dgIds();const key=ids.join(',');
+  if(!force&&key===_dgLoadedKey&&_dgHandle)return;
+  if(_dgLoading){_dgLoading.again=true;return;}
+  const job={again:false};_dgLoading=job;
+  try{
+    dgStatus(ids.length?'銘柄の動画を読んでいます…':'' ,'info');
+    let KV;try{KV=await evVizLoad();}catch(e){dgStatus(e.message,'error');return;}
+    const items=[];const missing=[];
+    if(ids.length){
+      let docs={};
+      try{docs=await KTStore.fetchDocs(ids);}catch(e){dgStatus('銘柄の PJ を読めませんでした：'+(e&&e.message||e),'error');return;}
+      for(const id of ids){
+        const doc=docs[id];const f=(doc&&doc.json&&doc.json.fields)||{};
+        let d=null;try{d=JSON.parse(f['ev-viz-json']||'null');}catch(e){}
+        if(!d||!d.visualization){missing.push(id);continue;}
+        let viz=d.visualization;
+        // 抽出データ（analysis）があれば最新の描き方で作り直す。株価・業績予想（その PJ の欄から足すもの）は保存済みの visualization のものを戻す
+        if(d.analysis){try{const v0=d.visualization,v1=KV.build(d.analysis);viz={...v1,stock_price:v0.stock_price||v1.stock_price,forecast_compare:v0.forecast_compare||v1.forecast_compare};}catch(e){}}
+        let st=null;try{st=JSON.parse(f['ev-viz-settings']||'null');}catch(e){}
+        if(!st||!Array.isArray(st.scenes))st=evVizDefaultSettings(KV);
+        const narration={};
+        const nar=st.narration||{};
+        await Promise.all(Object.keys(nar).map(async sid=>{
+          const t=(nar[sid]&&nar[sid].text||'').trim();if(!t)return;
+          let rec=null;try{rec=await KT_TTS.getFor(id,'ev:viz:nar:'+sid);}catch(e){}
+          if(rec&&rec.blob&&(rec.text||'').trim()===t)narration[sid]=rec.blob;
+        }));
+        items.push({id,visualization:viz,settings:st,narration,noteUrl:(f['art-url']||'').trim(),title:(f['p-name']||'').trim()});
+      }
+    }
+    _dgItems=items;_dgLoadedKey=key;
+    const host=document.getElementById('dg-mount'),empty=document.getElementById('dg-empty');
+    if(empty)empty.style.display=items.length?'none':'';
+    const settings=dgSettings()||KV.digest.defaultSettings(dgVal('dg-date')||undefined);
+    if(!dgSettings()){dgSet('dg-settings',JSON.stringify(settings));}
+    const props={items:items.map(it=>({visualization:it.visualization,settings:it.settings,narration:it.narration})),settings,controlsEl:document.getElementById('dg-controls'),tts:evVizTts,audioStore:dgAudioStore,importBgm:evVizImportBgm,speed:kgGet('viz-speed')||'fast',
+      onChange:st=>{dgSet('dg-settings',JSON.stringify(st));if(st.date)dgSet('dg-date',st.date);dgTouch();dgTitle();dgDescSoon();}};
+    if(_dgHandle){_dgHandle.update(props);}else if(host){_dgHandle=KV.digest.mount(host,props);}
+    const silent=items.filter(it=>!Object.keys(it.narration).length).map(it=>it.visualization.company.name);
+    let msg=items.length?items.length+' 銘柄を読みました':'';
+    if(missing.length)msg+=(msg?'。':'')+missing.length+' 件は分析動画のデータが無いので外しました（その PJ の決算分析タブで「🎬 Gemini で動画データを作る」）';
+    if(silent.length)msg+=(msg?'。':'')+'読み上げ音声が無い銘柄：'+silent.join('・')+'（その PJ の分析動画で「音声を作る」）';
+    dgStatus(msg,missing.length||silent.length?'error':'ok');
+    dgTitle();dgDescRender(false);
+  }finally{
+    _dgLoading=null;
+    if(job.again)dgLoadItems(true);
+  }
+}
+// 一覧に出る名前：日付 ＋ 銘柄名
+function dgTitle(){
+  const d=dgVal('dg-date');const m=String(d).match(/(\d{4})-(\d{2})-(\d{2})/);
+  const names=_dgItems.map(it=>it.visualization.company.name);
+  const t=(m?parseInt(m[2],10)+'/'+parseInt(m[3],10)+' ':'')+'決算まとめ'+(names.length?'（'+names.join('・')+'）':'');
+  if(dgVal('dg-title')!==t){dgSet('dg-title',t);if(typeof saveState==='function')saveState();}
+}
+// 冒頭・最後の読み上げの保存先（この PJ の KT_TTS 'dg:…'）。BGM は分析動画と同じ共通のもの
+const dgAudioStore={
+  get:async k=>{try{return k==='bgm'?await KT_YN.get('bgm:viz'):await KT_TTS.get('dg:'+k);}catch(e){return null;}},
+  put:async(k,rec)=>{if(k==='bgm')await KT_YN.put('bgm:viz',rec);else await KT_TTS.put('dg:'+k,rec);},
+  del:async k=>{if(k==='bgm')await KT_YN.del('bgm:viz');else await KT_TTS.del('dg:'+k);},
+};
+// ---- 概要欄 ----
+function dgDescSoon(){clearTimeout(_dgDescTimer);_dgDescTimer=setTimeout(()=>dgDescRender(false),400);}
+function dgMmss(sec){const s=Math.floor(sec);return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');}
+// force=false：手で直した概要欄は上書きしない（前にツールが作った文と同じときだけ作り直す）
+async function dgDescRender(force){
+  const ta=document.getElementById('dg-desc');if(!ta)return;
+  let KV;try{KV=await evVizLoad();}catch(e){return;}
+  const settings=dgSettings()||KV.digest.defaultSettings(dgVal('dg-date')||undefined);
+  const items=_dgItems;
+  const chapters=KV.digest.timeline(items.map(it=>({visualization:it.visualization,settings:it.settings})),settings);
+  const d=dgVal('dg-date');const m=String(d).match(/(\d{4})-(\d{2})-(\d{2})/);const jp=m?parseInt(m[2],10)+'月'+parseInt(m[3],10)+'日':'';
+  const noteUrl=dgVal('dg-note-url').trim();
+  const lines=[];
+  lines.push(jp+'に発表された注目企業の決算をまとめて解説します。');
+  lines.push('業績の変化や増減益の背景、今後の見通しなどをコンパクトに整理しています。');
+  lines.push('');
+  lines.push('■ さらに詳しい株価分析はnoteで公開中');
+  lines.push('すみっこマネー大学のnoteでは、企業の業績だけでなく、株価の下値目安や今後のシナリオなどを分析しています。');
+  lines.push('▼ noteはこちら');
+  lines.push(noteUrl||'【noteのURL】');
+  lines.push('');
+  lines.push('■ 動画の目次');
+  // 冒頭は 1 銘柄目と同じチャプター（YouTube のチャプターは 00:00 から・3つ以上・各10秒以上）
+  const intro=chapters.find(c=>c.kind==='intro');
+  chapters.filter(c=>c.kind==='item').forEach((c,i)=>{
+    const it=items[c.index];
+    lines.push((i===0?'00:00 オープニング・':dgMmss(c.startSec)+' ')+c.label);
+    if(it&&it.noteUrl)lines.push('　▶ 記事：'+it.noteUrl);
+  });
+  const outro=chapters.find(c=>c.kind==='outro');
+  if(outro)lines.push(dgMmss(outro.startSec)+' noteのご案内');
+  if(!items.length&&intro)lines.push('00:00 オープニング');
+  lines.push('');
+  const fixed=String(kgGet('yt-p-fixed')||'').trim();
+  if(fixed){lines.push(fixed);lines.push('');}
+  lines.push('■ すみっこマネー大学');
+  lines.push('企業決算や株価の動向など、個人投資家向けの情報を発信しています。');
+  lines.push('');
+  lines.push('※本動画は情報提供を目的としており、特定の銘柄の売買を推奨するものではありません。投資判断はご自身の責任でお願いいたします。');
+  lines.push('');
+  lines.push('#日本株 #決算分析 #株式投資');
+  const text=lines.join('\n');
+  const prev=ta.dataset.auto||'';
+  if(force||!ta.value.trim()||ta.value===prev){ta.value=text;ta.dataset.auto=text;if(typeof saveState==='function')saveState();}
+  // タイトル案：【10月15日決算まとめ】良品計画・GO など注目企業の決算を解説
+  const tt=document.getElementById('dg-yt-title');
+  if(tt){const names=items.map(it=>it.visualization.company.name);const t='【'+jp+'決算まとめ】'+(names.length>3?names.slice(0,3).join('・')+' など注目企業の決算を解説':names.length?names.join('・')+'の決算を解説':'注目企業の決算を解説');const pv=tt.dataset.auto||'';if(force||!tt.value.trim()||tt.value===pv){tt.value=t;tt.dataset.auto=t;}}
+}
+async function dgCopy(id,btn){
+  const v=dgVal(id);if(!v){return;}
+  try{await navigator.clipboard.writeText(v);}catch(e){const el=document.getElementById(id);el.select();document.execCommand('copy');}
+  if(btn){const t=btn.textContent;btn.textContent='✅ コピーしました';setTimeout(()=>{btn.textContent=t;},1200);}
+}
 </script>
 <div class="sa">
 <div id="render-target" style="position:fixed;left:-9999px;top:0;pointer-events:none;"></div>
