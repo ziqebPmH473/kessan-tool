@@ -15021,7 +15021,7 @@ const EV_VIZ_SCENES=[['thumbnail','サムネ',1],['cover','表紙',4],['summary'
 const KG_SNS=[['ig','Instagram'],['l8','Lemon8'],['tt','TikTok']];   // YouTubeの投稿は定型文を使わない（本文とタグだけ）
 // g＝画面の置き場所、ids＝値を入れる元の欄、ctx＝その種類（stock＝株価分析の横動画／gen＝YT動画）のときだけ欄へ入れる、def＝まだ値が無いときの初期値
 // 決算まとめの最後の文（読み上げ）の初期値。共通設定（dg-outro）が空ならこれ
-const DG_OUTRO_DEF='noteでは、決算内容だけでなく、株価の下値や今後の見通しについても分析しています。詳しくは概要欄のリンクか、QRコードを読み込んでご覧ください。';
+const DG_OUTRO_DEF='noteでも、決算の解説を発信しています。詳しくは概要欄のリンクか、QRコードを読み込んでご覧ください。';
 const KG_ITEMS=[
   {g:'thumb',key:'th3',label:'株価分析：3段目の初期値',ids:[],def:'#底値#と%５つの反転サイン%'},
   {g:'thumb',key:'ev-th3',label:'決算の分析動画：3段目',ids:[],def:'図解で%決算解説%',tip:'決算の分析動画のサムネの3段目（決まった文）。上段＝今回の評価と株価の動き、中段＝社名は自動。色指定: *オレンジ* #水色# %黄色%'},
@@ -15787,10 +15787,10 @@ async function dgLoadItems(force){
         }));
         // 引け後（時間外）の発表か・発表日：冒頭の文とまとめの日付に使う
         const ah=f['p-post-after-hours'];const afterHours=ah===true||ah==='true';
-        // 日付は「決算後の株価の日」（p-post-date。引け後の発表なら翌営業日＝株価が動いた日）。無ければ発表日
+        // 発表日（p-date）は表紙の「○月○日発表」に、決算後の株価の日（p-post-date。引け後の発表なら翌営業日＝株価が動いた日）はまとめの日付に
         const pick=k=>String(f[k]||'').match(/^\d{4}-\d{2}-\d{2}$/)?f[k]:null;
-        const announced=pick('p-post-date')||pick('p-date');
-        items.push({id,visualization:viz,settings:st,narration,noteUrl:(f['art-url']||'').trim(),title:(f['p-name']||'').trim(),afterHours,announced});
+        const announced=pick('p-date');const priced=pick('p-post-date')||announced;
+        items.push({id,visualization:viz,settings:st,narration,noteUrl:(f['art-url']||'').trim(),title:(f['p-name']||'').trim(),afterHours,announced,priced});
       }
     }
     _dgItems=items;_dgLoadedKey=key;
@@ -15798,7 +15798,7 @@ async function dgLoadItems(force){
     if(empty)empty.style.display=items.length?'none':'';
     let settings=dgSettings()||KV.digest.defaultSettings(dgVal('dg-date')||undefined);
     // 日付：銘柄の発表日（いちばん新しい日）。手で変えていなければ追従
-    const dates=items.map(it=>it.announced).filter(Boolean).sort();
+    const dates=items.map(it=>it.priced).filter(Boolean).sort();
     if(dates.length){const d=dates[dates.length-1];if(!settings.date_auto||settings.date===settings.date_auto)settings={...settings,date:d,date_auto:d};else settings={...settings,date_auto:d};}
     // 最後の文：共通設定の初期値（手で直していなければ追従）
     const outroDef=String(kgGet('dg-outro')||DG_OUTRO_DEF);
