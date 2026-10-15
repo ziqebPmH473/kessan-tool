@@ -15787,7 +15787,9 @@ async function dgLoadItems(force){
         }));
         // 引け後（時間外）の発表か・発表日：冒頭の文とまとめの日付に使う
         const ah=f['p-post-after-hours'];const afterHours=ah===true||ah==='true';
-        const announced=String(f['p-date']||'').match(/^\d{4}-\d{2}-\d{2}$/)?f['p-date']:null;
+        // 日付は「決算後の株価の日」（p-post-date。引け後の発表なら翌営業日＝株価が動いた日）。無ければ発表日
+        const pick=k=>String(f[k]||'').match(/^\d{4}-\d{2}-\d{2}$/)?f[k]:null;
+        const announced=pick('p-post-date')||pick('p-date');
         items.push({id,visualization:viz,settings:st,narration,noteUrl:(f['art-url']||'').trim(),title:(f['p-name']||'').trim(),afterHours,announced});
       }
     }
@@ -15887,7 +15889,7 @@ const dgThVal=()=>((document.getElementById('dg-th')||{}).value||'').trim();
 function dgThText(){
   const d=dgVal('dg-date');const m=String(d).match(/(\d{4})-(\d{2})-(\d{2})/);const jp=m?parseInt(m[2],10)+'月'+parseInt(m[3],10)+'日':'';
   const names=_dgItems.map(it=>it.visualization.company.name).filter(Boolean);
-  return [jp,'*決算まとめ*',names.length?names.slice(0,3).join('・')+(names.length>3?' ほか':''):''].join('：');
+  return [jp,'決算まとめ',names.length?names.slice(0,3).join('・')+(names.length>3?' ほか':''):''].join('：');
 }
 // 空か、前に自動で入れた文のままなら入れ直す（直した文は残す）
 function dgThAuto(){
