@@ -1593,10 +1593,7 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
             <!-- 概要欄（説明 → note → 目次 → 定型文 → 注意 → タグ）。区切りの秒数は部品から -->
             <details id="dg-descbox" style="margin-top:8px;" open>
               <summary style="font-size:11px;color:var(--text-sub);cursor:pointer;" title="YouTube の概要欄に貼る文。目次の開始時間は動画の長さから自動で入ります">📝 概要欄（目次の時間は自動）</summary>
-              <div class="input-row" style="margin-top:4px;gap:4px;align-items:center;">
-                <label style="font-size:11px;color:var(--text-sub);flex:none;">note の URL</label>
-                <input type="text" id="dg-note-url" placeholder="https://note.com/…（note のトップや、まとめ記事）" oninput="dgDescSoon()" style="flex:1;min-width:0;font-size:11px;">
-              </div>
+              <div style="font-size:10px;color:var(--text-sub);margin-top:4px;">note の URL と「最後の文」の初期値は ⚙ 設定 › 決算まとめ</div>
               <div class="input-row" style="margin-top:4px;">
                 <button class="btn-sm" onclick="dgDescRender(true)" style="flex:1;min-width:0;" title="いまの銘柄・時間で概要欄を作り直します（手で直した文は消えます）">🔄 作り直す</button>
                 <button class="btn-sm" onclick="dgCopy('dg-desc',this)" style="flex:1;min-width:0;background:#16a34a;color:#fff;">📋 コピー</button>
@@ -1610,6 +1607,8 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
             </details>
             <!-- 保存用（PJ と一緒に保存される）：日付・一覧の名前・選んだ PJ（並び順）・部品の設定 -->
             <input type="text" id="dg-date" style="display:none;">
+            <textarea id="dg-desc-auto" style="display:none;"></textarea>
+            <input type="text" id="dg-yt-title-auto" style="display:none;">
             <input type="text" id="dg-title" style="display:none;">
             <textarea id="dg-ids" style="display:none;"></textarea>
             <textarea id="dg-settings" style="display:none;"></textarea>
@@ -1885,6 +1884,17 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
     <div class="capture-wrapper">
         <div id="capture-area-digest" class="sa" style="display:none;flex-direction:column;gap:6px;padding:8px;">
             <div style="font-size:11px;color:var(--text-sub);">決算まとめ 1920×1080 プレビュー。文・音声・書き出しは左のパネルで</div>
+            <!-- まとめ用のサムネ（動画には入れない。YouTube に別で上げる）。型は「サムネだけ」の横（youtube）と同じ -->
+            <div id="dg-thbox" class="sa-card" style="display:flex;flex-direction:column;gap:4px;">
+                <div style="display:flex;align-items:center;gap:6px;">
+                    <span class="sa-sub" style="margin:0;">サムネ（1920×1080・動画とは別に YouTube に上げる）</span>
+                    <button class="btn-sm" onclick="dgThDownload(this)" style="margin-left:auto;flex:none;background:#16a34a;color:#fff;" title="PNG をダウンロード">💾 PNG</button>
+                </div>
+                <textarea id="dg-th" oninput="dgThInput()" placeholder="上段：中段：下段（銘柄を読むと自動で入ります）" style="height:46px;min-height:46px;"></textarea>
+                <input type="text" id="dg-th-auto" style="display:none;">
+                <p style="font-size:10px;color:var(--text-sub);margin:0;">「：」で上段・中段・下段を区切る。色指定: <span style="color:#ff914d">*オレンジ*</span>　<span style="color:#5ce1e6">#水色#</span>　<span style="color:#ffde59">%黄色%</span></p>
+                <div id="dg-th-prev" style="position:relative;overflow:hidden;border:1px solid var(--border);border-radius:4px;align-self:flex-start;display:none;"><div id="dg-th-prev-in"></div></div>
+            </div>
             <div id="dg-empty" style="padding:30px;text-align:center;color:var(--text-sub);font-size:12px;border:1px dashed var(--border);border-radius:8px;">左で銘柄をチェックすると、ここに動画が出ます。</div>
             <div id="dg-mount"></div>
         </div>
@@ -15010,6 +15020,8 @@ function kgIsCommon(id){
 const EV_VIZ_SCENES=[['thumbnail','サムネ',1],['cover','表紙',4],['summary','決算ハイライト',8],['stock_price','株価の推移',8],['pl_waterfall','損益の構造',8],['income_trend','業績の推移',9],['forecast','業績予想の比較',8],['balance_sheet','貸借対照表',11],['cash_flow','キャッシュフロー',9],['segments','セグメント',8],['highlights','注目ポイント',9],['conclusion','総括',8]];
 const KG_SNS=[['ig','Instagram'],['l8','Lemon8'],['tt','TikTok']];   // YouTubeの投稿は定型文を使わない（本文とタグだけ）
 // g＝画面の置き場所、ids＝値を入れる元の欄、ctx＝その種類（stock＝株価分析の横動画／gen＝YT動画）のときだけ欄へ入れる、def＝まだ値が無いときの初期値
+// 決算まとめの最後の文（読み上げ）の初期値。共通設定（dg-outro）が空ならこれ
+const DG_OUTRO_DEF='noteでは、決算内容だけでなく、株価の下値や今後の見通しについても分析しています。詳しくは概要欄のリンクか、QRコードを読み込んでご覧ください。';
 const KG_ITEMS=[
   {g:'thumb',key:'th3',label:'株価分析：3段目の初期値',ids:[],def:'#底値#と%５つの反転サイン%'},
   {g:'thumb',key:'ev-th3',label:'決算の分析動画：3段目',ids:[],def:'図解で%決算解説%',tip:'決算の分析動画のサムネの3段目（決まった文）。上段＝今回の評価と株価の動き、中段＝社名は自動。色指定: *オレンジ* #水色# %黄色%'},
@@ -15029,6 +15041,8 @@ const KG_ITEMS=[
   {g:'reelgen',key:'reel-nt1@gen',label:'note：見出し',ids:[],def:'もっと詳しい｜分析は',tip:'*で囲んだ所が緑になります。「｜」で行を分けます（3行まで）'},
   {g:'reelgen',key:'reel-nt2@gen',label:'note：説明',ids:[],def:'noteで',tip:'線の下に出ます。「｜」で行を分けます。「note」の文字はロゴ付きで出ます'},
   {g:'post',key:'yt-p-fixed',label:'概要欄の定型文（使用ツール・AIの注意書き）',ids:['yt-p-fixed'],area:1,def:YT_POST_FIXED},
+  {g:'digest',key:'note-url',label:'note のトップURL',ids:[],def:'',tip:'決算まとめの概要欄の「▼ noteはこちら」と、最後のスライドの QR コードに使います（https://note.com/… ）。空なら note のトップ https://note.com/ になります'},
+  {g:'digest',key:'dg-outro',label:'最後の文（読み上げ）',ids:[],area:1,def:DG_OUTRO_DEF,tip:'決算まとめの最後の読み上げ文の初期値。まとめの PJ でも直せます（直していない PJ は、ここを変えると追従します）'},
   ...KG_SNS.map(([k,n])=>({g:'snsstock',key:'yt-f-'+k+'@stock',label:n,ids:['yt-f-'+k],ctx:'stock',area:1,def:YT_SNS_FIXED[k]})),
   ...KG_SNS.map(([k,n])=>({g:'snsgen',key:'yt-f-'+k+'@gen',label:n,ids:['yt-f-'+k],ctx:'gen',area:1,def:YT_SNS_FIXED_GEN[k]})),
   ...[['rect','四角枠',YN_COL.green],['underline','下線',YN_COL.red],['highlight','ハイライト',YN_COL.yellow]].map(([t,n,c])=>({g:'mark',key:'mark-'+t,label:n,ids:[],def:c,
@@ -15691,7 +15705,10 @@ async function evVizMount(force){
 // 欄（PJ に保存）：dg-date（日付）・dg-title（一覧の名前）・dg-ids（選んだ決算 PJ の id。並び順。JSON）・dg-settings（部品の設定 JSON）・dg-note-url・dg-desc（概要欄）・dg-yt-title
 // ほかの PJ の動画データ・設定は KTStore.fetchDocs、読み上げ音声は KT_TTS.getFor（開いていない PJ のファイルを読む）
 // ============================================================
-let _dgHandle=null,_dgItems=[],_dgLoadedKey='',_dgLoading=null,_dgDescTimer=null;
+let _dgHandle=null,_dgItems=[],_dgLoadedKey='',_dgLoading=null,_dgDescTimer=null,_dgThTimer=null;
+const dgNoteUrl=()=>(String(kgGet('note-url')||'').trim()||'https://note.com/');
+// 最後のスライドの QR（note の URL）。data URL。作れなければ null
+async function dgQr(url){try{const c=await yqQr(url,400,'#1e3a5f','#ffffff');return c.toDataURL('image/png');}catch(e){console.warn('[digest] qr',e);return null;}}
 function dgVal(id){const el=document.getElementById(id);return el?el.value:'';}
 function dgSet(id,v){const el=document.getElementById(id);if(el)el.value=v==null?'':v;}
 function dgIds(){try{const a=JSON.parse(dgVal('dg-ids')||'[]');return Array.isArray(a)?a.filter(x=>typeof x==='string'):[];}catch(e){return [];}}
@@ -15705,7 +15722,7 @@ function dgAfterOpen(json){
   _dgLoadedKey='';   // 前の PJ の銘柄が残らないよう読み直す
   if(_dgHandle){try{_dgHandle.unmount();}catch(e){}_dgHandle=null;}
   const host=document.getElementById('dg-mount');if(host)host.innerHTML='';
-  dgRenderList();
+  dgRenderList();dgThPreview();
 }
 // タブを開いたとき
 function dgShow(){dgRenderList();dgLoadItems();}
@@ -15768,23 +15785,35 @@ async function dgLoadItems(force){
           let rec=null;try{rec=await KT_TTS.getFor(id,'ev:viz:nar:'+sid);}catch(e){}
           if(rec&&rec.blob&&(rec.text||'').trim()===t)narration[sid]=rec.blob;
         }));
-        items.push({id,visualization:viz,settings:st,narration,noteUrl:(f['art-url']||'').trim(),title:(f['p-name']||'').trim()});
+        // 引け後（時間外）の発表か・発表日：冒頭の文とまとめの日付に使う
+        const ah=f['p-post-after-hours'];const afterHours=ah===true||ah==='true';
+        const announced=String(f['p-date']||'').match(/^\d{4}-\d{2}-\d{2}$/)?f['p-date']:null;
+        items.push({id,visualization:viz,settings:st,narration,noteUrl:(f['art-url']||'').trim(),title:(f['p-name']||'').trim(),afterHours,announced});
       }
     }
     _dgItems=items;_dgLoadedKey=key;
     const host=document.getElementById('dg-mount'),empty=document.getElementById('dg-empty');
     if(empty)empty.style.display=items.length?'none':'';
-    const settings=dgSettings()||KV.digest.defaultSettings(dgVal('dg-date')||undefined);
-    if(!dgSettings()){dgSet('dg-settings',JSON.stringify(settings));}
-    const props={items:items.map(it=>({visualization:it.visualization,settings:it.settings,narration:it.narration})),settings,controlsEl:document.getElementById('dg-controls'),tts:evVizTts,audioStore:dgAudioStore,importBgm:evVizImportBgm,speed:kgGet('viz-speed')||'fast',
-      onChange:st=>{dgSet('dg-settings',JSON.stringify(st));if(st.date)dgSet('dg-date',st.date);dgTouch();dgTitle();dgDescSoon();}};
+    let settings=dgSettings()||KV.digest.defaultSettings(dgVal('dg-date')||undefined);
+    // 日付：銘柄の発表日（いちばん新しい日）。手で変えていなければ追従
+    const dates=items.map(it=>it.announced).filter(Boolean).sort();
+    if(dates.length){const d=dates[dates.length-1];if(!settings.date_auto||settings.date===settings.date_auto)settings={...settings,date:d,date_auto:d};else settings={...settings,date_auto:d};}
+    // 最後の文：共通設定の初期値（手で直していなければ追従）
+    const outroDef=String(kgGet('dg-outro')||DG_OUTRO_DEF);
+    if(!String(settings.outro.text||'').trim()||settings.outro_auto===undefined||settings.outro.text===settings.outro_auto){if(settings.outro.text!==outroDef)settings={...settings,outro:{text:outroDef,seconds:null}};settings={...settings,outro_auto:outroDef};}
+    // QR（note の URL が変わったら作り直す）
+    const noteUrl=dgNoteUrl();
+    if(!settings.note_qr||settings.note_qr_url!==noteUrl){settings={...settings,note_qr:await dgQr(noteUrl),note_qr_url:noteUrl};}
+    dgSet('dg-settings',JSON.stringify(settings));if(settings.date)dgSet('dg-date',settings.date);
+    const props={items:items.map(it=>({visualization:it.visualization,settings:it.settings,narration:it.narration,after_hours:it.afterHours,announced:it.announced})),settings,controlsEl:document.getElementById('dg-controls'),tts:evVizTts,audioStore:dgAudioStore,importBgm:evVizImportBgm,speed:kgGet('viz-speed')||'fast',
+      onChange:st=>{dgSet('dg-settings',JSON.stringify(st));if(st.date)dgSet('dg-date',st.date);dgTouch();dgTitle();dgDescSoon();dgThAuto();}};
     if(_dgHandle){_dgHandle.update(props);}else if(host){_dgHandle=KV.digest.mount(host,props);}
     const silent=items.filter(it=>!Object.keys(it.narration).length).map(it=>it.visualization.company.name);
     let msg=items.length?items.length+' 銘柄を読みました':'';
     if(missing.length)msg+=(msg?'。':'')+missing.length+' 件は分析動画のデータが無いので外しました（その PJ の決算分析タブで「🎬 Gemini で動画データを作る」）';
     if(silent.length)msg+=(msg?'。':'')+'読み上げ音声が無い銘柄：'+silent.join('・')+'（その PJ の分析動画で「音声を作る」）';
     dgStatus(msg,missing.length||silent.length?'error':'ok');
-    dgTitle();dgDescRender(false);
+    dgTitle();dgDescRender(false);dgThAuto();
   }finally{
     _dgLoading=null;
     if(job.again)dgLoadItems(true);
@@ -15814,7 +15843,7 @@ async function dgDescRender(force){
   const items=_dgItems;
   const chapters=KV.digest.timeline(items.map(it=>({visualization:it.visualization,settings:it.settings})),settings);
   const d=dgVal('dg-date');const m=String(d).match(/(\d{4})-(\d{2})-(\d{2})/);const jp=m?parseInt(m[2],10)+'月'+parseInt(m[3],10)+'日':'';
-  const noteUrl=dgVal('dg-note-url').trim();
+  const noteUrl=dgNoteUrl();
   const lines=[];
   lines.push(jp+'に発表された注目企業の決算をまとめて解説します。');
   lines.push('業績の変化や増減益の背景、今後の見通しなどをコンパクトに整理しています。');
@@ -15822,7 +15851,7 @@ async function dgDescRender(force){
   lines.push('■ さらに詳しい株価分析はnoteで公開中');
   lines.push('すみっこマネー大学のnoteでは、企業の業績だけでなく、株価の下値目安や今後のシナリオなどを分析しています。');
   lines.push('▼ noteはこちら');
-  lines.push(noteUrl||'【noteのURL】');
+  lines.push(noteUrl);
   lines.push('');
   lines.push('■ 動画の目次');
   // 冒頭は 1 銘柄目と同じチャプター（YouTube のチャプターは 00:00 から・3つ以上・各10秒以上）
@@ -15843,13 +15872,53 @@ async function dgDescRender(force){
   lines.push('');
   lines.push('※本動画は情報提供を目的としており、特定の銘柄の売買を推奨するものではありません。投資判断はご自身の責任でお願いいたします。');
   lines.push('');
-  lines.push('#日本株 #決算分析 #株式投資');
+  const tagNames=items.map(it=>String(it.visualization.company.name||'').replace(/[\s　#＃]/g,'')).filter(Boolean).map(n=>'#'+n);
+  lines.push(['#日本株','#決算分析','#株式投資'].concat(tagNames).join(' '));
   const text=lines.join('\n');
-  const prev=ta.dataset.auto||'';
-  if(force||!ta.value.trim()||ta.value===prev){ta.value=text;ta.dataset.auto=text;if(typeof saveState==='function')saveState();}
+  // 前に自動で入れた文は欄（dg-desc-auto）に残す（再読み込みしても、手で直していない欄だけ作り直せるように）
+  const au=document.getElementById('dg-desc-auto');const prev=au?au.value:'';
+  if(force||!ta.value.trim()||ta.value===prev){ta.value=text;if(au)au.value=text;if(typeof saveState==='function')saveState();}
   // タイトル案：【10月15日決算まとめ】良品計画・GO など注目企業の決算を解説
   const tt=document.getElementById('dg-yt-title');
-  if(tt){const names=items.map(it=>it.visualization.company.name);const t='【'+jp+'決算まとめ】'+(names.length>3?names.slice(0,3).join('・')+' など注目企業の決算を解説':names.length?names.join('・')+'の決算を解説':'注目企業の決算を解説');const pv=tt.dataset.auto||'';if(force||!tt.value.trim()||tt.value===pv){tt.value=t;tt.dataset.auto=t;}}
+  if(tt){const names=items.map(it=>it.visualization.company.name);const t='【'+jp+'決算まとめ】'+(names.length>3?names.slice(0,3).join('・')+' など注目企業の決算を解説':names.length?names.join('・')+'の決算を解説':'注目企業の決算を解説');const ta2=document.getElementById('dg-yt-title-auto');const pv=ta2?ta2.value:'';if(force||!tt.value.trim()||tt.value===pv){tt.value=t;if(ta2)ta2.value=t;}}
+}
+// ---- まとめ用のサムネ（上段：中段：下段。型は「サムネだけ」の横） ----
+const dgThVal=()=>((document.getElementById('dg-th')||{}).value||'').trim();
+function dgThText(){
+  const d=dgVal('dg-date');const m=String(d).match(/(\d{4})-(\d{2})-(\d{2})/);const jp=m?parseInt(m[2],10)+'月'+parseInt(m[3],10)+'日':'';
+  const names=_dgItems.map(it=>it.visualization.company.name).filter(Boolean);
+  return [jp,'*決算まとめ*',names.length?names.slice(0,3).join('・')+(names.length>3?' ほか':''):''].join('：');
+}
+// 空か、前に自動で入れた文のままなら入れ直す（直した文は残す）
+function dgThAuto(){
+  const el=document.getElementById('dg-th'),au=document.getElementById('dg-th-auto');if(!el||!au)return;
+  const t=dgThText();
+  if(!el.value.trim()||el.value===au.value){el.value=t;au.value=t;if(typeof saveState==='function')saveState();}
+  dgThPreview();
+}
+function dgThInput(){if(typeof saveState==='function')saveState();clearTimeout(_dgThTimer);_dgThTimer=setTimeout(dgThPreview,300);}
+function dgThPreview(){
+  const text=dgThVal(),wrap=document.getElementById('dg-th-prev'),inner=document.getElementById('dg-th-prev-in');if(!wrap||!inner)return;
+  if(!text){wrap.style.display='none';return;}
+  wrap.style.display='';
+  const W=SLIDE_W,H=SLIDE_H,h=Math.min(240,Math.floor(((wrap.parentElement.clientWidth||600)-4)*H/W)),sc=h/H;
+  wrap.style.width=Math.round(W*sc)+'px';wrap.style.height=Math.round(H*sc)+'px';
+  inner.style.cssText=`position:absolute;top:0;left:0;width:${W}px;height:${H}px;transform:scale(${sc});transform-origin:top left;pointer-events:none;`;
+  inner.innerHTML=tqHtmlH(text,'youtube');
+}
+async function dgThDownload(btn){
+  const text=dgThVal();if(!text){alert('サムネの文を入れてください');return;}
+  if(btn)btn.disabled=true;
+  try{
+    const cont=document.getElementById('th-render-target');
+    cont.innerHTML=tqHtmlH(text,'youtube');
+    await new Promise(r=>setTimeout(r,400));
+    let blob;
+    try{const canvas=await html2canvas(cont.querySelector('.th-slide'),{width:SLIDE_W,height:SLIDE_H,scale:1920/SLIDE_W,useCORS:true,allowTaint:true,backgroundColor:'#000000',logging:false});blob=await new Promise(res=>canvas.toBlob(res,'image/png'));}
+    finally{cont.innerHTML='';}
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='digest_'+(dgVal('dg-date')||'thumb')+'_thumb.png';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+  }catch(e){alert('サムネを作れませんでした：'+(e&&e.message||e));}
+  finally{if(btn)btn.disabled=false;}
 }
 async function dgCopy(id,btn){
   const v=dgVal(id);if(!v){return;}
@@ -16086,6 +16155,10 @@ async function dgCopy(id,btn){
     <div class="kg-sec">
       <h3>投稿の定型文</h3>
       <div id="kg-g-post"></div>
+    </div>
+    <div class="kg-sec">
+      <h3>決算まとめ</h3>
+      <div id="kg-g-digest"></div>
       <div class="kg-note" style="margin-top:8px;">SNSの投稿文の定型文（誘導とnoteの案内）。直したらSNSタブの「↻ 組み立て直す」で入ります。</div>
       <details open><summary style="cursor:pointer;font-size:11.5px;margin-top:4px;">株価分析の横動画（{下値/上値} は株価の向きで置き換わります）</summary><div id="kg-g-snsstock"></div></details>
       <details><summary style="cursor:pointer;font-size:11.5px;margin-top:4px;">YT動画</summary><div id="kg-g-snsgen"></div></details>
