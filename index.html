@@ -15022,9 +15022,7 @@ const KG_SNS=[['ig','Instagram'],['l8','Lemon8'],['tt','TikTok']];   // YouTube�
 // g＝画面の置き場所、ids＝値を入れる元の欄、ctx＝その種類（stock＝株価分析の横動画／gen＝YT動画）のときだけ欄へ入れる、def＝まだ値が無いときの初期値
 // 決算まとめの最後の文（読み上げ）の初期値。共通設定（dg-outro）が空ならこれ
 // 決算まとめの概要欄の注意書き。図解はツールが数値から描く（生成AIの絵ではない）ので、横動画の定型文（YT_POST_FIXED）とは分ける（すみぽん 2026-10-16）
-const DG_FIXED_DEF=`本動画にはAI生成コンテンツが含まれています。
-ナレーションの音声と、決算内容の分析・要約に生成AIを活用しています（図解はツールが決算の数値から描いています）。
-内容の正確性には十分配慮していますが、最終的な判断はご自身でお願いいたします。`;
+const DG_FIXED_DEF='ナレーションや分析には生成AIを使用しています。';
 const DG_OUTRO_DEF='noteでも、決算の解説を発信しています。詳しくは概要欄のリンクか、QRコードを読み込んでご覧ください。';
 const KG_ITEMS=[
   {g:'thumb',key:'th3',label:'株価分析：3段目の初期値',ids:[],def:'#底値#と%５つの反転サイン%'},
@@ -15863,12 +15861,12 @@ async function dgDescRender(force){
   const d=dgVal('dg-date');const m=String(d).match(/(\d{4})-(\d{2})-(\d{2})/);const jp=m?parseInt(m[2],10)+'月'+parseInt(m[3],10)+'日':'';
   const noteUrl=dgNoteUrl();
   const lines=[];
-  lines.push(jp+'に発表された注目企業の決算をまとめて解説します。');
-  lines.push('業績の変化や増減益の背景、今後の見通しなどをコンパクトに整理しています。');
+  // 最初の行は冒頭の文と同じく、場中（株価が動いた）／引け後 の銘柄があるかで出し分け（すみぽんの文案 2026-10-16）
+  const moved=items.some(it=>!it.afterHours),after=items.some(it=>it.afterHours);
+  lines.push(moved&&after?jp+'の市場で注目された決算と、引け後に発表された決算をまとめて解説します。':moved?jp+'の市場で注目された決算をまとめて解説します。':after?jp+'の引け後に発表された決算をまとめて解説します。':jp+'に発表された決算をまとめて解説します。');
+  lines.push('業績の変化や増減益の背景、今後の見通しをコンパクトに整理しています。');
   lines.push('');
-  lines.push('■ noteで銘柄分析を公開中');
-  lines.push('個別銘柄の業績・事業の強み・株価の動きを分析した記事を公開しています。');
-  lines.push('▼ noteはこちら');
+  lines.push('■ noteで個別銘柄の分析記事を公開中');
   lines.push(noteUrl);
   lines.push('');
   lines.push('■ 動画の目次');
@@ -15884,11 +15882,9 @@ async function dgDescRender(force){
   if(!items.length&&intro)lines.push('00:00 オープニング');
   lines.push('');
   const fixed=String(kgGet('dg-fixed')||DG_FIXED_DEF).trim();
-  if(fixed){lines.push(fixed);lines.push('');}
-  lines.push('■ すみっこマネー大学');
-  lines.push('企業決算や株価の動向など、個人投資家向けの情報を発信しています。');
-  lines.push('');
-  lines.push('※本動画は情報提供を目的としており、特定の銘柄の売買を推奨するものではありません。投資判断はご自身の責任でお願いいたします。');
+  if(fixed)lines.push(fixed);
+  lines.push('本動画は情報提供を目的としており、特定の銘柄の売買を推奨するものではありません。');
+  lines.push('投資判断はご自身でお願いいたします。');
   lines.push('');
   const tagNames=items.map(it=>String(it.visualization.company.name||'').replace(/[\s　#＃]/g,'')).filter(Boolean).map(n=>'#'+n);
   lines.push(['#日本株','#決算分析','#株式投資'].concat(tagNames).join(' '));
