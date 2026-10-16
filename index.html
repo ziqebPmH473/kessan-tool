@@ -16118,7 +16118,7 @@ async function eaViz(){
   const KV=await evVizLoad();
   let viz=d.visualization;if(d.analysis){try{viz=KV.build(d.analysis,evVizExtras());}catch(e){console.warn('[ea] viz',e);}}
   const settings=evVizSettings()||evVizDefaultSettings(KV);
-  const scenes=KV.scenes(viz,settings).filter(s=>s.id!=='thumbnail');   // サムネの場面はアイキャッチに回すので画像の枠にしない
+  const scenes=KV.scenes(viz,settings).filter(s=>s.id!=='thumbnail'&&s.id!=='cover');   // サムネの場面はアイキャッチに回す。表紙は記事に要らない。どちらも画像の枠にしない
   return{KV,viz,settings,scenes};
 }
 // 画像の枠の行（ブログ本文）。場面名はそのまま ZIP の画像の名前になる
