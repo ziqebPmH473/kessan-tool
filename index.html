@@ -15154,6 +15154,7 @@ const DG_OUTRO_DEF='noteでも、決算の解説を発信しています。詳�
 const KG_ITEMS=[
   {g:'thumb',key:'th3',label:'株価分析：3段目の初期値',ids:[],def:'#底値#と%５つの反転サイン%'},
   {g:'thumb',key:'ev-th3',label:'決算の分析動画：3段目',ids:[],def:'図解で%決算解説%',tip:'決算の分析動画のサムネの3段目（決まった文）。上段＝今回の評価と株価の動き、中段＝社名は自動。色指定: *オレンジ* #水色# %黄色%'},
+  {g:'thumb',key:'ea-th3',label:'決算のブログ：アイキャッチの3段目',ids:[],def:'かんたん%決算解説%',tip:'決算分析の「ブログ用 ZIP」のアイキャッチの3段目。上段・中段は分析動画の横サムネと同じ。色指定: *オレンジ* #水色# %黄色%'},
   {g:'voice',key:'tts-voice',label:'台本の声',ids:['vd-tts-voice','ev-tts-voice']},
   {g:'voice',key:'tts-model',label:'台本の声のモデル',ids:['vd-tts-model','ev-tts-model']},
   {g:'voice',key:'oped-vol',label:'OP・EDの音量（%）',ids:[],def:'85',tip:'横動画の書き出しで、OP・EDの音声にかける大きさ。100＝作ったままの大きさ。100より大きくもできます（大きすぎると音が割れます）'},
@@ -16317,7 +16318,8 @@ async function eaBlogZip(btn){
     const code=VD_CFG.ev.code(),name=VD_CFG.ev.name();
     const zip=new JSZip();
     // アイキャッチ：分析動画の横サムネ（文があるときだけ）
-    try{const t=evThVal('h');if(t){st('アイキャッチを作っています…');const du=await evThImage('h',t);zip.file('アイキャッチ.jpg',du.split(',')[1],{base64:true});}}catch(e){console.warn('[ea] eyecatch',e);}
+    // 文は分析動画の横サムネと同じで、3段目だけ ⚙ 共通設定の「決算のブログ：アイキャッチの3段目」に替える
+    try{const t=evThVal('h')||evVizThumbText();if(t){st('アイキャッチを作っています…');const ps=t.split('：');ps[2]=String(kgGet('ea-th3')||'').trim()||'かんたん%決算解説%';const du=await evThImage('h',ps.slice(0,3).join('：'));zip.file('アイキャッチ.jpg',du.split(',')[1],{base64:true});}}catch(e){console.warn('[ea] eyecatch',e);}
     // 画像：本文の枠の順に 01_, 02_ …
     if(used.length){
       st(`画像を作っています… 0/${used.length}`);
