@@ -1250,6 +1250,7 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
           <button class="sa-subtab active" data-etab="main" onclick="switchEarnTab('main')">📊 決算分析</button>
           <button class="sa-subtab" data-etab="video" onclick="switchEarnTab('video')">🎬 動画</button>
           <button class="sa-subtab" data-etab="viz" onclick="switchEarnTab('viz')">📽 分析動画</button>
+          <button class="sa-subtab" data-etab="article" onclick="switchEarnTab('article')">📝 記事</button>
         </div></div>
         <div id="earn-tab-main">
         <div class="tool-section">
@@ -1439,6 +1440,108 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
             <!-- 保存用（PJ と一緒に保存される） -->
             <textarea id="ev-viz-json" style="display:none;"></textarea>
             <textarea id="ev-viz-settings" style="display:none;"></textarea>
+          </div>
+        </div>
+        <!-- 📝 記事：note 記事・ブログ記事（元は FC 済みの分析レポートと整形済みデータ）。ブログは sumikko-money の docs/article-zip.md の形の ZIP で渡す。関数は ea*（本体スクリプトの末尾） -->
+        <div id="earn-tab-article" class="sa" style="display:none;flex-direction:column;gap:6px;">
+          <div class="tool-section">
+            <div class="section-heading">記事（note・ブログ）</div>
+            <div style="font-size:11px;color:var(--text-sub);line-height:1.6;">「1.」のFCレポートと「2.」の整形済みデータから、note 記事（表なし）とブログ記事（表あり）を作ります。ブログは、分析動画と各場面の画像を入れた ZIP にして、ブログのコンソールに落とすだけで記事になります。</div>
+            <div class="input-row" style="margin-top:6px;gap:4px;align-items:center;">
+              <label style="font-size:11px;color:var(--text-sub);flex:none;">モデル</label>
+              <select id="ea-model" style="flex:1;min-width:0;font-size:11px;padding:4px;">
+                <option value="" selected>自動（上位から上限で自動降格）</option>
+                <option value="gemini-3.8-flash">Gemini 3.8 Flash（20回/日）</option>
+                <option value="gemini-3.7-flash">Gemini 3.7 Flash（20回/日）</option>
+                <option value="gemini-3.6-flash">Gemini 3.6 Flash（20回/日）</option>
+                <option value="gemini-3.5-flash">Gemini 3.5 Flash（20回/日）</option>
+                <option value="gemini-3-flash-preview">Gemini 3 Flash（20回/日）</option>
+                <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite（500回/日）</option>
+                <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite（500回/日）</option>
+              </select>
+            </div>
+            <div class="input-row" style="margin-top:4px;gap:4px;align-items:center;">
+              <label style="font-size:11px;color:var(--text-sub);flex:none;">YouTubeのURL</label>
+              <input type="text" id="ea-yt-url" placeholder="動画を上げたあとのURL（ブログの【YouTube】に入ります）" oninput="saveState()" style="flex:1;min-width:0;font-size:11px;">
+              <button class="btn-sm" onclick="eaPaste('ea-yt-url')" style="flex:none;">📋 貼付</button>
+            </div>
+            <div class="input-row" style="margin-top:4px;gap:4px;align-items:center;">
+              <label style="font-size:11px;color:var(--text-sub);flex:none;">noteの記事URL</label>
+              <input type="text" id="ea-note-url" placeholder="noteに公開したあとのURL（ブログの【note】と決算まとめのQRに入ります）" oninput="saveState()" style="flex:1;min-width:0;font-size:11px;">
+              <button class="btn-sm" onclick="eaPaste('ea-note-url')" style="flex:none;">📋 貼付</button>
+            </div>
+          </div>
+          <div class="tool-section">
+            <div class="section-heading">1. note 記事（無料）</div>
+            <div style="font-size:11px;color:var(--text-sub);" title="表は使わない（noteは表を表示できない）。最初の段落のあとに注意書きが入ります">表なし。最初の段落のあとに注意書きが入ります。</div>
+            <div class="input-row" style="margin-top:4px;">
+              <button class="main-btn" onclick="eaArtAi('n',this)" style="flex:1;background:#4f46e5;">🤖 Gemini APIで作る</button>
+            </div>
+            <details style="margin-top:4px;"><summary style="font-size:11px;color:var(--text-sub);cursor:pointer;">手動で作る（ChatGPT など。APIが混んでいるとき）</summary>
+              <div class="input-row" style="margin-top:4px;">
+                <button class="btn-sm" onclick="eaCopyPrompt('n',this)" style="flex:1;min-width:0;background:#475569;color:#fff;">💬 プロンプト</button>
+                <button class="btn-sm" onclick="eaArtPaste('n')" style="flex:1;min-width:0;">📋 貼り付け</button>
+              </div>
+            </details>
+            <div id="ea-n-status" style="display:none;font-size:11px;margin-top:3px;"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">タイトル</label><button class="btn-sm" onclick="copyText(document.getElementById('ea-n-title').value,this)">📋 コピー</button></div>
+            <input type="text" id="ea-n-title" oninput="saveState()" placeholder="生成後にタイトルが入ります" style="width:100%;box-sizing:border-box;font-size:11px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">本文（note）</label><button class="btn-sm" onclick="copyText(document.getElementById('ea-n-body').value,this)">📋 コピー</button></div>
+            <textarea id="ea-n-body" oninput="saveState()" placeholder="生成後にnote記事本文が入ります" style="min-height:130px;font-size:11px;"></textarea>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">ハッシュタグ</label><button class="btn-sm" onclick="copyText(document.getElementById('ea-n-tags').value,this)">📋 コピー</button></div>
+            <input type="text" id="ea-n-tags" oninput="saveState()" placeholder="生成後にハッシュタグが入ります" style="width:100%;box-sizing:border-box;font-size:11px;">
+            <div class="input-row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:10px;">
+              <label style="font-size:11px;color:var(--text-sub);flex:none;">関連記事</label>
+              <select id="ea-rel-sel" onchange="relOnPick(REL_EA)" style="flex:1;min-width:0;font-size:11px;padding:4px;"><option value="">（記事を作ると自動で選ばれます）</option></select>
+              <button class="btn-sm" onclick="relFetch(this)" style="flex:none;" title="noteの公開記事一覧を取り直します">🔄</button>
+            </div>
+            <input type="hidden" id="ea-rel-url">
+            <div class="input-row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:4px;">
+              <input type="text" id="ea-rel-intro" placeholder="紹介文（空なら挿入時にAIが1文書きます）" oninput="saveState()" style="flex:1;min-width:0;font-size:11px;">
+              <button class="btn-sm" onclick="relInsert(this,false,REL_EA)" style="flex:none;background:#0d9488;color:#fff;">📎 本文に挿入</button>
+            </div>
+            <div style="font-size:10px;color:var(--text-sub);margin-top:2px;" title="株価分析のnoteと同じ一覧（noteの有料記事）から選びます。⭐＝今回の記事との関連が強い候補。noteでURL行の末尾にカーソルを置きEnterでカードになります">本文の末尾に「あわせて読みたい」＋紹介文＋URLを差し込みます。何度押しても差し替わります。</div>
+            <textarea id="ea-n-raw" style="display:none;"></textarea>
+          </div>
+          <div class="tool-section">
+            <div class="section-heading">2. ブログ記事</div>
+            <div style="font-size:11px;color:var(--text-sub);line-height:1.6;" title="分析動画の場面ごとに [ここに「場面名」のスライド画像を挿入] の行が入り、ZIP の画像と対応します。動画の行は最初の段落のあとに入ります">表あり。本文に、分析動画の各場面の画像と動画を入れる位置が入ります。</div>
+            <div id="ea-scene-hint" style="font-size:10px;color:var(--text-sub);margin-top:2px;"></div>
+            <div class="input-row" style="margin-top:4px;">
+              <button class="main-btn" onclick="eaArtAi('b',this)" style="flex:1;background:#4f46e5;">🤖 Gemini APIで作る</button>
+            </div>
+            <details style="margin-top:4px;"><summary style="font-size:11px;color:var(--text-sub);cursor:pointer;">手動で作る（ChatGPT など。APIが混んでいるとき）</summary>
+              <div class="input-row" style="margin-top:4px;">
+                <button class="btn-sm" onclick="eaCopyPrompt('b',this)" style="flex:1;min-width:0;background:#475569;color:#fff;">💬 プロンプト</button>
+                <button class="btn-sm" onclick="eaArtPaste('b')" style="flex:1;min-width:0;">📋 貼り付け</button>
+              </div>
+            </details>
+            <div id="ea-b-status" style="display:none;font-size:11px;margin-top:3px;"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">タイトル</label><button class="btn-sm" onclick="copyText(document.getElementById('ea-b-title').value,this)">📋 コピー</button></div>
+            <input type="text" id="ea-b-title" oninput="saveState()" placeholder="生成後にタイトルが入ります" style="width:100%;box-sizing:border-box;font-size:11px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);" title="ブログが記事の頭に出す3行。無料で読める範囲の内容だけ">要点（3行）</label><button class="btn-sm" onclick="copyText(document.getElementById('ea-b-points').value,this)">📋 コピー</button></div>
+            <textarea id="ea-b-points" oninput="saveState()" placeholder="生成後に要点（3行）が入ります" style="min-height:0;height:56px;font-size:11px;"></textarea>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">本文（ブログ）</label><button class="btn-sm" onclick="copyText(document.getElementById('ea-b-body').value,this)">📋 コピー</button></div>
+            <textarea id="ea-b-body" oninput="saveState()" placeholder="生成後にブログ記事本文が入ります" style="min-height:130px;font-size:11px;"></textarea>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">ハッシュタグ</label><button class="btn-sm" onclick="copyText(document.getElementById('ea-b-tags').value,this)">📋 コピー</button></div>
+            <input type="text" id="ea-b-tags" oninput="saveState()" placeholder="生成後にハッシュタグが入ります" style="width:100%;box-sizing:border-box;font-size:11px;">
+            <textarea id="ea-b-raw" style="display:none;"></textarea>
+            <div class="input-row" style="margin-top:10px;gap:4px;align-items:center;">
+              <label style="font-size:11px;cursor:pointer;display:flex;align-items:center;gap:4px;" title="分析動画をブラウザで MP4 にして ZIP に入れます（数分かかります。書き出し中はこのタブを表示したままにしてください）"><input type="checkbox" id="ea-zip-video" checked> 分析動画（MP4）も入れる</label>
+            </div>
+            <div class="input-row" style="margin-top:4px;">
+              <button class="main-btn" onclick="eaBlogZip(this)" style="flex:1;background:#16a34a;" title="記事.txt・アイキャッチ・各場面の画像・分析動画の MP4 を1つの ZIP にします。ブログのコンソール →「新しい記事」→「まとめて貼る」に落とすと記事になります">💾 ブログ用 ZIP を保存</button>
+            </div>
+            <div id="ea-zip-status" style="display:none;font-size:11px;margin-top:3px;"></div>
+          </div>
+          <div class="tool-section">
+            <div class="section-heading">3. 売買をすすめる表現のチェック</div>
+            <div style="font-size:11px;color:var(--text-sub);">APIで作ると自動。手動で貼った記事だけ押す。</div>
+            <div class="input-row" style="margin-top:4px;">
+              <button class="btn-sm" onclick="eaArtCheck('n',this)" style="flex:1;min-width:0;background:#4f46e5;color:#fff;">✅ note記事をチェック</button>
+              <button class="btn-sm" onclick="eaArtCheck('b',this)" style="flex:1;min-width:0;background:#4f46e5;color:#fff;">✅ ブログ記事をチェック</button>
+            </div>
+            <textarea id="ea-check" readonly placeholder="チェックの結果（どこを・どう直したか）がここに出ます" style="min-height:46px;font-size:11px;margin-top:4px;"></textarea>
           </div>
         </div>
         </div><!-- /mode-earnings -->
@@ -5668,7 +5771,9 @@ const REL_STOCK={sel:'art-rel-sel',url:'art-rel-url',intro:'art-rel-intro',body:
   code:()=>(typeof getTicker==='function'?getTicker():'')||'',status:(m,c)=>setArtStatus(m,c)};
 const REL_YT={sel:'yt-a-rel-sel',url:'yt-a-rel-url',intro:'yt-a-rel-intro',body:'yt-a-n-body',title:'yt-a-n-title',tags:'yt-a-n-tags',myUrl:'yt-a-noteurl',
   code:()=>'',status:(m,c)=>ygArtStatus('n',m,c==='info'?'':c)};
-const REL_ALL=[REL_STOCK,REL_YT];
+const REL_EA={sel:'ea-rel-sel',url:'ea-rel-url',intro:'ea-rel-intro',body:'ea-n-body',title:'ea-n-title',tags:'ea-n-tags',myUrl:'ea-note-url',
+  code:()=>((document.getElementById('p-code')||{}).value||'').trim(),status:(m,c)=>eaStatus('n',m,c==='info'?'':c)};   // 決算分析の 📝 記事タブ
+const REL_ALL=[REL_STOCK,REL_YT,REL_EA];
 const REL_CACHE_KEY='kt-note-articles';
 const REL_CACHE_HOURS=6;
 let _relList=[];
@@ -7213,6 +7318,10 @@ function vdBuildTabHtml(P){
     <textarea id="${P}-insta" placeholder="生成後にInstagram投稿文が入ります" style="min-height:60px;"></textarea>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">TikTok投稿文</label><button class="btn-sm" onclick="copyText(document.getElementById('${P}-tiktok').value,this)">📋 コピー</button></div>
     <textarea id="${P}-tiktok" placeholder="生成後にTikTok投稿文が入ります" style="min-height:50px;"></textarea>
+    ${P==='ev'?`<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);" title="YouTube ショートに上げるときのタイトル。縦スライド・台本と同じ生成で作られます">YouTubeショート：タイトル</label><button class="btn-sm" onclick="copyText(document.getElementById('ev-ytt').value,this)">📋 コピー</button></div>
+    <input type="text" id="ev-ytt" placeholder="生成後にYouTubeショート用のタイトルが入ります" oninput="saveState()" style="width:100%;box-sizing:border-box;font-size:11px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);" title="YouTube ショートの概要欄。末尾に固定タグが付きます">YouTubeショート：概要欄</label><button class="btn-sm" onclick="copyText(document.getElementById('ev-ytd').value,this)">📋 コピー</button></div>
+    <textarea id="ev-ytd" placeholder="生成後にYouTubeショート用の概要欄が入ります" oninput="saveState()" style="min-height:60px;"></textarea>`:''}
     <details style="margin-top:6px;"><summary style="font-size:10px;color:var(--text-sub);cursor:pointer;">生成全文（うまく分割できない時のフォールバック）</summary><textarea id="${P}-raw" style="min-height:80px;"></textarea></details>
   </div>
   </div>
@@ -7259,7 +7368,7 @@ function vdSyncTts(P){
   if(typeof saveState==='function')saveState();
 }
 function vdPersistIds(P){
-  const ids=['note-url','xnote','model','months','logo-op','th-input','slides','x','insta','tiktok','raw','tts-voice','tts-model','tts-eq','tts-gap','tts-format','timing','fixed-tags'];
+  const ids=['note-url','xnote','model','months','logo-op','th-input','slides','x','insta','tiktok','ytt','ytd','raw','tts-voice','tts-model','tts-eq','tts-gap','tts-format','timing','fixed-tags'];
   for(let i=1;i<=5;i++)ids.push('s'+i);
   const out=ids.map(k=>`${P}-${k}`);
   if(P==='ev')out.push('ev-auto');
@@ -7410,7 +7519,7 @@ function videoPromptEv(n){
 :`2. 【台本①】：${s1}
 3. 【台本②】：${s2}
 4. 【台本③】：スライド③。${EV_REACT_SCRIPT}`;
-  const nBlocks=four?9:8;
+  const nBlocks=four?11:10;
   return `あなたは「論理的で客観的だが、初心者に寄り添って分かりやすく話す投資のナビゲーター」です。
 提供される【決算分析の整形済みデータ】と【基本情報】を根拠に、SNS向け縦型ショート動画（X / TikTok / Instagramリール）の素材を、下記の${nBlocks}ブロックで出力してください。
 この動画は有料記事への誘導ではなく、決算内容を短時間で理解してもらいフォロワーを増やすための「認知型」の動画です。noteへの誘導文は書かない。
@@ -7452,6 +7561,8 @@ ${four?'8':'7'}. 【TikTok投稿文】：200〜300文字（TikTokは検索流入
    2〜4行目：決算の要点を2〜3文
    次の行：「フォローで決算解説をチェック」（「毎回」「毎日」など投稿頻度を約束する表現は使わない）
    最終行：ハッシュタグ5〜8個（#銘柄名 #証券コード #決算 #日本株 #株式投資 ・業種など）
+${four?'9':'8'}. 【YouTubeタイトル】：YouTube ショート用のタイトル。40文字以内。「【銘柄名（証券コード）】」で始め、続けて決算の一言結論と、視聴者が気になる問いかけ（例：「なぜ株価は下落？」）。「#」は使わない。
+${four?'10':'9'}. 【YouTube概要欄】：YouTube ショート用の概要欄。1行目は検索されそうな言葉（銘柄名・証券コード・「決算」など）を含む1文。2〜4行目に決算の要点を2〜3文（数字の羅列にしない）。空行を1つ挟んで、最終行にハッシュタグ3〜5個（#銘柄名 #証券コード #決算 #Shorts など）。
 
 【共通ルール】
 ・すべて整形済みデータの事実に基づき、データにない数値・事実を創作しない。
@@ -7511,11 +7622,12 @@ function vdBasicInfo(P){
   return L.join('\n');
 }
 
-function parseVideoOutput(text,nScripts){
+function parseVideoOutput(text,nScripts,P){
   const defs=[{key:'slides',re:/【\s*縦スライド[^】]*】/}];
   const nums=['[①1１]','[②2２]','[③3３]','[④4４]','[⑤5５]'];
   for(let i=1;i<=nScripts;i++)defs.push({key:'s'+i,re:new RegExp(`【\\s*台本\\s*${nums[i-1]}[^】]*】`)});
   defs.push({key:'x',re:/【\s*X[^】]*(?:投稿文|ハッシュタグ)\s*】/},{key:'insta',re:/【\s*Instagram[^】]*】/i},{key:'tiktok',re:/【\s*TikTok[^】]*】/i});
+  if(P==='ev')defs.push({key:'ytt',re:/【\s*YouTube\s*タイトル[^】]*】/i},{key:'ytd',re:/【\s*YouTube\s*概要欄[^】]*】/i});   // YouTube ショート用（決算の縦動画だけ）
   const found=defs.map(d=>{const m=text.match(d.re);return m?{key:d.key,idx:m.index,end:m.index+m[0].length}:null;}).filter(Boolean);
   found.sort((a,b)=>a.idx-b.idx);
   const out={};
@@ -7631,7 +7743,7 @@ async function geminiVideo(P,btnEl){
   const r=await saCallGeminiAnalyze(prompt,resources,{cls:'high',temperature:0.7,modelOverride:ov});
   if(btnEl){btnEl.disabled=false;btnEl.textContent=o;}
   if(!r.ok){vdStatus(P,'エラー: '+r.error,'error');return false;}
-  const p=parseVideoOutput(r.text,n);
+  const p=parseVideoOutput(r.text,n,P);
   vdBuildScriptBoxes(P,true);
   if(P==='ev'){const t=vdEl('ev','th-input');if(t)t.value=evThumbText();}   // サムネ文言はAIに作らせない（株価分析はサムネイルタブの文言を流用）
   // AIの台本①〜は表示中の欄へ順に入れる。使わない欄（3枚のときの通期予想）は前回の台本を残さない
@@ -7643,12 +7755,13 @@ async function geminiVideo(P,btnEl){
                               :vdAddFixedTags(P,vdNormalizeXPost(deJargonP0(p.x||'')));
   vdEl(P,'insta').value=vdAddFixedTags(P,deJargonP0(p.insta||''),VD_INSTA_MAX_TAGS);   // Instagramはタグ5個まで
   vdEl(P,'tiktok').value=vdAddFixedTags(P,deJargonP0(p.tiktok||''));
+  if(P==='ev'){vdEl(P,'ytt').value=deJargonP0(p.ytt||'').replace(/\n[\s\S]*/,'');vdEl(P,'ytd').value=vdAddFixedTags(P,deJargonP0(p.ytd||''));}   // YouTube ショート用のタイトル（1行）と概要欄
   vdEl(P,'raw').value=r.text;
   await vdClearAllTts(P);   // 台本が変わったので前の音声は破棄
   const tm=vdEl(P,'timing');if(tm)tm.value='';   // 前の音声のタイミング（枚数違いのことも）が残って紛らわしいので消す
   vdUpdateScriptStats(P);
   if(typeof saveState==='function')saveState();
-  const missing=[!(p.s1&&p['s'+n])&&'台本',!p.slides&&'縦スライド',!p.x&&'X',!p.insta&&'Instagram',!p.tiktok&&'TikTok'].filter(Boolean);
+  const missing=[!(p.s1&&p['s'+n])&&'台本',!p.slides&&'縦スライド',!p.x&&'X',!p.insta&&'Instagram',!p.tiktok&&'TikTok',P==='ev'&&!p.ytt&&'YouTubeタイトル',P==='ev'&&!p.ytd&&'YouTube概要欄'].filter(Boolean);
   vdStatus(P,`生成完了（${r.model||'gemini'}${fallNote(r)}${saTokenNote(r.usage)}）${missing.length?' ※'+missing.join('・')+'は全文から確認':''}`,missing.length?'info':'ok');
   vdShowPreview(P);
   return true;
@@ -8310,11 +8423,13 @@ window._earnTab='main';
 function switchEarnTab(t){
   window._earnTab=t;
   document.querySelectorAll('#mode-earnings .sa-subtab[data-etab]').forEach(b=>b.classList.toggle('active',b.dataset.etab===t));
-  const m=document.getElementById('earn-tab-main'),v=document.getElementById('earn-tab-video'),z=document.getElementById('earn-tab-viz');
+  const m=document.getElementById('earn-tab-main'),v=document.getElementById('earn-tab-video'),z=document.getElementById('earn-tab-viz'),a=document.getElementById('earn-tab-article');
   if(m)m.style.display=t==='main'?'':'none';
   if(v)v.style.display=t==='video'?'flex':'none';
   if(z)z.style.display=t==='viz'?'flex':'none';
-  earnPrevMode(t==='video'?'video':t==='viz'?'viz':'image');
+  if(a)a.style.display=t==='article'?'flex':'none';
+  earnPrevMode(t==='video'?'video':t==='viz'?'viz':'image');   // 記事タブは右に1枚画像を出す
+  if(t==='article')eaSceneHint();
 }
 // ---- 決算分析：右ペインの「横画像／縦スライド」切替 ----
 function earnPrevMode(m){
@@ -15801,7 +15916,7 @@ async function dgLoadItems(force){
         // 発表日（p-date）は表紙の「○月○日発表」に、決算後の株価の日（p-post-date。引け後の発表なら翌営業日＝株価が動いた日）はまとめの日付に
         const pick=k=>String(f[k]||'').match(/^\d{4}-\d{2}-\d{2}$/)?f[k]:null;
         const announced=pick('p-date');const priced=pick('p-post-date')||announced;
-        items.push({id,visualization:viz,settings:st,narration,noteUrl:(f['art-url']||'').trim(),title:(f['p-name']||'').trim(),afterHours,announced,priced});
+        items.push({id,visualization:viz,settings:st,narration,noteUrl:(f['ea-note-url']||f['art-url']||'').trim(),title:(f['p-name']||'').trim(),afterHours,announced,priced});
       }
     }
     _dgItems=items;_dgLoadedKey=key;
@@ -15940,6 +16055,228 @@ async function dgThDownload(btn){
   }catch(e){alert('サムネを作れませんでした：'+(e&&e.message||e));}
   finally{if(btn)btn.disabled=false;}
 }
+// ============================================================
+// 📝 記事（決算分析）：note 記事・ブログ記事・ブログ用 ZIP
+// 元は「1.」の FC レポート（fc-report）と「2.」の整形済みデータ（input-data）。作りは YT動画タブの記事（ygArticlePrompt / ygArtApply）と同じ。
+// ブログは sumikko-money の docs/article-zip.md の形（記事.txt・アイキャッチ・画像/・動画/）で1つの ZIP にする。
+// 欄（PJ に保存）：ea-yt-url・ea-note-url・ea-model・ea-n-title/body/tags/raw・ea-b-title/points/body/tags/raw・ea-zip-video・ea-check・関連記事（ea-rel-*）
+// ============================================================
+const eaVal=id=>((document.getElementById(id)||{}).value||'').trim();
+const eaEl=id=>document.getElementById(id);
+function eaStatus(k,msg,cls){
+  const el=eaEl(k==='zip'?'ea-zip-status':'ea-'+k+'-status');if(!el)return;
+  el.textContent=msg||'';el.style.display=msg?'block':'none';
+  el.style.color=cls==='error'?'#ef4444':cls==='ok'?'#16a34a':'var(--text-sub)';
+}
+async function eaPaste(id){
+  let t;try{t=await navigator.clipboard.readText();}catch(e){alert('クリップボードを読めませんでした');return;}
+  const el=eaEl(id);if(!el)return;el.value=t.trim();saveState();
+}
+// 基本情報（記事の AI に渡す）：銘柄名・コード・市場・決算期・発表日
+function eaBasicInfo(){
+  const d=evData()||{};const h=d.HEADER||{},g=d.GUIDANCE||{};
+  const L=[`銘柄名：${VD_CFG.ev.name()||h.company||'（不明）'}`,`証券コード：${VD_CFG.ev.code()||h.code||'（不明）'}`,`市場：${(document.querySelector('input[name=p-market]:checked')||{}).value==='us'?'米国株':'国内株'}`];
+  if(h.quarter)L.push(`決算期：${h.quarter}`);
+  const dt=eaVal('p-date');if(dt)L.push(`発表日：${dt}`);
+  if(g.status)L.push(`通期予想：${g.status}`);
+  return L.join('\n');
+}
+// 分析動画のデータ（表示と同じく、抽出データがあれば最新の描き方で作り直す）。無ければ null
+async function eaViz(){
+  const d=evVizData();if(!d)return null;
+  const KV=await evVizLoad();
+  let viz=d.visualization;if(d.analysis){try{viz=KV.build(d.analysis,evVizExtras());}catch(e){console.warn('[ea] viz',e);}}
+  const settings=evVizSettings()||evVizDefaultSettings(KV);
+  const scenes=KV.scenes(viz,settings).filter(s=>s.id!=='thumbnail');   // サムネの場面はアイキャッチに回すので画像の枠にしない
+  return{KV,viz,settings,scenes};
+}
+// 画像の枠の行（ブログ本文）。場面名はそのまま ZIP の画像の名前になる
+const eaFrameLine=title=>`[ここに「${title}」のスライド画像を挿入]`;
+const EA_FRAME_RE=/^\s*\[ここに「(.+?)」のスライド画像を挿入\]\s*$/;
+const EA_VIDEO_RE=/^\s*\[ここに「.*?」の動画を挿入\]\s*$/;
+const eaVideoLine=()=>`[ここに「${VD_CFG.ev.name()||'決算'}の決算を図解した分析動画」の動画を挿入]`;
+// 記事タブを開いたとき：画像の枠になる場面を見せる（場面の一覧は控えておき、手動のプロンプトでも使う）
+window._eaScenes=null;
+async function eaSceneHint(){
+  const el=eaEl('ea-scene-hint');
+  try{
+    const v=await eaViz();window._eaScenes=v?v.scenes:[];
+    if(el)el.textContent=v&&v.scenes.length?`画像の枠（分析動画の場面）：${v.scenes.map(s=>s.title).join('・')}（${v.scenes.length}枚）`:'分析動画のデータがまだありません。画像の枠なしで作ります（📽 分析動画 で作ってから作り直せます）';
+  }catch(e){window._eaScenes=[];if(el)el.textContent='';}
+}
+// 記事のプロンプト。k='n'（note）／'b'（ブログ）
+function eaArticlePrompt(k,scenes){
+  const report=eaVal('fc-report'),data=eaVal('input-data');
+  if(!report&&!data)throw new Error('「1.」のFCレポート貼付欄か「2.」の整形済みデータを入れてください');
+  const note=k==='n';
+  const frames=(!note&&(scenes||window._eaScenes||[]).length)?(scenes||window._eaScenes).map(s=>eaFrameLine(s.title)):[];
+  return `あなたは、決算の内容を個人投資家に分かりやすく伝える書き手です。
+下の【分析レポート】と【整形済みデータ】をもとに、【基本情報】の銘柄の今回の決算について、${note?'noteの無料記事':'ブログの記事'}を書いてください。
+
+【書き方】
+・資料に書かれている事実と数字だけを使う。資料に無い内容を足さない。
+・読者は個人投資家。何が起きたか（実績とその理由）→ 会社の見通し → 市場の反応 → 今後の注目点、の流れが分かるようにする。
+・専門用語は、最初に出たところで一言で説明する。
+・冒頭に、この記事で何が分かるかを2〜3文で書く（見出しは付けない）。
+・構成と見出しは、記事として読みやすいように、資料の内容から決める。大見出しは ##、小見出しは ###。最後はまとめの章で終える。
+・見出しに「第1章」などの番号は付けない。見出しは、その章の中身が分かる言葉にする。
+・スマホで斜め読みしても要点が伝わるよう、重要な数字・結論・注意したいリスクは、Markdownの太字（**〇〇**）で強調する。1章につき2〜3か所。** と文字の間にスペースを入れない。括弧「」『』（）は ** の外に置く。
+${note?'・Markdownの表は使わない（noteは表を表示できない）。数字の比較は箇条書きにする。':'・数字の比較（売上・利益・前年比、予想の修正前後など）は、Markdownの表にする。表のすぐ上か下に、何の表かが分かる一文を置く。'}
+・売買をすすめる表現、読者への行動要求（「〜すべきです」「〜する必要があります」）、将来の株価の断定は書かない。
+・免責文、出典の番号、URL、動画の案内は書かない（あとで別に付ける）。
+・本文は2000〜3500字。
+${frames.length?`
+【画像の枠】
+本文の中に、次の${frames.length}行を、その内容に合う場所へ1行ずつそのまま入れる（その行だけの段落にする。順番は変えてよいが、すべて1回ずつ使い、「」の中の文字を変えない）。
+${frames.join('\n')}
+`:''}
+【ハッシュタグ】
+5〜7個。銘柄名と証券コードを入れる。どの記事にも付く言葉（#投資 #株式投資 など）は使わない。
+${note?'':`
+【要点】
+3行。1行40字前後。記号や番号は付けない。売買を促す言い方をしない。
+`}
+【出力形式（厳守）】
+次の${note?3:4}つを、この見出しと順番で出力する。見出しは行頭に置き、次の行からコードブロックを始める。前置き・感想は不要。
+【タイトル】
+\`\`\`
+（記事の題名。${note?'':'「【社名(証券コード)】」で始める。'}1行）
+\`\`\`
+【本　文】
+\`\`\`
+（Markdown）
+\`\`\`
+【ハッシュタグ】
+\`\`\`
+#タグ1 #タグ2 #タグ3 #タグ4 #タグ5
+\`\`\`
+${note?'':`【要点】
+\`\`\`
+（1行目）
+（2行目）
+（3行目）
+\`\`\`
+`}
+【基本情報】
+${eaBasicInfo()}
+
+【分析レポート】
+${report||'（なし）'}
+
+【整形済みデータ】
+${data||'（なし）'}`;
+}
+// 手動用：プロンプトをコピー（ブログは場面の一覧を読んでから）
+async function eaCopyPrompt(k,btn){
+  try{if(k==='b'&&!window._eaScenes)await eaSceneHint();copyText(eaArticlePrompt(k),btn);}catch(e){alert(e.message);}
+}
+// 【要点】の3行（parseArticleOutput は要点を知らないので、ここで拾う）
+function eaParsePoints(text){
+  const m=String(text||'').match(/【\s*要点\s*】\s*\n(?:```[^\n]*\n)?([\s\S]*?)(?:```|\n【|$)/);
+  if(!m)return '';
+  return m[1].split('\n').map(l=>l.replace(/^\s*(?:[-・*●]|\d+[.．、)]|[①②③])\s*/,'').trim()).filter(Boolean).slice(0,3).join('\n');
+}
+// ブログ本文に動画の行を入れる（リード文の終わり＝最初の ## の手前。何度呼んでも1か所だけ）。入れないときは remove=true
+function eaVideoApply(body,remove){
+  const blocks=String(body||'').split(/\n{2,}/).map(x=>x.trim()).filter(x=>x&&!EA_VIDEO_RE.test(x));
+  if(remove)return blocks.join('\n\n');
+  let i=blocks.findIndex(x=>/^#{1,6}\s/.test(x));if(i<0)i=blocks.length;
+  blocks.splice(i,0,eaVideoLine());
+  return blocks.join('\n\n');
+}
+function eaArtApply(k,text){
+  const p=parseArticleOutput(String(text||''));
+  if(!p.title&&!p.body){eaStatus(k,'❌ 【タイトル】【本　文】が見つかりません。AIの出力をまるごと貼り付けてください','error');return false;}
+  eaEl('ea-'+k+'-raw').value=text;
+  eaEl('ea-'+k+'-title').value=fixBoldBrackets(p.title||'');
+  let body=noteSentenceBreaks(fixBoldBrackets(p.body||''));
+  if(k==='n')body=ygNoteDisclaimer(body);   // note は注意書きを最初の段落のあとに（YT動画の note と同じ）。ブログはページの作り（sumikko-money）で出る
+  else{body=eaVideoApply(body,!(eaEl('ea-zip-video')||{}).checked);eaEl('ea-b-points').value=eaParsePoints(text);}
+  eaEl('ea-'+k+'-body').value=body;
+  eaEl('ea-'+k+'-tags').value=p.hashtags||'';
+  saveState();
+  const frames=k==='b'?body.split('\n').filter(l=>EA_FRAME_RE.test(l)).length:0;
+  eaStatus(k,`✅ 反映しました（本文${(p.body||'').length.toLocaleString()}字${k==='b'?`・画像の枠${frames}か所`:''}）`,'ok');
+  return true;
+}
+async function eaArtPaste(k){
+  let t;
+  try{t=await navigator.clipboard.readText();}catch(e){alert('クリップボードを読めませんでした');return;}
+  if(!t.trim()){alert('クリップボードが空です');return;}
+  if(eaArtApply(k,t)&&k==='n'){const rel=await relAuto(REL_EA);eaStatus(k,`✅ 反映しました${rel?' ／ '+rel:''} ／ 売買をすすめる表現のチェックは下のボタンで`,'ok');}
+}
+function eaArtCheck(k,btn){
+  if(!eaVal('ea-'+k+'-body')){alert('先に記事を作ってください');return Promise.resolve(null);}
+  return artComplianceCheck(btn||null,!btn,{fields:[{key:'title',id:'ea-'+k+'-title',label:'タイトル'},{key:'body',id:'ea-'+k+'-body',label:'本文'}],outId:'ea-check',status:(m,c)=>eaStatus(k,m,c==='info'?'':c)});
+}
+async function eaArtAi(k,btn){
+  let prompt;
+  try{if(k==='b')await eaSceneHint();prompt=eaArticlePrompt(k);}catch(e){eaStatus(k,'❌ '+e.message,'error');return;}
+  const o=btn?btn.textContent:'';
+  if(btn){btn.disabled=true;btn.textContent='作成中…';}
+  eaStatus(k,'作成中…（30秒〜1分かかります）','');
+  try{
+    const r=await saCallGeminiAnalyze(prompt,[],{cls:'high',temperature:0.7,modelOverride:eaVal('ea-model')});
+    if(!r.ok)throw new Error(r.error);
+    if(eaArtApply(k,r.text||'')){
+      eaStatus(k,'売買をすすめる表現をチェック中…','');
+      const ck=await eaArtCheck(k,null);
+      const rel=k==='n'?await relAuto(REL_EA):'';   // note は関連記事（あわせて読みたい）を本文の末尾に。失敗しても記事はそのまま
+      eaStatus(k,`✅ 作成しました（${r.model||'gemini'}${fallNote(r)}）${ck?' ／ '+ck.summary:''}${rel?' ／ '+rel:''}`,ck&&!ck.clean?'':'ok');
+      try{exportTabData('earnings',{light:true});}catch(e){console.warn('export',e);}
+    }
+  }catch(e){eaStatus(k,'❌ '+e.message,'error');}
+  finally{if(btn){btn.disabled=false;btn.textContent=o;}}
+}
+// ---- ブログ用 ZIP（docs/article-zip.md）：記事.txt ＋ アイキャッチ ＋ 画像/NN_場面.png ＋ 動画/01_….mp4 ----
+const eaSafeName=s=>String(s||'').replace(/[\\/:*?"<>|]/g,'_').trim();
+async function eaBlogZip(btn){
+  const title=eaVal('ea-b-title'),body0=eaVal('ea-b-body'),tags=eaVal('ea-b-tags');
+  if(!title||!body0){alert('先にブログ記事を作ってください');return;}
+  if(typeof JSZip==='undefined'){alert('ZIP の部品を読めていません。ページを再読み込みしてください');return;}
+  const st=(m,c)=>eaStatus('zip',m,c);
+  const o=btn?btn.textContent:'';if(btn){btn.disabled=true;btn.textContent='作成中…';}
+  try{
+    const v=await eaViz();const scenes=v?v.scenes:[];
+    const withVideo=!!(eaEl('ea-zip-video')||{}).checked&&!!v;
+    // 画像の枠：本文の順に、場面名が一致するものだけ残す（同じ場面は1回）。一致しない枠の行は消して知らせる
+    const used=[],out=[];let dropped=0;
+    body0.split('\n').forEach(l=>{
+      const m=l.match(EA_FRAME_RE);if(!m){out.push(l);return;}
+      const sc=scenes.find(s=>s.title===m[1].trim()&&!used.includes(s));
+      if(sc){used.push(sc);out.push(eaFrameLine(sc.title));}else dropped++;
+    });
+    const code=VD_CFG.ev.code(),name=VD_CFG.ev.name();
+    const zip=new JSZip();
+    // アイキャッチ：分析動画の横サムネ（文があるときだけ）
+    try{const t=evThVal('h');if(t){st('アイキャッチを作っています…');const du=await evThImage('h',t);zip.file('アイキャッチ.jpg',du.split(',')[1],{base64:true});}}catch(e){console.warn('[ea] eyecatch',e);}
+    // 画像：本文の枠の順に 01_, 02_ …
+    if(used.length){
+      st(`画像を作っています… 0/${used.length}`);
+      const pngs=await v.KV.scenePngs({visualization:v.viz,settings:v.settings,ids:used.map(s=>s.id),onProgress:(a,b)=>st(`画像を作っています… ${a}/${b}`)});
+      used.forEach((s,i)=>{const p=pngs.find(x=>x.id===s.id);if(p)zip.file(`画像/${String(i+1).padStart(2,'0')}_${eaSafeName(s.title)}.png`,p.blob);});
+    }
+    // 動画：ブラウザで MP4 に（読み上げ・BGM は分析動画の保存先から）。圧縮しないで入れる。失敗したら動画なしで続ける（記事と画像は保存する）
+    let videoOk=false,videoErr='';
+    if(withVideo){
+      try{
+        const mp4=await v.KV.exportMp4({visualization:v.viz,settings:v.settings,audioStore:evVizAudioStore,onProgress:p=>st(p.phase==='描画'?`動画を書き出しています… ${p.frame}/${p.total}コマ（このタブを表示したままにしてください）`:p.phase==='一時停止'?'動画の書き出しを一時停止中（このタブを表示すると再開します）':`動画を書き出しています…（${p.phase}）`)});
+        zip.file(`動画/01_${eaSafeName(name||'決算')}_分析動画.mp4`,mp4,{compression:'STORE'});videoOk=true;
+      }catch(e){videoErr=String(e&&e.message||e);console.warn('[ea] mp4',e);}
+    }
+    // 記事.txt（動画を入れられなかったときは、動画の行も外す）
+    const body=eaVideoApply(out.join('\n').replace(/\n{3,}/g,'\n\n'),!videoOk);
+    const blocks=[['【タイトル】',title],['【カテゴリ】','決算分析'],['【銘柄コード】',code],['【要点】',eaVal('ea-b-points')],['【本　文】',body],['【ハッシュタグ】',tags],['【note】',eaVal('ea-note-url')],['【YouTube】',eaVal('ea-yt-url')]]
+      .filter(([,v])=>v).map(([h,v])=>h+'\n'+v).join('\n\n')+'\n';
+    zip.file('記事.txt',blocks);
+    st('ZIP にまとめています…');
+    const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:3}});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${code||'code'}_${name||'article'}_記事.zip`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+    st(`${videoErr?'⚠':'✅'} 保存しました（${(blob.size/1024/1024).toFixed(1)} MB・画像${used.length}枚${videoOk?'・動画1本':''}${dropped?`・場面に無い画像の枠${dropped}行は外しました`:''}）${videoErr?` ／ 動画は書き出せなかったので入れていません（${videoErr}）。📽 分析動画 の「MP4 を書き出す」で作り、ブログのコンソールに落としてください`:''}`,videoErr?'':'ok');
+  }catch(e){st('❌ '+(e&&e.message||e),'error');}
+  finally{if(btn){btn.disabled=false;btn.textContent=o;}}
+}
+
 async function dgCopy(id,btn){
   const v=dgVal(id);if(!v){return;}
   try{await navigator.clipboard.writeText(v);}catch(e){const el=document.getElementById(id);el.select();document.execCommand('copy');}
