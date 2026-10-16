@@ -15920,7 +15920,15 @@ async function dgLoadItems(force){
         if(!d||!d.visualization){missing.push(id);continue;}
         let viz=d.visualization;
         // 抽出データ（analysis）があれば最新の描き方で作り直す。株価・業績予想（その PJ の欄から足すもの）は保存済みの visualization のものを戻す
-        if(d.analysis){try{const v0=d.visualization,v1=KV.build(d.analysis);viz={...v1,stock_price:v0.stock_price||v1.stock_price,forecast_compare:v0.forecast_compare||v1.forecast_compare};}catch(e){}}
+        //   業績予想は、保存済みの表を元の形（forecast_revision）に戻して部品に渡し、最新の決まり（本決算の進捗率を出さない等）で作り直す。
+        //   前は保存済みの表をそのまま戻していて、直しが決算まとめに効かなかった（SHIFT 2026-10-17）
+        if(d.analysis){try{
+          const v0=d.visualization,fc0=v0.forecast_compare;
+          const fr=fc0?{status:fc0.status||'',col1_header:fc0.col1_header,col2_header:fc0.col2_header,dividend:fc0.dividend||null,reason:fc0.reason||null,
+            rows:(fc0.rows||[]).map(r=>({key:r.key,label:r.label,before_display:r.before_display,after_display:r.after_display,before_oku:r.before_oku,after_oku:r.after_oku,rate_display:r.rate_display,progress_pct:r.progress_pct}))}:undefined;
+          const v1=KV.build(d.analysis,fr?{forecast_revision:fr}:undefined);
+          viz={...v1,stock_price:v0.stock_price||v1.stock_price,forecast_compare:v1.forecast_compare||fc0||null};
+        }catch(e){console.warn('[digest] rebuild',e);}}
         let st=null;try{st=JSON.parse(f['ev-viz-settings']||'null');}catch(e){}
         if(!st||!Array.isArray(st.scenes))st=evVizDefaultSettings(KV);
         const narration={};
