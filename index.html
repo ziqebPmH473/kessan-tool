@@ -16091,9 +16091,22 @@ async function dgDescRender(force){
   // 前に自動で入れた文は欄（dg-desc-auto）に残す（再読み込みしても、手で直していない欄だけ作り直せるように）
   const au=document.getElementById('dg-desc-auto');const prev=au?au.value:'';
   if(force||!ta.value.trim()||ta.value===prev){ta.value=text;if(au)au.value=text;if(typeof saveState==='function')saveState();}
-  // タイトル案：【10月15日決算まとめ】良品計画・GO など注目企業の決算を解説
+  // タイトル案（値動きを前に。すみぽん 2026-10-17）：【GO/SHIFT/ベイカレント】SHIFTが急騰、明暗分かれた決算の理由を図解｜10月16日の注目決算
   const tt=document.getElementById('dg-yt-title');
-  if(tt){const names=items.map(it=>it.visualization.company.name);const t='【'+jp+'決算まとめ】'+(names.length>3?names.slice(0,3).join('・')+' など注目企業の決算を解説':names.length?names.join('・')+'の決算を解説':'注目企業の決算を解説');const ta2=document.getElementById('dg-yt-title-auto');const pv=ta2?ta2.value:'';if(force||!tt.value.trim()||tt.value===pv){tt.value=t;if(ta2)ta2.value=t;}}
+  if(tt){const t=dgYtTitle(items,jp);const ta2=document.getElementById('dg-yt-title-auto');const pv=ta2?ta2.value:'';if(force||!tt.value.trim()||tt.value===pv){tt.value=t;if(ta2)ta2.value=t;}}
+}
+// タイトル：銘柄名（4つまで「/」）＋ いちばん動いた銘柄とその動き ＋ 全体の向き ＋ 日付
+//   動きの言葉：±10%以上 急騰／急落、±5%以上 大幅高／大幅安、それ未満 上昇／下落（PTS も同じ言葉）。値動きが取れなければ動きは書かない
+function dgYtTitle(items,jp){
+  const names=items.map(it=>it.visualization.company.name).filter(Boolean);
+  const head='【'+(names.length?names.slice(0,4).join('/')+(names.length>4?' ほか':''):'注目企業')+'】';
+  const moves=items.map(it=>({name:it.visualization.company.name,pct:(it.visualization.stock_price||{}).change_pct})).filter(m=>typeof m.pct==='number'&&isFinite(m.pct));
+  const word=p=>{const a=Math.abs(p);return a>=10?(p>0?'急騰':'急落'):a>=5?(p>0?'大幅高':'大幅安'):(p>0?'上昇':'下落');};
+  const top=moves.slice().sort((a,b)=>Math.abs(b.pct)-Math.abs(a.pct))[0];
+  const up=moves.some(m=>m.pct>=1),down=moves.some(m=>m.pct<=-1);
+  const tone=up&&down?'明暗分かれた決算の理由を図解':up?'買われた決算の理由を図解':down?'売られた決算の理由を図解':'市場を動かした決算を図解';
+  const mid=top&&Math.abs(top.pct)>=1?`${top.name}が${word(top.pct)}、${tone}`:tone;
+  return (head+mid+(jp?'｜'+jp+'の注目決算':'')).slice(0,100);
 }
 // ---- まとめ用のサムネ（上段：中段：下段。型は「サムネだけ」の横） ----
 const dgThVal=()=>((document.getElementById('dg-th')||{}).value||'').trim();
