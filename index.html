@@ -7310,10 +7310,6 @@ function vdBuildTabHtml(P){
     <textarea id="${P}-insta" placeholder="生成後にInstagram投稿文が入ります" style="min-height:60px;"></textarea>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">TikTok投稿文</label><button class="btn-sm" onclick="copyText(document.getElementById('${P}-tiktok').value,this)">📋 コピー</button></div>
     <textarea id="${P}-tiktok" placeholder="生成後にTikTok投稿文が入ります" style="min-height:50px;"></textarea>
-    ${P==='ev'?`<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);" title="YouTube ショートに上げるときのタイトル。縦スライド・台本と同じ生成で作られます">YouTubeショート：タイトル</label><button class="btn-sm" onclick="copyText(document.getElementById('ev-ytt').value,this)">📋 コピー</button></div>
-    <input type="text" id="ev-ytt" placeholder="生成後にYouTubeショート用のタイトルが入ります" oninput="saveState()" style="width:100%;box-sizing:border-box;font-size:11px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);" title="YouTube ショートの概要欄。末尾に固定タグが付きます">YouTubeショート：概要欄</label><button class="btn-sm" onclick="copyText(document.getElementById('ev-ytd').value,this)">📋 コピー</button></div>
-    <textarea id="ev-ytd" placeholder="生成後にYouTubeショート用の概要欄が入ります" oninput="saveState()" style="min-height:60px;"></textarea>`:''}
     <details style="margin-top:6px;"><summary style="font-size:10px;color:var(--text-sub);cursor:pointer;">生成全文（うまく分割できない時のフォールバック）</summary><textarea id="${P}-raw" style="min-height:80px;"></textarea></details>
   </div>
   </div>
@@ -7360,7 +7356,7 @@ function vdSyncTts(P){
   if(typeof saveState==='function')saveState();
 }
 function vdPersistIds(P){
-  const ids=['note-url','xnote','model','months','logo-op','th-input','slides','x','insta','tiktok','ytt','ytd','raw','tts-voice','tts-model','tts-eq','tts-gap','tts-format','timing','fixed-tags'];
+  const ids=['note-url','xnote','model','months','logo-op','th-input','slides','x','insta','tiktok','raw','tts-voice','tts-model','tts-eq','tts-gap','tts-format','timing','fixed-tags'];
   for(let i=1;i<=5;i++)ids.push('s'+i);
   const out=ids.map(k=>`${P}-${k}`);
   if(P==='ev')out.push('ev-auto');
@@ -7511,7 +7507,7 @@ function videoPromptEv(n){
 :`2. 【台本①】：${s1}
 3. 【台本②】：${s2}
 4. 【台本③】：スライド③。${EV_REACT_SCRIPT}`;
-  const nBlocks=four?11:10;
+  const nBlocks=four?9:8;
   return `あなたは「論理的で客観的だが、初心者に寄り添って分かりやすく話す投資のナビゲーター」です。
 提供される【決算分析の整形済みデータ】と【基本情報】を根拠に、SNS向け縦型ショート動画（X / TikTok / Instagramリール）の素材を、下記の${nBlocks}ブロックで出力してください。
 この動画は有料記事への誘導ではなく、決算内容を短時間で理解してもらいフォロワーを増やすための「認知型」の動画です。noteへの誘導文は書かない。
@@ -7553,8 +7549,6 @@ ${four?'8':'7'}. 【TikTok投稿文】：200〜300文字（TikTokは検索流入
    2〜4行目：決算の要点を2〜3文
    次の行：「フォローで決算解説をチェック」（「毎回」「毎日」など投稿頻度を約束する表現は使わない）
    最終行：ハッシュタグ5〜8個（#銘柄名 #証券コード #決算 #日本株 #株式投資 ・業種など）
-${four?'9':'8'}. 【YouTubeタイトル】：YouTube ショート用のタイトル。40文字以内。「【銘柄名（証券コード）】」で始め、続けて決算の一言結論と、視聴者が気になる問いかけ（例：「なぜ株価は下落？」）。「#」は使わない。
-${four?'10':'9'}. 【YouTube概要欄】：YouTube ショート用の概要欄。1行目は検索されそうな言葉（銘柄名・証券コード・「決算」など）を含む1文。2〜4行目に決算の要点を2〜3文（数字の羅列にしない）。空行を1つ挟んで、最終行にハッシュタグ3〜5個（#銘柄名 #証券コード #決算 #Shorts など）。
 
 【共通ルール】
 ・すべて整形済みデータの事実に基づき、データにない数値・事実を創作しない。
@@ -7614,12 +7608,11 @@ function vdBasicInfo(P){
   return L.join('\n');
 }
 
-function parseVideoOutput(text,nScripts,P){
+function parseVideoOutput(text,nScripts){
   const defs=[{key:'slides',re:/【\s*縦スライド[^】]*】/}];
   const nums=['[①1１]','[②2２]','[③3３]','[④4４]','[⑤5５]'];
   for(let i=1;i<=nScripts;i++)defs.push({key:'s'+i,re:new RegExp(`【\\s*台本\\s*${nums[i-1]}[^】]*】`)});
   defs.push({key:'x',re:/【\s*X[^】]*(?:投稿文|ハッシュタグ)\s*】/},{key:'insta',re:/【\s*Instagram[^】]*】/i},{key:'tiktok',re:/【\s*TikTok[^】]*】/i});
-  if(P==='ev')defs.push({key:'ytt',re:/【\s*YouTube\s*タイトル[^】]*】/i},{key:'ytd',re:/【\s*YouTube\s*概要欄[^】]*】/i});   // YouTube ショート用（決算の縦動画だけ）
   const found=defs.map(d=>{const m=text.match(d.re);return m?{key:d.key,idx:m.index,end:m.index+m[0].length}:null;}).filter(Boolean);
   found.sort((a,b)=>a.idx-b.idx);
   const out={};
@@ -7735,7 +7728,7 @@ async function geminiVideo(P,btnEl){
   const r=await saCallGeminiAnalyze(prompt,resources,{cls:'high',temperature:0.7,modelOverride:ov});
   if(btnEl){btnEl.disabled=false;btnEl.textContent=o;}
   if(!r.ok){vdStatus(P,'エラー: '+r.error,'error');return false;}
-  const p=parseVideoOutput(r.text,n,P);
+  const p=parseVideoOutput(r.text,n);
   vdBuildScriptBoxes(P,true);
   if(P==='ev'){const t=vdEl('ev','th-input');if(t)t.value=evThumbText();}   // サムネ文言はAIに作らせない（株価分析はサムネイルタブの文言を流用）
   // AIの台本①〜は表示中の欄へ順に入れる。使わない欄（3枚のときの通期予想）は前回の台本を残さない
@@ -7747,13 +7740,12 @@ async function geminiVideo(P,btnEl){
                               :vdAddFixedTags(P,vdNormalizeXPost(deJargonP0(p.x||'')));
   vdEl(P,'insta').value=vdAddFixedTags(P,deJargonP0(p.insta||''),VD_INSTA_MAX_TAGS);   // Instagramはタグ5個まで
   vdEl(P,'tiktok').value=vdAddFixedTags(P,deJargonP0(p.tiktok||''));
-  if(P==='ev'){vdEl(P,'ytt').value=deJargonP0(p.ytt||'').replace(/\n[\s\S]*/,'');vdEl(P,'ytd').value=vdAddFixedTags(P,deJargonP0(p.ytd||''));}   // YouTube ショート用のタイトル（1行）と概要欄
   vdEl(P,'raw').value=r.text;
   await vdClearAllTts(P);   // 台本が変わったので前の音声は破棄
   const tm=vdEl(P,'timing');if(tm)tm.value='';   // 前の音声のタイミング（枚数違いのことも）が残って紛らわしいので消す
   vdUpdateScriptStats(P);
   if(typeof saveState==='function')saveState();
-  const missing=[!(p.s1&&p['s'+n])&&'台本',!p.slides&&'縦スライド',!p.x&&'X',!p.insta&&'Instagram',!p.tiktok&&'TikTok',P==='ev'&&!p.ytt&&'YouTubeタイトル',P==='ev'&&!p.ytd&&'YouTube概要欄'].filter(Boolean);
+  const missing=[!(p.s1&&p['s'+n])&&'台本',!p.slides&&'縦スライド',!p.x&&'X',!p.insta&&'Instagram',!p.tiktok&&'TikTok'].filter(Boolean);
   vdStatus(P,`生成完了（${r.model||'gemini'}${fallNote(r)}${saTokenNote(r.usage)}）${missing.length?' ※'+missing.join('・')+'は全文から確認':''}`,missing.length?'info':'ok');
   vdShowPreview(P);
   return true;
