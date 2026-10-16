@@ -1446,7 +1446,7 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
         <div id="earn-tab-article" class="sa" style="display:none;flex-direction:column;gap:6px;">
           <div class="tool-section">
             <div class="section-heading">記事（note・ブログ）</div>
-            <div style="font-size:11px;color:var(--text-sub);line-height:1.6;">「1.」のFCレポートと「2.」の整形済みデータから、note 記事（表なし）とブログ記事（表あり）を1回でまとめて作ります。ブログは、分析動画と各場面の画像を入れた ZIP にして、ブログのコンソールに落とすだけで記事になります。</div>
+            <div style="font-size:11px;color:var(--text-sub);line-height:1.6;">「1.」のFCレポートと「2.」の整形済みデータから、note 記事（表なし）とブログ記事（表あり）を作ります。まとめて作ると API は1回です。ブログは、分析動画と各場面の画像を入れた ZIP にして、ブログのコンソールに落とすだけで記事になります。</div>
             <div class="input-row" style="margin-top:6px;gap:4px;align-items:center;">
               <label style="font-size:11px;color:var(--text-sub);flex:none;">モデル</label>
               <select id="ea-model" style="flex:1;min-width:0;font-size:11px;padding:4px;">
@@ -1463,12 +1463,8 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
             <div class="input-row" style="margin-top:4px;gap:4px;align-items:center;">
               <label style="font-size:11px;color:var(--text-sub);flex:none;">YouTubeのURL</label>
               <input type="text" id="ea-yt-url" placeholder="動画を上げたあとのURL（ブログの【YouTube】に入ります）" oninput="saveState()" style="flex:1;min-width:0;font-size:11px;">
-              <button class="btn-sm" onclick="eaPaste('ea-yt-url')" style="flex:none;">📋 貼付</button>
-            </div>
-            <div class="input-row" style="margin-top:4px;gap:4px;align-items:center;">
-              <label style="font-size:11px;color:var(--text-sub);flex:none;">noteの記事URL</label>
-              <input type="text" id="ea-note-url" placeholder="noteに公開したあとのURL（ブログの【note】と決算まとめのQRに入ります）" oninput="saveState()" style="flex:1;min-width:0;font-size:11px;">
-              <button class="btn-sm" onclick="eaPaste('ea-note-url')" style="flex:none;">📋 貼付</button>
+              <button class="btn-sm" onclick="eaPaste('ea-yt-url',()=>eaYtUrlApply(true))" style="flex:none;">📋 貼付</button>
+              <button class="btn-sm" onclick="eaYtUrlApply(true)" style="flex:none;background:#0d9488;color:#fff;" title="note 記事の本文の最初の段落のあとに、この URL を入れます（前の URL は差し替え）。ブログは ZIP の【YouTube】に入ります">🔁 差し替え</button>
             </div>
             <div class="input-row" style="margin-top:8px;">
               <button class="main-btn" onclick="eaArtAi(this)" style="flex:1;background:#4f46e5;" title="1回の呼び出しで note とブログの両方を作り、下の欄に分けて入れます。そのあと売買をすすめる表現のチェックと、note の関連記事まで行います">🤖 note・ブログをまとめて作る</button>
@@ -1482,8 +1478,26 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
             <div id="ea-status" style="display:none;font-size:11px;margin-top:3px;"></div>
           </div>
           <div class="tool-section">
-            <div class="section-heading">1. note 記事（無料）</div>
+            <div class="section-heading">1. 売買をすすめる表現のチェック</div>
+            <div style="font-size:11px;color:var(--text-sub);">API で作ると自動。手動で貼った記事だけ押す。</div>
+            <div class="input-row" style="margin-top:4px;">
+              <button class="btn-sm" onclick="eaArtCheck('n',this)" style="flex:1;min-width:0;background:#4f46e5;color:#fff;">✅ note記事をチェック</button>
+              <button class="btn-sm" onclick="eaArtCheck('b',this)" style="flex:1;min-width:0;background:#4f46e5;color:#fff;">✅ ブログ記事をチェック</button>
+            </div>
+            <textarea id="ea-check" readonly placeholder="チェックの結果（どこを・どう直したか）がここに出ます" style="min-height:46px;font-size:11px;margin-top:4px;"></textarea>
+          </div>
+          <div class="tool-section">
+            <div class="section-heading">2. note 記事</div>
             <div style="font-size:11px;color:var(--text-sub);" title="表は使わない（noteは表を表示できない）。最初の段落のあとに注意書きが入ります">表なし。最初の段落のあとに注意書きが入ります。</div>
+            <div class="input-row" style="margin-top:4px;">
+              <button class="btn-sm" onclick="eaArtAi(this,'n')" style="flex:1;min-width:0;background:#4f46e5;color:#fff;" title="noteだけを API で作り直します（もう一方の記事はそのまま）">🤖 noteだけ作る</button>
+            </div>
+            <details style="margin-top:4px;"><summary style="font-size:11px;color:var(--text-sub);cursor:pointer;">noteだけ手動で作る</summary>
+              <div class="input-row" style="margin-top:4px;">
+                <button class="btn-sm" onclick="eaCopyPrompt(this,'n')" style="flex:1;min-width:0;background:#475569;color:#fff;">💬 プロンプト</button>
+                <button class="btn-sm" onclick="eaArtPaste('n')" style="flex:1;min-width:0;">📋 貼り付け</button>
+              </div>
+            </details>
             <div id="ea-n-status" style="display:none;font-size:11px;margin-top:3px;"></div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">タイトル</label><button class="btn-sm" onclick="copyText(document.getElementById('ea-n-title').value,this)">📋 コピー</button></div>
             <input type="text" id="ea-n-title" oninput="saveState()" placeholder="生成後にタイトルが入ります" style="width:100%;box-sizing:border-box;font-size:11px;">
@@ -1502,12 +1516,28 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
               <button class="btn-sm" onclick="relInsert(this,false,REL_EA)" style="flex:none;background:#0d9488;color:#fff;">📎 本文に挿入</button>
             </div>
             <div style="font-size:10px;color:var(--text-sub);margin-top:2px;" title="株価分析のnoteと同じ一覧（noteの有料記事）から選びます。⭐＝今回の記事との関連が強い候補。noteでURL行の末尾にカーソルを置きEnterでカードになります">本文の末尾に「あわせて読みたい」＋紹介文＋URLを差し込みます。何度押しても差し替わります。</div>
+            <div class="input-row" style="margin-top:10px;gap:4px;align-items:center;">
+              <label style="font-size:11px;color:var(--text-sub);flex:none;">noteの記事URL</label>
+              <input type="text" id="ea-note-url" placeholder="noteに公開したあとのURL" oninput="saveState()" style="flex:1;min-width:0;font-size:11px;">
+              <button class="btn-sm" onclick="eaPaste('ea-note-url',()=>eaNoteUrlApply(true))" style="flex:none;">📋 貼付</button>
+              <button class="btn-sm" onclick="eaNoteUrlApply(true)" style="flex:none;background:#0d9488;color:#fff;" title="📽 分析動画の投稿文「YouTube 概要欄」に、この URL を入れます（前の URL は差し替え）。ブログは ZIP の【note】、決算まとめは QR に使います">🔁 差し替え</button>
+            </div>
+            <div style="font-size:10px;color:var(--text-sub);margin-top:2px;">差し替えで、📽 分析動画の「YouTube 概要欄」に入ります。ブログの【note】と決算まとめの QR にも使います。</div>
             <textarea id="ea-n-raw" style="display:none;"></textarea>
           </div>
           <div class="tool-section">
-            <div class="section-heading">2. ブログ記事</div>
+            <div class="section-heading">3. ブログ記事</div>
             <div style="font-size:11px;color:var(--text-sub);line-height:1.6;" title="分析動画の場面ごとに [ここに「場面名」のスライド画像を挿入] の行が入り、ZIP の画像と対応します。動画の行は最初の段落のあとに入ります">表あり。本文に、分析動画の各場面の画像と動画を入れる位置が入ります。</div>
             <div id="ea-scene-hint" style="font-size:10px;color:var(--text-sub);margin-top:2px;"></div>
+            <div class="input-row" style="margin-top:4px;">
+              <button class="btn-sm" onclick="eaArtAi(this,'b')" style="flex:1;min-width:0;background:#4f46e5;color:#fff;" title="ブログだけを API で作り直します（もう一方の記事はそのまま）">🤖 ブログだけ作る</button>
+            </div>
+            <details style="margin-top:4px;"><summary style="font-size:11px;color:var(--text-sub);cursor:pointer;">ブログだけ手動で作る</summary>
+              <div class="input-row" style="margin-top:4px;">
+                <button class="btn-sm" onclick="eaCopyPrompt(this,'b')" style="flex:1;min-width:0;background:#475569;color:#fff;">💬 プロンプト</button>
+                <button class="btn-sm" onclick="eaArtPaste('b')" style="flex:1;min-width:0;">📋 貼り付け</button>
+              </div>
+            </details>
             <div id="ea-b-status" style="display:none;font-size:11px;margin-top:3px;"></div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">タイトル</label><button class="btn-sm" onclick="copyText(document.getElementById('ea-b-title').value,this)">📋 コピー</button></div>
             <input type="text" id="ea-b-title" oninput="saveState()" placeholder="生成後にタイトルが入ります" style="width:100%;box-sizing:border-box;font-size:11px;">
@@ -1525,15 +1555,6 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
               <button class="main-btn" onclick="eaBlogZip(this)" style="flex:1;background:#16a34a;" title="記事.txt・アイキャッチ・各場面の画像・分析動画の MP4 を1つの ZIP にします。ブログのコンソール →「新しい記事」→「まとめて貼る」に落とすと記事になります">💾 ブログ用 ZIP を保存</button>
             </div>
             <div id="ea-zip-status" style="display:none;font-size:11px;margin-top:3px;"></div>
-          </div>
-          <div class="tool-section">
-            <div class="section-heading">3. 売買をすすめる表現のチェック</div>
-            <div style="font-size:11px;color:var(--text-sub);">「まとめて作る」なら自動。手動で貼った記事だけ押す。</div>
-            <div class="input-row" style="margin-top:4px;">
-              <button class="btn-sm" onclick="eaArtCheck('n',this)" style="flex:1;min-width:0;background:#4f46e5;color:#fff;">✅ note記事をチェック</button>
-              <button class="btn-sm" onclick="eaArtCheck('b',this)" style="flex:1;min-width:0;background:#4f46e5;color:#fff;">✅ ブログ記事をチェック</button>
-            </div>
-            <textarea id="ea-check" readonly placeholder="チェックの結果（どこを・どう直したか）がここに出ます" style="min-height:46px;font-size:11px;margin-top:4px;"></textarea>
           </div>
         </div>
         </div><!-- /mode-earnings -->
@@ -16052,9 +16073,35 @@ function eaStatus(k,msg,cls){
   el.textContent=msg||'';el.style.display=msg?'block':'none';
   el.style.color=cls==='error'?'#ef4444':cls==='ok'?'#16a34a':'var(--text-sub)';
 }
-async function eaPaste(id){
+async function eaPaste(id,after){
   let t;try{t=await navigator.clipboard.readText();}catch(e){alert('クリップボードを読めませんでした');return;}
   const el=eaEl(id);if(!el)return;el.value=t.trim();saveState();
+  if(after)after();
+}
+// YouTube の URL：note 本文の最初の段落のあと（URL だけの段落。注意書きの上）。何度押しても1か所だけ。ブログは ZIP の【YouTube】に入る
+function eaYtUrlApply(manual){
+  const el=eaEl('ea-n-body');if(!el||!el.value.trim()){if(manual)eaStatus('n','note 記事がまだ無いので、本文には入れていません（作ると自動で入ります）','');return;}
+  const url=eaVal('ea-yt-url');
+  const isYt=l=>/^https?:\/\/(www\.|m\.)?(youtube\.com|youtu\.be)\/\S+$/.test(l.trim());
+  const blocks=el.value.split(/\n{2,}/).map(x=>x.trim()).filter(x=>x&&!isYt(x));
+  if(url){let i=blocks.findIndex(x=>!/^#{1,6}\s/.test(x));if(i<0)i=0;blocks.splice(i+1,0,url);}
+  el.value=blocks.join('\n\n');saveState();
+  if(manual)eaStatus('n',url?'✅ YouTube の URL を、note 本文の最初の段落のあとに入れました':'YouTube の URL が空なので、note 本文から外しました','ok');
+}
+// note の URL：📽 分析動画の投稿文「YouTube 概要欄」の、タグの行の上に「▼ 詳しい解説はnoteで」＋URL。何度押しても1か所だけ
+const EA_NOTE_HEAD='▼ 詳しい解説はnoteで';
+function eaNoteUrlApply(manual){
+  const url=eaVal('ea-note-url');
+  const ta=eaEl('ev-viz-settings');const st=evVizSettings();
+  if(!st||!st.posts||!st.posts.yt_desc){if(manual)alert('先に 📽 分析動画 のタブを開いてください（投稿文の「YouTube 概要欄」ができてから入れます）。ブログの【note】と決算まとめの QR には、そのまま使われます');return;}
+  const lines=String(st.posts.yt_desc).split('\n');const kept=[];
+  for(let i=0;i<lines.length;i++){if(lines[i].trim()===EA_NOTE_HEAD){if(/^https?:\/\//.test((lines[i+1]||'').trim()))i++;continue;}kept.push(lines[i]);}
+  const blocks=kept.join('\n').split(/\n{2,}/).map(x=>x.trim()).filter(Boolean);
+  if(url){let i=blocks.length;if(i&&/^#/.test(blocks[i-1]))i--;blocks.splice(i,0,EA_NOTE_HEAD+'\n'+url);}
+  st.posts.yt_desc=blocks.join('\n\n');
+  if(ta)ta.value=JSON.stringify(st);saveState();
+  try{evVizMount(true);}catch(e){}
+  if(manual)eaStatus('n',url?'✅ note の URL を、分析動画の「YouTube 概要欄」に入れました':'note の URL が空なので、分析動画の「YouTube 概要欄」から外しました','ok');
 }
 // 基本情報（記事の AI に渡す）：銘柄名・コード・市場・決算期・発表日
 function eaBasicInfo(){
@@ -16112,23 +16159,26 @@ function eaArtApply(k,text){
   else{body=eaVideoApply(body,!(eaEl('ea-zip-video')||{}).checked);eaEl('ea-b-points').value=eaParsePoints(text);}
   eaEl('ea-'+k+'-body').value=body;
   eaEl('ea-'+k+'-tags').value=p.hashtags||'';
+  if(k==='n')eaYtUrlApply(false);   // YouTube の URL が入っていれば、最初の段落のあと（注意書きの上）に
   saveState();
   const frames=k==='b'?body.split('\n').filter(l=>EA_FRAME_RE.test(l)).length:0;
   eaStatus(k,`✅ 反映しました（本文${(p.body||'').length.toLocaleString()}字${k==='b'?`・画像の枠${frames}か所`:''}）`,'ok');
   return true;
 }
 // 記事のプロンプト：note とブログを1回で出す。出力は「===== note =====」「===== ブログ =====」の2つに分けさせ、ツールが分けて各欄へ入れる
-function eaArticlePrompt(scenes){
+function eaArticlePrompt(scenes,only){
   const report=eaVal('fc-report'),data=eaVal('input-data');
   if(!report&&!data)throw new Error('「1.」のFCレポート貼付欄か「2.」の整形済みデータを入れてください');
   const sc=scenes||window._eaScenes||[];
   const frames=sc.map(s=>eaFrameLine(s.title));
   const block=(head,body)=>`【${head}】\n\`\`\`\n${body}\n\`\`\``;
+  const wN=only!=='b',wB=only!=='n';   // only：'n'＝note だけ、'b'＝ブログだけ、なし＝両方
+  const outN=[block('タイトル','（記事の題名。1行）'),block('本　文','（Markdown）'),block('ハッシュタグ','#タグ1 #タグ2 #タグ3 #タグ4 #タグ5')].join('\n');
+  const outB=outN+'\n'+block('要点','（1行目）\n（2行目）\n（3行目）');
   return `あなたは、決算の内容を個人投資家に分かりやすく伝える書き手です。
-下の【分析レポート】と【整形済みデータ】をもとに、【基本情報】の銘柄の今回の決算について、「noteの無料記事」と「ブログの記事」の2本を書いてください。
-2本は同じ事実・同じ流れでよい。違いは下の【noteだけの決まり】【ブログだけの決まり】のとおり。
+下の【分析レポート】と【整形済みデータ】をもとに、【基本情報】の銘柄の今回の決算について、${wN&&wB?'「noteの無料記事」と「ブログの記事」の2本を書いてください。\n2本は同じ事実・同じ流れでよい。違いは下の【noteだけの決まり】【ブログだけの決まり】のとおり。':wN?'noteの無料記事を書いてください。':'ブログの記事を書いてください。'}
 
-【2本に共通の書き方】
+【${wN&&wB?'2本に共通の書き方':'書き方'}】
 ・資料に書かれている事実と数字だけを使う。資料に無い内容を足さない。
 ・読者は個人投資家。何が起きたか（実績とその理由）→ 会社の見通し → 市場の反応 → 今後の注目点、の流れが分かるようにする。
 ・専門用語は、最初に出たところで一言で説明する。
@@ -16138,30 +16188,26 @@ function eaArticlePrompt(scenes){
 ・スマホで斜め読みしても要点が伝わるよう、重要な数字・結論・注意したいリスクは、Markdownの太字（**〇〇**）で強調する。1章につき2〜3か所。** と文字の間にスペースを入れない。括弧「」『』（）は ** の外に置く。
 ・売買をすすめる表現、読者への行動要求（「〜すべきです」「〜する必要があります」）、将来の株価の断定は書かない。
 ・免責文、出典の番号、URL、動画の案内は書かない（あとで別に付ける）。
-・本文はそれぞれ2000〜3500字。
+・本文は${wN&&wB?'それぞれ':''}2000〜3500字。
 ・ハッシュタグは5〜7個。銘柄名と証券コードを入れる。どの記事にも付く言葉（#投資 #株式投資 など）は使わない。
-
+${wN?`
 【noteだけの決まり】
 ・Markdownの表は使わない（noteは表を表示できない）。数字の比較は箇条書きにする。
-
+`:''}${wB?`
 【ブログだけの決まり】
 ・数字の比較（売上・利益・前年比、予想の修正前後など）は、Markdownの表にする。表のすぐ上か下に、何の表かが分かる一文を置く。
 ・タイトルは「【社名(証券コード)】」で始める。
 ・【要点】を3行書く。1行40字前後。記号や番号は付けない。売買を促す言い方をしない。
 ${frames.length?`・本文の中に、次の${frames.length}行を、その内容に合う場所へ1行ずつそのまま入れる（その行だけの段落にする。順番は変えてよいが、すべて1回ずつ使い、「」の中の文字を変えない）。
 ${frames.join('\n')}
-`:''}
+`:''}`:''}
 【出力形式（厳守）】
-次の形で、noteの記事、ブログの記事の順に出力する。区切りの「===== note =====」「===== ブログ =====」の行はそのまま書く。見出しは行頭に置き、次の行からコードブロックを始める。前置き・感想は不要。
+${wN&&wB?`次の形で、noteの記事、ブログの記事の順に出力する。区切りの「===== note =====」「===== ブログ =====」の行はそのまま書く。見出しは行頭に置き、次の行からコードブロックを始める。前置き・感想は不要。
 ===== note =====
-${block('タイトル','（記事の題名。1行）')}
-${block('本　文','（Markdown）')}
-${block('ハッシュタグ','#タグ1 #タグ2 #タグ3 #タグ4 #タグ5')}
+${outN}
 ===== ブログ =====
-${block('タイトル','（記事の題名。1行）')}
-${block('本　文','（Markdown）')}
-${block('ハッシュタグ','#タグ1 #タグ2 #タグ3 #タグ4 #タグ5')}
-${block('要点','（1行目）\n（2行目）\n（3行目）')}
+${outB}`:`次の形で出力する。見出しは行頭に置き、次の行からコードブロックを始める。前置き・感想は不要。
+${wN?outN:outB}`}
 
 【基本情報】
 ${eaBasicInfo()}
@@ -16182,8 +16228,8 @@ function eaSplitBoth(text){
   return{n:t.slice(0,i).replace(NOTE,''),b:t.slice(i).replace(BLOG,'')};
 }
 // 手動用：プロンプトをコピー（画像の枠に使う場面の一覧を読んでから）
-async function eaCopyPrompt(btn){
-  try{if(!window._eaScenes)await eaSceneHint();copyText(eaArticlePrompt(),btn);}catch(e){alert(e.message);}
+async function eaCopyPrompt(btn,only){
+  try{if(!window._eaScenes)await eaSceneHint();copyText(eaArticlePrompt(null,only),btn);}catch(e){alert(e.message);}
 }
 // 出力を2つの欄へ。どちらかが取れなければ、取れた方だけ入れて知らせる
 function eaBothApply(text){
@@ -16192,10 +16238,14 @@ function eaBothApply(text){
   if(!b)eaStatus('b','❌ ブログの記事が見つかりません（「===== ブログ =====」の行から後ろ）。AIの出力をまるごと貼り付けてください','error');
   return{okN,okB};
 }
-async function eaArtPaste(){
+async function eaArtPaste(only){
   let t;
   try{t=await navigator.clipboard.readText();}catch(e){alert('クリップボードを読めませんでした');return;}
   if(!t.trim()){alert('クリップボードが空です');return;}
+  if(only){   // 片方だけ：その欄にだけ入れる
+    if(eaArtApply(only,t)&&only==='n'){const rel=await relAuto(REL_EA);eaStatus('n',`✅ 反映しました${rel?' ／ '+rel:''} ／ 売買をすすめる表現のチェックは「1.」で`,'ok');}
+    return;
+  }
   const {okN,okB}=eaBothApply(t);
   eaStatus('all',okN||okB?`✅ 貼り付けました（${[okN&&'note',okB&&'ブログ'].filter(Boolean).join('・')}）／ 売買をすすめる表現のチェックは下のボタンで`:'❌ 記事が見つかりません。AIの出力をまるごと貼り付けてください',okN&&okB?'ok':'error');
   if(okN){const rel=await relAuto(REL_EA);if(rel)eaStatus('n',`✅ 反映しました ／ ${rel}`,'ok');}
@@ -16205,7 +16255,8 @@ function eaArtCheck(k,btn){
   return artComplianceCheck(btn||null,!btn,{fields:[{key:'title',id:'ea-'+k+'-title',label:'タイトル'},{key:'body',id:'ea-'+k+'-body',label:'本文'}],outId:'ea-check',status:(m,c)=>eaStatus(k,m,c==='info'?'':c)});
 }
 // API：1回で note とブログを作る。そのあと売買表現チェック（記事ごと）と、note の関連記事
-async function eaArtAi(btn){
+async function eaArtAi(btn,only){
+  if(only)return eaArtAiOne(btn,only);
   let prompt;
   try{await eaSceneHint();prompt=eaArticlePrompt();}catch(e){eaStatus('all','❌ '+e.message,'error');return;}
   const o=btn?btn.textContent:'';
@@ -16223,6 +16274,26 @@ async function eaArtAi(btn){
     eaStatus('all',`${okN&&okB?'✅':'⚠'} 作成しました（${[okN&&'note',okB&&'ブログ'].filter(Boolean).join('・')}／${r.model||'gemini'}${fallNote(r)}）${ckN?' ／ note：'+ckN.summary:''}${ckB?' ／ ブログ：'+ckB.summary:''}${rel?' ／ '+rel:''}`,clean?'ok':'');
     try{exportTabData('earnings',{light:true});}catch(e){console.warn('export',e);}
   }catch(e){eaStatus('all','❌ '+e.message,'error');}
+  finally{if(btn){btn.disabled=false;btn.textContent=o;}}
+}
+// 片方だけ API で作る（もう一方の欄はそのまま）
+async function eaArtAiOne(btn,k){
+  let prompt;
+  try{if(k==='b')await eaSceneHint();prompt=eaArticlePrompt(null,k);}catch(e){eaStatus(k,'❌ '+e.message,'error');return;}
+  const o=btn?btn.textContent:'';
+  if(btn){btn.disabled=true;btn.textContent='作成中…';}
+  eaStatus(k,'作成中…（30秒〜1分かかります）','');
+  try{
+    const r=await saCallGeminiAnalyze(prompt,[],{cls:'high',temperature:0.7,modelOverride:eaVal('ea-model')});
+    if(!r.ok)throw new Error(r.error);
+    if(eaArtApply(k,r.text||'')){
+      eaStatus(k,'売買をすすめる表現をチェック中…','');
+      const ck=await eaArtCheck(k,null);
+      const rel=k==='n'?await relAuto(REL_EA):'';
+      eaStatus(k,`✅ 作成しました（${r.model||'gemini'}${fallNote(r)}）${ck?' ／ '+ck.summary:''}${rel?' ／ '+rel:''}`,ck&&!ck.clean?'':'ok');
+      try{exportTabData('earnings',{light:true});}catch(e){console.warn('export',e);}
+    }
+  }catch(e){eaStatus(k,'❌ '+e.message,'error');}
   finally{if(btn){btn.disabled=false;btn.textContent=o;}}
 }
 // ---- ブログ用 ZIP（docs/article-zip.md）：記事.txt ＋ アイキャッチ ＋ 画像/NN_場面.png ＋ 動画/01_….mp4 ----
