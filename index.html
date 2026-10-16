@@ -15979,7 +15979,9 @@ async function dgLoadItems(force){
     if(!settings.note_qr||settings.note_qr_url!==noteUrl){settings={...settings,note_qr:await dgQr(noteUrl),note_qr_url:noteUrl};}
     dgSet('dg-settings',JSON.stringify(settings));if(settings.date)dgSet('dg-date',settings.date);
     const props={items:items.map(it=>({visualization:it.visualization,settings:it.settings,narration:it.narration,after_hours:it.afterHours,announced:it.announced})),settings,controlsEl:document.getElementById('dg-controls'),tts:dgTts,audioStore:dgAudioStore,importBgm:evVizImportBgm,transcribe:evVizTranscribe,speed:kgGet('viz-speed')||'fast',
-      onChange:st=>{dgSet('dg-settings',JSON.stringify(st));if(st.date)dgSet('dg-date',st.date);dgTouch();dgTitle();dgDescSoon();dgThAuto();}};
+      // 部品は起動のときにも設定を整えて onChange を呼ぶ。銘柄を選んでいない新規の PJ をそれで「触った」扱いにすると、空の PJ が保存されて増えた（2026-10-17）。
+      // 銘柄を選んでいるとき（＝人が触ったあと）だけ dgTouch。選んでいなければ画面の控えだけ
+      onChange:st=>{dgSet('dg-settings',JSON.stringify(st));if(st.date)dgSet('dg-date',st.date);if(dgIds().length)dgTouch();else if(typeof saveState==='function')saveState();dgTitle();dgDescSoon();dgThAuto();}};
     if(_dgHandle){_dgHandle.update(props);}else if(host){_dgHandle=KV.digest.mount(host,props);}
     const silent=items.filter(it=>!Object.keys(it.narration).length).map(it=>it.visualization.company.name);
     let msg=items.length?items.length+' 銘柄を読みました':'';
