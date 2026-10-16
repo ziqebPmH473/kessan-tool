@@ -15137,7 +15137,7 @@ function kgIsCommon(id){
     'yt-m-cut','yt-m-oped','yt-m-read','yt-m-qr','yt-m-plan','yt-m-post','yt-p-fixed','yt-f-yp','yt-f-ig','yt-f-l8','yt-f-tt'].includes(id);
 }
 // 分析動画のシーン（kessan-visualizer の src/schema/settings.ts の SCENE_ORDER・SCENE_DEFAULTS と同じ並び・秒数）
-const EV_VIZ_SCENES=[['thumbnail','サムネ',1],['cover','表紙',4],['summary','決算ハイライト',8],['stock_price','株価の推移',8],['pl_waterfall','損益の構造',8],['income_trend','業績の推移',9],['forecast','業績予想の比較',8],['balance_sheet','貸借対照表',11],['cash_flow','キャッシュフロー',9],['segments','セグメント',8],['highlights','注目ポイント',9],['conclusion','総括',8]];
+const EV_VIZ_SCENES=[['thumbnail','サムネ',1],['cover','表紙',4],['summary','決算ハイライト',8],['quarter','四半期単独',8],['stock_price','株価の推移',8],['pl_waterfall','損益の構造',8],['income_trend','業績の推移',9],['forecast','業績予想の比較',8],['balance_sheet','貸借対照表',11],['cash_flow','キャッシュフロー',9],['segments','セグメント',8],['highlights','注目ポイント',9],['conclusion','総括',8]];
 const KG_SNS=[['ig','Instagram'],['l8','Lemon8'],['tt','TikTok']];   // YouTubeの投稿は定型文を使わない（本文とタグだけ）
 // g＝画面の置き場所、ids＝値を入れる元の欄、ctx＝その種類（stock＝株価分析の横動画／gen＝YT動画）のときだけ欄へ入れる、def＝まだ値が無いときの初期値
 // 決算まとめの最後の文（読み上げ）の初期値。共通設定（dg-outro）が空ならこれ
@@ -15431,7 +15431,9 @@ function evVizCommit(KV,parsed,source){
   evVizStore({analysis:isViz?null:parsed.data,visualization:viz,source,created:new Date().toISOString()});
   evThApply();   // 右の画面のサムネの文から、サムネ画像も入れる
   const warn=(viz.warnings||[]).length+(parsed.warnings||[]).length;
-  evVizStatus('動画データを作りました'+(warn?'（確認したい点 '+warn+'件。右のプレビューの上に出ます）':''),'ok');
+  // 四半期単独（2Q・3Q・通期）が取れていないときは、前の四半期の短信も添付すると出せることを知らせる
+  const pt=(viz.company||{}).period_type;const qHint=(pt==='Q2'||pt==='Q3'||pt==='FY')&&!viz.quarter_standalone?'／四半期単独のスライドは出ません（短信に四半期別の表が無いとき。前の四半期の短信も添付して作り直すと出せます）':'';
+  evVizStatus('動画データを作りました'+(warn?'（確認したい点 '+warn+'件。右のプレビューの上に出ます）':'')+qHint,'ok');
   if(window._earnTab==='viz')earnPrevMode('viz');
   return true;
 }
