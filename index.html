@@ -1491,6 +1491,7 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
             <div style="font-size:11px;color:var(--text-sub);" title="表は使わない（noteは表を表示できない）。最初の段落のあとに注意書きが入ります">表なし。最初の段落のあとに注意書きが入ります。</div>
             <div class="input-row" style="margin-top:4px;">
               <button class="btn-sm" onclick="eaArtAi(this,'n')" style="flex:1;min-width:0;background:#4f46e5;color:#fff;" title="noteだけを API で作り直します（もう一方の記事はそのまま）">🤖 noteだけ作る</button>
+              <button class="btn-sm" onclick="eaNoteThumbDownload(this)" style="flex:none;" title="note に上げるサムネ（1920×1080・jpg）。ブログのアイキャッチと同じ画像で、3段目は ⚙ 共通設定「決算のブログ：アイキャッチの3段目」">🖼 サムネ</button>
             </div>
             <details style="margin-top:4px;"><summary style="font-size:11px;color:var(--text-sub);cursor:pointer;">noteだけ手動で作る</summary>
               <div class="input-row" style="margin-top:4px;">
@@ -16300,6 +16301,23 @@ async function eaArtAiOne(btn,k){
   }catch(e){eaStatus(k,'❌ '+e.message,'error');}
   finally{if(btn){btn.disabled=false;btn.textContent=o;}}
 }
+// ---- 記事のサムネ（ブログのアイキャッチ・note のサムネで同じ画像）----
+// 文は分析動画の横サムネと同じで、3段目だけ ⚙ 共通設定の「決算のブログ：アイキャッチの3段目」に替える。jpeg の data URL。文が無ければ null
+async function eaEyecatch(){
+  const t=evThVal('h')||evVizThumbText();if(!t)return null;
+  const ps=t.split('：');ps[2]=String(kgGet('ea-th3')||'').trim()||'かんたん%決算解説%';
+  return await evThImage('h',ps.slice(0,3).join('：'));
+}
+// note の欄の「🖼 サムネ」：同じ画像を jpg でダウンロード
+async function eaNoteThumbDownload(btn){
+  const o=btn?btn.textContent:'';if(btn){btn.disabled=true;btn.textContent='作成中…';}
+  try{
+    const du=await eaEyecatch();
+    if(!du){alert('サムネの文がありません（📽 分析動画 の右の画面「サムネ」に入れるか、整形済みデータを作ってください）');return;}
+    const a=document.createElement('a');a.href=du;a.download=`${VD_CFG.ev.code()||'code'}_${VD_CFG.ev.name()||'article'}_note_サムネ.jpg`;a.click();
+  }catch(e){alert('サムネを作れませんでした：'+(e&&e.message||e));}
+  finally{if(btn){btn.disabled=false;btn.textContent=o;}}
+}
 // ---- ブログ用 ZIP（docs/article-zip.md）：記事.txt ＋ アイキャッチ ＋ 画像/NN_場面.png ＋ 動画/01_….mp4 ----
 const eaSafeName=s=>String(s||'').replace(/[\\/:*?"<>|]/g,'_').trim();
 async function eaBlogZip(btn){
@@ -16320,9 +16338,8 @@ async function eaBlogZip(btn){
     });
     const code=VD_CFG.ev.code(),name=VD_CFG.ev.name();
     const zip=new JSZip();
-    // アイキャッチ：分析動画の横サムネ（文があるときだけ）
-    // 文は分析動画の横サムネと同じで、3段目だけ ⚙ 共通設定の「決算のブログ：アイキャッチの3段目」に替える
-    try{const t=evThVal('h')||evVizThumbText();if(t){st('アイキャッチを作っています…');const ps=t.split('：');ps[2]=String(kgGet('ea-th3')||'').trim()||'かんたん%決算解説%';const du=await evThImage('h',ps.slice(0,3).join('：'));zip.file('アイキャッチ.jpg',du.split(',')[1],{base64:true});}}catch(e){console.warn('[ea] eyecatch',e);}
+    // アイキャッチ：分析動画の横サムネ（文があるときだけ）。note のサムネと同じ画像
+    try{st('アイキャッチを作っています…');const du=await eaEyecatch();if(du)zip.file('アイキャッチ.jpg',du.split(',')[1],{base64:true});}catch(e){console.warn('[ea] eyecatch',e);}
     // 画像：本文の枠の順に 01_, 02_ …
     if(used.length){
       st(`画像を作っています… 0/${used.length}`);
