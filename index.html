@@ -1519,11 +1519,10 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
             <div style="font-size:10px;color:var(--text-sub);margin-top:2px;" title="株価分析のnoteと同じ一覧（noteの有料記事）から選びます。⭐＝今回の記事との関連が強い候補。noteでURL行の末尾にカーソルを置きEnterでカードになります">本文の末尾に「あわせて読みたい」＋紹介文＋URLを差し込みます。何度押しても差し替わります。</div>
             <div class="input-row" style="margin-top:10px;gap:4px;align-items:center;">
               <label style="font-size:11px;color:var(--text-sub);flex:none;">noteの記事URL</label>
-              <input type="text" id="ea-note-url" placeholder="noteに公開したあとのURL" oninput="saveState()" style="flex:1;min-width:0;font-size:11px;">
-              <button class="btn-sm" onclick="eaPaste('ea-note-url',()=>eaNoteUrlApply(true))" style="flex:none;">📋 貼付</button>
-              <button class="btn-sm" onclick="eaNoteUrlApply(true)" style="flex:none;background:#0d9488;color:#fff;" title="📽 分析動画の投稿文「YouTube 概要欄」に、この URL を入れます（前の URL は差し替え）。ブログは ZIP の【note】、決算まとめは QR に使います">🔁 差し替え</button>
+              <input type="text" id="ea-note-url" placeholder="noteに公開したあとのURL（控え）" oninput="saveState()" style="flex:1;min-width:0;font-size:11px;">
+              <button class="btn-sm" onclick="eaPaste('ea-note-url')" style="flex:none;">📋 貼付</button>
             </div>
-            <div style="font-size:10px;color:var(--text-sub);margin-top:2px;">差し替えで、📽 分析動画の「YouTube 概要欄」に入ります。ブログの【note】と決算まとめの QR にも使います。</div>
+            <div style="font-size:10px;color:var(--text-sub);margin-top:2px;" title="note の URL は有料記事へのリンク用。決算の note は無料なので、概要欄・ブログ・QR には入れません（すみぽん 2026-10-16）">控えだけです。概要欄やブログには入れません。</div>
             <textarea id="ea-n-raw" style="display:none;"></textarea>
           </div>
           <div class="tool-section">
@@ -16081,7 +16080,7 @@ async function dgThDownload(btn){
 // 📝 記事（決算分析）：note 記事・ブログ記事・ブログ用 ZIP
 // 元は「1.」の FC レポート（fc-report）と「2.」の整形済みデータ（input-data）。作りは YT動画タブの記事（ygArticlePrompt / ygArtApply）と同じ。
 // ブログは sumikko-money の docs/article-zip.md の形（記事.txt・アイキャッチ・画像/・動画/）で1つの ZIP にする。
-// 欄（PJ に保存）：ea-yt-url・ea-note-url・ea-model・ea-n-title/body/tags/raw・ea-b-title/points/body/tags/raw・ea-zip-video・ea-check・関連記事（ea-rel-*）
+// 欄（PJ に保存）：ea-yt-url・ea-note-url（控えだけ。概要欄・ZIP には使わない）・ea-model・ea-n-title/body/tags/raw・ea-b-title/points/body/tags/raw・ea-zip-video・ea-check・関連記事（ea-rel-*）
 // ============================================================
 const eaVal=id=>((document.getElementById(id)||{}).value||'').trim();
 const eaEl=id=>document.getElementById(id);
@@ -16104,21 +16103,6 @@ function eaYtUrlApply(manual){
   if(url){let i=blocks.findIndex(x=>!/^#{1,6}\s/.test(x));if(i<0)i=0;blocks.splice(i+1,0,url);}
   el.value=blocks.join('\n\n');saveState();
   if(manual)eaStatus('n',url?'✅ YouTube の URL を、note 本文の最初の段落のあとに入れました':'YouTube の URL が空なので、note 本文から外しました','ok');
-}
-// note の URL：📽 分析動画の投稿文「YouTube 概要欄」の、タグの行の上に「▼ 詳しい解説はnoteで」＋URL。何度押しても1か所だけ
-const EA_NOTE_HEAD='▼ 詳しい解説はnoteで';
-function eaNoteUrlApply(manual){
-  const url=eaVal('ea-note-url');
-  const ta=eaEl('ev-viz-settings');const st=evVizSettings();
-  if(!st||!st.posts||!st.posts.yt_desc){if(manual)alert('先に 📽 分析動画 のタブを開いてください（投稿文の「YouTube 概要欄」ができてから入れます）。ブログの【note】と決算まとめの QR には、そのまま使われます');return;}
-  const lines=String(st.posts.yt_desc).split('\n');const kept=[];
-  for(let i=0;i<lines.length;i++){if(lines[i].trim()===EA_NOTE_HEAD){if(/^https?:\/\//.test((lines[i+1]||'').trim()))i++;continue;}kept.push(lines[i]);}
-  const blocks=kept.join('\n').split(/\n{2,}/).map(x=>x.trim()).filter(Boolean);
-  if(url){let i=blocks.length;if(i&&/^#/.test(blocks[i-1]))i--;blocks.splice(i,0,EA_NOTE_HEAD+'\n'+url);}
-  st.posts.yt_desc=blocks.join('\n\n');
-  if(ta)ta.value=JSON.stringify(st);saveState();
-  try{evVizMount(true);}catch(e){}
-  if(manual)eaStatus('n',url?'✅ note の URL を、分析動画の「YouTube 概要欄」に入れました':'note の URL が空なので、分析動画の「YouTube 概要欄」から外しました','ok');
 }
 // 基本情報（記事の AI に渡す）：銘柄名・コード・市場・決算期・発表日
 function eaBasicInfo(){
@@ -16369,7 +16353,7 @@ async function eaBlogZip(btn){
     }
     // 記事.txt（動画を入れられなかったときは、動画の行も外す）
     const body=eaVideoApply(out.join('\n').replace(/\n{3,}/g,'\n\n'),!videoOk);
-    const blocks=[['【タイトル】',title],['【カテゴリ】','決算分析'],['【銘柄コード】',code],['【要点】',eaVal('ea-b-points')],['【本　文】',body],['【ハッシュタグ】',tags],['【note】',eaVal('ea-note-url')],['【YouTube】',eaVal('ea-yt-url')]]
+    const blocks=[['【タイトル】',title],['【カテゴリ】','決算分析'],['【銘柄コード】',code],['【要点】',eaVal('ea-b-points')],['【本　文】',body],['【ハッシュタグ】',tags],['【YouTube】',eaVal('ea-yt-url')]]   // 【note】は入れない（決算の note は無料。URL は有料記事へのリンク用）
       .filter(([,v])=>v).map(([h,v])=>h+'\n'+v).join('\n\n')+'\n';
     zip.file('記事.txt',blocks);
     st('ZIP にまとめています…');
