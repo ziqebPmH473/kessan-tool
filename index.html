@@ -1719,10 +1719,10 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
                 <button class="btn-sm" onclick="dgCopy('dg-yt-title',this)" style="flex:none;" title="コピー">📋</button>
               </div>
             </details>
-            <!-- 各銘柄の表紙の一言・読み上げを、決算まとめの中だけで直す（元の決算 PJ は変えない）。PTS で作った動画を翌日の引け後に使うときなど -->
+            <!-- 決算まとめの表紙（本日のラインアップ）で、各銘柄のカードの下の行（「増収増益 ｜ PTS 大幅安」など）を書き換える。PTS で作った動画を翌日の引け後に使うときなど -->
             <details id="dg-coverbox" style="margin-top:8px;" ontoggle="if(this.open)dgCoverRender()">
-              <summary style="font-size:11px;color:var(--text-sub);cursor:pointer;" title="ここで直した文は、この決算まとめの動画にだけ入ります。元の決算分析の PJ（単体の動画）はそのままです">🖼 各銘柄の表紙の文言（決算まとめだけ）</summary>
-              <div style="font-size:10px;color:var(--text-sub);margin-top:4px;">空欄なら元の PJ の文のまま。読み上げを直したら「🔊 作る」で音声を作り直します。</div>
+              <summary style="font-size:11px;color:var(--text-sub);cursor:pointer;" title="決算まとめの表紙（本日のラインアップ）の、各銘柄のカードの下の行を書き換えます。元の決算分析の PJ はそのままです">🖼 表紙（本日のラインアップ）の各銘柄の行</summary>
+              <div style="font-size:10px;color:var(--text-sub);margin-top:4px;">空欄なら自動の行（薄い字の文）のまま。例：増収増益 ｜ 株価 +8.2%</div>
               <div id="dg-cover-list" style="display:flex;flex-direction:column;gap:8px;margin-top:6px;"></div>
             </details>
             <textarea id="dg-cover" style="display:none;"></textarea>
@@ -15950,17 +15950,10 @@ async function dgLoadItems(force){
         // 発表日（p-date）は表紙の「○月○日発表」に、決算後の株価の日（p-post-date。引け後の発表なら翌営業日＝株価が動いた日）はまとめの日付に
         const pick=k=>String(f[k]||'').match(/^\d{4}-\d{2}-\d{2}$/)?f[k]:null;
         const announced=pick('p-date');const priced=pick('p-post-date')||announced;
-        // 表紙の文言の差し替え（決算まとめだけ）：一言は画面の見出し、読み上げは表紙の台本。読み上げの音声はこの PJ に作ったもの（文が同じときだけ）
-        const ov=dgCovers()[id]||{};
-        const orig={headline:viz.summary&&viz.summary.headline||'',text:(nar.cover&&nar.cover.text)||''};
-        if(ov.headline&&ov.headline.trim())viz={...viz,summary:{...viz.summary,headline:ov.headline.trim()}};
-        if(ov.text&&ov.text.trim()){
-          const t=ov.text.trim();let rec=null;try{rec=await dgAudioStore.get('cover:'+id);}catch(e){}
-          const ok=rec&&rec.blob&&(rec.text||'').trim()===t;
-          st={...st,narration:{...nar,cover:{text:t,seconds:ok&&typeof rec.seconds==='number'?rec.seconds:null}}};
-          if(ok)narration.cover=rec.blob;else delete narration.cover;
-        }
-        items.push({id,orig,visualization:viz,settings:st,narration,noteUrl:(f['ea-note-url']||f['art-url']||'').trim(),title:(f['p-name']||'').trim(),afterHours,announced,priced});
+        // 表紙（本日のラインアップ）のカードの下の行：書き換えた文（dg-cover）と、自動の行（欄の薄い字に出す）
+        let autoLine='';try{autoLine=KV.digest.subline?KV.digest.subline(viz):'';}catch(e){}
+        const subline=String((dgCovers()[id]||{}).line||'').trim()||null;
+        items.push({id,autoLine,subline,visualization:viz,settings:st,narration,noteUrl:(f['ea-note-url']||f['art-url']||'').trim(),title:(f['p-name']||'').trim(),afterHours,announced,priced});
       }
     }
     _dgItems=items;_dgLoadedKey=key;
@@ -15978,7 +15971,7 @@ async function dgLoadItems(force){
     const noteUrl=dgNoteUrl();
     if(!settings.note_qr||settings.note_qr_url!==noteUrl){settings={...settings,note_qr:await dgQr(noteUrl),note_qr_url:noteUrl};}
     dgSet('dg-settings',JSON.stringify(settings));if(settings.date)dgSet('dg-date',settings.date);
-    const props={items:items.map(it=>({visualization:it.visualization,settings:it.settings,narration:it.narration,after_hours:it.afterHours,announced:it.announced})),settings,controlsEl:document.getElementById('dg-controls'),tts:dgTts,audioStore:dgAudioStore,importBgm:evVizImportBgm,transcribe:evVizTranscribe,speed:kgGet('viz-speed')||'fast',
+    const props={items:items.map(it=>({visualization:it.visualization,settings:it.settings,narration:it.narration,after_hours:it.afterHours,announced:it.announced,subline:it.subline})),settings,controlsEl:document.getElementById('dg-controls'),tts:dgTts,audioStore:dgAudioStore,importBgm:evVizImportBgm,transcribe:evVizTranscribe,speed:kgGet('viz-speed')||'fast',
       // 部品は起動のときにも設定を整えて onChange を呼ぶ。銘柄を選んでいない新規の PJ をそれで「触った」扱いにすると、空の PJ が保存されて増えた（2026-10-17）。
       // 銘柄を選んでいるとき（＝人が触ったあと）だけ dgTouch。選んでいなければ画面の控えだけ
       onChange:st=>{dgSet('dg-settings',JSON.stringify(st));if(st.date)dgSet('dg-date',st.date);if(dgIds().length)dgTouch();else if(typeof saveState==='function')saveState();dgTitle();dgDescSoon();dgThAuto();}};
@@ -15994,39 +15987,21 @@ async function dgLoadItems(force){
     if(job.again)dgLoadItems(true);
   }
 }
-// ---- 各銘柄の表紙の文言（決算まとめだけ）。dg-cover に {<PJ id>: {headline, text}} ----
+// ---- 表紙（本日のラインアップ）の各銘柄の行。dg-cover に {<PJ id>: {line}} ----
 function dgCovers(){try{const o=JSON.parse(dgVal('dg-cover')||'{}');return o&&typeof o==='object'?o:{};}catch(e){return {};}}
 let _dgCoverTimer=null;
-function dgCoverSet(id,k,v){const o=dgCovers();o[id]={...(o[id]||{}),[k]:v};dgSet('dg-cover',JSON.stringify(o));dgTouch();clearTimeout(_dgCoverTimer);_dgCoverTimer=setTimeout(()=>dgLoadItems(true),800);}
+function dgCoverSet(id,v){const o=dgCovers();o[id]={...(o[id]||{}),line:v};dgSet('dg-cover',JSON.stringify(o));dgTouch();clearTimeout(_dgCoverTimer);_dgCoverTimer=setTimeout(()=>dgLoadItems(true),800);}
 function dgCoverRender(){
   const box=document.getElementById('dg-cover-list');if(!box)return;
   const o=dgCovers();
   if(!_dgItems.length){box.innerHTML='<div style="font-size:11px;color:var(--text-sub);">銘柄を選ぶと、ここに出ます。</div>';return;}
   box.innerHTML=_dgItems.map(it=>{
-    const c=o[it.id]||{},orig=it.orig||{};const name=esc(it.visualization.company.name||'');
-    return `<div style="border:1px solid var(--border);border-radius:6px;padding:6px;background:#fff;">
-      <div style="font-size:11px;font-weight:700;margin-bottom:3px;">${name}</div>
-      <label style="font-size:10px;color:var(--text-sub);">表紙の一言（画面）</label>
-      <input type="text" value="${esc(c.headline||'')}" placeholder="${esc(orig.headline||'')}" oninput="dgCoverSet('${esc(it.id)}','headline',this.value)" style="width:100%;box-sizing:border-box;font-size:11px;">
-      <label style="font-size:10px;color:var(--text-sub);">表紙の読み上げ</label>
-      <div style="display:flex;gap:4px;align-items:flex-start;">
-        <textarea oninput="dgCoverSet('${esc(it.id)}','text',this.value)" placeholder="${esc(orig.text||'')}" style="flex:1;min-width:0;font-size:11px;height:38px;min-height:38px;">${esc(c.text||'')}</textarea>
-        <button class="btn-sm" onclick="dgCoverTts('${esc(it.id)}',this)" style="flex:none;background:#2563eb;color:#fff;" title="この読み上げの音声を作ります（この決算まとめの PJ にだけ保存）">🔊 作る</button>
-      </div>
+    const c=o[it.id]||{};const name=esc(it.visualization.company.name||'');
+    return `<div style="display:flex;gap:6px;align-items:center;">
+      <span style="flex:none;width:6em;font-size:11px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</span>
+      <input type="text" value="${esc(c.line||'')}" placeholder="${esc(it.autoLine||'')}" oninput="dgCoverSet('${esc(it.id)}',this.value)" style="flex:1;min-width:0;font-size:11px;">
     </div>`;
   }).join('');
-}
-async function dgCoverTts(id,btn){
-  const t=String((dgCovers()[id]||{}).text||'').trim();
-  if(!t){alert('読み上げの文を入れてから押してください（空欄なら元の PJ の音声を使います）');return;}
-  const o=btn?btn.textContent:'';if(btn){btn.disabled=true;btn.textContent='作成中…';}
-  try{
-    const r=await dgTts(t);
-    await dgAudioStore.put('cover:'+id,{blob:r.blob,text:t,seconds:r.seconds});
-    dgStatus('表紙の読み上げを作りました','ok');
-    await dgLoadItems(true);
-  }catch(e){dgStatus('表紙の読み上げを作れませんでした：'+(e&&e.message||e),'error');}
-  finally{if(btn){btn.disabled=false;btn.textContent=o;}}
 }
 // 一覧に出る名前：日付 ＋ 銘柄名
 function dgTitle(){
