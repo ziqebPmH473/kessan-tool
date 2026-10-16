@@ -2269,6 +2269,8 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
                     <span class="sa-sub" style="margin:0;">サムネ</span>
                     <span id="ev-th-orient" style="font-size:11px;font-weight:700;color:#0d9488;" title="縦・横は、動画の「向き」に合わせて切り替わります"></span>
                     <span id="ev-th-st" style="font-size:11px;color:var(--text-sub);margin-left:auto;"></span>
+                    <button class="btn-sm" onclick="evThDownload('h',this)" style="flex:none;padding:1px 6px;font-size:10px;" title="横のサムネ（1920×1080・jpg）をダウンロード。YouTube の横動画用">🖼 横</button>
+                    <button class="btn-sm" onclick="evThDownload('v',this)" style="flex:none;padding:1px 6px;font-size:10px;" title="縦のサムネ（1080×1920・jpg）をダウンロード。YouTube ショート用。縦の文が空なら横の文で作ります">🖼 縦</button>
                 </div>
                 <textarea id="ev-viz-th-h" oninput="evThInput('h')" placeholder="上段：中段：下段（📤 出力データ作成で自動で入ります）" style="height:46px;min-height:46px;"></textarea>
                 <textarea id="ev-viz-th-v" oninput="evThInput('v')" placeholder="上段：中段：下段（📤 出力データ作成で自動で入ります）" style="height:46px;min-height:46px;display:none;"></textarea>
@@ -15591,6 +15593,17 @@ async function evThImage(k,text){
     c.width=Math.round(img.width*sc);c.height=Math.round(img.height*sc);c.getContext('2d').drawImage(img,0,0,c.width,c.height);
     return c.toDataURL('image/jpeg',0.85);
   }finally{if(typeof src!=='string')URL.revokeObjectURL(url);}
+}
+// サムネをダウンロード（横 1920×1080／縦 1080×1920・jpg）。縦の文が空なら横の文で作る（YouTube ショート用は縦）
+async function evThDownload(k,btn){
+  const t=evThVal(k)||evThVal('h')||evVizThumbText();
+  if(!t){alert('サムネの文がありません（上の欄に入れるか、整形済みデータを作ってください）');return;}
+  const o=btn?btn.textContent:'';if(btn){btn.disabled=true;btn.textContent='作成中…';}
+  try{
+    const du=await evThImage(k,t);
+    const a=document.createElement('a');a.href=du;a.download=`${VD_CFG.ev.code()||'code'}_${VD_CFG.ev.name()||'thumb'}_サムネ_${k==='v'?'縦':'横'}.jpg`;a.click();
+  }catch(e){alert('サムネを作れませんでした：'+(e&&e.message||e));}
+  finally{if(btn){btn.disabled=false;btn.textContent=o;}}
 }
 // 文から画像を作り、動画の設定に入れる（分析動画のデータがまだ無ければ、作ったときに入れる）
 async function evThApply(kinds){
