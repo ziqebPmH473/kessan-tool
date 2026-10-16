@@ -16041,7 +16041,8 @@ const dgThVal=()=>((document.getElementById('dg-th')||{}).value||'').trim();
 function dgThText(){
   const d=dgVal('dg-date');const m=String(d).match(/(\d{4})-(\d{2})-(\d{2})/);const jp=m?parseInt(m[2],10)+'月'+parseInt(m[3],10)+'日':'';
   const names=_dgItems.map(it=>it.visualization.company.name).filter(Boolean);
-  return [jp,'決算まとめ',names.length?names.slice(0,3).join('・')+(names.length>3?' ほか':''):''].join('：');
+  // すみぽんの見本（2026-10-17）：上「#10月16日#の*注目銘柄*」・中「GO/SHIFT/ベイカレント」・下「図解で%決算分析%」（# 水色・* オレンジ・% 黄色）
+  return [jp?`#${jp}#の*注目銘柄*`:'*注目銘柄*',names.length?names.slice(0,4).join('/')+(names.length>4?' ほか':''):'','図解で%決算分析%'].join('：');
 }
 // 空か、前に自動で入れた文のままなら入れ直す（直した文は残す）
 function dgThAuto(){
