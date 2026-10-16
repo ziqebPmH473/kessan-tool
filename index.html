@@ -1548,9 +1548,7 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
             <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">ハッシュタグ</label><button class="btn-sm" onclick="copyText(document.getElementById('ea-b-tags').value,this)">📋 コピー</button></div>
             <input type="text" id="ea-b-tags" oninput="saveState()" placeholder="生成後にハッシュタグが入ります" style="width:100%;box-sizing:border-box;font-size:11px;">
             <textarea id="ea-b-raw" style="display:none;"></textarea>
-            <div class="input-row" style="margin-top:10px;gap:4px;align-items:center;">
-              <label style="font-size:11px;cursor:pointer;display:flex;align-items:center;gap:4px;" title="分析動画をブラウザで MP4 にして ZIP に入れます（数分かかります。書き出し中はこのタブを表示したままにしてください）"><input type="checkbox" id="ea-zip-video" checked> 分析動画（MP4）も入れる</label>
-            </div>
+            <div style="font-size:10px;color:var(--text-sub);margin-top:10px;">分析動画（MP4）も必ず入ります。書き出しに1〜3分かかるので、終わるまでこのタブを表示したままにしてください。</div>
             <div class="input-row" style="margin-top:4px;">
               <button class="main-btn" onclick="eaBlogZip(this)" style="flex:1;background:#16a34a;" title="記事.txt・アイキャッチ・各場面の画像・分析動画の MP4 を1つの ZIP にします。ブログのコンソール →「新しい記事」→「まとめて貼る」に落とすと記事になります">💾 ブログ用 ZIP を保存</button>
             </div>
@@ -16080,7 +16078,7 @@ async function dgThDownload(btn){
 // 📝 記事（決算分析）：note 記事・ブログ記事・ブログ用 ZIP
 // 元は「1.」の FC レポート（fc-report）と「2.」の整形済みデータ（input-data）。作りは YT動画タブの記事（ygArticlePrompt / ygArtApply）と同じ。
 // ブログは sumikko-money の docs/article-zip.md の形（記事.txt・アイキャッチ・画像/・動画/）で1つの ZIP にする。
-// 欄（PJ に保存）：ea-yt-url・ea-note-url（控えだけ。概要欄・ZIP には使わない）・ea-model・ea-n-title/body/tags/raw・ea-b-title/points/body/tags/raw・ea-zip-video・ea-check・関連記事（ea-rel-*）
+// 欄（PJ に保存）：ea-yt-url・ea-note-url（控えだけ。概要欄・ZIP には使わない）・ea-model・ea-n-title/body/tags/raw・ea-b-title/points/body/tags/raw・ea-check・関連記事（ea-rel-*）
 // ============================================================
 const eaVal=id=>((document.getElementById(id)||{}).value||'').trim();
 const eaEl=id=>document.getElementById(id);
@@ -16159,7 +16157,7 @@ function eaArtApply(k,text){
   let body=noteSentenceBreaks(fixBoldBrackets(p.body||''));
   if(!/^##\s/m.test(body)&&/^###\s/m.test(body))body=body.replace(/^###(\s)/gm,'##$1');   // 見出しが全部 ### のときは ## に上げる（ブログの目次に大見出しが出るように）
   if(k==='n')body=ygNoteDisclaimer(body);   // note は注意書きを最初の段落のあとに（YT動画の note と同じ）。ブログはページの作り（sumikko-money）で出る
-  else{body=eaVideoApply(body,!(eaEl('ea-zip-video')||{}).checked);eaEl('ea-b-points').value=eaParsePoints(text);}
+  else{body=eaVideoApply(body,false);eaEl('ea-b-points').value=eaParsePoints(text);}   // 動画の行はいつも入れる（ZIP に動画は必ず入る）
   eaEl('ea-'+k+'-body').value=body;
   eaEl('ea-'+k+'-tags').value=p.hashtags||'';
   if(k==='n')eaYtUrlApply(false);   // YouTube の URL が入っていれば、最初の段落のあと（注意書きの上）に
@@ -16325,7 +16323,8 @@ async function eaBlogZip(btn){
   const o=btn?btn.textContent:'';if(btn){btn.disabled=true;btn.textContent='作成中…';}
   try{
     const v=await eaViz();const scenes=v?v.scenes:[];
-    const withVideo=!!(eaEl('ea-zip-video')||{}).checked&&!!v;
+    // 動画は必須（すみぽん 2026-10-17）。分析動画のデータが無ければ作れない
+    if(!v){st('❌ 分析動画のデータがありません。📽 分析動画 で作ってから押してください','error');return;}
     // 画像の枠：本文の順に、場面名が一致するものだけ残す（同じ場面は1回）。一致しない枠の行は消して知らせる
     const used=[],out=[];let dropped=0;
     body0.split('\n').forEach(l=>{
@@ -16343,23 +16342,26 @@ async function eaBlogZip(btn){
       const pngs=await v.KV.scenePngs({visualization:v.viz,settings:v.settings,ids:used.map(s=>s.id),onProgress:(a,b)=>st(`画像を作っています… ${a}/${b}`)});
       used.forEach((s,i)=>{const p=pngs.find(x=>x.id===s.id);if(p)zip.file(`画像/${String(i+1).padStart(2,'0')}_${eaSafeName(s.title)}.png`,p.blob);});
     }
-    // 動画：ブラウザで MP4 に（読み上げ・BGM は分析動画の保存先から）。圧縮しないで入れる。失敗したら動画なしで続ける（記事と画像は保存する）
-    let videoOk=false,videoErr='';
-    if(withVideo){
-      try{
-        const mp4=await v.KV.exportMp4({visualization:v.viz,settings:v.settings,audioStore:evVizAudioStore,onProgress:p=>st(p.phase==='描画'?`動画を書き出しています… ${p.frame}/${p.total}コマ（このタブを表示したままにしてください）`:p.phase==='一時停止'?'動画の書き出しを一時停止中（このタブを表示すると再開します）':`動画を書き出しています…（${p.phase}）`)});
-        zip.file(`動画/01_${eaSafeName(name||'決算')}_分析動画.mp4`,mp4,{compression:'STORE'});videoOk=true;
-      }catch(e){videoErr=String(e&&e.message||e);console.warn('[ea] mp4',e);}
+    // 動画：ブラウザで MP4 に（読み上げ・BGM は分析動画の保存先から）。圧縮しないで入れる。
+    // 動画は必須なので、書き出せなかったら ZIP は保存しない（前は動画なしで保存していて、動画が抜けた ZIP ができていた。SHIFT 2026-10-17）
+    let mp4;
+    try{
+      mp4=await v.KV.exportMp4({visualization:v.viz,settings:v.settings,audioStore:evVizAudioStore,onProgress:p=>st(p.phase==='描画'?`動画を書き出しています… ${p.frame}/${p.total}コマ${p.message?'（'+p.message+'）':'（このタブを表示したままにしてください）'}`:p.phase==='一時停止'?'動画の書き出しを一時停止中（このタブを表示すると再開します）':`動画を書き出しています…（${p.phase}）`)});
+    }catch(e){
+      console.warn('[ea] mp4',e);
+      st(`❌ 動画を書き出せなかったので、ZIP は保存していません（${String(e&&e.message||e)}）。このタブを前に出したまま、ほかの作業を止めて、もう一度押してください`,'error');
+      return;
     }
-    // 記事.txt（動画を入れられなかったときは、動画の行も外す）
-    const body=eaVideoApply(out.join('\n').replace(/\n{3,}/g,'\n\n'),!videoOk);
+    zip.file(`動画/01_${eaSafeName(name||'決算')}_分析動画.mp4`,mp4,{compression:'STORE'});
+    // 記事.txt（動画の行はリード文の終わりに1つ）
+    const body=eaVideoApply(out.join('\n').replace(/\n{3,}/g,'\n\n'),false);
     const blocks=[['【タイトル】',title],['【カテゴリ】','決算分析'],['【銘柄コード】',code],['【要点】',eaVal('ea-b-points')],['【本　文】',body],['【ハッシュタグ】',tags],['【YouTube】',eaVal('ea-yt-url')]]   // 【note】は入れない（決算の note は無料。URL は有料記事へのリンク用）
       .filter(([,v])=>v).map(([h,v])=>h+'\n'+v).join('\n\n')+'\n';
     zip.file('記事.txt',blocks);
     st('ZIP にまとめています…');
     const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:3}});
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${code||'code'}_${name||'article'}_記事.zip`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);
-    st(`${videoErr?'⚠':'✅'} 保存しました（${(blob.size/1024/1024).toFixed(1)} MB・画像${used.length}枚${videoOk?'・動画1本':''}${dropped?`・場面に無い画像の枠${dropped}行は外しました`:''}）${videoErr?` ／ 動画は書き出せなかったので入れていません（${videoErr}）。📽 分析動画 の「MP4 を書き出す」で作り、ブログのコンソールに落としてください`:''}`,videoErr?'':'ok');
+    st(`✅ 保存しました（${(blob.size/1024/1024).toFixed(1)} MB・画像${used.length}枚・動画1本${dropped?`・場面に無い画像の枠${dropped}行は外しました`:''}）`,'ok');
   }catch(e){st('❌ '+(e&&e.message||e),'error');}
   finally{if(btn){btn.disabled=false;btn.textContent=o;}}
 }
