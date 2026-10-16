@@ -16117,7 +16117,8 @@ async function eaViz(){
   const d=evVizData();if(!d)return null;
   const KV=await evVizLoad();
   let viz=d.visualization;if(d.analysis){try{viz=KV.build(d.analysis,evVizExtras());}catch(e){console.warn('[ea] viz',e);}}
-  const settings=evVizSettings()||evVizDefaultSettings(KV);
+  // ブログはいつも横（分析動画の向きが縦でも、画像と MP4 は 1920×1080）
+  const settings={...(evVizSettings()||evVizDefaultSettings(KV)),orientation:'landscape',width:1920,height:1080};
   const scenes=KV.scenes(viz,settings).filter(s=>s.id!=='thumbnail'&&s.id!=='cover');   // サムネの場面はアイキャッチに回す。表紙は記事に要らない。どちらも画像の枠にしない
   return{KV,viz,settings,scenes};
 }
