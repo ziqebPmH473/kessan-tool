@@ -119,7 +119,7 @@ ${e!=null&&e.companyHint?`
 - PL・CF の比較対象（previous）は「前年同期」。BS の比較対象（balance_sheet.previous）は「前期末」。混同しない。
 - income_statement と cash_flow は期首からの累計の数字を書く（2Q なら 1Q＋2Q の6か月分、3Q なら9か月分）。四半期単独（3か月分）の数字は income_statement に入れない。
 - quarter_standalone には当四半期だけ（3か月分）の売上高・営業利益・経常利益・純利益と、前年の同じ四半期だけの数字を書く。2Q・3Q・通期の決算で、短信に四半期単独の表があればその値（source_kind=reported）。無ければ、前の四半期の短信が添付されているときだけ、今期の累計から前の四半期の累計を引いて計算する（source_kind=calculated。経常利益が無い会社は null）。1Q、または計算できないときは null。
-- 業績推移（trends）は、直近に終わった期からさかのぼって実績を3〜4期（資料にあるだけ）、その後ろに今期の会社予想を1期（is_forecast=true）。並びは古い順。直近の実績の期を飛ばさない（例：2027/2期の2Qなら 2024/2・2025/2・2026/2 の実績＋2027/2(予)）。実績と予想を1つの期に混ぜない。
+- 業績推移（trends）は、直近に終わった期からさかのぼって実績を3〜4期（売上高と営業利益の両方が資料にある期だけ。売上高しか無い期は入れない）、その後ろに今期の会社予想を1期（is_forecast=true）。並びは古い順。直近の実績の期を飛ばさない（例：2027/2期の2Qなら 2024/2・2025/2・2026/2 の実績＋2027/2(予)）。実績と予想を1つの期に混ぜない。
 - IFRS 等で科目名が違う場合は標準項目へ寄せる（例: 売上収益・営業収益 → revenue。経常利益が無ければ ordinary_income は null）。
 - BS は細目を表示用大分類（cash / receivables / inventory / ppe ... ）へまとめる。合計が total_assets と一致するよう、残りは other_* に入れる。
 - ai_insights は「今回の決算で重要な点」を positives / negatives / unusual_points / key_drivers / risks / next_points_to_watch に分けて書く。各項目は title（15文字程度）・description・reason・related_metrics・source_pages・confidence を持つ。
