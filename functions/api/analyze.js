@@ -7,8 +7,25 @@
 // ============================================================
 
 const MODEL = "gemini-3.5-flash-lite";
+// 少しずつ受け取る（stream）で呼ぶ。まとめて受け取ると、考える時間の長いモデル（3.8・3.7 Flash）は最初の返事まで
+// 125秒を超え、途中の Cloudflare に切られていた（HTTP 524「error code: 524」。2026-10-18）
 const ENDPOINT = (model, key) =>
-  `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+  `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${key}`;
+
+// 少しずつ届いた答え（data: {...} の行）をつなげる。考えている途中の文（thought）は外す
+function readSse(raw) {
+  let text = "", usage = null, error = null;
+  for (const line of raw.split(/\r?\n/)) {
+    if (!line.startsWith("data:")) continue;
+    let d;
+    try { d = JSON.parse(line.slice(5)); } catch { continue; }
+    if (d.error) error = d.error;
+    const parts = (d.candidates && d.candidates[0] && d.candidates[0].content && d.candidates[0].content.parts) || [];
+    for (const p of parts) if (p.text && !p.thought) text += p.text;
+    if (d.usageMetadata) usage = d.usageMetadata;
+  }
+  return { text: text.trim(), usage, error };
+}
 
 function json(obj, status = 200) {
   return new Response(JSON.stringify(obj), {
@@ -59,6 +76,8 @@ export async function onRequestPost(context) {
     contents: [{ role: "user", parts }],
     generationConfig: {
       temperature: typeof payload.temperature === "number" ? payload.temperature : 0.4,
+      // 考えている途中の要約も流させる（考えている間も少しずつ届くので、途中で切られない）。答えからは外す
+      thinkingConfig: { includeThoughts: true },
     },
   };
   // search: true のときだけ Google 検索を使わせる（最近の出来事を根拠にしたいとき。エンディングの案で使う）。
@@ -99,14 +118,14 @@ export async function onRequestPost(context) {
       });
       const raw0 = await res.text();
       let data;
-      try { data = JSON.parse(raw0); }
-      catch { throw new Error(`HTTP ${res.status} 応答がJSONではありません: ${raw0.slice(0, 80)}`); }
       if (res.ok) {
-        const text =
-          (data.candidates && data.candidates[0] && data.candidates[0].content &&
-           data.candidates[0].content.parts || [])
-            .map((p) => p.text || "").join("").trim();
-        return json({ ok: true, text, usage: data.usageMetadata || null, model: m, fellBack: i > 0, failures });
+        const r = readSse(raw0);
+        if (!r.error) return json({ ok: true, text: r.text, usage: r.usage, model: m, fellBack: i > 0, failures });
+        data = { error: r.error };
+      } else {
+        try { data = JSON.parse(raw0); }
+        catch { throw new Error(`HTTP ${res.status} 応答がJSONではありません: ${raw0.slice(0, 80)}`); }
+        if (Array.isArray(data)) data = data[0];
       }
       const raw = data && data.error && data.error.message ? data.error.message : `HTTP ${res.status}`;
       lastErr = raw;
