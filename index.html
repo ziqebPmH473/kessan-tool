@@ -2641,7 +2641,7 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
         async function callGeminiAnalyze(prompt, resources, opts) {
             opts = opts || {};
             try {
-                const res = await fetch('/api/analyze', {
+                const res = await aiFetch('/api/analyze', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -5493,6 +5493,62 @@ function copyCorrection(btn){copyText('指摘箇所を指示の内容に沿っ�
 function copyNBPrompt(btn){copyText(NB_PROMPT,btn);}
 
 // ============================================================
+// AIの呼び出し：画面から Google（Gemini）に直接頼む（2026-10-18）
+// ・/api/analyze 経由だと、Cloudflare が Google の最初の返事を125秒までしか待たず、
+//   考える時間の長い 3.8・3.7 Flash が毎回切られて下のモデルへ降格していた（HTTP 524）。
+// ・呼び方と返す形は fetch('/api/analyze',…) と同じ（組み立て・下のモデルへの切り替えは functions/api/analyze.js と同じ）。
+// ・キーは /api/gemini-key から受け取ってメモリにだけ持つ（保存しない）。受け取れないときは今までどおり /api/analyze へ。
+// ============================================================
+let _aiKey=null;
+async function aiKey(){
+  if(_aiKey!==null)return _aiKey;
+  try{const r=await fetch('/api/gemini-key',{cache:'no-store'});const d=await r.json();_aiKey=(r.ok&&d.ok&&d.key)||'';}
+  catch(e){_aiKey='';}
+  return _aiKey;
+}
+async function aiFetch(url,init){
+  const key=await aiKey();
+  if(!key)return fetch(url,init);
+  const out=(obj,status=200)=>new Response(JSON.stringify(obj),{status,headers:{'Content-Type':'application/json'}});
+  let p;try{p=JSON.parse(init.body);}catch(e){return out({ok:false,error:'リクエストの解析に失敗しました'},400);}
+  const prompt=(p&&p.prompt||'').trim();
+  if(!prompt)return out({ok:false,error:'prompt が空です'},400);
+  const resText=(Array.isArray(p.resources)?p.resources:[]).map(r=>`【${r.label||'資料'}】\n${r.text||''}`).join('\n\n');
+  const full=resText?`以下の資料のみを根拠として、指示に厳密に従って回答してください。資料に無い情報を創作しないでください。\n\n===== 資料 =====\n${resText}\n\n===== 指示 =====\n${prompt}`:prompt;
+  const parts=[{text:full}];
+  for(const f of(Array.isArray(p.files)?p.files:[]))if(f&&f.data&&f.mimeType)parts.push({inline_data:{mime_type:f.mimeType,data:f.data}});
+  const body={contents:[{role:'user',parts}],generationConfig:{temperature:typeof p.temperature==='number'?p.temperature:0.4}};
+  if(p.search===true)body.tools=[{google_search:{}}];
+  if(p.url===true)body.tools=[...(body.tools||[]),{url_context:{}}];
+  if(p.json===true&&!body.tools)body.generationConfig.responseMimeType='application/json';
+  const models=(Array.isArray(p.models)&&p.models.length)?p.models:[p.model||'gemini-3.5-flash-lite'];
+  const isTransient=(st,raw)=>st===429||st>=500||/quota|rate|exhaust|limit:\s*0|overload|high demand|unavailable|temporarily|try again|resource has been exhausted/i.test(raw||'');
+  const kindOf=(st,raw)=>(st===429||/quota|exhaust|rate.?limit|limit:\s*0|per day|per minute|resource has been exhausted/i.test(raw||''))?'quota'
+    :(st>=500||/overload|high demand|unavailable|temporarily|try again/i.test(raw||''))?'busy':'other';
+  const failures=[];let lastErr='';
+  const note=(m,st,t0,msg)=>failures.push({model:m,status:st,kind:kindOf(st,msg),sec:Math.round((Date.now()-t0)/100)/10,error:String(msg||'').slice(0,160)});
+  for(let i=0;i<models.length;i++){
+    const m=models[i],t0=Date.now();
+    try{
+      // キーは URL に載せず、ヘッダーで渡す
+      const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`,
+        {method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},body:JSON.stringify(body)});
+      const raw0=await res.text();
+      let data;try{data=JSON.parse(raw0);}catch(e){throw new Error(`HTTP ${res.status} 応答がJSONではありません: ${raw0.slice(0,80)}`);}
+      if(res.ok){
+        const text=((data.candidates&&data.candidates[0]&&data.candidates[0].content&&data.candidates[0].content.parts)||[])
+          .filter(x=>!x.thought).map(x=>x.text||'').join('').trim();
+        return out({ok:true,text,usage:data.usageMetadata||null,model:m,fellBack:i>0,failures});
+      }
+      const raw=data&&data.error&&data.error.message?data.error.message:`HTTP ${res.status}`;
+      lastErr=raw;note(m,res.status,t0,raw);
+      if(!isTransient(res.status,raw))return out({ok:false,error:'Gemini API エラー: '+raw,model:m,failures},502);
+    }catch(e){lastErr=(e&&e.message)?e.message:String(e);note(m,0,t0,lastErr);}
+  }
+  return out({ok:false,error:'全モデルが混雑/上限のようです。少し待って再試行してください（最後のエラー: '+lastErr+'）',triedModels:models,failures},502);
+}
+
+// ============================================================
 // Gemini API 整形（NotebookLM工程の置き換え。NotebookLMボタンは併存）
 // ・/api/analyze（CF Pages Function）経由でサーバー側からGeminiを呼ぶ
 // ・モデルは kessan-tool / stock-slide-generator と同じ優先チェーン
@@ -5519,7 +5575,7 @@ function saTokenNote(usage){
 async function saCallGeminiAnalyze(prompt,resources,opts){
   opts=opts||{};
   try{
-    const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},
+    const res=await aiFetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({prompt,resources:resources||[],temperature:typeof opts.temperature==='number'?opts.temperature:0.2,models:saAutoModelChain(opts.cls||'low',opts.modelOverride||'')})});
     const data=await res.json();
     if(!res.ok||!data.ok)return{ok:false,error:(data&&data.error)||`HTTP ${res.status}`};
@@ -9968,7 +10024,7 @@ async function ytPostAi(btn,sns){
   let prompt;try{prompt=sns?ytPostPromptSns():ytPostPrompt();}catch(e){ytStatus('❌ '+e.message,'error','post3-status');return;}
   if(btn)btn.disabled=true;ytStatus('作成中…（数十秒かかります）','','post3-status');ytStatus('作成中…（数十秒かかります）','','post-status');
   try{
-    const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},
+    const res=await aiFetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({prompt,resources:[],files:[],temperature:0.6,models:ytModels('post')})});
     const data=await res.json();if(!data.ok)throw new Error(ytAiErr(data,'post'));
     ytEl('post').value=data.text||'';saveState();
@@ -10073,7 +10129,7 @@ async function ygArtAi(k,btn){
   let prompt;try{prompt=ygArticlePrompt(k);}catch(e){ygArtStatus(k,'❌ '+e.message,'error');return;}
   if(btn)btn.disabled=true;ygArtStatus(k,'作成中…（30秒〜1分かかります）','');
   try{
-    const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},
+    const res=await aiFetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({prompt,resources:[],files:[],temperature:0.7,models:ytModels('post')})});
     const data=await res.json();if(!data.ok)throw new Error(ytAiErr(data,'post'));
     if(ygArtApply(k,data.text||'')){
@@ -11428,7 +11484,7 @@ async function yaAiJudge(btn){
   let prompt;try{prompt=yaPrompt();}catch(e){yaStatus('st-ai','❌ '+esc(e.message),'error');return;}
   if(btn)btn.disabled=true;yaStatus('st-ai','判定中…（数十秒かかります）');
   try{
-    const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,resources:[],files:[],temperature:0.1,models:ytModels('cut')})});
+    const res=await aiFetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,resources:[],files:[],temperature:0.1,models:ytModels('cut')})});
     const data=await res.json();if(!data.ok)throw new Error(ytAiErr(data,'cut'));
     yaEl('plan').value=data.text||'';saveState();
     if(yaApplyPlan(yaParsePlan(data.text||''))){
@@ -11827,7 +11883,7 @@ async function ytOpedDraft(role,btn){
   const search=false;   // Google 検索は無料の枠では断られる（2026-09-23 確認）。最近の出来事は ChatGPT で探す想定
   if(btn)btn.disabled=true;st(search?'台本を作っています…（最近の出来事を検索します）':'台本を作っています…');
   try{
-    const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,temperature:0.6,models:ytModels('oped'),search})});
+    const res=await aiFetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,temperature:0.6,models:ytModels('oped'),search})});
     const data=await res.json();if(!data.ok)throw new Error(ytAiErr(data,'oped'));
     const n=ytOpedApplyCands(ytOpedParseJson(data.text),roles);
     st(`✅ 台本を${role==='all'?'OP・ED それぞれ':''}${n}つ作りました。選ぶと下の欄に入ります（直してから音声生成を押してください）`,'ok');
@@ -12201,7 +12257,7 @@ async function ynReadZones(btn,only){
       cur=i;
       ynStatus(`まとまりを読み取り中… ${i+1}/${YN.slides.length}`);
       const part=await ynBlobToPart(s.blob,1024);
-      const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},
+      const res=await aiFetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({prompt:YN_VISION_PROMPT,resources:[],temperature:0,files:[{name:part.name,mimeType:part.mimeType,data:part.data}],
           json:true,models:ytModels('read')})});
       const data=await res.json();
@@ -13057,7 +13113,7 @@ async function ynAiPlan(btn){
   if(btn)btn.disabled=true;ynStatus('割り当て中…（番号入りのスライド画像も送ります。数十秒かかります）','','status2');
   try{
     const files=[];for(let i=0;i<YN.slides.length;i++){const a=await ynAnnotated(i);files.push({name:a.name,mimeType:a.mimeType,data:a.data});}
-    const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,resources:[],files,temperature:0.1,
+    const res=await aiFetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,resources:[],files,temperature:0.1,
       models:ytModels('plan')})});
     const data=await res.json();if(!data.ok)throw new Error(ytAiErr(data,'plan'));
     ynEl('plan').value=data.text||'';saveState();
@@ -13697,7 +13753,7 @@ URL：${url}
 {"publisher":"発行元（サイトや会社の名前）","title":"資料名（ページの題名。サイト名は入れない）","date":"ページに書かれているデータの日付（YYYY年M月D日）。書かれていなければ空","page":"元がPDFなら、裏づけたいことが載っているページ番号（1つ）。PDFでなければ空","pos":"裏づけたいことが載っている、ページ内の見出し・表の題名（書かれているとおり）","ok":ページを開けて、裏づけたいことが確かめられたら true、そうでなければ false,"why":"ok が false のときの理由"}`;
   btn.disabled=true;msg.textContent='読み込み中…（数十秒かかります）';
   try{
-    const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},
+    const res=await aiFetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({prompt,resources:[],files:[],temperature:0.1,url:true,models:ytModels('src')})});
     const data=await res.json();if(!data.ok)throw new Error(ytAiErr(data,'src'));
     const m=String(data.text||'').match(/\{[\s\S]*\}/);if(!m)throw new Error('AIの答えを読めませんでした');
@@ -13901,7 +13957,7 @@ async function yqStart(btn){
 }
 async function yqDetect(blob){
   const part=await ynBlobToPart(blob,1024);
-  const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},
+  const res=await aiFetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({prompt:YQ_PROMPT,resources:[],temperature:0,files:[{name:part.name,mimeType:part.mimeType,data:part.data}],
       models:ytModels('qr')})});
   const data=await res.json();
