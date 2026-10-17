@@ -10089,13 +10089,24 @@ function ygNoteDisclaimer(body){
   blocks.splice(i+1,0,YG_NOTE_DISCLAIMER);
   return blocks.join('\n\n');
 }
+// note の株価のカード：最初の大見出し（##）の次に「^コード」（米国株は「$ティッカー」）を1段落で入れる。株価分析だけ（YT動画タブには銘柄が無い）
+function ygNoteTicker(body){
+  const code=ytGen()?'':((document.getElementById('sa-code-input')||{}).value||'').trim();
+  if(!code)return body;
+  const us=((document.querySelector('input[name=sa-market]:checked')||{}).value)==='us';
+  const lines=String(body||'').split('\n').filter(l=>!/^[\^$][A-Za-z0-9.\-]+\s*$/.test(l.trim()));
+  const i=lines.findIndex(l=>/^##\s/.test(l));
+  if(i<0)return body;
+  lines.splice(i+1,0,'',(us?'$':'^')+code.toUpperCase(),'');
+  return lines.join('\n').replace(/\n{3,}/g,'\n\n');
+}
 function ygArtApply(k,text){
   const p=parseArticleOutput(String(text||''));
   if(!p.title&&!p.body){ygArtStatus(k,'❌ 【タイトル】【本　文】が見つかりません。AIの出力をまるごと貼り付けてください','error');return false;}
   ytEl('a-'+k+'-raw').value=text;
   ytEl('a-'+k+'-title').value=fixBoldBrackets(p.title||'');
   const body=noteSentenceBreaks(fixBoldBrackets(p.body||''));
-  ytEl('a-'+k+'-body').value=k==='n'?ygNoteDisclaimer(body):body;   // ブログは、ページの作り（sumikko-money）で注意書きが出る
+  ytEl('a-'+k+'-body').value=k==='n'?ygNoteTicker(ygNoteDisclaimer(body)):body;   // ブログは、ページの作り（sumikko-money）で注意書きが出る
   ytEl('a-'+k+'-tags').value=p.hashtags||'';
   ygArtUrlApply(false,k);   // 動画のURLは導入のすぐあと（注意書きの上）に入る
   saveState();
@@ -10686,7 +10697,7 @@ ${[['n','note記事（無料）','表なしで作ります。動画のURLは最�
   ${row(b('💬 プロンプト',"try{copyText(ygArticlePrompt('"+k+"'),this)}catch(e){alert(e.message)}",G),b('📋 貼り付け',"ygArtPaste('"+k+"')"))}
   </details>
   <textarea id="yt-a-${k}-raw" style="display:none;"></textarea>
-  <div class="yp-shd"><span>▼ 記事</span><span class="yp-slot" id="yh-slot-a${k}"></span><span class="yp-sbtn"><button class="ya-nd" onclick="copyText(ytVal('a-${k}-title'),this)">タイトル</button><button class="ya-nd" onclick="copyText(ytVal('a-${k}-body'),this)">本文</button><button class="ya-nd" onclick="copyText(ytVal('a-${k}-tags'),this)">ハッシュタグ</button><button class="ya-nd" onclick="ygArtUrlApply(true,'${k}')" title="本文の最初の段落のあとに、上の「YouTubeのURL」を入れる（前のURLは差し替える）">URL差替</button></span></div>
+  <div class="yp-shd"><span>▼ 記事</span><span class="yp-slot" id="yh-slot-a${k}"></span><span class="yp-sbtn">${k==='n'?'<button class="ya-nd" onclick="downloadThumb()" title="横のサムネをダウンロード（サムネイルのタブの文から作ります）">サムネ</button>':''}<button class="ya-nd" onclick="copyText(ytVal('a-${k}-title'),this)">タイトル</button><button class="ya-nd" onclick="copyText(ytVal('a-${k}-body'),this)">本文</button><button class="ya-nd" onclick="copyText(ytVal('a-${k}-tags'),this)">ハッシュタグ</button><button class="ya-nd" onclick="ygArtUrlApply(true,'${k}')" title="本文の最初の段落のあとに、上の「YouTubeのURL」を入れる（前のURLは差し替える）">URL差替</button></span></div>
   <input type="text" id="yt-a-${k}-title" oninput="saveState()" placeholder="タイトル" style="width:100%;box-sizing:border-box;font-size:11px;">
   <textarea id="yt-a-${k}-body" data-yh-slot="yh-slot-a${k}" oninput="saveState()" placeholder="本文" style="min-height:0;height:96px;font-size:11px;width:100%;box-sizing:border-box;"></textarea>
   <input type="text" id="yt-a-${k}-tags" oninput="saveState()" placeholder="ハッシュタグ" style="width:100%;box-sizing:border-box;font-size:11px;">
