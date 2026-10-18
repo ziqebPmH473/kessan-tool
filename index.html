@@ -15278,6 +15278,8 @@ function kgApply(){
     const v=st[it.key];
     it.ids.forEach(id=>{const el=document.getElementById(id);if(el&&el.value!==v)el.value=v;});
   });
+  // 縦動画のX投稿文の note案内文：2026-10-18 に一度変えて戻した文が入っていたら、元の既定に戻す
+  if(String(st.xnote||'').trim()==='noteでも、株価の動きの解説を発信しています。'){st.xnote=VD_X_NOTE_LINE_DEFAULT;seeded=true;const el=document.getElementById('vd-xnote');if(el)el.value=st.xnote;}
   // 株価分析の SNS の定型文：前の既定のままのものは、新しい既定にする
   Object.keys(YT_SNS_FIXED_OLD).forEach(k=>{const key='yt-f-'+k+'@stock',v=String(st[key]||'').replace(/\r\n/g,'\n').trim();if(v&&YT_SNS_FIXED_OLD[k].includes(v)){st[key]=YT_SNS_FIXED[k];seeded=true;if(ctx==='stock'){const el=document.getElementById('yt-f-'+k);if(el)el.value=st[key];}}});
   // YT動画の SNS の定型文：株価分析の文（今の既定・前の既定）が入っていたら、YT動画の既定にする
