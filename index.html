@@ -7329,6 +7329,10 @@ function vdBuildTabHtml(P){
   const c=VD_CFG[P];
   const noteRows=c.hasNote?`
     <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:6px;">
+      <label style="font-size:11px;color:var(--text-sub);flex:none;" title="この縦動画を上げた YouTube ショートのURL。TikTok 用のリール動画の「YouTube」のスライドのQRに入ります">ショートURL</label>
+      <input type="text" id="${P}-short-url" placeholder="YouTubeショートのURL（TikTok用リールのQR。空ならYouTubeのスライドなし）" oninput="if(typeof saveState==='function')saveState()" style="flex:1;min-width:0;font-size:11px;">
+    </div>
+    <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:6px;">
       <label style="font-size:11px;color:var(--text-sub);flex:none;">QR用URL</label>
       <input type="text" id="${P}-note-url" placeholder="noteの記事のURL（QRの飛び先。記事・SNSタブの欄と同じ）" title="記事・SNSタブの「noteの記事URL」と同じ欄です。どちらで入れても両方に入ります" oninput="vdNoteInput('${P}',this)" onchange="vdNoteInput('${P}',this,true)" style="flex:1;min-width:0;font-size:11px;">
     </div>
@@ -7406,7 +7410,7 @@ function vdBuildTabHtml(P){
     <textarea id="${P}-x" placeholder="生成後にX投稿文が入ります" style="min-height:50px;"></textarea>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">Instagram投稿文（リール）</label><button class="btn-sm" onclick="copyText(document.getElementById('${P}-insta').value,this)">📋 コピー</button></div>
     <textarea id="${P}-insta" placeholder="生成後にInstagram投稿文が入ります" style="min-height:60px;"></textarea>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:4px;"><label style="font-size:11px;color:var(--text-sub);"${P==='vd'?' title="TikTok には、この縦動画ではなくリール動画（サムネ → noteのQR）を上げます。投稿文はこの欄（AIの文）を使います"':''}>TikTok投稿文${P==='vd'?'（リール動画）':''}</label><span style="display:flex;gap:4px;">${P==='vd'?`<button class="btn-sm" onclick="downloadThumbReel(this,true)" title="縦のサムネ → noteのQR の2枚（mp4・音なし）をダウンロード。サムネはサムネイルのタブの文、noteのURLは上の欄（記事・SNSタブと同じ）、文言と秒数は共通設定">🎬 リール動画</button>`:''}<button class="btn-sm" onclick="copyText(document.getElementById('${P}-tiktok').value,this)">📋 コピー</button></span></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:4px;"><label style="font-size:11px;color:var(--text-sub);"${P==='vd'?' title="TikTok には、この縦動画ではなくリール動画（サムネ → YouTubeショートのQR → noteのQR）を上げます。投稿文はこの欄（AIの文）を使います"':''}>TikTok投稿文${P==='vd'?'（リール動画）':''}</label><span style="display:flex;gap:4px;">${P==='vd'?`<button class="btn-sm" onclick="downloadThumbReel(this,true)" title="縦のサムネ → YouTubeショートのQR → noteのQR（mp4・音なし）をダウンロード。サムネはサムネイルのタブの文、URLは上の「ショートURL」と「QR用URL」（ショートURLが空ならYouTubeのスライドなし）、文言と秒数は共通設定">🎬 リール動画</button>`:''}<button class="btn-sm" onclick="copyText(document.getElementById('${P}-tiktok').value,this)">📋 コピー</button></span></div>
     <textarea id="${P}-tiktok" placeholder="生成後にTikTok投稿文が入ります" style="min-height:50px;"></textarea>
     <details style="margin-top:6px;"><summary style="font-size:10px;color:var(--text-sub);cursor:pointer;">生成全文（うまく分割できない時のフォールバック）</summary><textarea id="${P}-raw" style="min-height:80px;"></textarea></details>
   </div>
@@ -7454,7 +7458,7 @@ function vdSyncTts(P){
   if(typeof saveState==='function')saveState();
 }
 function vdPersistIds(P){
-  const ids=['note-url','xnote','model','months','logo-op','th-input','slides','x','insta','tiktok','raw','tts-voice','tts-model','tts-eq','tts-gap','tts-format','timing','fixed-tags'];
+  const ids=['note-url','short-url','xnote','model','months','logo-op','th-input','slides','x','insta','tiktok','raw','tts-voice','tts-model','tts-eq','tts-gap','tts-format','timing','fixed-tags'];
   for(let i=1;i<=5;i++)ids.push('s'+i);
   const out=ids.map(k=>`${P}-${k}`);
   if(P==='ev')out.push('ev-auto');
@@ -15077,14 +15081,14 @@ function reelSecs(){
   return [a[0]>0?a[0]:3,a[1]>0?a[1]:3.5,a[2]>0?a[2]:4.5];
 }
 // SNS の Instagram の見出しのボタンから呼ぶ。進み具合はボタンの文字に出す
-async function downloadThumbReel(btn,noYt){
+async function downloadThumbReel(btn,fromVd){
   const text=document.getElementById('th-input').value.trim(),lab=btn.textContent;
   if(!text){alert('サムネイルのタブで、サムネの文を入れてください');return;}
   // URLが無いスライドは外す（確認してから）。両方無ければサムネだけの動画
-  const ytUrl=noYt?'':ytVal('p-yturl'),ntUrl=typeof ytNoteUrl==='function'?ytNoteUrl():'';   // noYt＝縦動画の TikTok 用（YouTube のスライドなし）
+  const ytUrl=fromVd?vdVal('vd','short-url'):ytVal('p-yturl'),ntUrl=typeof ytNoteUrl==='function'?ytNoteUrl():'';   // fromVd＝縦動画の TikTok 用（YouTube のスライドは、縦動画を上げたショートのURL）
   const secs=reelSecs();
   const plan=[{kind:'thumb',sec:secs[0]}];
-  if(ytUrl)plan.push({kind:'yt',sec:secs[1]});else if(!noYt&&!confirm('YouTubeのURL（SNSタブの上の欄）が空です。YouTubeのスライド無しで作りますか？'))return;
+  if(ytUrl)plan.push({kind:'yt',sec:secs[1]});else if(!fromVd&&!confirm('YouTubeのURL（SNSタブの上の欄）が空です。YouTubeのスライド無しで作りますか？'))return;
   if(ntUrl)plan.push({kind:'note',sec:secs[2]});else if(!confirm('noteのURLが空です。noteのスライド無しで作りますか？'))return;
   if(plan.length===1)plan[0].sec=7;
   btn.disabled=true;btn.textContent='作成中…';
