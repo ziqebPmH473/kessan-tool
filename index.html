@@ -7381,7 +7381,7 @@ function vdBuildTabHtml(P){
     <h2>縦スライド</h2>
     <div style="display:flex;justify-content:space-between;align-items:center;"><label style="font-size:11px;color:var(--text-sub);">スライド用データ</label><button class="btn-sm" onclick="copyText(document.getElementById('${P}-slides').value,this)">📋 コピー</button></div>
     <textarea id="${P}-slides" oninput="debouncedVideoPrev('${P}')" placeholder="生成後にスライド用データが入ります" style="min-height:90px;font-size:10px;"></textarea>
-    <button class="btn btn-full" id="${P}-dl-btn" onclick="downloadVideoSlides('${P}')" style="margin-top:6px;">⬇ 縦スライド＋台本をZIPでダウンロード</button>
+    <button class="btn btn-full" id="${P}-dl-btn" onclick="downloadVideoSlides('${P}')" style="margin-top:6px;" title="スライド・切り替えの時刻・音声を1つにまとめた、ナレスラのプロジェクト（.svpz）を書き出します。ナレスラの「プロジェクトを開く」で取り込めます。音声がまだのときは、スライドと台本だけのZIPにできます">⬇ ナレスラ用に書き出す（.svpz）</button>
   </div>
   <div class="sa-card">
     <h2>投稿文（動画用）</h2>
@@ -7413,7 +7413,7 @@ function vdBuildTabHtml(P){
       <button class="btn-sm" id="${P}-tts-export-btn" onclick="vdExportAudio('${P}',this)" style="flex:1;background:#0d9488;color:#fff;">⬇ 音声出力</button>
     </div>
     <div class="row" style="flex-wrap:nowrap;margin-top:6px;">
-      <button class="btn-sm" id="${P}-dl-btn2" onclick="downloadVideoSlides('${P}')" style="flex:1;background:#7c3aed;color:#fff;">⬇ 縦スライド＋台本をZIPでダウンロード</button>
+      <button class="btn-sm" id="${P}-dl-btn2" onclick="downloadVideoSlides('${P}')" style="flex:1;background:#7c3aed;color:#fff;" title="スライド・切り替えの時刻・音声を1つにまとめた、ナレスラのプロジェクト（.svpz）を書き出します。ナレスラの「プロジェクトを開く」で取り込めます。音声がまだのときは、スライドと台本だけのZIPにできます">⬇ ナレスラ用に書き出す（.svpz）</button>
     </div>
     <div id="${P}-tts-status" style="font-size:11px;color:var(--text-sub);min-height:14px;margin-top:3px;"></div>
     <div id="${P}-p-all" style="margin-top:4px;"></div>
@@ -8007,6 +8007,28 @@ function vdPlay(btn,url){
   au.onended=()=>{btn.textContent='▶';};
   au.play().catch(e=>{btn.textContent='▶';alert('再生できませんでした: '+e.message);});
 }
+// 台本ごとの音声を1本につなぎ、補正・変換する（「1本にして出力」とナレスラの書き出しで共通）
+async function vdJoinAudio(P,idx,format){
+  const gapMs=parseInt(vdEl(P,'tts-gap').value,10)||0;
+  const strength=(parseInt(vdEl(P,'tts-eq').value,10)||0)/100;
+  vdTtsStatus(P,'結合中…');
+  const cat=await vdConcatWavs(idx.map(i=>window._vdTts[P][i].b64),gapMs);
+  vdTtsStatus(P,'補正・変換中…');
+  const {blob,ext}=await vdProcessAudio(cat,strength,format);
+  return{cat,blob,ext,gapMs};
+}
+// サムネを出す長さ：音声①の冒頭5秒（①が短ければ①の終わりまで）
+const vdThumbEnd=r=>Math.min(r.end,r.start+5);
+// スライド切替タイミングの表（欄 timing に入れる）
+function vdTimingText(P,slots,idx,cat,gapMs){
+  const no=i=>slots.indexOf(i)+1;
+  const labels=VD_CFG[P].labels();
+  const L=[];const total=cat.samples.length/cat.sampleRate;const r1=cat.ranges[0];
+  if(idx[0]===1)L.push(`0 サムネ　　　　　　 ${fmtTc(r1.start)}〜${fmtTc(vdThumbEnd(r1))}（音声①の冒頭）`);
+  idx.forEach((i,k)=>{const r=cat.ranges[k];const s=(i===1&&idx[0]===1)?vdThumbEnd(r):r.start;L.push(`${no(i)} ${labels[no(i)-1].replace(/^[①-⑤]\s*/,'').padEnd(14,'　')} ${fmtTc(s)}〜${fmtTc(r.end)}`);});
+  L.push(`合計 ${fmtTc(total)}（間 ${gapMs}ms）`);
+  return L.join('\n');
+}
 async function vdExportAudio(P,btn,playOnly){
   const slots=VD_CFG[P].slots();   // 表示中の欄だけを結合（idx は欄番号、表示番号は slots 内の順番）
   const idx=slots.filter(i=>window._vdTts[P][i]);
@@ -8016,25 +8038,15 @@ async function vdExportAudio(P,btn,playOnly){
   if(stale.length&&!confirm(`スライド${stale.map(no).join('・')}の台本が音声化後に変更されています。古い音声のまま連結しますか？`))return;
   const old=btn.textContent;btn.disabled=true;btn.textContent='結合中…';
   try{
-    const gapMs=parseInt(vdEl(P,'tts-gap').value,10)||0;
-    const strength=(parseInt(vdEl(P,'tts-eq').value,10)||0)/100;
     const format=playOnly?'wav':vdEl(P,'tts-format').value;
-    vdTtsStatus(P,'結合中…');
-    const cat=await vdConcatWavs(idx.map(i=>window._vdTts[P][i].b64),gapMs);
-    vdTtsStatus(P,'補正・変換中…');
-    const {blob,ext}=await vdProcessAudio(cat,strength,format);
+    const {cat,blob,ext,gapMs}=await vdJoinAudio(P,idx,format);
     const url=URL.createObjectURL(blob);
     const name=`${VD_CFG[P].audioName()}.${ext}`;
     if(!playOnly){const a=document.createElement('a');a.href=url;a.download=name;a.click();}
     const pa=vdEl(P,'p-all');
     if(pa)pa.innerHTML=`<audio controls src="${url}" style="width:100%;height:30px;"></audio><div style="font-size:11px;color:var(--text-sub);">${playOnly?'結合プレビュー':esc(name)} ／ ${fmtTc(cat.samples.length/cat.sampleRate)}</div>`;
     if(playOnly){const au=pa&&pa.querySelector('audio');if(au)au.play().catch(()=>{});}
-    const labels=VD_CFG[P].labels();
-    const L=[];const total=cat.samples.length/cat.sampleRate;const r1=cat.ranges[0];
-    if(idx[0]===1)L.push(`0 サムネ　　　　　　 ${fmtTc(r1.start)}〜${fmtTc(Math.min(r1.end,r1.start+5))}（音声①の冒頭）`);
-    idx.forEach((i,k)=>{const r=cat.ranges[k];const s=(i===1&&idx[0]===1)?Math.min(r.end,r.start+5):r.start;L.push(`${no(i)} ${labels[no(i)-1].replace(/^[①-⑤]\s*/,'').padEnd(14,'　')} ${fmtTc(s)}〜${fmtTc(r.end)}`);});
-    L.push(`合計 ${fmtTc(total)}（間 ${gapMs}ms）`);
-    vdEl(P,'timing').value=L.join('\n');
+    vdEl(P,'timing').value=vdTimingText(P,slots,idx,cat,gapMs);
     if(typeof saveState==='function')saveState();
     vdTtsStatus(P,playOnly?'🎧 結合して再生中':'✅ 音声を出力しました');
   }catch(e){vdTtsStatus(P,'❌ '+e.message);}
@@ -8430,31 +8442,71 @@ async function dlVideoSingle(slide){
     setStatus(`✓ ${slide.name}.png をダウンロードしました`,3000);
   }catch(e){setStatus('エラー: '+e.message);}
 }
+// 縦動画の書き出し：スライド・切り替えの時刻・音声を、ナレスラのプロジェクト（.svpz）にまとめる（形は横動画の ynExport と同じ。縦は exp._portrait）
+//   音声がそろっていないときは、前と同じ「スライドのPNG＋台本」のZIPにできる
 async function downloadVideoSlides(P){
   const text=vdVal(P,'slides');
   if(!text){alert('先に「🎬 サムネ・台本・縦スライド・投稿文を生成」を実行してください');return;}
+  const slots=VD_CFG[P].slots(),T=window._vdTts[P]||{};
+  const no=i=>slots.indexOf(i)+1;
+  const miss=slots.filter(i=>!T[i]);
+  const svpz=!miss.length;
+  if(!svpz&&!confirm(`スライド${miss.map(no).join('・')}の音声がまだありません（「台本・音声」タブの🔊で作れます）。\n\n音声なしで、スライドと台本だけのZIPを出しますか？`))return;
+  if(svpz){const stale=slots.filter(i=>T[i].text!==vdVal(P,'s'+i));
+    if(stale.length&&!confirm(`スライド${stale.map(no).join('・')}の台本が音声化後に変更されています。古い音声のまま書き出しますか？`))return;}
   const btns=[vdEl(P,'dl-btn'),vdEl(P,'dl-btn2')].filter(Boolean);
   btns.forEach(b=>b.disabled=true);
   const say=m=>{setStatus(m);vdTtsStatus(P,m);};   // 台本・音声タブから押しても進み具合が見えるように
   try{
     const slides=buildVideoSlides(P,text);
     const zip=new JSZip();
+    const pngs=[];
     for(let i=0;i<slides.length;i++){
       say(`縦スライド レンダリング中 ${i+1}/${slides.length}...`);
-      zip.file(slides[i].name+'.png',await renderVideoToBlob(slides[i]));
+      pngs.push(await renderVideoToBlob(slides[i]));
     }
     zip.file('台本.txt',vdScriptAllText(P));
-    const timing=vdVal(P,'timing');
-    if(timing)zip.file('スライド切替タイミング.txt',timing);
-    say('ZIPを作成中...');
-    const zb=await zip.generateAsync({type:'blob'});
-    const url=URL.createObjectURL(zb);
-    const a=document.createElement('a');
-    a.href=url;a.download=`${VD_CFG[P].zipName()}.zip`;a.click();
-    URL.revokeObjectURL(url);
-    say('✓ ダウンロード完了！');setStatus('✓ ダウンロード完了！',3000);
+    if(!svpz){
+      slides.forEach((sl,i)=>zip.file(sl.name+'.png',pngs[i]));
+      const timing=vdVal(P,'timing');
+      if(timing)zip.file('スライド切替タイミング.txt',timing);
+      say('ZIPを作成中...');
+      const zb=await zip.generateAsync({type:'blob'});
+      const a=document.createElement('a');a.href=URL.createObjectURL(zb);a.download=`${VD_CFG[P].zipName()}.zip`;a.click();
+      say('✓ ダウンロード完了！（音声なしのZIP）');setStatus('✓ ダウンロード完了！',3000);
+      return;
+    }
+    // 音声：「1本にして出力」と同じつなぎ方・補正・形式
+    const {cat,blob,ext,gapMs}=await vdJoinAudio(P,slots,vdEl(P,'tts-format').value);
+    const timing=vdTimingText(P,slots,slots,cat,gapMs);
+    vdEl(P,'timing').value=timing;if(typeof saveState==='function')saveState();
+    zip.file('スライド切替タイミング.txt',timing);
+    // 切り替え：サムネ → ①（音声①の冒頭5秒のあと）、②以降は各音声の始まり
+    const hasThumb=!!(slides[0]&&slides[0].thumb);
+    const R=cat.ranges;
+    const switchPoints=(hasThumb?[vdThumbEnd(R[0])]:[]).concat(R.slice(1).map(r=>r.start)).map(t=>+t.toFixed(2));
+    let id=1000;
+    const outSlides=slides.map((sl,i)=>{
+      zip.file(`slides/slide-${i}.png`,pngs[i]);
+      return{name:sl.name+'.png',file:`slides/slide-${i}.png`,zoomKeyframes:[],id:++id,kind:'image',narMute:0};
+    });
+    const narName='narration.'+ext,narLabel=`${VD_CFG[P].audioName()}.${ext}`;
+    const p={version:3,source:'import',name:`${VD_CFG[P].audioName()}_縦`,created:new Date().toISOString(),
+      fx:{trans:'crossfade',transDur:0.5,kenBurns:true,kbScale:0.00005,showSub:false,bgmVol:0.2,narVol:1},   // 縦動画はテロップ・字幕なし
+      exp:{w:1080,h:1920,fps:30,qualityMode:'auto',_portrait:true},endPad:1,wm:{enabled:false,useImg:false},
+      bridgeStyle:{},subTemplates:[],subTemplateCtr:0,globalSubStyle:'news',msubSettings:{},gcpSubSettings:{},
+      gcpScript:'',gcpCharacters:[],gcpCharSettings:{},gcpDefaultChar:{},
+      slides:outSlides,cuts:[],switchPoints,decorations:[],decImages:{},cornerTelops:[],insertions:[],sfxList:[],sfxVols:{},
+      manualSubtitles:[],decIdCtr:id+10,narFile:narName,narFileName:narLabel,bgmFile:'',bgmFileName:''};
+    zip.file('project.json',JSON.stringify(p));
+    zip.file('transcript.json',JSON.stringify({trWords:[],trSentenceSplits:[],trKeywords:[],trSelSentences:[],trSelWords:[]}));
+    zip.file(narName,blob);
+    say('.svpz を作成中...');
+    const zb=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:3}});
+    const a=document.createElement('a');a.href=URL.createObjectURL(zb);a.download=`${VD_CFG[P].audioName()}_縦_ナレスラ.svpz`;a.click();
+    say(`✓ 書き出しました（スライド${outSlides.length}枚・切り替え${switchPoints.length}・音声 ${fmtTc(cat.samples.length/cat.sampleRate)}）`);setStatus('✓ ダウンロード完了！',3000);
   }catch(e){say('エラー: '+e.message);}
-  btns.forEach(b=>b.disabled=false);
+  finally{btns.forEach(b=>b.disabled=false);}
 }
 
 // 決算分析のサムネ文言：整形データから組む（上段=今回の評価、中段=社名、下段=通期予想の状態 or 問い）
