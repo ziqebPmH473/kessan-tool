@@ -7379,6 +7379,7 @@ function vdBuildTabHtml(P){
     <h2>設定</h2>
     <div style="font-size:10px;color:var(--text-sub);">声・文章モデル・固定タグ・note案内文は、上の「⚙ 共通設定」で決めます（すべてのPJで共通）。</div>
     ${noteRows}${modelRow}${countRow}${monthsRow}
+    <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:11px;color:var(--text-sub);cursor:pointer;" title="オンにすると、書き出す動画の頭（音声①の最初の5秒）にサムネを出します。オフのときは、サムネの画像を別のファイルで保存します（投稿のときにカバー画像として使う）。リール動画はいつもサムネから始まります"><input type="checkbox" id="${P}-thumb-on" onchange="if(typeof saveState==='function')saveState()">サムネを動画の頭に入れる</label>
     <div class="row kg-hide" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:4px;">
       <label style="font-size:11px;color:var(--text-sub);flex:none;" title="X・Instagram・TikTokの投稿文の末尾に必ず付けるタグ（両タブ共通）">固定タグ</label>
       <input type="text" id="${P}-fixed-tags" value="${VD_FIXED_TAGS_DEFAULT}" oninput="vdSyncTts('${P}')" placeholder="#タグ1 #タグ2（空欄で付けない）" style="flex:1;min-width:0;font-size:11px;padding:4px;">
@@ -7458,7 +7459,7 @@ function vdSyncTts(P){
   if(typeof saveState==='function')saveState();
 }
 function vdPersistIds(P){
-  const ids=['note-url','short-url','xnote','model','months','logo-op','th-input','slides','x','insta','tiktok','raw','tts-voice','tts-model','tts-eq','tts-gap','tts-format','timing','fixed-tags'];
+  const ids=['note-url','short-url','thumb-on','xnote','model','months','logo-op','th-input','slides','x','insta','tiktok','raw','tts-voice','tts-model','tts-eq','tts-gap','tts-format','timing','fixed-tags'];
   for(let i=1;i<=5;i++)ids.push('s'+i);
   const out=ids.map(k=>`${P}-${k}`);
   if(P==='ev')out.push('ev-auto');
@@ -8079,6 +8080,8 @@ async function vdJoinAudio(P,idx,format){
   const {blob,ext}=await vdProcessAudio(cat,strength,format);
   return{cat,blob,ext,gapMs};
 }
+// サムネを動画の頭に入れるか（縦動画の設定。初期値はオフ）
+const vdThumbOn=P=>!!(vdEl(P,'thumb-on')||{}).checked;
 // サムネを出す長さ：音声①の冒頭5秒（①が短ければ①の終わりまで）
 const vdThumbEnd=r=>Math.min(r.end,r.start+5);
 // スライド切替タイミングの表（欄 timing に入れる）
@@ -8086,8 +8089,9 @@ function vdTimingText(P,slots,idx,cat,gapMs){
   const no=i=>slots.indexOf(i)+1;
   const labels=VD_CFG[P].labels();
   const L=[];const total=cat.samples.length/cat.sampleRate;const r1=cat.ranges[0];
-  if(idx[0]===1)L.push(`0 サムネ　　　　　　 ${fmtTc(r1.start)}〜${fmtTc(vdThumbEnd(r1))}（音声①の冒頭）`);
-  idx.forEach((i,k)=>{const r=cat.ranges[k];const s=(i===1&&idx[0]===1)?vdThumbEnd(r):r.start;L.push(`${no(i)} ${labels[no(i)-1].replace(/^[①-⑤]\s*/,'').padEnd(14,'　')} ${fmtTc(s)}〜${fmtTc(r.end)}`);});
+  const th=idx[0]===1&&vdThumbOn(P);
+  if(th)L.push(`0 サムネ　　　　　　 ${fmtTc(r1.start)}〜${fmtTc(vdThumbEnd(r1))}（音声①の冒頭）`);
+  idx.forEach((i,k)=>{const r=cat.ranges[k];const s=(i===1&&th)?vdThumbEnd(r):r.start;L.push(`${no(i)} ${labels[no(i)-1].replace(/^[①-⑤]\s*/,'').padEnd(14,'　')} ${fmtTc(s)}〜${fmtTc(r.end)}`);});
   L.push(`合計 ${fmtTc(total)}（間 ${gapMs}ms）`);
   return L.join('\n');
 }
@@ -8522,6 +8526,10 @@ async function downloadVideoSlides(P){
   const say=m=>{setStatus(m);vdTtsStatus(P,m);};   // 台本・音声タブから押しても進み具合が見えるように
   try{
     const slides=buildVideoSlides(P,text);
+    const thumbSlide=(!vdThumbOn(P)&&slides[0]&&slides[0].thumb)?slides.shift():null;   // サムネは動画に入れず、別のファイルで保存
+    let thumbPng=null;
+    if(thumbSlide){say('サムネ レンダリング中...');thumbPng=await renderVideoToBlob(thumbSlide);}
+    const saveThumb=()=>{if(!thumbPng)return;setTimeout(()=>{const a=document.createElement('a');a.href=URL.createObjectURL(thumbPng);a.download=thumbSlide.name+'.png';a.click();},800);};   // 2つ目のダウンロードは少しあとに（同時だと止められることがある）
     const zip=new JSZip();
     const pngs=[];
     for(let i=0;i<slides.length;i++){
@@ -8536,7 +8544,8 @@ async function downloadVideoSlides(P){
       say('ZIPを作成中...');
       const zb=await zip.generateAsync({type:'blob'});
       const a=document.createElement('a');a.href=URL.createObjectURL(zb);a.download=`${VD_CFG[P].zipName()}.zip`;a.click();
-      say('✓ ダウンロード完了！（音声なしのZIP）');setStatus('✓ ダウンロード完了！',3000);
+      saveThumb();
+      say(`✓ ダウンロード完了！（音声なしのZIP${thumbPng?'＋サムネの画像':''}）`);setStatus('✓ ダウンロード完了！',3000);
       return;
     }
     // 音声：「1本にして出力」と同じつなぎ方・補正・形式
@@ -8567,7 +8576,8 @@ async function downloadVideoSlides(P){
     say('.svpz を作成中...');
     const zb=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:3}});
     const a=document.createElement('a');a.href=URL.createObjectURL(zb);a.download=`${VD_CFG[P].audioName()}_縦_ナレスラ.svpz`;a.click();
-    say(`✓ 書き出しました（スライド${outSlides.length}枚・切り替え${switchPoints.length}・音声 ${fmtTc(cat.samples.length/cat.sampleRate)}）`);setStatus('✓ ダウンロード完了！',3000);
+    saveThumb();
+    say(`✓ 書き出しました（スライド${outSlides.length}枚・切り替え${switchPoints.length}・音声 ${fmtTc(cat.samples.length/cat.sampleRate)}${thumbPng?'／サムネは別の画像で保存':''}）`);setStatus('✓ ダウンロード完了！',3000);
   }catch(e){say('エラー: '+e.message);}
   finally{btns.forEach(b=>b.disabled=false);}
 }
