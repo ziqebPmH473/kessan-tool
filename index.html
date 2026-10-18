@@ -7404,7 +7404,7 @@ function vdBuildTabHtml(P){
     <button class="btn btn-full" id="${P}-dl-btn" onclick="downloadVideoSlides('${P}')" style="margin-top:6px;" title="スライド・切り替えの時刻・音声を1つにまとめた、ナレスラのプロジェクト（.svpz）を書き出します。ナレスラの「プロジェクトを開く」で取り込めます。音声がまだのときは、スライドと台本だけのZIPにできます">⬇ ナレスラ用に書き出す（.svpz）</button>
   </div>
   <div class="sa-card">
-    <h2>投稿文（動画用）</h2>
+    <h2 style="display:flex;justify-content:space-between;align-items:center;">投稿文（動画用）${P==='vd'?`<button class="btn-sm" onclick="geminiVideoSns('${P}',this)" style="background:#4f46e5;color:#fff;font-weight:normal;" title="X・Instagram・TikTok の投稿文だけを、AIで作り直します。台本・縦スライド・音声はそのままです">🤖 SNS再生成</button>`:''}</h2>
     ${artRows}
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">X投稿文</label><button class="btn-sm" onclick="copyText(document.getElementById('${P}-x').value,this)">📋 コピー</button></div>
     <textarea id="${P}-x" placeholder="生成後にX投稿文が入ります" style="min-height:50px;"></textarea>
@@ -7578,11 +7578,11 @@ ${VD_SCRIPT_RULES}
 
 8. 【Instagram投稿文】：リール用キャプション。1行目にフック（絵文字可）、2〜4行で動画の要点（無料範囲のみ）、「▶ 続き（下値シナリオ・12か月シナリオ・モノサシ・リスク）はプロフィールのリンクから」（上昇分析では「上値シナリオ」）を入れ、空行を1つ挟んでハッシュタグを3個だけ（銘柄名・証券コード・#株式投資 など。ツールが固定タグを2個足して合計5個にするため、絶対に3個を超えない）。
 
-9. 【TikTok投稿文】：200〜300文字（TikTokは検索流入が大きいので、キーワードを入れて長めに書く）。次の構成にする。
-   1行目：検索されそうなキーワードを含むフック1文（銘柄名・証券コード・「株価」「下落」「急落」など。フィードでは1〜2行しか表示されないため、重要語は必ず先頭に置く）
-   2〜4行目：動画の要点を2〜3文（結論・想定株価レンジは書かない）
-   次の行：「続きはプロフのリンクから」
-   最終行：ハッシュタグ5〜8個（#銘柄名 #証券コード #日本株 #株式投資 ・業種/テーマなど）
+9. 【TikTok投稿文】：次の4行だけを書く（キー名は変更禁止）。投稿文はツールが「見出し → 問いかけ・一文 → noteの案内 → ハッシュタグ」の順に組み立てるので、noteの案内・URLは書かない。
+見出し:【#銘柄名（証券コード）】に続けて、この動画で注目してもらいたい点で、読む人を引きつける言葉（全角20字以内）
+問いかけ:銘柄名を入れた問いかけ（全角30字以内）
+一文:問いかけに続ける1文。この動画を見ると、株式投資にどう役立つのか（全角60字以内）
+タグ:ハッシュタグ5個まで。#銘柄名 #証券コード を入れ、あとは、この会社を調べる投資家が検索窓に実際に打ち込みそうな言葉にする
 
 【共通ルール】
 ・すべて元レポートの事実に基づき、レポートにない数値・事実を創作しない。
@@ -7767,6 +7767,20 @@ function vdAddFixedTags(P,text,maxTotal){
   if(note>=0){lines.splice(note,0,add.join(' '));return lines.join('\n');}
   return out+'\n'+add.join(' ');
 }
+// 株価分析の TikTok 投稿文：横動画の TikTok と同じ形に組み立てる（見出し → 問いかけ・一文 → 定型文 → タグ）。
+// 定型文は共通設定の「SNSの定型文：TikTok」（株価分析）。AIが前の形（文）で返したときは、そのまま使う
+function vdTiktokFixed(){
+  const raw=(typeof ytGen==='function'&&!ytGen()&&ytVal('f-tt'))||String(kgGet('yt-f-tt@stock')||'')||YT_SNS_FIXED.tt;
+  return raw.replace(/\{下値\/上値\}/g,getDir()==='up'?'上値':'下値').trim();
+}
+function vdTiktokCompose(P,raw){
+  const t=deJargonP0(raw||'');
+  const get=k=>{const m=t.match(new RegExp('^\\s*'+k+'\\s*[:：]\\s*(.+)$','m'));return m?m[1].trim():'';};
+  const hook=get('問いかけ');
+  if(P!=='vd'||!hook)return vdAddFixedTags(P,t);
+  const tags=get('タグ');
+  return [get('見出し'),[hook,get('一文')].filter(Boolean).join('\n'),vdTiktokFixed(),tags?vdAddFixedTags(P,tags):vdFixedTagList(P).join(' ')].filter(Boolean).join('\n\n');
+}
 // 本文中のハッシュタグを max 個までに減らす（後ろのものから削除）
 function vdTrimTags(text,max){
   let out=String(text||'');
@@ -7841,7 +7855,7 @@ async function geminiVideo(P,btnEl){
   vdEl(P,'x').value=(P==='vd')?vdBuildXReply(P,p.x||'',vdEl(P,'slides').value)
                               :vdAddFixedTags(P,vdNormalizeXPost(deJargonP0(p.x||'')));
   vdEl(P,'insta').value=vdAddFixedTags(P,deJargonP0(p.insta||''),VD_INSTA_MAX_TAGS);   // Instagramはタグ5個まで
-  vdEl(P,'tiktok').value=vdAddFixedTags(P,deJargonP0(p.tiktok||''));
+  vdEl(P,'tiktok').value=vdTiktokCompose(P,p.tiktok);
   vdEl(P,'raw').value=r.text;
   await vdClearAllTts(P);   // 台本が変わったので前の音声は破棄
   const tm=vdEl(P,'timing');if(tm)tm.value='';   // 前の音声のタイミング（枚数違いのことも）が残って紛らわしいので消す
@@ -7850,6 +7864,34 @@ async function geminiVideo(P,btnEl){
   const missing=[!(p.s1&&p['s'+n])&&'台本',!p.slides&&'縦スライド',!p.x&&'X',!p.insta&&'Instagram',!p.tiktok&&'TikTok'].filter(Boolean);
   vdStatus(P,`生成完了（${r.model||'gemini'}${fallNote(r)}${saTokenNote(r.usage)}）${missing.length?' ※'+missing.join('・')+'は全文から確認':''}`,missing.length?'info':'ok');
   vdShowPreview(P);
+  return true;
+}
+// SNSの投稿文（X・Instagram・TikTok）だけを作り直す。台本・縦スライド・音声はそのまま（株価分析）
+async function geminiVideoSns(P,btnEl){
+  const report=(document.getElementById('ta-report').value||'').trim();
+  if(!report){alert('「2. ChatGPT分析」のレポートを貼り付けてください');return;}
+  const slides=vdVal(P,'slides');
+  if(!slides){alert('先に「🎬 サムネ・台本・縦スライド・投稿文を生成」で、台本と縦スライドを作ってください');return;}
+  const scripts=VD_CFG[P].slots().map((s,k)=>`【台本${'①②③④⑤'[k]}】\n${vdVal(P,'s'+s)}`).join('\n\n');
+  const resources=[{label:'株価分析レポート',text:report},{label:'基本情報',text:vdBasicInfo(P)},{label:'できあがっている縦スライドと台本',text:`【縦スライド】\n${slides}\n\n${scripts}`}];
+  const prompt=`${VIDEO_PROMPT_VD}
+
+【今回の指示（上の出力形式より優先）】
+今回は投稿文だけを作り直す。台本と縦スライドはできあがっているので、資料の【できあがっている縦スライドと台本】と食い違わないように書く。
+出力は「7. 【X用ハッシュタグ】」「8. 【Instagram投稿文】」「9. 【TikTok投稿文】」の3ブロックだけを、この順で、見出しを付けて出す（1〜6は出力しない）。`;
+  const o=btnEl?btnEl.textContent:'';
+  if(btnEl){btnEl.disabled=true;btnEl.textContent='生成中…';}
+  vdStatus(P,'GeminiでSNSの投稿文を作り直し中…','info');
+  const r=await saCallGeminiAnalyze(prompt,resources,{cls:'high',temperature:0.7,modelOverride:vdVal(P,'model')});
+  if(btnEl){btnEl.disabled=false;btnEl.textContent=o;}
+  if(!r.ok){vdStatus(P,'エラー: '+r.error,'error');return false;}
+  const p=parseVideoOutput(r.text,0);
+  if(p.x)vdEl(P,'x').value=vdBuildXReply(P,p.x,slides);
+  if(p.insta)vdEl(P,'insta').value=vdAddFixedTags(P,deJargonP0(p.insta),VD_INSTA_MAX_TAGS);
+  if(p.tiktok)vdEl(P,'tiktok').value=vdTiktokCompose(P,p.tiktok);
+  if(typeof saveState==='function')saveState();
+  const missing=[!p.x&&'X',!p.insta&&'Instagram',!p.tiktok&&'TikTok'].filter(Boolean);
+  vdStatus(P,`SNSの投稿文を作り直しました（${r.model||'gemini'}${fallNote(r)}${saTokenNote(r.usage)}）${missing.length?' ※'+missing.join('・')+'は作れず、前のまま':''}`,missing.length?'info':'ok');
   return true;
 }
 function vdShowPreview(P){
