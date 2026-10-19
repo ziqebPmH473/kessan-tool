@@ -7264,6 +7264,10 @@ async function downloadAll(){
 const VSLIDE_W=1080,VSLIDE_H=1920;
 const VIDEO_DISCLAIMER='この動画は情報提供を目的としており、特定の銘柄や金融商品の売買を推奨するものではありません。投資判断はご自身の責任でお願いします。';
 const VD_TTS_CHARS_PER_SEC=7;
+// 読み上げの速さの指示（分析動画・東証の動画の SPEED_HINT と同じ文）。読み上げの頭に付ける。台本の保存や文字起こしの照合には入れない
+const VD_SPEED_HINT={normal:'',fast:'次の文章を、少し速めのテンポで、はっきりと読み上げてください（この指示文は読まない）。\n\n',faster:'次の文章を、速めのテンポで、きびきびと読み上げてください（この指示文は読まない）。\n\n'};
+const vdSpeed=P=>{const v=(vdEl(P,'tts-speed')||{}).value||'normal';return VD_SPEED_HINT[v]!==undefined?v:'normal';};
+const vdSpeedHint=P=>VD_SPEED_HINT[vdSpeed(P)]||'';
 const VD_LOGO='assets/logo_sumikko.png';
 // noteで分析している項目（固定。上昇/下落で読み替えるだけ）
 const VD_NOTE_ITEMS={
@@ -7275,7 +7279,7 @@ const VD_NOTE_ITEMS={
 const VD_CFG={
   vd:{
     title:'SNS動画（縦型 9:16）',
-    hint:'「2.」のレポートの無料範囲（値動き・理由・強み・弱み）から、サムネ＋縦スライド5枚、スライドごとの台本、投稿文を生成します。台本はスライド単位で音声化し、最後に1本へ連結します',
+    hint:'「2.」のレポートの無料範囲（値動き・理由・強み・弱み）から、サムネ＋縦スライド5枚、スライドごとの台本、投稿文を生成します。台本はつないで最大2回で読み上げ、文字起こしでスライドごとに切り分けてから1本へ連結します',
     genLabel:'🎬 サムネ・台本・縦スライド・投稿文を生成',
     labels:()=>['① 株価推移（フック含む）','② 変動理由','③ 企業の強み','④ 企業の弱み','⑤ まとめ＋note誘導'],
     secs:()=>[22,22,18,18,22],
@@ -7977,28 +7981,179 @@ async function vdGenTts(P,i,btn){
   const old=btn?btn.textContent:'';if(btn){btn.disabled=true;btn.textContent='生成中…';}
   const p=vdEl(P,'p'+i);if(p)p.textContent='音声を生成中…';
   try{
-    const res=await fetch('/api/tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,voice,model})});
+    const res=await fetch('/api/tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:vdSpeedHint(P)+text,voice,model})});
     const data=await res.json();
     if(!data.ok)throw new Error(data.error||'不明なエラー');
-    const obj={b64:data.audioBase64,seconds:Math.round((data.seconds||0)*10)/10,voice,model,text};
+    const obj={b64:data.audioBase64,seconds:Math.round((data.seconds||0)*10)/10,voice,model,text,speed:vdSpeed(P)};
     window._vdTts[P][i]=obj;await vdDbPut(`${P}:${i}`,obj);
     vdRenderPlayer(P,i);
     return true;
   }catch(e){if(p)p.innerHTML=`<span style="color:#dc2626;">❌ ${esc(e.message)}</span>`;return false;}
   finally{if(btn){btn.disabled=false;btn.textContent=old;}}
 }
-async function vdGenAllTts(P,btn){
+// ---- つないで読み上げ → スライドごとに切り分け（分析動画・東証の動画と同じやり方。部品の audio/split.ts を移植）----
+// スライドごとに読み上げを呼ばず、台本を空行でつないで最大2回（1回が約1分以内）で読み上げる。
+// できた音声は Whisper の文字起こし（語の時刻）で台本と照らし合わせ、各スライドの読み始めの位置で切る。
+// 文字起こしが合わないときは長い無音、それも足りなければ文字数の見当で切る（読み上げは呼び直さない）。
+const VD_ONE_MINUTE_CHARS=420;   // 1回の読み上げが1分を超えると後半の音がこもる。1回を約1分（約420文字）以内に
+const VD_TTS_MAX_CALLS=2;        // 読み上げは最大2回
+function vdBufToB64(buf){const u=new Uint8Array(buf);let s='';for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s);}
+// 無音区間（10msごとの音の大きさが、いちばん大きい音の3%未満の連続。minSec 秒以上）。start/end/len はサンプル数
+function vdSilences(pcm,rate,minSec){
+  const win=Math.round(rate*0.01);let peak=0;for(let i=0;i<pcm.length;i+=7)peak=Math.max(peak,Math.abs(pcm[i]));
+  const th=Math.max(0.004,peak*0.03),out=[];let runStart=-1;
+  for(let i=0;i<pcm.length;i+=win){
+    let s=0;const e=Math.min(pcm.length,i+win);for(let j=i;j<e;j++)s+=pcm[j]*pcm[j];
+    const quiet=Math.sqrt(s/(e-i))<th;
+    if(quiet&&runStart<0)runStart=i;
+    if((!quiet||e>=pcm.length)&&runStart>=0){const end=quiet?e:i;if(end-runStart>=rate*minSec)out.push({start:runStart,end,len:end-runStart});runStart=-1;}
+  }
+  return out;
+}
+// 境目の無音の中でどこで切るか：前のスライドの末尾に 0.15 秒、残りは次の頭（結合時に境目の無音は詰めるので、ここは大まかでよい）
+const vdCutIn=(s,rate)=>Math.min(s.end,s.start+Math.round(rate*0.15));
+// 比べやすい形に：空白・句読点・記号を落とし、数字は全角→半角
+function vdNormTx(s){return String(s||'').replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xfee0)).replace(/[\s、。，．,.!?！？「」『』（）()・:：;；\-ー〜~…'"]/g,'');}
+// 台本の全文と文字起こしの全文を1文字ずつ照合する（編集距離が最小になる対応）。map[i]＝台本の i 文字目と同じ文字だった文字起こしの位置（無ければ -1）
+function vdAlignChars(a,b){
+  const n=a.length,m=b.length,W=m+1;
+  const dp=new Int32Array((n+1)*W),bt=new Uint8Array((n+1)*W);   // bt: 0=対応 1=台本だけ 2=文字起こしだけ
+  for(let j=1;j<=m;j++){dp[j]=j;bt[j]=2;}
+  for(let i=1;i<=n;i++){
+    dp[i*W]=i;bt[i*W]=1;const ai=a[i-1];
+    for(let j=1;j<=m;j++){
+      const diag=dp[(i-1)*W+j-1]+(ai===b[j-1].ch?0:1),up=dp[(i-1)*W+j]+1,left=dp[i*W+j-1]+1;
+      let v=diag,k=0;if(up<v){v=up;k=1;}if(left<v){v=left;k=2;}
+      dp[i*W+j]=v;bt[i*W+j]=k;
+    }
+  }
+  const map=new Int32Array(n).fill(-1);
+  for(let i=n,j=m;i>0||j>0;){
+    const k=i>0&&j>0?bt[i*W+j]:i>0?1:2;
+    if(k===0){if(a[i-1]===b[j-1].ch)map[i-1]=j-1;i--;j--;}
+    else if(k===1)i--;else j--;
+  }
+  return map;
+}
+// スライドの境目ごとに「前のスライドの最後の文字を読み終えた時刻」と「次のスライドの最初の文字を読み始めた時刻」（秒）。合った文字が台本の5割未満なら null
+function vdAlignBounds(texts,words){
+  const stream=[];
+  for(const w of words){const t=vdNormTx(w.w),n=t.length;for(let i=0;i<n;i++)stream.push({ch:t[i],s:w.s+((w.e-w.s)*i)/n,e:w.s+((w.e-w.s)*(i+1))/n});}
+  const parts=texts.map(vdNormTx),all=parts.join('');
+  if(!all.length||!stream.length)return null;
+  const map=vdAlignChars(all,stream);
+  let hit=0;for(const x of map)if(x>=0)hit++;
+  if(hit<all.length*0.5)return null;
+  const out=[];let off=parts[0].length;
+  for(let k=1;k<parts.length;k++){
+    let st=-1;for(let i=off;i<off+parts[k].length;i++)if(map[i]>=0){st=map[i];break;}
+    let pe=-1;for(let i=off-1;i>=0;i--)if(map[i]>=0){pe=map[i];break;}
+    if(st<0)return null;   // そのスライドの文字が1つも合わない
+    out.push({prevEnd:pe>=0?stream[pe].e:0,start:stream[st].s});
+    off+=parts[k].length;
+  }
+  return out;
+}
+// 1本の読み上げ（WAV）を台本（texts）どおりに分ける。戻り値 {segs:[{blob,seconds}], method}
+async function vdSplitByScript(blob,texts,onStatus){
+  const count=texts.length;
+  const {pcm,rate}=await evVizPcm(blob);
+  const seg=(from,to)=>{const part=pcm.subarray(from,to);return{blob:evVizWav(part,rate),seconds:Math.round(part.length/rate*10)/10};};
+  const build=cuts=>{const out=[];let from=0;for(const c of cuts){out.push(seg(from,c));from=c;}out.push(seg(from,pcm.length));return out;};
+  if(count<=1)return{segs:[seg(0,pcm.length)],method:'そのまま'};
+  const head=rate*0.3,tail=pcm.length-rate*0.3;
+  const sil=vdSilences(pcm,rate,0.12).filter(s=>s.end>head&&s.start<tail);
+  // 1. 文字起こしで、各スライドの読み始めの位置を探す
+  try{
+    if(onStatus)onStatus('文字起こしでスライドの切れ目を探しています…');
+    const {words}=await evVizTranscribe(blob);
+    const bounds=vdAlignBounds(texts,words);
+    if(bounds){
+      // 前のスライドを読み終えてから次を読み始めるまでの間で、いちばん長い無音で切る。
+      // 無音が無ければ読み始めのすぐ前（1.2秒以内）の無音、それも無ければ読み始めの 0.1 秒前
+      const cuts=bounds.map(({prevEnd,start})=>{
+        const a0=Math.round(Math.min(prevEnd,start)*rate)-Math.round(rate*0.1),b0=Math.round(Math.max(prevEnd,start)*rate)+Math.round(rate*0.15);
+        const inGap=sil.filter(x=>x.end>a0&&x.start<b0).sort((x,y)=>y.len-x.len)[0];
+        if(inGap)return vdCutIn(inGap,rate);
+        const at=Math.round(start*rate);
+        const near=sil.filter(x=>x.end<=at+rate*0.15&&x.end>=at-rate*1.2).sort((x,y)=>y.end-x.end)[0];
+        return near?vdCutIn(near,rate):Math.max(0,at-Math.round(rate*0.1));
+      });
+      if(cuts.every((c,i)=>i===0||c>cuts[i-1]))return{segs:build(cuts),method:'文字起こし'};
+      console.warn('[vd] 照合した境目の順番がおかしいので、無音で切ります',cuts);
+    }else console.warn('[vd] 台本と文字起こしが合わないので、無音で切ります');
+  }catch(e){console.warn('[vd] 文字起こしでの切り分けに失敗。無音で切ります',e);}
+  // 2. 長い無音の上位 N-1 個（段落の切れ目は文の切れ目より無音が長い）
+  const longs=sil.filter(s=>s.len>=rate*0.18);
+  if(longs.length>=count-1){
+    const picked=longs.sort((a,b)=>b.len-a.len).slice(0,count-1).sort((a,b)=>a.start-b.start);
+    return{segs:build(picked.map(s=>vdCutIn(s,rate))),method:'無音'};
+  }
+  // 3. 文字数の割合で見当をつけ、近くに無音があればそこで切る
+  const lens=texts.map(t=>Math.max(1,vdNormTx(t).length)),tot=lens.reduce((a,b)=>a+b,0);
+  const cuts=[];let acc=0,prev=0;
+  for(let k=0;k<count-1;k++){
+    acc+=lens[k];const est=Math.round(pcm.length*acc/tot);
+    const cand=sil.filter(s=>s.start>prev+rate*0.5&&Math.abs((s.start+s.end)/2-est)<rate*3).sort((x,y)=>(Math.abs((x.start+x.end)/2-est)-x.len*4)-(Math.abs((y.start+y.end)/2-est)-y.len*4))[0];
+    const c=cand?vdCutIn(cand,rate):Math.max(prev+1,est);
+    cuts.push(c);prev=c;
+  }
+  return{segs:build(cuts),method:'文字数の見当'};
+}
+// 表示中のスライドのうち、音声が無い・台本が変わったものをまとめて作る（redo＝生成済みも含めて全部作り直す）
+async function vdGenAllTts(P,btn,redo){
   const old=btn.textContent;btn.disabled=true;
-  const slots=VD_CFG[P].slots(),n=slots.length;let done=0;   // 表示中の欄だけ
-  for(let k=0;k<n;k++){
-    const i=slots[k];
-    const text=vdVal(P,'s'+i);const a=window._vdTts[P][i];
-    if(!text||(a&&a.text===text))continue;
-    btn.textContent=`生成中… ${k+1}/${n}`;vdTtsStatus(P,`音声を生成中… スライド${k+1}`);
-    if(await vdGenTts(P,i,vdEl(P,'tb'+i)))done++;
+  const slots=VD_CFG[P].slots(),no=i=>slots.indexOf(i)+1;   // 表示中の欄だけ
+  const todo=slots.filter(i=>{const text=vdVal(P,'s'+i),a=window._vdTts[P][i];return text&&(redo||!a||a.text!==text);});
+  if(!todo.length){btn.disabled=false;btn.textContent=old;vdTtsStatus(P,'生成対象がありません（すべて生成済みか、台本が空）');return;}
+  let done=0;const methods=[];
+  try{
+    if(todo.length===1){
+      btn.textContent='生成中…';vdTtsStatus(P,`音声を生成中… スライド${no(todo[0])}`);
+      if(await vdGenTts(P,todo[0],vdEl(P,'tb'+todo[0])))done++;
+    }else{
+      const voice=vdEl(P,'tts-voice').value,model=vdEl(P,'tts-model').value;
+      const texts=todo.map(i=>vdVal(P,'s'+i)),chars=texts.map(t=>t.length),total=chars.reduce((a,b)=>a+b,0);
+      // 1回が約1分以内になる数（最大2回）に分け、スライドの切れ目で区切る（文字数がなるべく均等になる所）
+      const n=Math.min(todo.length,VD_TTS_MAX_CALLS,Math.max(1,Math.ceil(total/VD_ONE_MINUTE_CHARS)));
+      const groups=[];
+      {let acc=0,start=0;
+        for(let k=1;k<n;k++){
+          const target=(total*k)/n;let best=start+1,bestD=Infinity,a2=acc;
+          for(let i=start+1;i<todo.length-(n-k)+1;i++){a2+=chars[i-1];const d=Math.abs(a2-target);if(d<bestD){bestD=d;best=i;}}
+          for(let i=start;i<best;i++)acc+=chars[i];
+          groups.push(todo.slice(start,best));start=best;
+        }
+        groups.push(todo.slice(start));}
+      for(let gi=0;gi<groups.length;gi++){
+        const g=groups[gi],label=groups.length>1?`${gi+1}/${groups.length}`:'',gtexts=g.map(i=>vdVal(P,'s'+i));
+        g.forEach(i=>{const p=vdEl(P,'p'+i);if(p)p.textContent='音声を生成中…';});
+        btn.textContent=`生成中… ${label}`;vdTtsStatus(P,`読み上げを作成中… ${label}（スライド${g.map(no).join('・')}）`);
+        // 上限に当たったらやり直さない（何度呼んでも同じ）。止めて知らせる。できた分は保存してあるので、次は残りだけ作る
+        const res=await fetch('/api/tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:vdSpeedHint(P)+gtexts.join('\n\n'),voice,model})});
+        let data={};try{data=await res.json();}catch(e){}
+        if(!res.ok||!data.ok||!data.audioBase64){
+          const m=data.error||('読み上げに失敗しました（HTTP '+res.status+'）');
+          if(/quota|exceeded|429|上限|無料枠|RESOURCE_EXHAUSTED/i.test(m))throw new Error('読み上げの回数の上限に当たりました。時間をおいてからもう一度押してください（できたスライドはそのまま残ります）');
+          throw new Error(m);
+        }
+        const blob=new Blob([vdB64ToBuf(data.audioBase64)],{type:'audio/wav'});
+        const sp=await vdSplitByScript(blob,gtexts,m=>vdTtsStatus(P,`${m} ${label}`));
+        methods.push(sp.method);
+        for(let k=0;k<g.length;k++){
+          const s=sp.segs[k],obj={b64:vdBufToB64(await s.blob.arrayBuffer()),seconds:s.seconds,voice,model,text:gtexts[k],speed:vdSpeed(P),method:sp.method};
+          window._vdTts[P][g[k]]=obj;await vdDbPut(`${P}:${g[k]}`,obj);vdRenderPlayer(P,g[k]);done++;
+        }
+      }
+    }
+  }catch(e){
+    todo.forEach(i=>{const p=vdEl(P,'p'+i);if(p&&/生成中/.test(p.textContent))p.innerHTML=`<span style="color:#dc2626;">❌ ${esc(e.message)}</span>`;});
+    btn.disabled=false;btn.textContent=old;
+    vdTtsStatus(P,'❌ '+e.message+(done?`（${done}本はできています）`:''));return;
   }
   btn.disabled=false;btn.textContent=old;
-  vdTtsStatus(P,done?`✅ ${done}本を生成しました。「⬇ 1本にして出力」で連結できます`:'生成対象がありません（すべて生成済みか、台本が空）');
+  const how=[...new Set(methods)].filter(m=>m!=='そのまま').join('・');
+  vdTtsStatus(P,done?`✅ ${done}本を作りました${how?'（切れ目：'+how+'）':''}。「▶ 結合して再生」で確かめられます`:'生成対象がありません（すべて生成済みか、台本が空）');
 }
 
 // 複数WAV(base64)を連結。境界の無音を詰め、間に gapMs の無音。各パートの開始/終了秒も返す
