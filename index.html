@@ -7336,6 +7336,7 @@ function vdBuildTabHtml(P){
     <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:6px;">
       <label style="font-size:11px;color:var(--text-sub);flex:none;" title="この縦動画を上げた YouTube ショートのURL。TikTok 用のリール動画の「YouTube」のスライドのQRに入ります">ショートURL</label>
       <input type="text" id="${P}-short-url" placeholder="YouTubeショートのURL（TikTok用リールのQR。空ならYouTubeのスライドなし）" oninput="if(typeof saveState==='function')saveState()" style="flex:1;min-width:0;font-size:11px;">
+      <button class="btn-sm" onclick="vdPasteInto('${P}','short-url')" style="flex:none;" title="コピーしたURLを、この欄に貼り付けます">📋 貼付</button>
     </div>`:'';
   const noteRows=c.hasNote?`
     <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:6px;">
@@ -7466,6 +7467,13 @@ function vdBuildTabHtml(P){
     ${modelRow}${hiddenRows}
   </div>
   </div>`;
+}
+// 「📋 貼付」：クリップボードの文字を欄に入れて保存する
+async function vdPasteInto(P,id){
+  let t;try{t=await navigator.clipboard.readText();}catch(e){alert('クリップボードを読めませんでした。欄に手で貼り付けてください');return;}
+  if(!t.trim()){alert('クリップボードが空です');return;}
+  const el=vdEl(P,id);if(!el)return;el.value=t.trim();
+  if(typeof saveState==='function')saveState();
 }
 function vdInnerTab(P,t){
   ['video','sns','data'].forEach(k=>{vdEl(P,'itab-'+k).classList.toggle('active',t===k);vdEl(P,'pane-'+k).style.display=t===k?'':'none';});
