@@ -7381,21 +7381,12 @@ function vdBuildTabHtml(P){
   <div id="${P}-pane-settings" style="display:none;">
   <div class="sa-card">
     <h2>設定</h2>
-    <div style="font-size:10px;color:var(--text-sub);">声・文章モデル・固定タグ・note案内文は、上の「⚙ 共通設定」で決めます（すべてのPJで共通）。</div>
+    <div style="font-size:10px;color:var(--text-sub);">文章モデル・固定タグ・note案内文は、上の「⚙ 共通設定」で決めます（すべてのPJで共通）。声・音声モデル・読み上げの速さは「台本・音声」タブにあります（これも全PJ共通）。</div>
     ${noteRows}${modelRow}${countRow}${monthsRow}
     <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:11px;color:var(--text-sub);cursor:pointer;" title="オンにすると、書き出す動画の頭（音声①の最初の5秒）にサムネを出します。オフのときは、サムネの画像を別のファイルで保存します（投稿のときにカバー画像として使う）。リール動画はいつもサムネから始まります"><input type="checkbox" id="${P}-thumb-on" onchange="if(typeof saveState==='function')saveState()">サムネを動画の頭に入れる</label>
     <div class="row kg-hide" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:4px;">
       <label style="font-size:11px;color:var(--text-sub);flex:none;" title="X・Instagram・TikTokの投稿文の末尾に必ず付けるタグ（両タブ共通）">固定タグ</label>
       <input type="text" id="${P}-fixed-tags" value="${VD_FIXED_TAGS_DEFAULT}" oninput="vdSyncTts('${P}')" placeholder="#タグ1 #タグ2（空欄で付けない）" style="flex:1;min-width:0;font-size:11px;padding:4px;">
-    </div>
-    <div class="row kg-hide" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:4px;">
-      <label style="font-size:11px;color:var(--text-sub);flex:none;">声</label>
-      <select id="${P}-tts-voice" onchange="vdSyncTts('${P}')" style="flex:1;min-width:0;font-size:11px;padding:4px;">${VD_VOICE_OPTIONS}</select>
-      <select id="${P}-tts-model" onchange="vdSyncTts('${P}')" style="flex:1;min-width:0;font-size:11px;padding:4px;">
-        <option value="gemini-3.1-flash-tts-preview" selected>Gemini 3.1 Flash TTS</option>
-        <option value="gemini-2.5-flash-preview-tts">Gemini 2.5 Flash TTS</option>
-        <option value="gemini-2.5-pro-preview-tts">Gemini 2.5 Pro TTS（有料枠）</option>
-      </select>
     </div>
   </div>
   </div>
@@ -7432,8 +7423,23 @@ function vdBuildTabHtml(P){
       <label style="display:flex;align-items:center;gap:4px;flex:1;">間 <span id="${P}-tts-gap-val">500</span>ms <input type="range" id="${P}-tts-gap" min="0" max="1500" step="50" value="500" oninput="document.getElementById('${P}-tts-gap-val').textContent=this.value" onchange="vdSyncTts('${P}')" style="flex:1;cursor:pointer;"></label>
       <select id="${P}-tts-format" onchange="vdSyncTts('${P}')" style="font-size:11px;padding:3px;"><option value="mp3" selected>MP3</option><option value="wav">WAV</option></select>
     </div>
-    <div class="row" style="flex-wrap:nowrap;margin-top:8px;">
-      <button class="btn-sm" id="${P}-tts-all-btn" onclick="vdGenAllTts('${P}',this)" style="flex:1;background:#2563eb;color:#fff;">🔊 未生成を音声化</button>
+    <div style="font-size:11px;color:var(--text-sub);margin-top:8px;" title="すべてのPJで共通（⚙ 共通設定と同じ値）。変えたあとは「🔄 全部作り直す」で音声を作り直してください">声・音声モデル・読み上げの速さ（全PJ共通）</div>
+    <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:4px;">
+      <select id="${P}-tts-voice" onchange="vdTtsSetCommon('${P}','tts-voice',this.value)" title="読み上げの声" style="flex:1;min-width:0;font-size:11px;padding:4px;">${VD_VOICE_OPTIONS}</select>
+      <select id="${P}-tts-model" onchange="vdTtsSetCommon('${P}','tts-model',this.value)" title="音声を作るモデル" style="flex:1;min-width:0;font-size:11px;padding:4px;">
+        <option value="gemini-3.1-flash-tts-preview" selected>Gemini 3.1 Flash TTS</option>
+        <option value="gemini-2.5-flash-preview-tts">Gemini 2.5 Flash TTS</option>
+        <option value="gemini-2.5-pro-preview-tts">Gemini 2.5 Pro TTS（有料枠）</option>
+      </select>
+      <select id="${P}-tts-speed" onchange="vdTtsSetCommon('${P}','tts-speed',this.value)" title="読み上げの速さ（音声を作るときの指示。分析動画と同じ文）" style="flex:none;font-size:11px;padding:4px;">
+        <option value="normal" selected>ふつう</option><option value="fast">少し速め</option><option value="faster">速め</option>
+      </select>
+    </div>
+    <div class="row" style="flex-wrap:nowrap;margin-top:6px;">
+      <button class="btn-sm" id="${P}-tts-all-btn" onclick="vdGenAllTts('${P}',this)" style="flex:1;background:#2563eb;color:#fff;" title="音声が無い・台本を直したスライドだけを作ります。台本をつないで最大2回で読み上げ、文字起こしでスライドごとに切り分けます">🔊 未生成を音声化</button>
+      <button class="btn-sm" id="${P}-tts-redo-btn" onclick="if(confirm('すべてのスライドの音声を作り直します（読み上げは最大2回）。よろしいですか？'))vdGenAllTts('${P}',this,true)" style="flex:1;background:#2563eb;color:#fff;" title="生成済みも含めて、すべてのスライドの音声を作り直します（声・モデル・速さを変えたあとに）">🔄 全部作り直す</button>
+    </div>
+    <div class="row" style="flex-wrap:nowrap;margin-top:6px;">
       <button class="btn-sm" id="${P}-tts-play-btn" onclick="vdExportAudio('${P}',this,true)" style="flex:1;background:#475569;color:#fff;">▶ 結合して再生</button>
       <button class="btn-sm" id="${P}-tts-export-btn" onclick="vdExportAudio('${P}',this)" style="flex:1;background:#0d9488;color:#fff;">⬇ 音声出力</button>
     </div>
@@ -7456,14 +7462,19 @@ const VD_INSTA_MAX_TAGS=5;   // Instagramのハッシュタグ上限（固定タ
 // 声・モデル・補正・間・形式・固定タグは両タブで同じ設定を使う（片方で変えたらもう片方へ写す）
 function vdSyncTts(P){
   const other=P==='vd'?'ev':'vd';
-  ['tts-voice','tts-model','tts-eq','tts-gap','tts-format','logo-op','fixed-tags'].forEach(k=>{const a=vdEl(P,k),b=vdEl(other,k);if(a&&b)b.value=a.value;});
+  ['tts-voice','tts-model','tts-speed','tts-eq','tts-gap','tts-format','logo-op','fixed-tags'].forEach(k=>{const a=vdEl(P,k),b=vdEl(other,k);if(a&&b)b.value=a.value;});
   const lo=vdEl(other,'logo-op');if(lo)vdEl(other,'logo-op-val').textContent=lo.value;
   const eq=vdEl(other,'tts-eq'),gp=vdEl(other,'tts-gap');
   if(eq)vdEl(other,'tts-eq-val').textContent=eq.value;if(gp)vdEl(other,'tts-gap-val').textContent=gp.value;
   if(typeof saveState==='function')saveState();
 }
+// 台本・音声タブの声・モデル・速さ（全PJ共通）を変えたとき：共通設定（kt-common）に入れ、もう一方のタブの欄にも写す
+function vdTtsSetCommon(P,key,val){
+  if(typeof kgSet==='function')kgSet(key,val);
+  vdSyncTts(P);
+}
 function vdPersistIds(P){
-  const ids=['note-url','short-url','thumb-on','xnote','model','months','logo-op','th-input','slides','x','insta','tiktok','raw','tts-voice','tts-model','tts-eq','tts-gap','tts-format','timing','fixed-tags'];
+  const ids=['note-url','short-url','thumb-on','xnote','model','months','logo-op','th-input','slides','x','insta','tiktok','raw','tts-voice','tts-model','tts-speed','tts-eq','tts-gap','tts-format','timing','fixed-tags'];
   for(let i=1;i<=5;i++)ids.push('s'+i);
   const out=ids.map(k=>`${P}-${k}`);
   if(P==='ev')out.push('ev-auto');
@@ -14603,7 +14614,7 @@ function ktResetKindFields(kind){
 }
 // 動画の欄を入れ直す元。開いた PJ の中身を使う（kessanTool:v1 は直前に開いていた PJ の画面なので、そのまま使うと前の PJ の台本などが入る）。
 // 新規は、声・モデルなどの設定だけ前の画面から引き継ぎ、台本・投稿文・スライドなどの中身は空のまま
-const VD_CARRY_KEYS=['model','months','logo-op','tts-voice','tts-model','tts-eq','tts-gap','tts-format','fixed-tags','auto'];
+const VD_CARRY_KEYS=['model','months','logo-op','tts-voice','tts-model','tts-speed','tts-eq','tts-gap','tts-format','fixed-tags','auto'];
 function ktVdState(P,json){
   if(json)return {fields:json.fields||{},radios:json.radios||{}};
   let st=null;try{st=JSON.parse(localStorage.getItem(SA_STORAGE_KEY)||'null');}catch(e){}
@@ -15489,7 +15500,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){const v=document.ge
 var KG_KEY='kt-common';
 // 共通にした欄の id（tabIoElements から先に呼ばれるので、定数ではなく関数で持つ）
 function kgIsCommon(id){
-  return ['vd-tts-voice','ev-tts-voice','vd-tts-model','ev-tts-model','vd-model','ev-model','vd-fixed-tags','ev-fixed-tags','vd-xnote',
+  return ['vd-tts-voice','ev-tts-voice','vd-tts-model','ev-tts-model','vd-tts-speed','ev-tts-speed','vd-model','ev-model','vd-fixed-tags','ev-fixed-tags','vd-xnote',
     'yt-m-cut','yt-m-oped','yt-m-read','yt-m-qr','yt-m-plan','yt-m-post','yt-p-fixed','yt-f-yp','yt-f-ig','yt-f-l8','yt-f-tt'].includes(id);
 }
 // 分析動画のシーン（kessan-visualizer の src/schema/settings.ts の SCENE_ORDER・SCENE_DEFAULTS と同じ並び・秒数）
@@ -15513,6 +15524,7 @@ const KG_ITEMS=[
   {g:'thumb',key:'ea-th3',label:'決算のブログ：アイキャッチの3段目',ids:[],def:'かんたん%決算解説%',tip:'決算分析の「ブログ用 ZIP」のアイキャッチの3段目。上段・中段は分析動画の横サムネと同じ。色指定: *オレンジ* #水色# %黄色%'},
   {g:'voice',key:'tts-voice',label:'台本の声',ids:['vd-tts-voice','ev-tts-voice']},
   {g:'voice',key:'tts-model',label:'台本の声のモデル',ids:['vd-tts-model','ev-tts-model']},
+  {g:'voice',key:'tts-speed',label:'台本の読み上げの速さ',ids:['vd-tts-speed','ev-tts-speed'],def:'normal',opts:[['normal','ふつう'],['fast','少し速め'],['faster','速め']],tip:'縦動画（株価分析・決算分析）の読み上げの頭に付ける指示（分析動画と同じ文）。変えたあとは「🔄 全部作り直す」で音声を作り直してください'},
   {g:'voice',key:'oped-vol',label:'OP・EDの音量（%）',ids:[],def:'85',tip:'横動画の書き出しで、OP・EDの音声にかける大きさ。100＝作ったままの大きさ。100より大きくもできます（大きすぎると音が割れます）'},
   {g:'model',key:'model',label:'縦動画の文章モデル',ids:['vd-model','ev-model']},
   ...YT_AI_TASKS.map(([k,n])=>({g:'ytmodel',key:'yt-m-'+k,label:n,ids:['yt-m-'+k]})),
