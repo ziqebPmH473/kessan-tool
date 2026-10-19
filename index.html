@@ -7328,22 +7328,29 @@ function vdNoteSync(){
   if(y&&v&&v!==document.activeElement&&v.value!==y)v.value=y;
 }
 
-// ---- タブのHTMLを組み立てる（株価分析・決算分析で共通。中は「スライド・投稿」「台本・音声」の2タブ） ----
+// ---- タブのHTMLを組み立てる（株価分析・決算分析で共通。中は「動画」「SNS」「データ」の3タブ。2026-10-19 に並べ替え） ----
+//   動画＝動画の設定（QR用URL・チャート期間・透かしロゴ・サムネ）＋台本と音声、SNS＝投稿文（ショートURLは YouTube の概要欄の下）、データ＝スライド用データ・生成全文
 function vdBuildTabHtml(P){
   const c=VD_CFG[P];
-  const noteRows=c.hasNote?`
+  const shortRow=c.hasNote?`
     <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:6px;">
       <label style="font-size:11px;color:var(--text-sub);flex:none;" title="この縦動画を上げた YouTube ショートのURL。TikTok 用のリール動画の「YouTube」のスライドのQRに入ります">ショートURL</label>
       <input type="text" id="${P}-short-url" placeholder="YouTubeショートのURL（TikTok用リールのQR。空ならYouTubeのスライドなし）" oninput="if(typeof saveState==='function')saveState()" style="flex:1;min-width:0;font-size:11px;">
-    </div>
+    </div>`:'';
+  const noteRows=c.hasNote?`
     <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:6px;">
       <label style="font-size:11px;color:var(--text-sub);flex:none;">QR用URL</label>
       <input type="text" id="${P}-note-url" placeholder="noteの記事のURL（QRの飛び先。記事・SNSタブの欄と同じ）" title="記事・SNSタブの「noteの記事URL」と同じ欄です。どちらで入れても両方に入ります" oninput="vdNoteInput('${P}',this)" onchange="vdNoteInput('${P}',this,true)" style="flex:1;min-width:0;font-size:11px;">
-    </div>
+    </div>`:'';
+  const hiddenRows=(c.hasNote?`
     <div class="row kg-hide" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:6px;">
       <label style="font-size:11px;color:var(--text-sub);flex:none;" title="X投稿文（返信用）の3行目に入れる案内文">note案内文</label>
       <input type="text" id="${P}-xnote" value="${VD_X_NOTE_LINE_DEFAULT}" placeholder="${VD_X_NOTE_LINE_DEFAULT}" style="flex:1;min-width:0;font-size:11px;">
-    </div>`:'';
+    </div>`:'')+`
+    <div class="row kg-hide" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:4px;">
+      <label style="font-size:11px;color:var(--text-sub);flex:none;" title="X・Instagram・TikTokの投稿文の末尾に必ず付けるタグ（両タブ共通）">固定タグ</label>
+      <input type="text" id="${P}-fixed-tags" value="${VD_FIXED_TAGS_DEFAULT}" oninput="vdSyncTts('${P}')" placeholder="#タグ1 #タグ2（空欄で付けない）" style="flex:1;min-width:0;font-size:11px;padding:4px;">
+    </div>`;
   const modelRow=`
     <div class="row kg-hide" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:4px;">
       <label style="font-size:11px;color:var(--text-sub);flex:none;">文章モデル</label>
@@ -7373,51 +7380,18 @@ function vdBuildTabHtml(P){
     <div id="${P}-status" style="display:none;font-size:11px;margin-top:3px;"></div>
   </div>
   <div class="sa-subtabs" style="margin-top:6px;">
-    <button class="sa-subtab active" id="${P}-itab-slides" onclick="vdInnerTab('${P}','slides')">🖼 スライド・投稿</button>
-    <button class="sa-subtab" id="${P}-itab-audio" onclick="vdInnerTab('${P}','audio')">🎙 台本・音声</button>
-    <button class="sa-subtab" id="${P}-itab-settings" onclick="vdInnerTab('${P}','settings')">⚙ 設定</button>
+    <button class="sa-subtab active" id="${P}-itab-video" onclick="vdInnerTab('${P}','video')">🎬 動画</button>
+    <button class="sa-subtab" id="${P}-itab-sns" onclick="vdInnerTab('${P}','sns')">📣 SNS</button>
+    <button class="sa-subtab" id="${P}-itab-data" onclick="vdInnerTab('${P}','data')">📄 データ</button>
   </div>
 
-  <div id="${P}-pane-settings" style="display:none;">
+  <div id="${P}-pane-video">
   <div class="sa-card">
-    <h2>設定</h2>
-    <div style="font-size:10px;color:var(--text-sub);">文章モデル・固定タグ・note案内文は、上の「⚙ 共通設定」で決めます（すべてのPJで共通）。声・音声モデル・読み上げの速さは「台本・音声」タブにあります（これも全PJ共通）。</div>
-    ${noteRows}${modelRow}${countRow}${monthsRow}
+    <h2>動画の設定</h2>
+    ${P==='ev'?`<textarea id="ev-th-input" oninput="debouncedVideoPrev('ev')" rows="2" placeholder="サムネ：上段：中段：下段（整形データから自動）" title="サムネの文（上段：中段：下段）" style="height:46px;min-height:46px;"></textarea>`:`<div style="font-size:11px;color:var(--text-sub);">サムネは「サムネイル」タブのテキストを使います</div>`}
+    ${noteRows}${countRow}${monthsRow}
     <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:11px;color:var(--text-sub);cursor:pointer;" title="オンにすると、書き出す動画の頭（音声①の最初の5秒）にサムネを出します。オフのときは、サムネの画像を別のファイルで保存します（投稿のときにカバー画像として使う）。リール動画はいつもサムネから始まります"><input type="checkbox" id="${P}-thumb-on" onchange="if(typeof saveState==='function')saveState()">サムネを動画の頭に入れる</label>
-    <div class="row kg-hide" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:4px;">
-      <label style="font-size:11px;color:var(--text-sub);flex:none;" title="X・Instagram・TikTokの投稿文の末尾に必ず付けるタグ（両タブ共通）">固定タグ</label>
-      <input type="text" id="${P}-fixed-tags" value="${VD_FIXED_TAGS_DEFAULT}" oninput="vdSyncTts('${P}')" placeholder="#タグ1 #タグ2（空欄で付けない）" style="flex:1;min-width:0;font-size:11px;padding:4px;">
-    </div>
   </div>
-  </div>
-
-  <div id="${P}-pane-slides">
-  ${P==='ev'?`<div class="sa-card"><h2>サムネイル</h2><textarea id="ev-th-input" oninput="debouncedVideoPrev('ev')" rows="2" placeholder="上段：中段：下段（整形データから自動）" style="height:46px;min-height:46px;"></textarea></div>`:`<div style="font-size:11px;color:var(--text-sub);">サムネは「サムネイル」タブのテキストを使います</div>`}
-  <div class="sa-card">
-    <h2>縦スライド</h2>
-    <div style="display:flex;justify-content:space-between;align-items:center;"><label style="font-size:11px;color:var(--text-sub);">スライド用データ</label><button class="btn-sm" onclick="copyText(document.getElementById('${P}-slides').value,this)">📋 コピー</button></div>
-    <textarea id="${P}-slides" oninput="debouncedVideoPrev('${P}')" placeholder="生成後にスライド用データが入ります" style="min-height:90px;font-size:10px;"></textarea>
-    <button class="btn btn-full" id="${P}-dl-btn" onclick="downloadVideoSlides('${P}')" style="margin-top:6px;" title="スライド・切り替えの時刻・音声を1つにまとめた、ナレスラのプロジェクト（.svpz）を書き出します。ナレスラの「プロジェクトを開く」で取り込めます。音声がまだのときは、スライドと台本だけのZIPにできます">⬇ ナレスラ用に書き出す（.svpz）</button>
-  </div>
-  <div class="sa-card">
-    <h2 style="display:flex;justify-content:space-between;align-items:center;">投稿文（動画用）${P==='vd'?`<button class="btn-sm" onclick="geminiVideoSns('${P}',this)" style="background:#4f46e5;color:#fff;font-weight:normal;" title="X・Instagram・TikTok・YouTubeショート の投稿文だけを、AIで作り直します。台本・縦スライド・音声はそのままです">🤖 SNS再生成</button>`:''}</h2>
-    ${artRows}
-    ${P==='vd'?`<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;"><label style="font-size:11px;color:var(--text-sub);" title="YouTubeショートのタイトル。【銘柄名（証券コード）】はツールが付け、問いかけはAIが作ります">YouTubeショート：タイトル</label><button class="btn-sm" onclick="copyText(document.getElementById('${P}-yt-title').value,this)">📋 コピー</button></div>
-    <input type="text" id="${P}-yt-title" placeholder="生成後にショートのタイトルが入ります" style="width:100%;font-size:12px;padding:4px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:4px;"><label style="font-size:11px;color:var(--text-sub);" title="問いかけ → 要約2文 → まとめスライドの問い → note案内文 → noteのURL → 定型文（共通設定「縦動画の概要欄の定型文」）→ ハッシュタグ">YouTubeショート：概要欄</label><span style="display:flex;gap:4px;"><button class="btn-sm" onclick="vdYtApply('${P}')" title="AIの文はそのままに、noteのURL・note案内文・定型文・固定タグをいまの設定で組み直します">🔄 組み直す</button><button class="btn-sm" onclick="copyText(document.getElementById('${P}-yt-desc').value,this)">📋 コピー</button></span></div>
-    <textarea id="${P}-yt-desc" placeholder="生成後にショートの概要欄が入ります" style="min-height:120px;"></textarea>
-    <textarea id="${P}-yt-ai" style="display:none;"></textarea>`:''}
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">X投稿文</label><button class="btn-sm" onclick="copyText(document.getElementById('${P}-x').value,this)">📋 コピー</button></div>
-    <textarea id="${P}-x" placeholder="生成後にX投稿文が入ります" style="min-height:50px;"></textarea>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">Instagram投稿文（リール）</label><button class="btn-sm" onclick="copyText(document.getElementById('${P}-insta').value,this)">📋 コピー</button></div>
-    <textarea id="${P}-insta" placeholder="生成後にInstagram投稿文が入ります" style="min-height:60px;"></textarea>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:4px;"><label style="font-size:11px;color:var(--text-sub);"${P==='vd'?' title="TikTok には、この縦動画ではなくリール動画（サムネ → YouTubeショートのQR → noteのQR）を上げます。投稿文はこの欄（AIの文）を使います"':''}>TikTok投稿文${P==='vd'?'（リール動画）':''}</label><span style="display:flex;gap:4px;">${P==='vd'?`<button class="btn-sm" onclick="downloadThumbReel(this,true)" title="縦のサムネ → YouTubeショートのQR → noteのQR（mp4・音なし）をダウンロード。サムネはサムネイルのタブの文、URLは上の「ショートURL」と「QR用URL」（ショートURLが空ならYouTubeのスライドなし）、文言と秒数は共通設定">🎬 リール動画</button>`:''}<button class="btn-sm" onclick="copyText(document.getElementById('${P}-tiktok').value,this)">📋 コピー</button></span></div>
-    <textarea id="${P}-tiktok" placeholder="生成後にTikTok投稿文が入ります" style="min-height:50px;"></textarea>
-    <details style="margin-top:6px;"><summary style="font-size:10px;color:var(--text-sub);cursor:pointer;">生成全文（うまく分割できない時のフォールバック）</summary><textarea id="${P}-raw" style="min-height:80px;"></textarea></details>
-  </div>
-  </div>
-
-  <div id="${P}-pane-audio" style="display:none;">
   <div class="sa-card">
     <h2>台本と音声（スライドごと）</h2>
     <div id="${P}-script-boxes"></div>
@@ -7437,7 +7411,7 @@ function vdBuildTabHtml(P){
         <option value="gemini-2.5-pro-preview-tts">Gemini 2.5 Pro TTS（有料枠）</option>
       </select>
       <select id="${P}-tts-speed" onchange="vdTtsSetCommon('${P}','tts-speed',this.value)" title="読み上げの速さ（音声を作るときの指示。分析動画と同じ文）" style="flex:none;font-size:11px;padding:4px;">
-        <option value="normal" selected>ふつう</option><option value="fast">少し速め</option><option value="faster">速め</option>
+        <option value="normal">ふつう</option><option value="fast">少し速め</option><option value="faster" selected>速め</option>
       </select>
     </div>
     <div class="row" style="flex-wrap:nowrap;margin-top:6px;">
@@ -7456,10 +7430,45 @@ function vdBuildTabHtml(P){
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">スライド切替タイミング</label><button class="btn-sm" onclick="copyText(document.getElementById('${P}-timing').value,this)">📋 コピー</button></div>
     <textarea id="${P}-timing" readonly placeholder="音声を1本にすると、各スライドの開始・終了秒が入ります" style="min-height:90px;font-family:monospace;font-size:10px;"></textarea>
   </div>
+  </div>
+
+  <div id="${P}-pane-sns" style="display:none;">
+  <div class="sa-card">
+    <h2 style="display:flex;justify-content:space-between;align-items:center;">投稿文（動画用）${P==='vd'?`<button class="btn-sm" onclick="geminiVideoSns('${P}',this)" style="background:#4f46e5;color:#fff;font-weight:normal;" title="X・Instagram・TikTok・YouTubeショート の投稿文だけを、AIで作り直します。台本・縦スライド・音声はそのままです">🤖 SNS再生成</button>`:''}</h2>
+    ${artRows}
+    ${P==='vd'?`<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;"><label style="font-size:11px;color:var(--text-sub);" title="YouTubeショートのタイトル。【銘柄名（証券コード）】はツールが付け、問いかけはAIが作ります">YouTubeショート：タイトル</label><button class="btn-sm" onclick="copyText(document.getElementById('${P}-yt-title').value,this)">📋 コピー</button></div>
+    <input type="text" id="${P}-yt-title" placeholder="生成後にショートのタイトルが入ります" style="width:100%;font-size:12px;padding:4px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:4px;"><label style="font-size:11px;color:var(--text-sub);" title="問いかけ → 要約2文 → まとめスライドの問い → note案内文 → noteのURL → 定型文（共通設定「縦動画の概要欄の定型文」）→ ハッシュタグ">YouTubeショート：概要欄</label><span style="display:flex;gap:4px;"><button class="btn-sm" onclick="vdYtApply('${P}')" title="AIの文はそのままに、noteのURL・note案内文・定型文・固定タグをいまの設定で組み直します">🔄 組み直す</button><button class="btn-sm" onclick="copyText(document.getElementById('${P}-yt-desc').value,this)">📋 コピー</button></span></div>
+    <textarea id="${P}-yt-desc" placeholder="生成後にショートの概要欄が入ります" style="min-height:120px;"></textarea>
+    ${shortRow}
+    <textarea id="${P}-yt-ai" style="display:none;"></textarea>`:''}
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">X投稿文</label><button class="btn-sm" onclick="copyText(document.getElementById('${P}-x').value,this)">📋 コピー</button></div>
+    <textarea id="${P}-x" placeholder="生成後にX投稿文が入ります" style="min-height:50px;"></textarea>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">Instagram投稿文（リール）</label><button class="btn-sm" onclick="copyText(document.getElementById('${P}-insta').value,this)">📋 コピー</button></div>
+    <textarea id="${P}-insta" placeholder="生成後にInstagram投稿文が入ります" style="min-height:60px;"></textarea>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:4px;"><label style="font-size:11px;color:var(--text-sub);"${P==='vd'?' title="TikTok には、この縦動画ではなくリール動画（サムネ → YouTubeショートのQR → noteのQR）を上げます。投稿文はこの欄（AIの文）を使います"':''}>TikTok投稿文${P==='vd'?'（リール動画）':''}</label><span style="display:flex;gap:4px;">${P==='vd'?`<button class="btn-sm" onclick="downloadThumbReel(this,true)" title="縦のサムネ → YouTubeショートのQR → noteのQR（mp4・音なし）をダウンロード。サムネはサムネイルのタブの文、URLは上の「ショートURL」と「QR用URL」（ショートURLが空ならYouTubeのスライドなし）、文言と秒数は共通設定">🎬 リール動画</button>`:''}<button class="btn-sm" onclick="copyText(document.getElementById('${P}-tiktok').value,this)">📋 コピー</button></span></div>
+    <textarea id="${P}-tiktok" placeholder="生成後にTikTok投稿文が入ります" style="min-height:50px;"></textarea>
+  </div>
+  </div>
+
+  <div id="${P}-pane-data" style="display:none;">
+  <div class="sa-card">
+    <h2>縦スライド</h2>
+    <div style="display:flex;justify-content:space-between;align-items:center;"><label style="font-size:11px;color:var(--text-sub);">スライド用データ</label><button class="btn-sm" onclick="copyText(document.getElementById('${P}-slides').value,this)">📋 コピー</button></div>
+    <textarea id="${P}-slides" oninput="debouncedVideoPrev('${P}')" placeholder="生成後にスライド用データが入ります" style="min-height:90px;font-size:10px;"></textarea>
+    <button class="btn btn-full" id="${P}-dl-btn" onclick="downloadVideoSlides('${P}')" style="margin-top:6px;" title="スライド・切り替えの時刻・音声を1つにまとめた、ナレスラのプロジェクト（.svpz）を書き出します。ナレスラの「プロジェクトを開く」で取り込めます。音声がまだのときは、スライドと台本だけのZIPにできます">⬇ ナレスラ用に書き出す（.svpz）</button>
+  </div>
+  <div class="sa-card">
+    <h2>生成全文</h2>
+    <div style="font-size:10px;color:var(--text-sub);">AIの出力の全文（うまく分割できなかったときは、ここから台本・投稿文へ写してください）</div>
+    <textarea id="${P}-raw" style="min-height:120px;font-size:10px;"></textarea>
+    <div style="font-size:10px;color:var(--text-sub);margin-top:6px;">文章モデル・固定タグ・note案内文・声・音声モデル・読み上げの速さは、すべてのPJで共通です（上の「⚙ 共通設定」）。</div>
+    ${modelRow}${hiddenRows}
+  </div>
   </div>`;
 }
 function vdInnerTab(P,t){
-  ['slides','audio','settings'].forEach(k=>{vdEl(P,'itab-'+k).classList.toggle('active',t===k);vdEl(P,'pane-'+k).style.display=t===k?'':'none';});
+  ['video','sns','data'].forEach(k=>{vdEl(P,'itab-'+k).classList.toggle('active',t===k);vdEl(P,'pane-'+k).style.display=t===k?'':'none';});
 }
 // 投稿文の末尾に必ず付ける固定タグ（設定タブで変更可・両タブ共通）
 const VD_FIXED_TAGS_DEFAULT='#ナレスラ #編集なしで動画作成';
@@ -15572,7 +15581,7 @@ const KG_ITEMS=[
   {g:'thumb',key:'ea-th3',label:'決算のブログ：アイキャッチの3段目',ids:[],def:'かんたん%決算解説%',tip:'決算分析の「ブログ用 ZIP」のアイキャッチの3段目。上段・中段は分析動画の横サムネと同じ。色指定: *オレンジ* #水色# %黄色%'},
   {g:'voice',key:'tts-voice',label:'台本の声',ids:['vd-tts-voice','ev-tts-voice']},
   {g:'voice',key:'tts-model',label:'台本の声のモデル',ids:['vd-tts-model','ev-tts-model']},
-  {g:'voice',key:'tts-speed',label:'台本の読み上げの速さ',ids:['vd-tts-speed','ev-tts-speed'],def:'normal',opts:[['normal','ふつう'],['fast','少し速め'],['faster','速め']],tip:'縦動画（株価分析・決算分析）の読み上げの頭に付ける指示（分析動画と同じ文）。変えたあとは「🔄 全部作り直す」で音声を作り直してください'},
+  {g:'voice',key:'tts-speed',label:'台本の読み上げの速さ',ids:['vd-tts-speed','ev-tts-speed'],def:'faster',opts:[['normal','ふつう'],['fast','少し速め'],['faster','速め']],tip:'縦動画（株価分析・決算分析）の読み上げの頭に付ける指示（分析動画と同じ文）。変えたあとは「🔄 全部作り直す」で音声を作り直してください'},
   {g:'voice',key:'oped-vol',label:'OP・EDの音量（%）',ids:[],def:'85',tip:'横動画の書き出しで、OP・EDの音声にかける大きさ。100＝作ったままの大きさ。100より大きくもできます（大きすぎると音が割れます）'},
   {g:'model',key:'model',label:'縦動画の文章モデル',ids:['vd-model','ev-model']},
   ...YT_AI_TASKS.map(([k,n])=>({g:'ytmodel',key:'yt-m-'+k,label:n,ids:['yt-m-'+k]})),
@@ -15633,6 +15642,8 @@ function kgApply(){
     const nv=olds.includes(v)?YT_SNS_FIXED_GEN[k]:v.split('\n').filter(l=>!stale.has(l.trim())).join('\n').trim();
     if(nv!==v){st[key]=nv||YT_SNS_FIXED_GEN[k];seeded=true;if(ctx==='gen'){const el=document.getElementById('yt-f-'+k);if(el)el.value=st[key];}}
   });
+  // 縦動画の読み上げの速さ：初期値を「ふつう」で入れた直後（同日）に「速め」へ変えた。「ふつう」のままの端末は1回だけ「速め」にする（2026-10-19）
+  if(!st._vdSpeedFaster){if(st['tts-speed']==='normal'){st['tts-speed']='faster';['vd-tts-speed','ev-tts-speed'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='faster';});}st._vdSpeedFaster=1;seeded=true;}
   // 横動画の Gemini のモデル：前の既定（3.8 Flash＝一覧の一番上）のままのものは「自動」にする（1回だけ。2026-09-25 に自動を追加）
   if(!st._ytAuto){YT_AI_TASKS.forEach(([k])=>{const key='yt-m-'+k;if(st[key]==='gemini-3.8-flash'){st[key]='';const el=document.getElementById(key);if(el)el.value='';}});st._ytAuto=1;seeded=true;}
   if(seeded)kgSave(st);
