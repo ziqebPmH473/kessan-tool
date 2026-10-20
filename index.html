@@ -4037,6 +4037,16 @@ point_2=`;
                     if (force || !cur || cur === '---' || cur === '-') lines[i] = `${kv[1]}${kv[2]}=${fields[sec][kv[2]]}`;
                 }
             }
+            // 欄に無い項目は足す（ChatGPT の答えで [CHART_DATA]・[MARKET_REACTION] ごと抜けると、自動取得を押しても埋まらなかった）
+            const has = {}; sec = null;
+            for (const ln of lines) { const t = ln.trim(); const sm = t.match(/^\[(.+)\]$/); if (sm) { sec = sm[1]; has[sec] = has[sec] || {}; continue; } const kv = ln.match(/^\s*([A-Za-z0-9_]+)=/); if (kv && sec) has[sec][kv[1]] = true; }
+            for (const [sc, kvs] of Object.entries(fields)) {
+                const add = Object.entries(kvs || {}).filter(([k, v]) => v != null && v !== '' && !(has[sc] && has[sc][k])).map(([k, v]) => `${k}=${v}`);
+                if (!add.length) continue;
+                const at = lines.findIndex(l => l.trim() === `[${sc}]`);
+                if (at >= 0) lines.splice(at + 1, 0, ...add);
+                else lines.push('', `[${sc}]`, ...add);
+            }
             return lines.join('\n');
         }
 
@@ -4140,8 +4150,18 @@ reason_4=`;
 
         // ボタン：決算分析 2.補完（再取得しない。取得済み _earnFetched を使う）
         function complementEarnData(force) {
+            const F = earnFetchedFields();
+            if (!F) { alert('先に「📥 自動取得」で株探データを取得してください（このボタンは再取得しません）'); return; }
+            const ta = document.getElementById('input-data');
+            if (!ta.value.trim()) { alert('先にNotebookLMの出力を「2.」に貼り付けてください（空欄を補完します）'); return; }
+            ta.value = patchDataText(ta.value, F, force === true);
+            renderImage();
+            saveState();
+        }
+        // 自動取得（株探）の値を「2.」の欄の形（セクション → 項目）にまとめる。分析動画の株価（evVizExtras）も、欄に無い分はここから補う
+        function earnFetchedFields() {
             const ef = window._earnFetched;
-            if (!ef) { alert('先に「📥 自動取得」で株探データを取得してください（このボタンは再取得しません）'); return; }
+            if (!ef) return null;
             const d = ef.d || {};
             const code = document.getElementById('p-code').value.trim();
             const F = { HEADER: {}, BASIC_INFO: {}, CHART_DATA: {}, MARKET_REACTION: {} };
@@ -4161,11 +4181,7 @@ reason_4=`;
                 ? `決算後（${formatDateShort(ef.postDate)} ${ef.ptsLabel || 'PTS'} ${ef.ptsTime || ''}）`
                 : `決算後（${formatDateShort(ef.postDate)} 終値）`;
             if (ef.price_change) F.MARKET_REACTION.price_change = ef.price_change;
-            const ta = document.getElementById('input-data');
-            if (!ta.value.trim()) { alert('先にNotebookLMの出力を「2.」に貼り付けてください（空欄を補完します）'); return; }
-            ta.value = patchDataText(ta.value, F, force === true);
-            renderImage();
-            saveState();
+            return F;
         }
 
         // ===== NotebookLMに「ソース」として読み込ませる取得データを出力（プロンプトとは別） =====
@@ -15929,9 +15945,12 @@ function evVizExtras(){
     const prices=[];
     for(const row of raw.split(';')){const c=row.split(',').map(x=>x.trim());if(c.length<5||!/^\d{4}-\d{2}-\d{2}$/.test(c[0]))continue;const close=parseFloat(c[4]);if(!isFinite(close))continue;prices.push({date:c[0],open:parseFloat(c[1])||null,high:parseFloat(c[2])||null,low:parseFloat(c[3])||null,close,volume:parseFloat(c[5])||null});}
     if(prices.length>=2){
-      const mr=d.MARKET_REACTION||{};const h=d.HEADER||{};
+      // 「2.」の欄に無い値（ChatGPT の答えで抜けたとき）は、自動取得の値と決算発表日の欄で補う
+      const ff=(typeof earnFetchedFields==='function'&&earnFetchedFields())||{};const mr={...(ff.MARKET_REACTION||{})};
+      for(const [k,v] of Object.entries(d.MARKET_REACTION||{}))if(v&&v!=='-'&&v!=='---')mr[k]=v;
+      const h=d.HEADER||{};
       const market=getMarket()==='us'?'us':'jp';
-      let ann=null;const ad=String(h.announcement_date||'');const m1=ad.match(/(\d{4})[\/年.-](\d{1,2})[\/月.-](\d{1,2})/);if(m1)ann=m1[1]+'-'+m1[2].padStart(2,'0')+'-'+m1[3].padStart(2,'0');
+      let ann=null;const ad=String((h.announcement_date&&h.announcement_date!=='-'&&h.announcement_date!=='---')?h.announcement_date:((document.getElementById('p-date')||{}).value||''));const m1=ad.match(/(\d{4})[\/年.-](\d{1,2})[\/月.-](\d{1,2})/);if(m1)ann=m1[1]+'-'+m1[2].padStart(2,'0')+'-'+m1[3].padStart(2,'0');
       const pre=evVizPrice(mr.pre_price),post=evVizPrice(mr.post_price);
       out.market={prices,announcement_date:ann,pre_price:pre!=null?{label:mr.pre_price_label||'決算前',value:pre}:null,post_price:post!=null?{label:mr.post_price_label||'決算後',value:post}:null,price_change_pct:evVizPct(mr.price_change),price_unit:market==='us'?'ドル':'円'};
     }
