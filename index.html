@@ -6168,7 +6168,7 @@ async function saPasteArticle(){
 // 生成結果（parseArticleOutput の結果と全文）を各欄に入れる。取れなかった欄の名前を返す
 function saArtApply(p,raw){
   document.getElementById('art-title').value=fixBoldBrackets(deJargonP0(p.title));
-  document.getElementById('art-body').value=noteSentenceBreaks(fixBoldBrackets(deJargonP0(p.body)));
+  document.getElementById('art-body').value=saNoteTicker(noteSentenceBreaks(fixBoldBrackets(deJargonP0(p.body))));   // 最初の ## の次に ^コード／$ティッカー（横動画の note と同じ）
   document.getElementById('art-thumb').value=p.thumbnail;
   document.getElementById('art-tags').value=p.hashtags;
   document.getElementById('art-x').value=fixBoldBrackets(deJargonP0(p.xpost));
@@ -10462,9 +10462,10 @@ function ygNoteDisclaimer(body){
   blocks.splice(i+1,0,YG_NOTE_DISCLAIMER);
   return blocks.join('\n\n');
 }
-// note の株価のカード：最初の大見出し（##）の次に「^コード」（米国株は「$ティッカー」）を1段落で入れる。株価分析だけ（YT動画タブには銘柄が無い）
-function ygNoteTicker(body){
-  const code=ytGen()?'':((document.getElementById('sa-code-input')||{}).value||'').trim();
+// note の株価のカード：最初の大見出し（##）の次に「^コード」（米国株は「$ティッカー」）を1段落で入れる。株価分析タブの note と横動画の note で共通（YT動画タブには銘柄が無いので入れない）
+function ygNoteTicker(body){return ytGen()?body:saNoteTicker(body);}
+function saNoteTicker(body){
+  const code=((document.getElementById('sa-code-input')||{}).value||'').trim();
   if(!code)return body;
   const us=((document.querySelector('input[name=sa-market]:checked')||{}).value)==='us';
   const lines=String(body||'').split('\n').filter(l=>!/^[\^$][A-Za-z0-9.\-]+\s*$/.test(l.trim()));
