@@ -1354,6 +1354,12 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
                 <div class="input-row" style="margin-top:4px;">
                     <button class="btn-sm" onclick="earnManualApply()" style="flex:1; min-width:0;">✅ 欄の内容で展開</button>
                 </div>
+                <div style="font-size:11px; color:var(--text-sub); margin-top:6px;" title="貼った答えのファクトチェック。新しいチャットに同じZIPを添付して「✅ FC」のプロンプトを貼る → 指摘が出たら「🔧 修正」で直した全文を出させ、もう一度「📋 貼り付けて展開」。「🔍 FC CK」は修正後の検算用。">答えの FC：新しいチャットに同じ ZIP を添付して貼る。直した全文をもう一度「貼り付けて展開」。</div>
+                <div class="input-row" style="margin-top:4px;">
+                    <button class="btn-prompt" onclick="earnManualFcCopy(this)">✅ FC</button>
+                    <button class="btn-prompt" onclick="copyFactCheckVerify(this)">🔍 FC CK</button>
+                    <button class="btn-prompt" onclick="earnManualFixCopy(this)">🔧 修正</button>
+                </div>
             </details>
             <label style="font-size:11px; color:var(--text-sub); display:flex; align-items:center; gap:4px; margin-top:4px; cursor:pointer;"><input type="checkbox" id="ev-auto"> 整形後に動画タブの素材（台本・縦スライド・投稿文）も自動生成</label>
             <details style="margin-top:6px;">
@@ -2869,16 +2875,51 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
         // 中身は geminiFormatEarn と同じプロンプト。資料は API の resources／files の代わりに ZIP で渡す。
         // 「💬 プロンプトをコピー」でコピーと ZIP の保存を同時に行い、答えは「📋 貼り付けて展開」で 2. の欄と分析動画に分ける
         const EARN_MANUAL_SRC = '株探取得データ.txt', EARN_MANUAL_REPORT = '分析レポート.md';
-        function earnManualPrompt(KV) {
+        // ZIP の中身の説明（作るときも、答えのファクトチェックのときも同じ）
+        function earnManualZipHeader() {
             const names = (window._earnFiles || []).map(f => f.name).join('、');
             return `添付のZIPを展開し、中のファイルをすべて読んでから作業してください。PDFは表も含めて全ページ読んでください。
 ・${EARN_MANUAL_SRC}：株探 取得データ
 ・${EARN_MANUAL_REPORT}：分析レポート（ファクトチェック済み）
 ・${names}：決算資料
 
-` + buildEarnNBPrompt() + GROUNDING_RULE +
+`;
+        }
+        // 作るときの指示（API の「📤 出力データ作成」と同じプロンプト＋ChatGPT 用の変更＋分析動画の json）
+        function earnManualBody(KV) {
+            return buildEarnNBPrompt() + GROUNDING_RULE +
                 `\n\n## ChatGPT で作るときの変更\nルール9に代わり、[CHART_DATA] の data= は空欄のままにしてください（ツールが株探の値で埋めます）。` +
                 evVizJoinPrompt(KV);
+        }
+        function earnManualPrompt(KV) {
+            return earnManualZipHeader() + earnManualBody(KV);
+        }
+        // 貼った答え（出力データ＋分析動画の json）のファクトチェック。レポート欄の「✅ CK」（copyFactCheck）と同じ頼み方で、
+        // 根拠は ZIP の資料（新しいチャットに同じ ZIP を添付して貼る。作ったチャットの先入観を持ち込まない）
+        async function earnManualFcCopy(btn) {
+            const raw = (document.getElementById('earn-manual-paste').value || '').trim();
+            if (!raw) { alert('ChatGPT の答えを欄に貼り付けてから押してください'); return; }
+            let KV;
+            try { KV = window.KessanViz || await evVizLoad(); } catch (e) { alert(e.message); return; }
+            const prompt = earnManualZipHeader() +
+                `以下の出力データは、以下の指示でAIが生成したものです。
+出力データのファクトチェックを行い、誤っている箇所と指示に沿っていない箇所のみを指摘してください。
+数値・日付・名称は、添付の決算資料と株探 取得データの値と突き合わせて確かめてください。
+指摘は件数が多くても構わないので、すべて指摘してください。
+指摘がある場合には、指摘箇所、指摘内容、修正後内容を記載してください。
+不明点や確認点があればすべて調査し、出力データに記載できる形式で修正後内容を提示してください。
+レイアウトや出力形式に関する指摘は不要です。
+
+--指示--
+` + earnManualBody(KV) + `
+
+--出力データ--
+` + raw;
+            copyText(prompt, btn);
+        }
+        // 指摘を直して、もう一度「📋 貼り付けて展開」できる形（出力データ＋json）で全文を出させる
+        function earnManualFixCopy(btn) {
+            copyText('指摘箇所を指示の内容に沿って修正し、出力データと分析動画の json を最初と同じ形式で全文出力してください。\nただし、指摘していない箇所は一切変更しないでください。', btn);
         }
         async function earnManualCopy(btn) {
             const src = getEarnSourceText();
