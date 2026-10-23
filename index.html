@@ -1354,7 +1354,7 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
                 <div class="input-row" style="margin-top:4px;">
                     <button class="btn-sm" onclick="earnManualApply()" style="flex:1; min-width:0;">✅ 欄の内容で展開</button>
                 </div>
-                <div style="font-size:11px; color:var(--text-sub); margin-top:6px;" title="貼った答えのファクトチェック。新しいチャットに同じZIPを添付して「✅ FC」のプロンプトを貼る → 指摘が出たら「🔧 修正」で直した全文を出させ、もう一度「📋 貼り付けて展開」。「🔍 FC CK」は修正後の検算用。">答えの FC：新しいチャットに同じ ZIP を添付して貼る。直した全文をもう一度「貼り付けて展開」。</div>
+                <div style="font-size:11px; color:var(--text-sub); margin-top:6px;" title="貼った答えのファクトチェック。「✅ FC」でプロンプトのコピーと FC 用の添付ZIP（_FC添付.zip）の保存が同時に行われます。新しいチャットにZIPを添付してプロンプトを貼る → 指摘が出たら「🔧 修正」で直した全文を出させ、もう一度「📋 貼り付けて展開」。「🔍 FC CK」は修正後の検算用。">答えの FC：「✅ FC」でプロンプトのコピーと FC 用 ZIP の保存。新しいチャットに ZIP を添付して貼る。直した全文をもう一度「貼り付けて展開」。</div>
                 <div class="input-row" style="margin-top:4px;">
                     <button class="btn-prompt" onclick="earnManualFcCopy(this)">✅ FC</button>
                     <button class="btn-prompt" onclick="copyFactCheckVerify(this)">🔍 FC CK</button>
@@ -2894,11 +2894,46 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
         function earnManualPrompt(KV) {
             return earnManualZipHeader() + earnManualBody(KV);
         }
-        // 貼った答え（出力データ＋分析動画の json）のファクトチェック。レポート欄の「✅ CK」（copyFactCheck）と同じ頼み方で、
-        // 根拠は ZIP の資料（新しいチャットに同じ ZIP を添付して貼る。作ったチャットの先入観を持ち込まない）
+        // ZIP に入れる材料（株探の取得データ・FC 済みレポート・決算資料）。足りなければ何が無いかを知らせて null
+        function earnManualMaterials() {
+            const src = getEarnSourceText();
+            const report = (document.getElementById('fc-report').value || '').trim();
+            const fileList = window._earnFiles || [];
+            const miss = [];
+            if (src == null) miss.push('株探の取得データ（📥 自動取得）');
+            if (!report) miss.push('分析レポート（FCレポート貼付欄）');
+            if (!fileList.length) miss.push('決算資料PDF（添付欄）');
+            if (miss.length) { alert('次が必要です：\n・' + miss.join('\n・')); return null; }
+            return { src, report, fileList };
+        }
+        // 添付 ZIP を保存（「💬 プロンプトをコピー」と「✅ FC」で同じ中身。suffix でファイル名を分ける）
+        async function earnManualZipSave(m, suffix, okMsg) {
+            try {
+                const zip = new JSZip();
+                zip.file(EARN_MANUAL_SRC, m.src);
+                zip.file(EARN_MANUAL_REPORT, m.report);
+                const used = new Set([EARN_MANUAL_SRC, EARN_MANUAL_REPORT]);
+                m.fileList.forEach((f, i) => {
+                    let n = f.name || `決算資料${i + 1}.pdf`;
+                    if (used.has(n)) n = `${i + 1}_${n}`;
+                    used.add(n);
+                    zip.file(n, f.data, { base64: true });
+                });
+                const blob = await zip.generateAsync({ type: 'blob' });
+                const code = (document.getElementById('p-code').value || '').trim(), name = (document.getElementById('p-name').value || '').trim();
+                const base = [code, name].filter(Boolean).join('_').replace(/[\/:*?"<>|]/g, '') || '決算';
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob); a.download = `${base}_${suffix}.zip`;
+                document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+                setGemStatus('gem-earn-status', okMsg, 'ok');
+            } catch (e) { setGemStatus('gem-earn-status', 'ZIPを作れませんでした: ' + ((e && e.message) || e), 'error'); }
+        }
+        // 貼った答え（出力データ＋分析動画の json。分割前の全文）のファクトチェック。レポート欄の「✅ CK」（copyFactCheck）と同じ頼み方で、
+        // 根拠は ZIP の資料。プロンプトのコピーと FC 用 ZIP の保存を同時に行う（新しいチャットに ZIP を添付して貼る。作ったチャットの先入観を持ち込まない）
         async function earnManualFcCopy(btn) {
             const raw = (document.getElementById('earn-manual-paste').value || '').trim();
             if (!raw) { alert('ChatGPT の答えを欄に貼り付けてから押してください'); return; }
+            const m = earnManualMaterials(); if (!m) return;
             let KV;
             try { KV = window.KessanViz || await evVizLoad(); } catch (e) { alert(e.message); return; }
             const prompt = earnManualZipHeader() +
@@ -2916,42 +2951,18 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
 --出力データ--
 ` + raw;
             copyText(prompt, btn);
+            await earnManualZipSave(m, 'FC添付', '✅ FC のプロンプトをコピーし、FC 用の添付ZIPを保存しました。新しいチャットにZIPを添付してプロンプトを貼ってください');
         }
         // 指摘を直して、もう一度「📋 貼り付けて展開」できる形（出力データ＋json）で全文を出させる
         function earnManualFixCopy(btn) {
             copyText('指摘箇所を指示の内容に沿って修正し、出力データと分析動画の json を最初と同じ形式で全文出力してください。\nただし、指摘していない箇所は一切変更しないでください。', btn);
         }
         async function earnManualCopy(btn) {
-            const src = getEarnSourceText();
-            const report = (document.getElementById('fc-report').value || '').trim();
-            const fileList = window._earnFiles || [];
-            const miss = [];
-            if (src == null) miss.push('株探の取得データ（📥 自動取得）');
-            if (!report) miss.push('分析レポート（FCレポート貼付欄）');
-            if (!fileList.length) miss.push('決算資料PDF（添付欄）');
-            if (miss.length) { alert('次が必要です：\n・' + miss.join('\n・')); return; }
+            const m = earnManualMaterials(); if (!m) return;
             let KV;
             try { KV = window.KessanViz || await evVizLoad(); } catch (e) { alert(e.message); return; }
             copyText(earnManualPrompt(KV), btn);
-            try {
-                const zip = new JSZip();
-                zip.file(EARN_MANUAL_SRC, src);
-                zip.file(EARN_MANUAL_REPORT, report);
-                const used = new Set([EARN_MANUAL_SRC, EARN_MANUAL_REPORT]);
-                fileList.forEach((f, i) => {
-                    let n = f.name || `決算資料${i + 1}.pdf`;
-                    if (used.has(n)) n = `${i + 1}_${n}`;
-                    used.add(n);
-                    zip.file(n, f.data, { base64: true });
-                });
-                const blob = await zip.generateAsync({ type: 'blob' });
-                const code = (document.getElementById('p-code').value || '').trim(), name = (document.getElementById('p-name').value || '').trim();
-                const base = [code, name].filter(Boolean).join('_').replace(/[\\/:*?"<>|]/g, '') || '決算';
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob); a.download = `${base}_ChatGPT添付.zip`;
-                document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 3000);
-                setGemStatus('gem-earn-status', '✅ プロンプトをコピーし、添付ZIPを保存しました。ChatGPTにZIPを添付してプロンプトを貼ってください', 'ok');
-            } catch (e) { setGemStatus('gem-earn-status', 'ZIPを作れませんでした: ' + ((e && e.message) || e), 'error'); }
+            await earnManualZipSave(m, 'ChatGPT添付', '✅ プロンプトをコピーし、添付ZIPを保存しました。ChatGPTにZIPを添付してプロンプトを貼ってください');
         }
         async function earnManualPaste() {
             let t;
