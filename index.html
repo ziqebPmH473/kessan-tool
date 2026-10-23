@@ -2461,6 +2461,18 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
             return !holidays.includes(dateString);
         }
 
+        // 決算日（p-date）の初期値：営業日ベース。15:30 以降なら今日、それまでは前営業日（土日祝はさらに前）
+        function earnDefaultDate() {
+            const now = new Date();
+            const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const afterClose = now.getHours() > 15 || (now.getHours() === 15 && now.getMinutes() >= 30);
+            if (!(afterClose && isBusinessDay(d))) {
+                d.setDate(d.getDate() - 1);
+                while (!isBusinessDay(d)) d.setDate(d.getDate() - 1);
+            }
+            return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        }
+
         function getMarket() {
             const radios = document.getElementsByName('p-market');
             for(let r of radios) {
@@ -4521,9 +4533,9 @@ reason_4=`;
             renderEarnFiles();
             persistEarnFiles();
             const fi = document.getElementById('gem-earn-files'); if (fi) fi.value = '';
-            // 決算日を今日に戻し、決算前後の日付を再設定（setupDateSync の連動を利用）
+            // 決算日を初期値（15:30 以降は今日、それまでは前営業日）に戻し、決算前後の日付を再設定（setupDateSync の連動を利用）
             const p = document.getElementById('p-date');
-            if (p) { const t = new Date(); p.value = t.toISOString().split('T')[0]; p.dispatchEvent(new Event('change')); }
+            if (p) { p.value = earnDefaultDate(); p.dispatchEvent(new Event('change')); }
             saveState();
             renderImage();                 // プレビューを空表示に更新
         }
@@ -5092,8 +5104,7 @@ risk_3=`;
             setupDateSync();
 
             const dateInput = document.getElementById('p-date');
-            const today = new Date();
-            dateInput.value = today.toISOString().split('T')[0];
+            dateInput.value = earnDefaultDate();   // 15:30 以降は今日、それまでは前営業日
             dateInput.dispatchEvent(new Event('change'));
 
             initSaDates();
@@ -14710,7 +14721,7 @@ function ktKindAfterOpen(kind,json){
   if(kind==='digest'){try{dgAfterOpen(json);}catch(e){console.warn('[digest]',e);}return;}
   if(kind==='earnings'){
     window._earnFetched=j.earnFetched||null;
-    if(!json){const p=document.getElementById('p-date');if(p){p.value=new Date().toISOString().split('T')[0];p.dispatchEvent(new Event('change'));}const ah=document.getElementById('p-post-after-hours');if(ah)ah.checked=true;}
+    if(!json){const p=document.getElementById('p-date');if(p){p.value=earnDefaultDate();p.dispatchEvent(new Event('change'));}const ah=document.getElementById('p-post-after-hours');if(ah)ah.checked=true;}
     try{const c=document.getElementById('ev-count-auto');if(c&&typeof evAutoCount==='function')c.textContent=evAutoCount()+'枚';}catch(e){}
     try{vdBuildScriptBoxes('ev',true);vdRestoreFields('ev',ktVdState('ev',json));vdUpdateScriptStats('ev');}catch(e){}
     try{renderImage();}catch(e){}
