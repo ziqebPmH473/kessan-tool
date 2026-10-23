@@ -5115,6 +5115,8 @@ risk_3=`;
             const ktPreReset = KTStore.mode === 'server' && typeof ktResetKindFields === 'function';
             if (ktPreReset) ['earnings', 'stock', 'price', 'yt', 'digest'].forEach(k => { try { ktResetKindFields(k); } catch (e) {} });
             const restored = restoreState();
+            // 復元で決算日が空のまま（保存した PJ に決算日が無い／全種別を空に戻した後）なら、初期値を入れる
+            { const p = document.getElementById('p-date'); if (p && !p.value) { p.value = earnDefaultDate(); p.dispatchEvent(new Event('change')); } }
             if (ktPreReset) try { saveStateNow(); } catch (e) {}   // localStorage も戻した画面に合わせる（行は、触るまで作らない）
             // リンク確認の結果（YL）は、画面を組み立てたときに古い欄から読んでいるので、戻した欄から読み直す
             if (ktPreReset) try { if (typeof ytLinkLoad === 'function') ytLinkLoad(); if (typeof ytRenderLinks === 'function') ytRenderLinks(); } catch (e) {}
@@ -14721,7 +14723,8 @@ function ktKindAfterOpen(kind,json){
   if(kind==='digest'){try{dgAfterOpen(json);}catch(e){console.warn('[digest]',e);}return;}
   if(kind==='earnings'){
     window._earnFetched=j.earnFetched||null;
-    if(!json){const p=document.getElementById('p-date');if(p){p.value=earnDefaultDate();p.dispatchEvent(new Event('change'));}const ah=document.getElementById('p-post-after-hours');if(ah)ah.checked=true;}
+    {const p=document.getElementById('p-date');if(p&&(!json||!p.value)){p.value=earnDefaultDate();p.dispatchEvent(new Event('change'));}}   // 新規、または開いた PJ に決算日が無いときは初期値
+    if(!json){const ah=document.getElementById('p-post-after-hours');if(ah)ah.checked=true;}
     try{const c=document.getElementById('ev-count-auto');if(c&&typeof evAutoCount==='function')c.textContent=evAutoCount()+'枚';}catch(e){}
     try{vdBuildScriptBoxes('ev',true);vdRestoreFields('ev',ktVdState('ev',json));vdUpdateScriptStats('ev');}catch(e){}
     try{renderImage();}catch(e){}
