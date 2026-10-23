@@ -2958,6 +2958,7 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
             try { t = await navigator.clipboard.readText(); }
             catch (e) { alert('クリップボードを読めませんでした。欄に手で貼り付けて「✅ 欄の内容で展開」を押してください。'); return; }
             document.getElementById('earn-manual-paste').value = t;
+            saveState();   // 展開が止まっても（[HEADER] が無いなど）、貼った全文は欄に残す（✅ FC で使う）
             earnManualApply();
         }
         async function earnManualApply() {
