@@ -10531,9 +10531,10 @@ function ygNoteDisclaimer(body){
 // note の株価のカード：最初の大見出し（##）の次に「^コード」（米国株は「$ティッカー」）を1段落で入れる。株価分析タブの note と横動画の note で共通（YT動画タブには銘柄が無いので入れない）
 function ygNoteTicker(body){return ytGen()?body:saNoteTicker(body);}
 function saNoteTicker(body){
-  const code=((document.getElementById('sa-code-input')||{}).value||'').trim();
+  // 銘柄コードは株価分析タブの「inp-ticker」（JP/US は「mkt」）。sa-code-input は個別銘柄分析の欄なので、ここでは空のことが多い（空なら予備として見る）
+  let code=getTicker(),us=getMkt()==='us';
+  if(!code){code=((document.getElementById('sa-code-input')||{}).value||'').trim();us=((document.querySelector('input[name=sa-market]:checked')||{}).value)==='us';}
   if(!code)return body;
-  const us=((document.querySelector('input[name=sa-market]:checked')||{}).value)==='us';
   const lines=String(body||'').split('\n').filter(l=>!/^[\^$][A-Za-z0-9.\-]+\s*$/.test(l.trim()));
   const i=lines.findIndex(l=>/^##\s/.test(l));
   if(i<0)return body;
