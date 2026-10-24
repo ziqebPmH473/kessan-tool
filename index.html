@@ -10534,6 +10534,11 @@ function saNoteTicker(body){
   // 銘柄コードは株価分析タブの「inp-ticker」（JP/US は「mkt」）。sa-code-input は個別銘柄分析の欄なので、ここでは空のことが多い（空なら予備として見る）
   let code=getTicker(),us=getMkt()==='us';
   if(!code){code=((document.getElementById('sa-code-input')||{}).value||'').trim();us=((document.querySelector('input[name=sa-market]:checked')||{}).value)==='us';}
+  return noteTickerLine(body,code,us);
+}
+// 本文の最初の ## の次に「^コード」（米国株は「$ティッカー」）の行を前後空行つきで入れる（すでにあれば入れ直す）。株価分析・決算分析の note で共通
+function noteTickerLine(body,code,us){
+  code=String(code||'').trim();
   if(!code)return body;
   const lines=String(body||'').split('\n').filter(l=>!/^[\^$][A-Za-z0-9.\-]+\s*$/.test(l.trim()));
   const i=lines.findIndex(l=>/^##\s/.test(l));
@@ -16727,7 +16732,7 @@ function eaArtApply(k,text){
   eaEl('ea-'+k+'-title').value=fixBoldBrackets(p.title||'');
   let body=noteSentenceBreaks(fixBoldBrackets(p.body||''));
   if(!/^##\s/m.test(body)&&/^###\s/m.test(body))body=body.replace(/^###(\s)/gm,'##$1');   // 見出しが全部 ### のときは ## に上げる（ブログの目次に大見出しが出るように）
-  if(k==='n')body=ygNoteDisclaimer(body);   // note は注意書きを最初の段落のあとに（YT動画の note と同じ）。ブログはページの作り（sumikko-money）で出る
+  if(k==='n')body=noteTickerLine(ygNoteDisclaimer(body),eaVal('p-code'),((document.querySelector('input[name=p-market]:checked')||{}).value)==='us');   // note は注意書きを最初の段落のあとに（YT動画の note と同じ）、最初の ## の次に ^コード／$ティッカー（株価分析の note と同じ）。ブログはページの作り（sumikko-money）で出る
   else{body=eaVideoApply(body,false);eaEl('ea-b-points').value=eaParsePoints(text);}   // 動画の行はいつも入れる（ZIP に動画は必ず入る）
   eaEl('ea-'+k+'-body').value=body;
   eaEl('ea-'+k+'-tags').value=p.hashtags||'';
