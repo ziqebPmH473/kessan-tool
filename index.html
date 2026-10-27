@@ -2547,12 +2547,13 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
             const name = document.getElementById('p-name').value;
             const code = document.getElementById('p-code').value;
             const market = getMarket();
-            let query = name ? name : code;
+            // 米国株はティッカー優先で「SEC」を足す。日本株は銘柄名で「IR情報」
+            let query = market === 'jp' ? (name ? name : code) : (code ? code.trim().toUpperCase() : name);
             if(!query) {
                 alert('銘柄名または証券コードを入力してください');
                 return;
             }
-            const suffix = market === 'jp' ? 'IR情報' : 'Investor Relations';
+            const suffix = market === 'jp' ? 'IR情報' : 'SEC';
             window.open(`https://www.google.com/search?q=${encodeURIComponent(query + ' ' + suffix)}`, '_blank');
         }
 
