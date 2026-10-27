@@ -2,6 +2,8 @@
 
 PJ の中身が空で上書きされたときに、履歴の版を現在の行に戻す。Claude は本番 D1 に書けないので、すみぽんが PowerShell で実行する（このPCは `wrangler login` 済み）。
 
+`Authentication error [code: 10000]` が出たら、ログインの権限が切れている（`npx.cmd wrangler whoami` の Token Permissions に `d1` が無い）。すみぽんが PowerShell で `npx.cmd wrangler login` を実行し、開いたブラウザで「Allow」を押すと直る（2026-10-28）。
+
 ## 1. 戻したい版を確かめる（読むだけ。Claude がやる）
 
 ```powershell
