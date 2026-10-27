@@ -4608,9 +4608,11 @@ reason_4=`;
         function openSaIR() {
             const name = document.getElementById('sa-name-input').value;
             const code = document.getElementById('sa-code-input').value;
-            const query = name || code;
+            const isJp = getSaMarket() === 'jp';
+            // 米国株はティッカー優先で「SEC」を足す。日本株は銘柄名で「IR情報」
+            const query = isJp ? (name || code) : ((code || '').trim().toUpperCase() || name);
             if (!query) { alert('銘柄名または証券コードを入力してください'); return; }
-            const suffix = getSaMarket() === 'jp' ? 'IR情報' : 'Investor Relations';
+            const suffix = isJp ? 'IR情報' : 'SEC';
             window.open(`https://www.google.com/search?q=${encodeURIComponent(query + ' ' + suffix)}`, '_blank');
         }
 
@@ -6499,9 +6501,9 @@ function copyKabutanUrl(btn){
   copyText(urls.join('\n'),btn);
 }
 function copyIRUrl(btn){
-  const n=getName()||getTicker();
+  const jp=getMkt()==='jp',n=jp?(getName()||getTicker()):(getTicker().toUpperCase()||getName());
   if(!n){alert('銘柄名またはコードを入力してください');return;}
-  const url=`https://www.google.com/search?q=${encodeURIComponent(n+' IR情報 決算短信')}`;
+  const url=`https://www.google.com/search?q=${encodeURIComponent(n+(jp?' IR情報 決算短信':' SEC'))}`;
   copyText(url,btn);
 }
 
@@ -6521,7 +6523,7 @@ function copyReport(btn){
 function clearReport(){document.getElementById('ta-report').value='';if(typeof ytUpdateFreeInfo==='function')ytUpdateFreeInfo();}
 function clearData(){document.getElementById('ta-data').value='';document.getElementById('prev-area').innerHTML='';}
 function saOpenKabutan(){const c=getTicker(),m=getMkt();if(!c){alert('コードを入力してください');return;}window.open(m==='jp'?`https://kabutan.jp/stock/chart?code=${c}`:`https://us.kabutan.jp/stocks/${c}/chart`,'_blank');}
-function saOpenIR(){const n=getName()||getTicker();if(!n){alert('銘柄名またはコードを入力してください');return;}window.open(`https://www.google.com/search?q=${encodeURIComponent(n+' IR情報')}`,'_blank');}
+function saOpenIR(){const jp=getMkt()==='jp',n=jp?(getName()||getTicker()):(getTicker().toUpperCase()||getName());if(!n){alert('銘柄名またはコードを入力してください');return;}window.open(`https://www.google.com/search?q=${encodeURIComponent(n+(jp?' IR情報':' SEC'))}`,'_blank');}
 
 // ============================================================
 // PARSER
