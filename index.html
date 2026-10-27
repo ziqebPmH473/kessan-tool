@@ -7524,8 +7524,7 @@ function vdBuildTabHtml(P){
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:4px;"><label style="font-size:11px;color:var(--text-sub);" title="問いかけ → 要約2文 → まとめスライドの問い → note案内文 → noteのURL → 定型文（共通設定「縦動画の概要欄の定型文」）→ ハッシュタグ">YouTubeショート：概要欄</label><span style="display:flex;gap:4px;"><button class="btn-sm" onclick="vdYtApply('${P}')" title="AIの文はそのままに、noteのURL・note案内文・定型文・固定タグをいまの設定で組み直します">🔄 組み直す</button><button class="btn-sm" onclick="copyText(document.getElementById('${P}-yt-desc').value,this)">📋 コピー</button></span></div>
     <textarea id="${P}-yt-desc" placeholder="生成後にショートの概要欄が入ります" style="min-height:120px;"></textarea>
     ${shortRow}
-    <textarea id="${P}-yt-ai" style="display:none;"></textarea>`:`<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;gap:4px;"><label style="font-size:11px;color:var(--text-sub);" title="X投稿文の本文 → noteの案内（共通設定「noteのURL」）→ 固定文（共通設定・決算まとめ「目次の下の固定文」と同じ）→ ハッシュタグ">YouTubeショート：概要欄</label><span style="display:flex;gap:4px;"><button class="btn-sm" onclick="evYtApply()" title="いまのX投稿文・noteのURL・固定文で組み直します（手で直した文は消えます）">🔄 組み直す</button><button class="btn-sm" onclick="copyText(document.getElementById('${P}-yt-desc').value,this)">📋 コピー</button></span></div>
-    <textarea id="${P}-yt-desc" placeholder="生成後にショートの概要欄が入ります（X投稿文の本文 → noteの案内 → 固定文 → ハッシュタグ）" style="min-height:120px;"></textarea>`}
+    <textarea id="${P}-yt-ai" style="display:none;"></textarea>`:''}
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">X投稿文</label><button class="btn-sm" onclick="copyText(document.getElementById('${P}-x').value,this)">📋 コピー</button></div>
     <textarea id="${P}-x" placeholder="生成後にX投稿文が入ります" style="min-height:50px;"></textarea>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">Instagram投稿文（リール）</label><button class="btn-sm" onclick="copyText(document.getElementById('${P}-insta').value,this)">📋 コピー</button></div>
@@ -7581,7 +7580,6 @@ function vdTtsSetCommon(P,key,val){
 function vdPersistIds(P){
   const ids=['note-url','short-url','thumb-on','xnote','model','months','logo-op','th-input','slides','x','insta','tiktok','raw','tts-voice','tts-model','tts-speed','tts-eq','tts-gap','tts-format','timing','fixed-tags'];
   if(P==='vd')ids.push('yt-title','yt-desc','yt-ai');   // YouTubeショートのタイトル・概要欄（AIの3行は yt-ai に控え、「🔄 組み直す」で組み直す）
-  if(P==='ev')ids.push('yt-desc');   // 決算分析の YouTubeショートの概要欄（X投稿文から組み立て）
   for(let i=1;i<=5;i++)ids.push('s'+i);
   const out=ids.map(k=>`${P}-${k}`);
   if(P==='ev')out.push('ev-auto');
@@ -7944,25 +7942,6 @@ function vdYtApply(P,raw){
   if(raw==null&&typeof saveState==='function')saveState();
   return true;
 }
-// 決算分析の YouTubeショート：概要欄（2026-10-27）。X投稿文の本文（タグの行を除く）→ noteの案内 → 固定文 → ハッシュタグ
-//   noteの案内と固定文は決算まとめの概要欄と同じ（共通設定「noteのURL」「目次の下の固定文」）。決算の note は無料なので記事のURLは入れない
-function evYtCompose(xText){
-  const lines=String(xText||'').replace(/\r\n/g,'\n').split('\n');
-  const isTag=l=>{const w=l.trim().split(/[\s、,]+/).filter(Boolean);return w.length>0&&w.every(t=>t.charAt(0)==='#');};
-  const tags=[];while(lines.length&&(isTag(lines[lines.length-1])||!lines[lines.length-1].trim())){const l=lines.pop();if(l.trim())tags.unshift(l.trim());}
-  const body=lines.join('\n').trim();
-  if(!body&&!tags.length)return '';
-  if(typeof dgFixedMigrate==='function')dgFixedMigrate();
-  const fixed=String(kgGet('dg-fixed')||DG_FIXED_DEF).trim();
-  const note='■ noteで個別銘柄の分析記事を公開中\n'+dgNoteUrl();
-  return [body,note,fixed,tags.join(' ')].filter(Boolean).join('\n\n');
-}
-function evYtApply(){
-  const el=vdEl('ev','yt-desc');if(!el)return false;
-  const t=evYtCompose(vdVal('ev','x'));
-  if(!t){alert('X投稿文がありません。「🎬 生成」で作ってください');return false;}
-  el.value=t;if(typeof saveState==='function')saveState();return true;
-}
 // 本文中のハッシュタグを max 個までに減らす（後ろのものから削除）
 function vdTrimTags(text,max){
   let out=String(text||'');
@@ -8039,7 +8018,6 @@ async function geminiVideo(P,btnEl){
   vdEl(P,'insta').value=vdAddFixedTags(P,deJargonP0(p.insta||''),VD_INSTA_MAX_TAGS);   // Instagramはタグ5個まで
   vdEl(P,'tiktok').value=vdTiktokCompose(P,p.tiktok);
   if(P==='vd')vdYtApply(P,p.yt||'');
-  if(P==='ev'){const d=vdEl('ev','yt-desc');if(d)d.value=evYtCompose(vdEl('ev','x').value);}
   vdEl(P,'raw').value=r.text;
   await vdClearAllTts(P);   // 台本が変わったので前の音声は破棄
   const tm=vdEl(P,'timing');if(tm)tm.value='';   // 前の音声のタイミング（枚数違いのことも）が残って紛らわしいので消す
