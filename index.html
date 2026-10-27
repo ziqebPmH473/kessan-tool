@@ -16360,6 +16360,12 @@ function kgVizToPj(){
   el.value=cur?JSON.stringify(evVizWithSecDefaults(cur)):'';   // まだ設定が無ければ、描くときに初期値で作られる
   if(typeof saveState==='function')saveState();evVizMount(true);alert('入れました');
 }
+// 分析動画の YouTube 概要欄で、本文とハッシュタグの間に入れる文：note の案内 → 固定文（決算まとめの概要欄と同じ。共通設定「noteのURL」「目次の下の固定文」）
+function evVizYtExtra(){
+  try{dgFixedMigrate();}catch(e){}
+  const fixed=String(kgGet('dg-fixed')||DG_FIXED_DEF).trim();
+  return ['■ noteで個別銘柄の分析記事を公開中\n'+dgNoteUrl(),fixed].filter(Boolean).join('\n\n');
+}
 async function evVizMount(force){
   const host=document.getElementById('earn-viz-mount'),empty=document.getElementById('earn-viz-empty');if(!host)return;
   const d=evVizData();
@@ -16371,7 +16377,7 @@ async function evVizMount(force){
   // 抽出データ（analysis）が残っていれば、最新の変換ロジックで visualization を作り直す（表示の改善を古い PJ にも効かせる）
   let vizNow=d.visualization;
   if(d.analysis){try{vizNow=KV.build(d.analysis,evVizExtras());}catch(e){console.warn('viz rebuild',e);}}
-  const props={visualization:vizNow,settings:evVizSettings()||evVizDefaultSettings(KV),controlsEl:document.getElementById('ev-viz-controls'),importCoverImage:evVizCoverImage,tts:evVizTts,audioStore:evVizAudioStore,importBgm:evVizImportBgm,transcribe:evVizTranscribe,onChange:(st)=>{const el=document.getElementById('ev-viz-settings');if(el){el.value=JSON.stringify(st);if(typeof saveState==='function')saveState();}const k=st&&st.orientation==='portrait'?'v':'h';if(k!==_evThKind)evThSwitch(k);}};
+  const props={visualization:vizNow,settings:evVizSettings()||evVizDefaultSettings(KV),controlsEl:document.getElementById('ev-viz-controls'),importCoverImage:evVizCoverImage,tts:evVizTts,audioStore:evVizAudioStore,importBgm:evVizImportBgm,transcribe:evVizTranscribe,ytDescExtra:evVizYtExtra(),onChange:(st)=>{const el=document.getElementById('ev-viz-settings');if(el){el.value=JSON.stringify(st);if(typeof saveState==='function')saveState();}const k=st&&st.orientation==='portrait'?'v':'h';if(k!==_evThKind)evThSwitch(k);}};
   if(_evVizHandle){_evVizHandle.update(props);}else{_evVizHandle=KV.mount(host,props);}
   _evVizLastJson=json;
   evVizCutRenderSoon();
