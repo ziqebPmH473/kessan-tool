@@ -1248,7 +1248,8 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
         <div id="mode-earnings">
         <div class="sa" style="margin-bottom:6px;"><div class="sa-subtabs">
           <button class="sa-subtab active" data-etab="main" onclick="switchEarnTab('main')">📊 決算分析</button>
-          <button class="sa-subtab" data-etab="video" onclick="switchEarnTab('video')">🎬 動画</button>
+          <!-- 縦の決算分析動画（スライド①〜④＋台本）は使っていないので非表示（2026-10-29 すみぽん）。機能は残す。戻すときは display:none を外す -->
+          <button class="sa-subtab" data-etab="video" onclick="switchEarnTab('video')" style="display:none;">🎬 動画</button>
           <button class="sa-subtab" data-etab="viz" onclick="switchEarnTab('viz')">📽 分析動画</button>
           <button class="sa-subtab" data-etab="article" onclick="switchEarnTab('article')">📝 記事</button>
         </div></div>
@@ -8930,6 +8931,8 @@ function vdThumbText(P){return P==='vd'?((document.getElementById('th-input')||{
 // ---- 決算分析：左のサブタブ（決算分析／動画）。動画タブでは右ペインも縦スライドに切り替える ----
 window._earnTab='main';
 function switchEarnTab(t){
+  // 動画タブが非表示のときは、保存されていたPJが動画タブでも決算分析に戻す
+  if(t==='video'){const vb=document.querySelector('#mode-earnings .sa-subtab[data-etab="video"]');if(vb&&vb.style.display==='none')t='main';}
   window._earnTab=t;
   document.querySelectorAll('#mode-earnings .sa-subtab[data-etab]').forEach(b=>b.classList.toggle('active',b.dataset.etab===t));
   const m=document.getElementById('earn-tab-main'),v=document.getElementById('earn-tab-video'),z=document.getElementById('earn-tab-viz'),a=document.getElementById('earn-tab-article');
