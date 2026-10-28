@@ -8907,14 +8907,14 @@ function evThumbText(){
   return `${top}：${mid}：${bot}`;
 }
 // 分析動画のサムネ文言：上段＝今回の評価＋決算後の株価の動き（例「過去最高益で15％下落」）、中段＝社名、下段＝⚙ 共通設定の「決算の分析動画：3段目」（決まった文。初期値「図解で%決算解説%」）
-// PTS（米国株は時間外）は値がその時々で変わるので、台本と同じく数字を書かずに「大幅高」などで言う（±1%未満＝ほぼ変わらず、±5%未満＝小幅）。「PTS」の字は入れない（2026-10-15 すみぽん）
+// PTS（米国株は時間外）は値がその時々で変わるので、台本と同じく数字を書かずに「大幅高」などで言う（±1%未満＝ほぼ変わらず、±5%未満＝上昇／下落、それ以上＝大幅高／安）。「PTS」の字は入れない（2026-10-15 すみぽん）
 function evVizThumbText(){
   const d=evData()||{};const hd=d.HEADER||{},mr=d.MARKET_REACTION||{};
   const label=hd.result_label?`*${hd.result_label}*`:'決算発表';
   const pct=evVizPct(mr.price_change);let mv='';
   if(pct!=null){
     const a=Math.abs(pct),venue=String(mr.post_price_label||'').match(/PTS|時間外/i);
-    if(venue)mv=(a<1?'ほぼ変わらず':(a<5?'小幅':'大幅')+(pct>0?'高':'安'));
+    if(venue)mv=(a<1?'ほぼ変わらず':a<5?(pct>0?'上昇':'下落'):'大幅'+(pct>0?'高':'安'));   // 小幅は使わない（2026-10-28 すみぽん）
     else if(a<1)mv='株価は横ばい';
     else mv=(a>=10?Math.round(a):Math.round(a*10)/10)+'％'+(pct>0?'上昇':'下落');
   }
