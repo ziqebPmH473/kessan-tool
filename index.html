@@ -1725,10 +1725,10 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
                 <button class="btn-sm" onclick="dgCopy('dg-yt-title',this)" style="flex:none;" title="コピー">📋</button>
               </div>
             </details>
-            <!-- 決算まとめの表紙（本日のラインアップ）で、各銘柄のカードの下の行（「増収増益 ｜ PTS 大幅安」など）を書き換える。PTS で作った動画を翌日の引け後に使うときなど -->
+            <!-- 決算まとめの表紙（本日のラインアップ）で、各銘柄のカードの社名（「ホールディングス」を落とすなど）と下の行（「増収増益 ｜ PTS 大幅安」など）を書き換える。PTS で作った動画を翌日の引け後に使うときなど -->
             <details id="dg-coverbox" style="margin-top:8px;" ontoggle="if(this.open)dgCoverRender()">
-              <summary style="font-size:11px;color:var(--text-sub);cursor:pointer;" title="決算まとめの表紙（本日のラインアップ）の、各銘柄のカードの下の行を書き換えます。元の決算分析の PJ はそのままです">🖼 表紙（本日のラインアップ）の各銘柄の行</summary>
-              <div style="font-size:10px;color:var(--text-sub);margin-top:4px;">空欄なら自動の行（薄い字の文）のまま。例：増収増益 ｜ 株価 +8.2%</div>
+              <summary style="font-size:11px;color:var(--text-sub);cursor:pointer;" title="決算まとめの表紙（本日のラインアップ）の、各銘柄のカードの社名と下の行を書き換えます。元の決算分析の PJ はそのままです">🖼 表紙（本日のラインアップ）の各銘柄の社名と行</summary>
+              <div style="font-size:10px;color:var(--text-sub);margin-top:4px;">左＝カードの社名（空欄なら PJ の社名。例：シーゲイト）、右＝下の行（空欄なら自動の行）。例：増収増益 ｜ 株価 +8.2%</div>
               <div id="dg-cover-list" style="display:flex;flex-direction:column;gap:8px;margin-top:6px;"></div>
             </details>
             <textarea id="dg-cover" style="display:none;"></textarea>
@@ -16491,7 +16491,8 @@ async function dgLoadItems(force){
         // 表紙（本日のラインアップ）のカードの下の行：書き換えた文（dg-cover）と、自動の行（欄の薄い字に出す）
         let autoLine='';try{autoLine=KV.digest.subline?KV.digest.subline(viz):'';}catch(e){}
         const subline=String((dgCovers()[id]||{}).line||'').trim()||null;
-        items.push({id,autoLine,subline,visualization:viz,settings:st,narration,noteUrl:(f['ea-note-url']||f['art-url']||'').trim(),title:(f['p-name']||'').trim(),afterHours,announced,priced});
+        const displayName=String((dgCovers()[id]||{}).name||'').trim()||null;   // 表紙・つなぎのカードの社名（書き換えたとき）
+        items.push({id,autoLine,subline,displayName,visualization:viz,settings:st,narration,noteUrl:(f['ea-note-url']||f['art-url']||'').trim(),title:(f['p-name']||'').trim(),afterHours,announced,priced});
       }
     }
     _dgItems=items;_dgLoadedKey=key;
@@ -16509,7 +16510,7 @@ async function dgLoadItems(force){
     const noteUrl=dgNoteUrl();
     if(!settings.note_qr||settings.note_qr_url!==noteUrl){settings={...settings,note_qr:await dgQr(noteUrl),note_qr_url:noteUrl};}
     dgSet('dg-settings',JSON.stringify(settings));if(settings.date)dgSet('dg-date',settings.date);
-    const props={items:items.map(it=>({visualization:it.visualization,settings:it.settings,narration:it.narration,after_hours:it.afterHours,announced:it.announced,subline:it.subline})),settings,controlsEl:document.getElementById('dg-controls'),tts:dgTts,audioStore:dgAudioStore,importBgm:evVizImportBgm,transcribe:evVizTranscribe,speed:kgGet('viz-speed')||'fast',
+    const props={items:items.map(it=>({visualization:it.visualization,settings:it.settings,narration:it.narration,after_hours:it.afterHours,announced:it.announced,subline:it.subline,display_name:it.displayName})),settings,controlsEl:document.getElementById('dg-controls'),tts:dgTts,audioStore:dgAudioStore,importBgm:evVizImportBgm,transcribe:evVizTranscribe,speed:kgGet('viz-speed')||'fast',
       // 部品は起動のときにも設定を整えて onChange を呼ぶ。銘柄を選んでいない新規の PJ をそれで「触った」扱いにすると、空の PJ が保存されて増えた（2026-10-17）。
       // 銘柄を選んでいるとき（＝人が触ったあと）だけ dgTouch。選んでいなければ画面の控えだけ
       onChange:st=>{dgSet('dg-settings',JSON.stringify(st));if(st.date)dgSet('dg-date',st.date);if(dgIds().length)dgTouch();else if(typeof saveState==='function')saveState();dgTitle();dgDescSoon();dgThAuto();}};
@@ -16528,7 +16529,7 @@ async function dgLoadItems(force){
 // ---- 表紙（本日のラインアップ）の各銘柄の行。dg-cover に {<PJ id>: {line}} ----
 function dgCovers(){try{const o=JSON.parse(dgVal('dg-cover')||'{}');return o&&typeof o==='object'?o:{};}catch(e){return {};}}
 let _dgCoverTimer=null;
-function dgCoverSet(id,v){const o=dgCovers();o[id]={...(o[id]||{}),line:v};dgSet('dg-cover',JSON.stringify(o));dgTouch();clearTimeout(_dgCoverTimer);_dgCoverTimer=setTimeout(()=>dgLoadItems(true),800);}
+function dgCoverSet(id,v,key){const o=dgCovers();o[id]={...(o[id]||{}),[key||'line']:v};dgSet('dg-cover',JSON.stringify(o));dgTouch();clearTimeout(_dgCoverTimer);_dgCoverTimer=setTimeout(()=>dgLoadItems(true),800);}   // key：'line'＝下の行、'name'＝社名
 function dgCoverRender(){
   const box=document.getElementById('dg-cover-list');if(!box)return;
   const o=dgCovers();
@@ -16536,8 +16537,8 @@ function dgCoverRender(){
   box.innerHTML=_dgItems.map(it=>{
     const c=o[it.id]||{};const name=esc(it.visualization.company.name||'');
     return `<div style="display:flex;gap:6px;align-items:center;">
-      <span style="flex:none;width:6em;font-size:11px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</span>
-      <input type="text" value="${esc(c.line||'')}" placeholder="${esc(it.autoLine||'')}" oninput="dgCoverSet('${esc(it.id)}',this.value)" style="flex:1;min-width:0;font-size:11px;">
+      <input type="text" value="${esc(c.name||'')}" placeholder="${name}" title="カードの社名（空欄なら PJ の社名）" oninput="dgCoverSet('${esc(it.id)}',this.value,'name')" style="flex:none;width:9em;font-size:11px;font-weight:700;">
+      <input type="text" value="${esc(c.line||'')}" placeholder="${esc(it.autoLine||'')}" title="カードの下の行（空欄なら自動の行）" oninput="dgCoverSet('${esc(it.id)}',this.value)" style="flex:1;min-width:0;font-size:11px;">
     </div>`;
   }).join('');
 }
