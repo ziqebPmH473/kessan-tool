@@ -8914,7 +8914,9 @@ function evVizThumbText(){
   const pct=evVizPct(mr.price_change);let mv='';
   if(pct!=null){
     const a=Math.abs(pct),venue=String(mr.post_price_label||'').match(/PTS|時間外/i);
-    if(venue)mv=(a<1?'ほぼ変わらず':a<5?(pct>0?'上昇':'下落'):'大幅'+(pct>0?'高':'安'));   // 小幅は使わない（2026-10-28 すみぽん）
+    const stop=(!venue&&/円/.test(String(mr.post_price||''))&&window.KessanViz&&KessanViz.tse)?KessanViz.tse.stopKind(evVizPrice(mr.post_price),evVizPrice(mr.post_price)-evVizPrice(mr.pre_price)):null;   // ストップ高・安（円建て・取引所の値だけ。2026-10-28 すみぽん）
+    if(stop)mv='ストップ'+(stop==='high'?'高':'安');
+    else if(venue)mv=(a<1?'ほぼ変わらず':a<5?(pct>0?'上昇':'下落'):'大幅'+(pct>0?'高':'安'));   // 小幅は使わない（2026-10-28 すみぽん）
     else if(a<1)mv='株価は横ばい';
     else mv=(a>=10?Math.round(a):Math.round(a*10)/10)+'％'+(pct>0?'上昇':'下落');
   }
@@ -16612,12 +16614,12 @@ async function dgDescRender(force){
 function dgYtTitle(items,jp){
   const names=items.map(it=>it.visualization.company.name).filter(Boolean);
   const head='【'+(names.length?names.slice(0,4).join('/')+(names.length>4?' ほか':''):'注目企業')+'】';
-  const moves=items.map(it=>({name:it.visualization.company.name,pct:(it.visualization.stock_price||{}).change_pct})).filter(m=>typeof m.pct==='number'&&isFinite(m.pct));
-  const word=p=>{const a=Math.abs(p);return a>=10?(p>0?'急騰':'急落'):a>=5?(p>0?'大幅高':'大幅安'):(p>0?'上昇':'下落');};
+  const moves=items.map(it=>({name:it.visualization.company.name,pct:(it.visualization.stock_price||{}).change_pct,stop:(it.visualization.stock_price||{}).stop||null})).filter(m=>typeof m.pct==='number'&&isFinite(m.pct));
+  const word=(p,stop)=>{if(stop)return 'ストップ'+(stop==='high'?'高':'安');const a=Math.abs(p);return a>=10?(p>0?'急騰':'急落'):a>=5?(p>0?'大幅高':'大幅安'):(p>0?'上昇':'下落');};
   const top=moves.slice().sort((a,b)=>Math.abs(b.pct)-Math.abs(a.pct))[0];
   const up=moves.some(m=>m.pct>=1),down=moves.some(m=>m.pct<=-1);
   const tone=up&&down?'明暗分かれた決算の理由を図解':up?'買われた決算の理由を図解':down?'売られた決算の理由を図解':'市場を動かした決算を図解';
-  const mid=top&&Math.abs(top.pct)>=1?`${top.name}が${word(top.pct)}、${tone}`:tone;
+  const mid=top&&Math.abs(top.pct)>=1?`${top.name}が${word(top.pct,top.stop)}、${tone}`:tone;
   return (head+mid+(jp?'｜'+jp+'の注目決算':'')).slice(0,100);
 }
 // ---- まとめ用のサムネ（上段：中段：下段。型は「サムネだけ」の横） ----
