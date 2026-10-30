@@ -3179,7 +3179,7 @@ ${stockPriceInfo}
 4. 【コンセンサス判定】実績値と予想数値を比較し、実績が上回っていれば「クリア」、下回っていれば「未達」など、結果判定（judgment）を出力してください。予想数値がない場合は「-」としてください。前年同期比較の場合は「増収」「減収」「増益」「減益」などの表現を使ってください。
 5. 【項目名の適正化】IFRS（国際財務報告基準）などの会計基準に合わせて、項目名は決算資料で実際に使われている名称（「収益」「事業利益」など）を読み取り、[KPI_1〜3]の display_label や [GUIDANCE]の各 _label に出力してください。ただし、「親会社株主に帰属する四半期純利益」のような長すぎる名称は「純利益」や「当期純利益」など簡潔に省略してください。
 6. 【ヘッダー情報】[HEADER]の company は必ず「株式会社」を省略した名称にしてください。quarter には「〇〇年〇月期 第〇四半期」または「本決算」と決算期を記載してください。result_label には「今回の実績」に対する端的な評価を5文字程度で記載してください。これは業績サマリー（実績）カードに表示されるラベルです。例：「過去最高益」「大幅増益」「2期連続減益」「黒字転換」「赤字転落」など、あくまでも今期の実績を表現してください。通期予想の修正状況（上方・下方修正など）は [GUIDANCE] の status に記載するため、result_label には書かないでください。business_description には、その会社が「何をしている会社か」を20〜30文字で具体的に記載してください。業種カテゴリ（「情報・通信業」「小売業」など）ではなく、主力事業・サービス・特徴が伝わる表現にしてください（例：「スマホ・光回線・金融を展開する通信大手」「国内最大手のコンビニチェーンを運営」「半導体製造装置の設計・製造・販売」）。
-7. 【ガイダンスと進捗率・前年比】四半期決算の場合は、通期予想に対する「売上高」「営業利益」「純利益」の進捗率をそれぞれ計算し、[GUIDANCE]の sales_progress, op_progress, ni_progress に「〇〇%」と記載してください。ただし、実績または通期予想のいずれかが「赤字（マイナス）」の場合は進捗率は意味を持たないため「-」としてください。本決算の場合は進捗率ではなく、来期通期予想の前年比成長率（今期最終実績との比較）を記載してください（例：+12.5%）。来期予想がない場合は「-」としてください。四半期決算で通期予想の修正がない場合は status=据え置き とし、修正がある場合は col1_header=修正前, col2_header=修正後 として新旧の数値を比較できるようにしてください。本決算の場合は col1_header=今期実績, col2_header=来期予想 としてください。また修正がある場合は、各項目の修正率（修正後÷修正前−1）を sales_rate, op_rate, ni_rate に「+〇〇%」「-〇〇%」の形式で記載してください。
+7. 【ガイダンスと進捗率・前年比】四半期決算の場合は、通期予想に対する「売上高」「営業利益」「純利益」の進捗率をそれぞれ計算し、[GUIDANCE]の sales_progress, op_progress, ni_progress に「〇〇%」と記載してください。ただし、実績または通期予想のいずれかが「赤字（マイナス）」の場合は進捗率は意味を持たないため「-」としてください。本決算の場合は進捗率ではなく、来期通期予想の前年比成長率（今期最終実績との比較）を記載してください（例：+12.5%）。来期予想がない場合は「-」としてください。四半期決算で通期予想の修正がない場合は status=据え置き とし、修正がある場合は col1_header=修正前, col2_header=修正後 として新旧の数値を比較できるようにしてください。本決算の場合は col1_header=今期実績, col2_header=来期予想 としてください。また修正がある場合は、各項目の修正率（修正後÷修正前−1）を sales_rate, op_rate, ni_rate に「+〇〇%」「-〇〇%」の形式で記載してください。通期予想を出さず、次の四半期（3か月分）の会社予想だけを出している会社の場合は、その予想を [GUIDANCE] に記載してください：status=「第〇四半期の会社予想」、col1_header=今回の四半期単独の実績（例：2Q実績）、col2_header=次の四半期の予想（例：3Q予想）、sales_1/op_1/ni_1=今回の四半期単独（3か月分）の実績、sales_2/op_2/ni_2=次の四半期の会社予想、sales_rate/op_rate/ni_rate=予想÷今回の四半期単独の実績−1 を「+〇〇%」「-〇〇%」の形式で、進捗率（sales_progress 等）は「-」にしてください。
 8. 【株価・市場反応】pre_price_label は「決算前（${preDateStr} 終値）」としてください。post_price_label は「決算後（${postDateStr} ${postTimingStr}）」としてください。ただし時間外（PTS）または場中の場合は、株探等のソースに記載されている時刻を読み取り、以下の形式で記載してください。時刻は必ずHH:MM形式にしてください。
    - 時間外（PTS）：「決算後（${postDateStr} PTS HH:MM）」
    - 場中：「決算後（${postDateStr} HH:MM）」
@@ -3416,9 +3416,11 @@ point_2=`;
 
                 const isAnnual = data.HEADER && data.HEADER.quarter && data.HEADER.quarter.includes('本決算');
                 const isRevision = statusStr.includes('修正') && !statusStr.includes('据え置き') && !statusStr.includes('修正なし');
+                // 通期予想が無く、次の四半期の予想だけの会社（キオクシアなど）：列は「今回の四半期単独の実績 → 次の四半期の予想」、率は進捗率でなく今期比（2026-10-31 すみぽん）
+                const isNextQ = !isAnnual && !isRevision && /四半期|[1-4]Q/.test(String(data.GUIDANCE.col2_header || '') + ' ' + statusStr) && !/通期|来期/.test(String(data.GUIDANCE.col2_header || ''));
 
-                // 進捗率 or 前年比 ヘッダー切替
-                document.getElementById('out-guidance-prog-th').innerText = isAnnual ? '前年比' : '進捗率';
+                // 進捗率 or 前年比 or 今期比 ヘッダー切替
+                document.getElementById('out-guidance-prog-th').innerText = isNextQ ? '今期比' : isAnnual ? '前年比' : '進捗率';
 
                 // 修正率列の表示切替
                 const diffIds = ['out-guidance-diff-th', 'out-sales-diff', 'out-op-diff', 'out-ni-diff', 'out-div-diff'];
@@ -3471,9 +3473,10 @@ point_2=`;
                 document.getElementById('out-ni-2').innerHTML = colorize(gPick(data.GUIDANCE.ni_2, data.GUIDANCE.ni_1));
                 document.getElementById('out-div-2').innerHTML = colorize(gPick(data.GUIDANCE.div_2, data.GUIDANCE.div_1));
 
-                const sProg = data.GUIDANCE.sales_progress;
-                const oProg = data.GUIDANCE.op_progress;
-                const nProg = data.GUIDANCE.ni_progress;
+                // 次の四半期の予想のときは、進捗率の列に今期比（sales_rate 等）を出す
+                const sProg = isNextQ ? data.GUIDANCE.sales_rate : data.GUIDANCE.sales_progress;
+                const oProg = isNextQ ? data.GUIDANCE.op_rate : data.GUIDANCE.op_progress;
+                const nProg = isNextQ ? data.GUIDANCE.ni_rate : data.GUIDANCE.ni_progress;
 
                 document.getElementById('out-sales-prog').innerHTML = (sProg && sProg !== '---') ? colorize(sProg) : '-';
                 document.getElementById('out-op-prog').innerHTML = (oProg && oProg !== '---') ? colorize(oProg) : '-';
@@ -7806,7 +7809,7 @@ function vdBasicInfo(P){
     L.push(`市場：${(document.querySelector('input[name=p-market]:checked')||{}).value==='us'?'米国株':'国内株'}`);
     L.push(`スライド枚数：${evCount()}枚（業績予想の修正${evCount()===4?'あり':'なし'}）`);
     if(h.quarter)L.push(`決算期：${h.quarter}`);
-    if((d.GUIDANCE||{}).status)L.push(`通期予想：${d.GUIDANCE.status}`);
+    if((d.GUIDANCE||{}).status)L.push(`${/四半期/.test(d.GUIDANCE.status)?'業績予想':'通期予想'}：${d.GUIDANCE.status}`);
     L.push('',evSlideNumbersText(d));
     return L.join('\n');
   }
