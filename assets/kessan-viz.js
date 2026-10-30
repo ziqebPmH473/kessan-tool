@@ -122,7 +122,7 @@ ${e!=null&&e.companyHint?`
 - 業績推移（trends）は、直近に終わった期からさかのぼって実績を3〜4期（売上高と営業利益の両方が資料にある期だけ。売上高しか無い期は入れない）、その後ろに今期の会社予想を1期（is_forecast=true）。並びは古い順。直近の実績の期を飛ばさない（例：2027/2期の2Qなら 2024/2・2025/2・2026/2 の実績＋2027/2(予)）。実績と予想を1つの期に混ぜない。
 - IFRS 等で科目名が違う場合は標準項目へ寄せる（例: 売上収益・営業収益 → revenue。経常利益が無ければ ordinary_income は null）。
 - BS は細目を表示用大分類（cash / receivables / inventory / ppe ... ）へまとめる。合計が total_assets と一致するよう、残りは other_* に入れる。
-- ai_insights は「今回の決算で重要な点」を positives / negatives / unusual_points / key_drivers / risks / next_points_to_watch に分けて書く。各項目は title（15文字程度）・description・reason・related_metrics・source_pages・confidence を持つ。
+- ai_insights は「今回の決算で重要な点」を positives / negatives / unusual_points / key_drivers / risks / next_points_to_watch に分けて書く。各項目は title（15文字程度）・description・reason・related_metrics・source_pages・confidence を持つ。key_drivers の1件目の title は、動画の総括で「〜が、今回の決算の特徴でした」と読み、画面の総括カードにもそのまま出すので、「販売単価の大幅上昇」のように名詞で終わる形で書く（「販売単価が大幅上昇」のような文の形にしない）。
 - 投資判断（買い・売り・割安・割高など）は書かない。進捗率だけで「順調」と断定しない。
 - market と forecast_revision はツール側が埋めるので出力しない（null でよい）。
 - ai_insights.narration_summary / narration_highlights / narration_conclusion は動画のナレーション用。それぞれ「ですます調」の1文（40字程度）で、売買の推奨は書かない。summary は headline を文にしたもの、highlights は注目ポイントを「〜と〜がポイントです」のように1文に、conclusion は総括を1文に。「注目ポイントは」「まとめると」のような前置き（見出しの読み上げ）は付けない。動画では highlights の直後に、総括として key_drivers の1件目の title を「〜が、今回の決算の特徴でした」と読むので、highlights には key_drivers の1件目と同じ内容を入れない（言い換えでも同じことを2回言わない）。
