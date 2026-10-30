@@ -2281,7 +2281,9 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
                     <span id="ev-th-orient" style="font-size:11px;font-weight:700;color:#0d9488;" title="縦・横は、動画の「向き」に合わせて切り替わります"></span>
                     <span id="ev-th-st" style="font-size:11px;color:var(--text-sub);margin-left:auto;"></span>
                     <button class="btn-sm" onclick="evThDownload('h',this)" style="flex:none;padding:1px 6px;font-size:10px;" title="横のサムネ（1920×1080・jpg）をダウンロード。YouTube の横動画用">🖼 横</button>
-                    <button class="btn-sm" onclick="evThDownload('v',this)" style="flex:none;padding:1px 6px;font-size:10px;" title="縦のサムネ（1080×1920・jpg）をダウンロード。YouTube ショート用。縦の文が空なら横の文で作ります">🖼 縦</button>
+                    <button class="btn-sm" onclick="evThDownload('v',this)" style="flex:none;padding:1px 6px;font-size:10px;" title="縦のサムネ（1080×1920・jpg・3段）をダウンロード。YouTube ショート用。縦の文が空なら横の文で作ります">🖼 縦</button>
+                    <button class="btn-sm" onclick="evThDownload('v2',this)" style="flex:none;padding:1px 6px;font-size:10px;" title="縦のサムネの2段構成（1080×1920・jpg）をダウンロード。インスタ・TikTok 用。文は同じで、上段＝評価と株価の動きを2行、下段＝銘柄名、3段目の文は左上のラベルに">🖼 縦2段</button>
+                    <select id="ev-th-bands" onchange="evThPreview()" style="flex:none;font-size:10px;padding:1px 2px;display:none;" title="縦のプレビューの構成（ダウンロードは 🖼 縦＝3段、🖼 縦2段＝2段）"><option value="3">3段</option><option value="2">2段</option></select>
                 </div>
                 <textarea id="ev-viz-th-h" oninput="evThInput('h')" placeholder="上段：中段：下段（📤 出力データ作成で自動で入ります）" style="height:46px;min-height:46px;"></textarea>
                 <textarea id="ev-viz-th-v" oninput="evThInput('v')" placeholder="上段：中段：下段（📤 出力データ作成で自動で入ります）" style="height:46px;min-height:46px;display:none;"></textarea>
@@ -8481,7 +8483,8 @@ function vDisc(){return `<div class="v-disc">${esc(VIDEO_DISCLAIMER)}</div>`;}
 
 // 0 サムネ（縦）：note用サムネと同じ記法で、3段を中央に寄せる。透かしロゴは中央
 // bare＝上の分類・日付と、下の「タップで動画を再生」を入れない（横動画の縦のサムネ。縦型のSNS動画のサムネでは入れる）
-function buildVThumb(text,P,catOver,bare){
+function buildVThumb(text,P,catOver,bare,bands){
+  if(bands===2)return buildVThumb2(text,P,catOver,bare);
   const cat=catOver!=null?catOver:(P||window._vdCurP)==='ev'?'決算分析':'株価分析';
   const dt=new Date();
   const dateStr=`${dt.getFullYear()}.${dt.getMonth()+1}.${dt.getDate()}`;
@@ -8498,6 +8501,48 @@ ${bare?'':`  <div class="vth-top">${cat?`<div class="vth-cat"><i></i>${esc(cat)}
     <div class="vth-band" style="height:${H[0]}px;"><div class="v-txt" style="font-size:${tF}px;font-weight:700;line-height:1;white-space:nowrap;font-family:${THUMB_FF};">${segsHtml(segs[0],'#ffffff')}</div></div>
     <div class="vth-band" style="height:${H[1]}px;background:#fff;"><div class="v-txt" style="font-size:${mF}px;font-weight:900;line-height:1;white-space:nowrap;font-family:${THUMB_FF};">${segsHtml(segs[1],'#004aad')}</div></div>
     <div class="vth-band" style="height:${H[2]}px;"><div class="v-txt" style="font-size:${bF}px;font-weight:700;line-height:1;white-space:nowrap;font-family:${THUMB_FF};">${segsHtml(segs[2],'#ffffff')}</div></div>
+  </div>
+</div>`;
+}
+
+// 2段構成の縦サムネ（インスタ・TikTok で東証ツールの2段と比べる切り分け用。すみぽん 2026-10-31）
+//   文言は3段と同じ「上段：中段：下段」。上段＝評価と株価の動きを2行（「で」の後ろで改行）、下段＝銘柄名（グループ・ホールディングス・HD の前で改行）、
+//   3段目の文（図解で決算解説）は左上のラベルに。欄に改行があればその位置で切る（東証ツールと同じ）
+function vthSplitDe(t){
+  if(t.includes('\n'))return t.split('\n').map(x=>x.trim()).filter(Boolean);
+  let mk=null;   // 色指定（*…* #…# %…%）の中の「で」では切らない
+  for(let i=0;i<t.length;i++){
+    const ch=t[i];
+    if(ch==='*'||ch==='#'||ch==='%'){mk=mk===ch?null:(mk===null?ch:mk);continue;}
+    if(ch==='で'&&mk===null&&i<t.length-1)return [t.slice(0,i+1),t.slice(i+1)];
+  }
+  return [t];
+}
+function vthSplitName(t){
+  if(t.includes('\n'))return t.split('\n').map(x=>x.trim()).filter(Boolean);
+  const m=t.match(/^(.{2,})(ホールディングス|ホールディング|グループ|ＨＤ|HD)$/);
+  return m?[m[1],m[2]]:[t];
+}
+function buildVThumb2(text,P,catOver,bare){
+  const dt=new Date();
+  const dateStr=`${dt.getFullYear()}.${dt.getMonth()+1}.${dt.getDate()}`;
+  const parts=thumbParts(text);
+  const cat=catOver!=null?catOver:(parts[2]?parseThumbnailMarkup(parts[2]).map(x=>x.text).join(''):((P||window._vdCurP)==='ev'?'決算分析':'株価分析'));
+  const topL=vthSplitDe(parts[0]||'').map(parseThumbnailMarkup),botL=vthSplitName(parts[1]||'').map(parseThumbnailMarkup);
+  // 字の大きさは、いちばん長い行が幅に収まる大きさ（行ごとに変えない）
+  const fitAll=(ls,base,weight)=>ls.reduce((f,sg)=>{const em=thumbTextEm(sg.map(x=>x.text).join(''),weight);return em?Math.min(f,Math.max(48,Math.floor((VSLIDE_W-80)/em))):f;},base);
+  const tF=fitAll(topL,220,700),bF=fitAll(botL,230,900);
+  // 9:16 で出すが、文字・ラベルは 4:5（1080×1350、上下 285px を除いた範囲）に収める。インスタは 4:5 に切られて下の帯が切れかけていた（すみぽん 2026-10-31）
+  const SAFE_T=Math.round((VSLIDE_H-1350)/2),SAFE_B=VSLIDE_H-SAFE_T;
+  const H=[560,560];
+  const top=Math.round((VSLIDE_H-H[0]-H[1])/2);
+  const lines=(ls,fs,w,color)=>`<div style="display:flex;flex-direction:column;align-items:center;gap:${Math.round(fs*0.14)}px;">${ls.map(sg=>`<div class="v-txt" style="font-size:${fs}px;font-weight:${w};line-height:1;white-space:nowrap;font-family:${THUMB_FF};">${segsHtml(sg,color)}</div>`).join('')}</div>`;
+  return `<div class="vth">${vLogo('dark')}
+${bare?'':`  <div class="vth-top" style="top:${SAFE_T+24}px;">${cat?`<div class="vth-cat"><i></i>${esc(cat)}</div>`:'<div></div>'}<div class="vth-date">${esc(dateStr)}</div></div>
+  <div class="vth-cta" style="bottom:${VSLIDE_H-SAFE_B+28}px;">タップで動画を再生 ▶</div>`}
+  <div style="position:absolute;left:0;right:0;top:${top}px;display:flex;flex-direction:column;">
+    <div class="vth-band" style="height:${H[0]}px;">${lines(topL,tF,700,'#ffffff')}</div>
+    <div class="vth-band" style="height:${H[1]}px;background:#fff;">${lines(botL,bF,900,'#004aad')}</div>
   </div>
 </div>`;
 }
@@ -16087,7 +16132,9 @@ function evThPreview(){
   const W=k==='v'?VSLIDE_W:SLIDE_W,H=k==='v'?VSLIDE_H:SLIDE_H,h=k==='v'?320:Math.min(240,Math.floor(((wrap.parentElement.clientWidth||600)-4)*H/W));
   const sc=h/H;wrap.style.width=Math.round(W*sc)+'px';wrap.style.height=Math.round(H*sc)+'px';
   inner.style.cssText=`position:absolute;top:0;left:0;width:${W}px;height:${H}px;transform:scale(${sc});transform-origin:top left;pointer-events:none;`;
-  inner.innerHTML=k==='v'?buildVThumb(text,'ev'):tqHtmlH(text,'youtube');
+  const bands=Number((document.getElementById('ev-th-bands')||{}).value)===2?2:3;
+  const bsel=document.getElementById('ev-th-bands');if(bsel)bsel.style.display=k==='v'?'':'none';
+  inner.innerHTML=k==='v'?buildVThumb(text,'ev',null,false,bands):tqHtmlH(text,'youtube');
 }
 // 縦・横は同じ文（片方を直すと、もう片方も同じにして両方の画像を作り直す）
 function evThInput(k){
@@ -16105,7 +16152,7 @@ function evThAutoFill(){
 // 画像（1920px までの JPEG の data URL。動画側の取り込みと同じ形）
 async function evThImage(k,text){
   let src;
-  if(k==='v')src=await renderVideoToBlob({html:buildVThumb(text,'ev'),thumb:true});
+  if(k==='v'||k==='v2')src=await renderVideoToBlob({html:buildVThumb(text,'ev',null,false,k==='v2'?2:3),thumb:true});
   else{
     const cont=document.getElementById('th-render-target');
     cont.innerHTML=tqHtmlH(text,'youtube');
@@ -16123,12 +16170,12 @@ async function evThImage(k,text){
 }
 // サムネをダウンロード（横 1920×1080／縦 1080×1920・jpg）。縦の文が空なら横の文で作る（YouTube ショート用は縦）
 async function evThDownload(k,btn){
-  const t=evThVal(k)||evThVal('h')||evVizThumbText();
+  const t=evThVal(k==='v2'?'v':k)||evThVal('h')||evVizThumbText();
   if(!t){alert('サムネの文がありません（上の欄に入れるか、整形済みデータを作ってください）');return;}
   const o=btn?btn.textContent:'';if(btn){btn.disabled=true;btn.textContent='作成中…';}
   try{
     const du=await evThImage(k,t);
-    const a=document.createElement('a');a.href=du;a.download=`${VD_CFG.ev.code()||'code'}_${VD_CFG.ev.name()||'thumb'}_サムネ_${k==='v'?'縦':'横'}.jpg`;a.click();
+    const a=document.createElement('a');a.href=du;a.download=`${VD_CFG.ev.code()||'code'}_${VD_CFG.ev.name()||'thumb'}_サムネ_${k==='v2'?'縦2段':k==='v'?'縦':'横'}.jpg`;a.click();
   }catch(e){alert('サムネを作れませんでした：'+(e&&e.message||e));}
   finally{if(btn){btn.disabled=false;btn.textContent=o;}}
 }
