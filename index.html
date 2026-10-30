@@ -2287,7 +2287,20 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
                 <textarea id="ev-viz-th-h" oninput="evThInput('h')" placeholder="上段：中段：下段（📤 出力データ作成で自動で入ります）" style="height:46px;min-height:46px;"></textarea>
                 <textarea id="ev-viz-th-v" oninput="evThInput('v')" placeholder="上段：中段：下段（📤 出力データ作成で自動で入ります）" style="height:46px;min-height:46px;display:none;"></textarea>
                 <input type="hidden" id="ev-viz-th-auto">
-                <p style="font-size:10px;color:var(--text-sub);margin:0;">「：」で上段・中段・下段を区切る。色指定: <span style="color:#ff914d">*オレンジ*</span>　<span style="color:#5ce1e6">#水色#</span>　<span style="color:#ffde59">%黄色%</span>。縦2段の改行位置は、文の中に改行を入れると変えられます（3段では無視されます）</p>
+                <p style="font-size:10px;color:var(--text-sub);margin:0;">「：」で上段・中段・下段を区切る。色指定: <span style="color:#ff914d">*オレンジ*</span>　<span style="color:#5ce1e6">#水色#</span>　<span style="color:#ffde59">%黄色%</span>（3段用。欄の改行は無視します）</p>
+                <!-- 縦2段の文は別の欄（ラベル／上段／下段）。初期値は上の文から作る：上段は橙→黄色・「で」の後ろで改行、下段は銘柄名（グループ・HD の前で改行）。すみぽん 2026-10-31 -->
+                <div id="ev-th2" style="display:none;flex-direction:column;gap:3px;border-top:1px dashed var(--border);padding-top:4px;">
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <span style="font-size:11px;font-weight:700;color:var(--text-sub);">縦2段の文（ラベル／上段／下段。改行で行を分ける）</span>
+                        <button class="btn-sm" onclick="evTh2Fill(true)" style="flex:none;padding:1px 6px;font-size:10px;margin-left:auto;" title="上の文（上段：中段：下段）から3つの欄を作り直します。上段は橙→黄色にして「で」の後ろで改行、下段は銘柄名をグループ・HD の前で改行、ラベルは3段目の文">📥 上の文から作り直す</button>
+                    </div>
+                    <div style="display:flex;gap:4px;">
+                        <textarea id="ev-viz-th2-label" oninput="evTh2Input()" placeholder="ラベル" style="flex:0.7;height:40px;min-height:40px;font-size:11px;"></textarea>
+                        <textarea id="ev-viz-th2-top" oninput="evTh2Input()" placeholder="上段" style="flex:1;height:40px;min-height:40px;font-size:11px;"></textarea>
+                        <textarea id="ev-viz-th2-bot" oninput="evTh2Input()" placeholder="下段" style="flex:1;height:40px;min-height:40px;font-size:11px;"></textarea>
+                    </div>
+                    <input type="hidden" id="ev-viz-th2-auto">
+                </div>
                 <div id="ev-th-prev" style="position:relative;overflow:hidden;border:1px solid var(--border);border-radius:4px;align-self:flex-start;"><div id="ev-th-prev-in"></div></div>
             </div>
             <div id="earn-viz-empty" style="padding:30px;text-align:center;color:var(--text-sub);font-size:12px;border:1px dashed var(--border);border-radius:8px;">まだ動画データがありません。左の「🎬 Gemini で動画データを作る」を押してください。</div>
@@ -8482,8 +8495,8 @@ function vDisc(){return `<div class="v-disc">${esc(VIDEO_DISCLAIMER)}</div>`;}
 
 // 0 サムネ（縦）：note用サムネと同じ記法で、3段を中央に寄せる。透かしロゴは中央
 // bare＝上の分類・日付と、下の「タップで動画を再生」を入れない（横動画の縦のサムネ。縦型のSNS動画のサムネでは入れる）
-function buildVThumb(text,P,catOver,bare,bands){
-  if(bands===2)return buildVThumb2(text,P,catOver,bare);
+function buildVThumb(text,P,catOver,bare,bands,p2){
+  if(bands===2)return buildVThumb2(text,P,catOver,bare,p2);
   const cat=catOver!=null?catOver:(P||window._vdCurP)==='ev'?'決算分析':'株価分析';
   const dt=new Date();
   const dateStr=`${dt.getFullYear()}.${dt.getMonth()+1}.${dt.getDate()}`;
@@ -8522,7 +8535,32 @@ function vthSplitName(t){
   const m=t.match(/^(.{2,})(ホールディングス|ホールディング|グループ|ＨＤ|HD)$/);
   return m?[m[1],m[2]]:[t];
 }
-function buildVThumb2(text,P,catOver,bare){
+// 縦2段の文（ラベル／上段／下段）を、3段の文「上段：中段：下段」から作る：上段は橙→黄色（2段では橙と水色が強い）・「で」の後ろで改行、下段は銘柄名（グループ・HD の前で改行）、ラベルは3段目の文（色指定は外す）
+function evTh2Derive(text){
+  const parts=thumbParts(text||'').map(x=>x.replace(/\s*\n\s*/g,''));
+  const top=vthSplitDe((parts[0]||'').replace(/\*([^*]+)\*/g,'%$1%')).join('\n');
+  const bot=vthSplitName(parts[1]||'').join('\n');
+  const label=parts[2]?parseThumbnailMarkup(parts[2]).map(x=>x.text).join('').trim():'';
+  return {label,top,bot};
+}
+const evTh2Ids={label:'ev-viz-th2-label',top:'ev-viz-th2-top',bot:'ev-viz-th2-bot'};
+function evTh2Val(){const o={};for(const k in evTh2Ids)o[k]=((document.getElementById(evTh2Ids[k])||{}).value||'');return o;}
+// 3段の文から2段の欄を入れる。空の欄と、前に自動で入れた文のままの欄だけ（直した文は残す）。force＝全部入れ直す
+function evTh2Fill(force){
+  const src=evThVal('v')||evThVal('h')||(typeof evVizThumbText==='function'?evVizThumbText():'');if(!src)return;
+  const d=evTh2Derive(src),au=document.getElementById('ev-viz-th2-auto');if(!au)return;
+  let prev={};try{prev=JSON.parse(au.value||'{}');}catch(e){}
+  for(const k in evTh2Ids){const el=document.getElementById(evTh2Ids[k]);if(!el)continue;if(force||!el.value.trim()||el.value===(prev[k]||''))el.value=d[k];}
+  au.value=JSON.stringify(d);
+  if(typeof saveState==='function')saveState();
+  if(typeof evThPreview==='function')evThPreview();
+}
+function evTh2Input(){if(typeof saveState==='function')saveState();evThPreview();}
+// 2段の画像に使う文。欄が全部空なら3段の文から作る
+function evTh2Parts(){const v=evTh2Val();if(v.label.trim()||v.top.trim()||v.bot.trim())return v;const src=evThVal('v')||evThVal('h')||(typeof evVizThumbText==='function'?evVizThumbText():'');return src?evTh2Derive(src):null;}
+
+// p2＝2段の文 {label, top, bot}（欄から）。無ければ text（3段の文）から作る
+function buildVThumb2(text,P,catOver,bare,p2){
   // 東証ツール（stock-slide-generator の slideVThumb・2段構成）と同じ作り：
   //   上に「ラベル＋日付」のバー（100px）、下に「タップで動画を再生」のバー（116px）、その間を黒帯・白帯の2段で全部埋める（余った黒地は作らない）
   //   字の大きさは「行ごと」に幅いっぱい（上限＝全角 3.8 文字ぶん）、行が帯に収まらないときだけ全行を同じ比率で縮める。行間 1.38
@@ -8532,12 +8570,12 @@ function buildVThumb2(text,P,catOver,bare){
   const W=VSLIDE_W,H=VSLIDE_H,PX=56,HEAD=100,FOOT=116,LH=1.38,MAXC=3.8;
   const dt=new Date();
   const dateStr=`${dt.getFullYear()}.${dt.getMonth()+1}.${dt.getDate()}`;
-  const parts=thumbParts(text);
-  const cat=catOver!=null?catOver:(parts[2]?parseThumbnailMarkup(parts[2]).map(x=>x.text).join(''):((P||window._vdCurP)==='ev'?'決算分析':'株価分析'));
+  const p=p2||evTh2Derive(text);
+  const cat=catOver!=null?catOver:p.label;
   const SAFE_T=Math.round((H-1440)/2),SAFE_B=H-SAFE_T;
   // 上段：下段＝6：4（東証ツールは 5：5）。上段はラベル＋2行でほぼ埋まり、下段は銘柄名の1行がふつうなので（すみぽん 2026-10-31）
   const bodyH=H-HEAD-FOOT,h0=Math.round(bodyH*0.6),h1=bodyH-h0;
-  const LABEL_FS=72,LABEL_Y=SAFE_T+20,LABEL_H=LABEL_FS+36;   // ラベル：角丸の橙の帯に濃い字（字 72px＋上下 18px）。3:4 の上端のすぐ下
+  const LABEL_FS=72,LABEL_Y=SAFE_T+64,LABEL_H=LABEL_FS+36+10;   // ラベル：白枠・白字の丸帯（字 72px＋上下 18px＋枠 5px）。3:4 の上端から 64px 下げる（詰まって見えた。すみぽん 2026-10-31）
   const usable=W-PX*2,cap=Math.floor(usable/MAXC);
   const sizes=(lines,weight,limitH)=>{
     let a=lines.map(sg=>{const em=thumbTextEm(sg.map(x=>x.text).join(''),weight);return em?Math.max(20,Math.min(cap,Math.floor(usable/em))):cap;});
@@ -8545,7 +8583,8 @@ function buildVThumb2(text,P,catOver,bare){
     if(tot(a)>lim){const k=lim/tot(a);a=a.map(f=>Math.max(20,Math.floor(f*k)));}
     return a;
   };
-  const topL=vthSplitDe(parts[0]||'').map(parseThumbnailMarkup),botL=vthSplitName(parts[1]||'').map(parseThumbnailMarkup);
+  const toLines=t=>String(t||'').split('\n').map(x=>x.trim()).filter(Boolean).map(parseThumbnailMarkup);
+  const topL=toLines(p.top),botL=toLines(p.bot);
   // 字を置く範囲（3:4 に入る部分）：上段＝ラベルの下から帯の下端まで、下段＝帯の上端から 3:4 の下端まで。字はその範囲の中央に置き、大きさもその高さいっぱい
   const top0=(LABEL_Y+LABEL_H+16)-HEAD,bot1=(HEAD+h0+h1)-SAFE_B;   // 上段の上の詰め・下段の下の詰め（px）
   const s0=sizes(topL,700,h0-top0),s1=sizes(botL,900,h1-bot1);
@@ -8555,7 +8594,7 @@ function buildVThumb2(text,P,catOver,bare){
   };
   const head=bare?`<div style="height:${HEAD}px;background:#000;"></div>`
     :`<div style="background:#000;height:${HEAD}px;display:flex;align-items:center;justify-content:flex-end;padding:0 ${PX}px;font-family:${THUMB_FF};overflow:hidden;"><div style="font-size:46px;font-weight:700;color:#fff;line-height:1;">${esc(dateStr)}</div></div>`;
-  const label=bare||!cat?'':`<div style="position:absolute;left:${PX}px;top:${LABEL_Y}px;z-index:3;display:inline-block;background:#f59e0b;color:#1f1300;font-size:${LABEL_FS}px;font-weight:900;line-height:1;padding:18px 40px;border-radius:999px;font-family:${THUMB_FF};white-space:nowrap;">${esc(cat)}</div>`;
+  const label=bare||!cat?'':`<div style="position:absolute;left:${PX}px;top:${LABEL_Y}px;z-index:3;display:inline-block;background:transparent;color:#fff;border:5px solid #fff;font-size:${LABEL_FS}px;font-weight:900;line-height:1;padding:18px 40px;border-radius:999px;font-family:${THUMB_FF};white-space:nowrap;">${esc(cat)}</div>`;
   const foot=bare?`<div style="height:${FOOT}px;background:#000;"></div>`
     :`<div style="background:#000;height:${FOOT}px;display:flex;align-items:center;justify-content:flex-end;padding:0 ${PX}px;font-family:${THUMB_FF};overflow:hidden;"><div style="font-size:52px;font-weight:700;color:#f59e0b;line-height:1;">タップで動画を再生 ▶</div></div>`;
   return `<div class="vth">${vLogo('dark')}${label}<div style="display:flex;flex-direction:column;height:${H}px;">${head}${band(topL,s0,700,h0,'#000','#ffffff',top0,0)}${band(botL,s1,900,h1,'#fff','#004aad',0,bot1)}${foot}</div></div>`;
@@ -16137,6 +16176,8 @@ function evThSwitch(k){
   _evThKind=k;
   const lb=document.getElementById('ev-th-orient');if(lb)lb.textContent=k==='v'?'縦（1080×1920）':'横（1920×1080）';
   ['h','v'].forEach(x=>{const t=document.getElementById('ev-viz-th-'+x);if(t)t.style.display=x===k?'':'none';});
+  const t2=document.getElementById('ev-th2');if(t2)t2.style.display=k==='v'?'flex':'none';
+  if(k==='v')evTh2Fill(false);
   evThPreview();
 }
 function evThPreview(){
@@ -16150,7 +16191,7 @@ function evThPreview(){
     wrap.style.width=(w*2+8)+'px';wrap.style.height=Math.round(H*sc)+'px';
     inner.style.cssText='position:absolute;top:0;left:0;pointer-events:none;';
     const one=(html,x)=>`<div style="position:absolute;top:0;left:${x}px;width:${W}px;height:${H}px;transform:scale(${sc});transform-origin:top left;">${html}</div>`;
-    inner.innerHTML=one(buildVThumb(text,'ev',null,false,2),0)+one(buildVThumb(text,'ev',null,false,3),w+8);
+    inner.innerHTML=one(buildVThumb(text,'ev',null,false,2,evTh2Parts()),0)+one(buildVThumb(text,'ev',null,false,3),w+8);
     return;
   }
   wrap.style.width=w+'px';wrap.style.height=Math.round(H*sc)+'px';
@@ -16160,6 +16201,7 @@ function evThPreview(){
 // 縦・横は同じ文（片方を直すと、もう片方も同じにして両方の画像を作り直す）
 function evThInput(k){
   const src=document.getElementById('ev-viz-th-'+k),o=document.getElementById('ev-viz-th-'+(k==='v'?'h':'v'));if(src&&o)o.value=src.value;
+  evTh2Fill(false);   // 2段の欄も、直していない欄だけ追従
   if(typeof saveState==='function')saveState();
   evThPreview();
   clearTimeout(_evThTimer);_evThTimer=setTimeout(()=>evThApply(['h','v']),1200);
@@ -16168,12 +16210,12 @@ function evThInput(k){
 function evThAutoFill(){
   const t=evVizThumbText(),au=document.getElementById('ev-viz-th-auto');if(!t||!au)return;
   ['h','v'].forEach(k=>{const el=document.getElementById('ev-viz-th-'+k);if(el&&(!el.value.trim()||el.value===au.value))el.value=t;});
-  au.value=t;if(typeof saveState==='function')saveState();evThPreview();
+  au.value=t;evTh2Fill(false);if(typeof saveState==='function')saveState();evThPreview();
 }
 // 画像（1920px までの JPEG の data URL。動画側の取り込みと同じ形）
 async function evThImage(k,text){
   let src;
-  if(k==='v'||k==='v2')src=await renderVideoToBlob({html:buildVThumb(text,'ev',null,false,k==='v2'?2:3),thumb:true});
+  if(k==='v'||k==='v2')src=await renderVideoToBlob({html:buildVThumb(text,'ev',null,false,k==='v2'?2:3,k==='v2'?evTh2Parts():null),thumb:true});
   else{
     const cont=document.getElementById('th-render-target');
     cont.innerHTML=tqHtmlH(text,'youtube');
