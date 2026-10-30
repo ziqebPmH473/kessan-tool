@@ -8528,14 +8528,14 @@ function buildVThumb2(text,P,catOver,bare){
   //   上に「ラベル＋日付」のバー（100px）、下に「タップで動画を再生」のバー（116px）、その間を黒帯・白帯の2段で全部埋める（余った黒地は作らない）
   //   字の大きさは「行ごと」に幅いっぱい（上限＝全角 3.8 文字ぶん）、行が帯に収まらないときだけ全行を同じ比率で縮める。行間 1.38
   //   上段の字は帯の下寄せ・下段は上寄せで、境目に帯の 9% の余白（文字を画像の中央へ寄せる）
-  //   ここだけ：字は 4:5（上下 285px を除いた範囲）に収める（インスタの切り抜きで下が切れかけていた。すみぽん 2026-10-31）
+  //   ここだけ：9:16 で出すが、バー・帯・字をまとめて 4:5（1080×1350。上下 285px を除いた範囲）の中に置き、外は黒（インスタの切り抜きで下が切れかけていた。すみぽん 2026-10-31）
   const W=VSLIDE_W,H=VSLIDE_H,PX=56,HEAD=100,FOOT=116,LH=1.38,MAXC=3.8,GAP=0.09;
   const dt=new Date();
   const dateStr=`${dt.getFullYear()}.${dt.getMonth()+1}.${dt.getDate()}`;
   const parts=thumbParts(text);
   const cat=catOver!=null?catOver:(parts[2]?parseThumbnailMarkup(parts[2]).map(x=>x.text).join(''):((P||window._vdCurP)==='ev'?'決算分析':'株価分析'));
-  const SAFE_T=Math.round((H-1350)/2),SAFE_B=H-SAFE_T;
-  const bodyH=H-HEAD-FOOT,h0=Math.round(bodyH*0.5),h1=bodyH-h0;
+  const AREA=1350,SAFE_T=Math.round((H-AREA)/2);
+  const bodyH=AREA-HEAD-FOOT,h0=Math.round(bodyH*0.5),h1=bodyH-h0;
   const usable=W-PX*2,cap=Math.floor(usable/MAXC);
   const sizes=(lines,weight,limitH)=>{
     let a=lines.map(sg=>{const em=thumbTextEm(sg.map(x=>x.text).join(''),weight);return em?Math.max(20,Math.min(cap,Math.floor(usable/em))):cap;});
@@ -8545,8 +8545,7 @@ function buildVThumb2(text,P,catOver,bare){
   };
   const topL=vthSplitDe(parts[0]||'').map(parseThumbnailMarkup),botL=vthSplitName(parts[1]||'').map(parseThumbnailMarkup);
   const pad0=Math.round(h0*GAP),pad1=Math.round(h1*GAP);
-  // 4:5 に収める：上段は「帯の下端−余白」から上は SAFE_T まで、下段は「帯の上端＋余白」から下は SAFE_B まで
-  const s0=sizes(topL,700,(HEAD+h0-pad0)-SAFE_T),s1=sizes(botL,900,SAFE_B-(HEAD+h0+pad1));
+  const s0=sizes(topL,700,h0-pad0),s1=sizes(botL,900,h1-pad1);
   const band=(lines,sz,weight,h,bg,color,align,padY)=>{
     const html=lines.map((sg,i)=>`<div style="font-size:${sz[i]}px;line-height:${LH};white-space:nowrap;">${segsHtml(sg,color)}</div>`).join('');
     const pad=align==='flex-end'?`0 ${PX}px ${padY}px`:`${padY}px ${PX}px 0`;
@@ -8556,7 +8555,7 @@ function buildVThumb2(text,P,catOver,bare){
     :`<div style="background:#000;height:${HEAD}px;display:flex;align-items:center;justify-content:space-between;padding:0 ${PX}px;font-family:${THUMB_FF};overflow:hidden;"><div style="display:flex;align-items:center;gap:14px;"><div style="width:13px;height:51px;background:#f59e0b;"></div><div style="font-size:46px;font-weight:700;color:#fff;line-height:1;">${esc(cat)}</div></div><div style="font-size:46px;font-weight:700;color:#fff;line-height:1;">${esc(dateStr)}</div></div>`;
   const foot=bare?`<div style="height:${FOOT}px;background:#000;"></div>`
     :`<div style="background:#000;height:${FOOT}px;display:flex;align-items:center;justify-content:flex-end;padding:0 ${PX}px;font-family:${THUMB_FF};overflow:hidden;"><div style="font-size:52px;font-weight:700;color:#f59e0b;line-height:1;">タップで動画を再生 ▶</div></div>`;
-  return `<div class="vth">${vLogo('dark')}<div style="display:flex;flex-direction:column;height:${H}px;">${head}${band(topL,s0,700,h0,'#000','#ffffff','flex-end',pad0)}${band(botL,s1,900,h1,'#fff','#004aad','flex-start',pad1)}${foot}</div></div>`;
+  return `<div class="vth">${vLogo('dark')}<div style="position:absolute;left:0;right:0;top:${SAFE_T}px;height:${AREA}px;display:flex;flex-direction:column;">${head}${band(topL,s0,700,h0,'#000','#ffffff','flex-end',pad0)}${band(botL,s1,900,h1,'#fff','#004aad','flex-start',pad1)}${foot}</div></div>`;
 }
 
 // ============================================================
