@@ -8535,7 +8535,8 @@ function buildVThumb2(text,P,catOver,bare){
   const parts=thumbParts(text);
   const cat=catOver!=null?catOver:(parts[2]?parseThumbnailMarkup(parts[2]).map(x=>x.text).join(''):((P||window._vdCurP)==='ev'?'決算分析':'株価分析'));
   const SAFE_T=Math.round((H-1440)/2),SAFE_B=H-SAFE_T;
-  const bodyH=H-HEAD-FOOT,h0=Math.round(bodyH*0.5),h1=bodyH-h0;
+  // 上段：下段＝6：4（東証ツールは 5：5）。上段はラベル＋2行でほぼ埋まり、下段は銘柄名の1行がふつうなので（すみぽん 2026-10-31）
+  const bodyH=H-HEAD-FOOT,h0=Math.round(bodyH*0.6),h1=bodyH-h0;
   const LABEL_FS=72,LABEL_Y=SAFE_T+20,LABEL_H=LABEL_FS+36;   // ラベル：角丸の橙の帯に濃い字（字 72px＋上下 18px）。3:4 の上端のすぐ下
   const usable=W-PX*2,cap=Math.floor(usable/MAXC);
   const sizes=(lines,weight,limitH)=>{
