@@ -2283,12 +2283,11 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
                     <button class="btn-sm" onclick="evThDownload('h',this)" style="flex:none;padding:1px 6px;font-size:10px;" title="横のサムネ（1920×1080・jpg）をダウンロード。YouTube の横動画用">🖼 横</button>
                     <button class="btn-sm" onclick="evThDownload('v',this)" style="flex:none;padding:1px 6px;font-size:10px;" title="縦のサムネ（1080×1920・jpg・3段）をダウンロード。YouTube ショート用。縦の文が空なら横の文で作ります">🖼 縦</button>
                     <button class="btn-sm" onclick="evThDownload('v2',this)" style="flex:none;padding:1px 6px;font-size:10px;" title="縦のサムネの2段構成（1080×1920・jpg）をダウンロード。インスタ・TikTok 用。文は同じで、上段＝評価と株価の動きを2行、下段＝銘柄名、3段目の文は左上のラベルに">🖼 縦2段</button>
-                    <select id="ev-th-bands" onchange="evThPreview()" style="flex:none;font-size:10px;padding:1px 2px;display:none;" title="縦のプレビューの構成（ダウンロードは 🖼 縦＝3段、🖼 縦2段＝2段）"><option value="3">3段</option><option value="2">2段</option></select>
                 </div>
                 <textarea id="ev-viz-th-h" oninput="evThInput('h')" placeholder="上段：中段：下段（📤 出力データ作成で自動で入ります）" style="height:46px;min-height:46px;"></textarea>
                 <textarea id="ev-viz-th-v" oninput="evThInput('v')" placeholder="上段：中段：下段（📤 出力データ作成で自動で入ります）" style="height:46px;min-height:46px;display:none;"></textarea>
                 <input type="hidden" id="ev-viz-th-auto">
-                <p style="font-size:10px;color:var(--text-sub);margin:0;">「：」で上段・中段・下段を区切る。色指定: <span style="color:#ff914d">*オレンジ*</span>　<span style="color:#5ce1e6">#水色#</span>　<span style="color:#ffde59">%黄色%</span></p>
+                <p style="font-size:10px;color:var(--text-sub);margin:0;">「：」で上段・中段・下段を区切る。色指定: <span style="color:#ff914d">*オレンジ*</span>　<span style="color:#5ce1e6">#水色#</span>　<span style="color:#ffde59">%黄色%</span>。縦2段の改行位置は、文の中に改行を入れると変えられます（3段では無視されます）</p>
                 <div id="ev-th-prev" style="position:relative;overflow:hidden;border:1px solid var(--border);border-radius:4px;align-self:flex-start;"><div id="ev-th-prev-in"></div></div>
             </div>
             <div id="earn-viz-empty" style="padding:30px;text-align:center;color:var(--text-sub);font-size:12px;border:1px dashed var(--border);border-radius:8px;">まだ動画データがありません。左の「🎬 Gemini で動画データを作る」を押してください。</div>
@@ -8488,7 +8487,7 @@ function buildVThumb(text,P,catOver,bare,bands){
   const cat=catOver!=null?catOver:(P||window._vdCurP)==='ev'?'決算分析':'株価分析';
   const dt=new Date();
   const dateStr=`${dt.getFullYear()}.${dt.getMonth()+1}.${dt.getDate()}`;
-  const parts=thumbParts(text);
+  const parts=thumbParts(text).map(x=>x.replace(/\s*\n\s*/g,''));   // 3段は1段1行。欄の改行（2段の改行位置用）は無視する
   const segs=[parseThumbnailMarkup(parts[0]||''),parseThumbnailMarkup(parts[1]||''),parseThumbnailMarkup(parts[2]||'')];
   const fit=(sg,base,weight)=>{const em=thumbTextEm(sg.map(s=>s.text).join(''),weight);if(!em)return base;return Math.max(48,Math.min(base,Math.floor((VSLIDE_W-80)/em)));};
   const tF=fit(segs[0],150,700),mF=fit(segs[1],190,900),bF=fit(segs[2],150,700);
@@ -8527,17 +8526,17 @@ function buildVThumb2(text,P,catOver,bare){
   // 東証ツール（stock-slide-generator の slideVThumb・2段構成）と同じ作り：
   //   上に「ラベル＋日付」のバー（100px）、下に「タップで動画を再生」のバー（116px）、その間を黒帯・白帯の2段で全部埋める（余った黒地は作らない）
   //   字の大きさは「行ごと」に幅いっぱい（上限＝全角 3.8 文字ぶん）、行が帯に収まらないときだけ全行を同じ比率で縮める。行間 1.38
-  //   上段の字は帯の下寄せ・下段は上寄せで、境目に帯の 9% の余白（文字を画像の中央へ寄せる）
+  //   （東証ツールは上段の字を下寄せ・下段を上寄せにして境目に余白を空けるが、ここではやらない：3:4 に切られたとき、その余白のぶん上下の字が切れかけた。すみぽん 2026-10-31）
   //   ここだけ：上段・下段の字と「図解で決算解説」のラベルは 3:4（1080×1440。上下 240px を除いた範囲）に収める（インスタのグリッドは 3:4、TikTok のグリッドも 3:4 とみて。
   //   バーと帯は 9:16 いっぱい。バーの字は切れてもよい。すみぽん 2026-10-31）。ラベルは3段と同じ見た目（橙の縦線＋白字）で、黒帯の左上に置く
-  const W=VSLIDE_W,H=VSLIDE_H,PX=56,HEAD=100,FOOT=116,LH=1.38,MAXC=3.8,GAP=0.09;
+  const W=VSLIDE_W,H=VSLIDE_H,PX=56,HEAD=100,FOOT=116,LH=1.38,MAXC=3.8;
   const dt=new Date();
   const dateStr=`${dt.getFullYear()}.${dt.getMonth()+1}.${dt.getDate()}`;
   const parts=thumbParts(text);
   const cat=catOver!=null?catOver:(parts[2]?parseThumbnailMarkup(parts[2]).map(x=>x.text).join(''):((P||window._vdCurP)==='ev'?'決算分析':'株価分析'));
   const SAFE_T=Math.round((H-1440)/2),SAFE_B=H-SAFE_T;
   const bodyH=H-HEAD-FOOT,h0=Math.round(bodyH*0.5),h1=bodyH-h0;
-  const LABEL_Y=SAFE_T+24,LABEL_H=58;   // ラベルの位置と高さ（.vth-cat と同じ 56px の字）
+  const LABEL_FS=72,LABEL_Y=SAFE_T+20,LABEL_H=LABEL_FS+36;   // ラベル：角丸の橙の帯に濃い字（字 72px＋上下 18px）。3:4 の上端のすぐ下
   const usable=W-PX*2,cap=Math.floor(usable/MAXC);
   const sizes=(lines,weight,limitH)=>{
     let a=lines.map(sg=>{const em=thumbTextEm(sg.map(x=>x.text).join(''),weight);return em?Math.max(20,Math.min(cap,Math.floor(usable/em))):cap;});
@@ -8546,20 +8545,19 @@ function buildVThumb2(text,P,catOver,bare){
     return a;
   };
   const topL=vthSplitDe(parts[0]||'').map(parseThumbnailMarkup),botL=vthSplitName(parts[1]||'').map(parseThumbnailMarkup);
-  const pad0=Math.round(h0*GAP),pad1=Math.round(h1*GAP);
-  // 字の高さの上限：上段は「帯の下端−余白」から上はラベルの下まで、下段は「帯の上端＋余白」から下は 3:4 の下端まで
-  const s0=sizes(topL,700,(HEAD+h0-pad0)-(LABEL_Y+LABEL_H+24)),s1=sizes(botL,900,SAFE_B-(HEAD+h0+pad1));
-  const band=(lines,sz,weight,h,bg,color,align,padY)=>{
+  // 字を置く範囲（3:4 に入る部分）：上段＝ラベルの下から帯の下端まで、下段＝帯の上端から 3:4 の下端まで。字はその範囲の中央に置き、大きさもその高さいっぱい
+  const top0=(LABEL_Y+LABEL_H+16)-HEAD,bot1=(HEAD+h0+h1)-SAFE_B;   // 上段の上の詰め・下段の下の詰め（px）
+  const s0=sizes(topL,700,h0-top0),s1=sizes(botL,900,h1-bot1);
+  const band=(lines,sz,weight,h,bg,color,padT,padB)=>{
     const html=lines.map((sg,i)=>`<div style="font-size:${sz[i]}px;line-height:${LH};white-space:nowrap;">${segsHtml(sg,color)}</div>`).join('');
-    const pad=align==='flex-end'?`0 ${PX}px ${padY}px`:`${padY}px ${PX}px 0`;
-    return `<div style="box-sizing:border-box;background:${bg};height:${h}px;display:flex;align-items:${align};justify-content:center;padding:${pad};overflow:hidden;"><div style="font-weight:${weight};text-align:center;font-family:${THUMB_FF};">${html}</div></div>`;
+    return `<div style="box-sizing:border-box;background:${bg};height:${h}px;display:flex;align-items:center;justify-content:center;padding:${padT}px ${PX}px ${padB}px;overflow:hidden;"><div style="font-weight:${weight};text-align:center;font-family:${THUMB_FF};">${html}</div></div>`;
   };
   const head=bare?`<div style="height:${HEAD}px;background:#000;"></div>`
     :`<div style="background:#000;height:${HEAD}px;display:flex;align-items:center;justify-content:flex-end;padding:0 ${PX}px;font-family:${THUMB_FF};overflow:hidden;"><div style="font-size:46px;font-weight:700;color:#fff;line-height:1;">${esc(dateStr)}</div></div>`;
-  const label=bare||!cat?'':`<div class="vth-cat" style="position:absolute;left:${PX}px;top:${LABEL_Y}px;z-index:3;"><i></i>${esc(cat)}</div>`;
+  const label=bare||!cat?'':`<div style="position:absolute;left:${PX}px;top:${LABEL_Y}px;z-index:3;display:inline-block;background:#f59e0b;color:#1f1300;font-size:${LABEL_FS}px;font-weight:900;line-height:1;padding:18px 40px;border-radius:999px;font-family:${THUMB_FF};white-space:nowrap;">${esc(cat)}</div>`;
   const foot=bare?`<div style="height:${FOOT}px;background:#000;"></div>`
     :`<div style="background:#000;height:${FOOT}px;display:flex;align-items:center;justify-content:flex-end;padding:0 ${PX}px;font-family:${THUMB_FF};overflow:hidden;"><div style="font-size:52px;font-weight:700;color:#f59e0b;line-height:1;">タップで動画を再生 ▶</div></div>`;
-  return `<div class="vth">${vLogo('dark')}${label}<div style="display:flex;flex-direction:column;height:${H}px;">${head}${band(topL,s0,700,h0,'#000','#ffffff','flex-end',pad0)}${band(botL,s1,900,h1,'#fff','#004aad','flex-start',pad1)}${foot}</div></div>`;
+  return `<div class="vth">${vLogo('dark')}${label}<div style="display:flex;flex-direction:column;height:${H}px;">${head}${band(topL,s0,700,h0,'#000','#ffffff',top0,0)}${band(botL,s1,900,h1,'#fff','#004aad',0,bot1)}${foot}</div></div>`;
 }
 
 // ============================================================
@@ -16145,11 +16143,18 @@ function evThPreview(){
   if(!text){wrap.style.display='none';return;}
   wrap.style.display='';
   const W=k==='v'?VSLIDE_W:SLIDE_W,H=k==='v'?VSLIDE_H:SLIDE_H,h=k==='v'?320:Math.min(240,Math.floor(((wrap.parentElement.clientWidth||600)-4)*H/W));
-  const sc=h/H;wrap.style.width=Math.round(W*sc)+'px';wrap.style.height=Math.round(H*sc)+'px';
+  const sc=h/H,w=Math.round(W*sc);
+  if(k==='v'){
+    // 縦は 2段（🖼 縦2段）と 3段（🖼 縦）を横に並べて両方見せる（すみぽん 2026-10-31）
+    wrap.style.width=(w*2+8)+'px';wrap.style.height=Math.round(H*sc)+'px';
+    inner.style.cssText='position:absolute;top:0;left:0;pointer-events:none;';
+    const one=(html,x)=>`<div style="position:absolute;top:0;left:${x}px;width:${W}px;height:${H}px;transform:scale(${sc});transform-origin:top left;">${html}</div>`;
+    inner.innerHTML=one(buildVThumb(text,'ev',null,false,2),0)+one(buildVThumb(text,'ev',null,false,3),w+8);
+    return;
+  }
+  wrap.style.width=w+'px';wrap.style.height=Math.round(H*sc)+'px';
   inner.style.cssText=`position:absolute;top:0;left:0;width:${W}px;height:${H}px;transform:scale(${sc});transform-origin:top left;pointer-events:none;`;
-  const bands=Number((document.getElementById('ev-th-bands')||{}).value)===2?2:3;
-  const bsel=document.getElementById('ev-th-bands');if(bsel)bsel.style.display=k==='v'?'':'none';
-  inner.innerHTML=k==='v'?buildVThumb(text,'ev',null,false,bands):tqHtmlH(text,'youtube');
+  inner.innerHTML=tqHtmlH(text,'youtube');
 }
 // 縦・横は同じ文（片方を直すと、もう片方も同じにして両方の画像を作り直す）
 function evThInput(k){
