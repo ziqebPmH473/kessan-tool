@@ -1748,6 +1748,7 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
     <button class="sa-subtab active" data-satab="make" onclick="switchPriceTab('make')">📊 スライド作成</button>
     <button class="sa-subtab" data-satab="article" onclick="switchPriceTab('article')">📝 記事・SNS</button>
     <button class="sa-subtab" data-satab="video" onclick="switchPriceTab('video')">🎬 動画</button>
+    <button class="sa-subtab" data-satab="movie" onclick="switchPriceTab('movie')">🎞 自動動画</button>
   </div>
   <div id="sa-tab-make">
 
@@ -1999,6 +2000,17 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
   </div><!-- /sa-tab-article -->
 
   <div id="sa-tab-video" class="sa" style="display:none;"></div><!-- /sa-tab-video（中身はJSで生成） -->
+  <!-- 🎞 自動動画（縦）：🎬 動画タブのスライド文・台本と、チャートのデータから部品（KessanViz.stock）で動画を作る。プレビューは右の pv-view -->
+  <div id="sa-tab-movie" class="sa" style="display:none;flex-direction:column;gap:6px;">
+    <div class="sa-card">
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button class="btn-sm" onclick="pvOpen(true)" style="flex:none;" title="🎬 動画タブのスライド文・台本とチャートを読み直します。台本が変わった場面は、音声を作り直してください">📥 動画タブの内容を読み直す</button>
+        <span id="pv-status" style="font-size:11px;color:var(--text-sub);"></span>
+      </div>
+      <div id="pv-controls" style="margin-top:6px;"></div>
+      <textarea id="pv-settings" style="display:none;"></textarea>
+    </div>
+  </div>
 
   <div id="status"></div>
   <div id="mob-prev">
@@ -2069,6 +2081,10 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
   </div>
 
   <!-- スライドビュー -->
+  <div id="pv-view" style="display:none;flex-direction:column;gap:6px;flex:1;overflow-y:auto;">
+    <div style="font-size:11px;color:var(--text-sub);">株価分析の縦動画 1080×1920 プレビュー</div>
+    <div id="pv-mount"></div>
+  </div>
   <div id="slides-view" style="display:flex;flex-direction:column;gap:6px;flex:1;overflow-y:auto;">
     <div style="font-size:11px;color:var(--text-sub);">プレビュー（クリックで個別ダウンロード）</div>
     <div class="prev-wrap" id="prev-area"></div>
@@ -5261,10 +5277,13 @@ risk_3=`;
 // 株価分析：サイドバーのサブタブ切替（1.2.＝スライド作成 / 3.＝記事・SNS）
 function switchPriceTab(t){
   document.querySelectorAll('#mode-price .sa-subtab[data-satab]').forEach(b=>b.classList.toggle('active',b.dataset.satab===t));   // 動画タブ内の内側タブ（data-satabなし）は触らない
-  const mk=document.getElementById('sa-tab-make'), ar=document.getElementById('sa-tab-article'), vd=document.getElementById('sa-tab-video');
+  const mk=document.getElementById('sa-tab-make'), ar=document.getElementById('sa-tab-article'), vd=document.getElementById('sa-tab-video'), mv=document.getElementById('sa-tab-movie');
   if(mk) mk.style.display = t==='make' ? '' : 'none';
   if(ar) ar.style.display = t==='article' ? '' : 'none';
   if(vd) vd.style.display = t==='video' ? '' : 'none';
+  if(mv) mv.style.display = t==='movie' ? 'flex' : 'none';
+  if(t==='movie'){setMode('pv');pvOpen();if(typeof ytSyncTabs==='function')ytSyncTabs();return;}
+  if(document.getElementById('pv-view')?.style.display==='flex')setMode('slides');
   // 動画タブでは右側のプレビューも縦スライドに切り替える（戻る時はスライドへ）
   if(typeof setMode==='function'){
     if(t==='video'){setMode(typeof ytOrient==='function'&&ytOrient()==='y'?ytPaneMode():'video');if(typeof ytUpdateFreeInfo==='function')ytUpdateFreeInfo();}
@@ -8496,8 +8515,9 @@ function vdChartLines(P){
   if(ta.trim()){try{const d=parseData(ta);const c=getSec(d,'チャート');if(c.length>1)return c;}catch(e){}}
   return[];
 }
+const vPtsParse=arr=>(arr||[]).slice(0,3).map(p=>{const q=String(p).split(/[|｜]/);return{h:trimDot(q[0]||''),sub:trimDot(q.slice(1).join(' ')||'')};});
 const vPts=(arr,cls)=>{
-  const pts=(arr||[]).slice(0,3).map(p=>{const q=String(p).split(/[|｜]/);return{h:trimDot(q[0]||''),sub:trimDot(q.slice(1).join(' ')||'')};});
+  const pts=vPtsParse(arr);
   return pts.length?pts.map((p,i)=>`<div class="v-pt ${cls}"><div class="v-pn">${i+1}</div><div><div class="v-ptx">${esc(p.h)}</div>${p.sub?`<div class="v-pts2">${esc(p.sub)}</div>`:''}</div></div>`).join(''):`<div class="v-pt ${cls}"><div class="v-ptx" style="color:#94a3b8;">（データなし）</div></div>`;
 };
 function vSig(){return `<div class="v-sig">すみっこマネー大学/@sumikko_money</div>`;}
@@ -8842,6 +8862,22 @@ function buildEF(v,d,step,ctx){
 }
 
 // サムネ＋スライドを組み立てる
+// 株価分析の縦スライド・自動動画で使う銘柄の情報
+function vdStockCtx(v){
+  const f=window._fetched||{};
+  let info={};
+  const ta=(document.getElementById('ta-data')||{}).value||'';
+  if(ta.trim()){try{info=parseBankyo(parseData(ta));}catch(e){info={};}}
+  const bk=((v.V1||{})['銘柄']||'').split('|');
+  return{
+    name:getName()||info.name||(bk[0]||'').trim(),
+    code:getTicker()||info.code||(bk[1]||'').trim(),
+    price:((document.getElementById('inp-cur-price')||{}).value||'').trim()||info.price||'',
+    period:getPeriod()||info.change||'',
+    isDown:getDir()==='down',
+    desc:info.desc||(f.business?String(f.business).slice(0,40):'')
+  };
+}
 function buildVideoSlides(P,text){
   window._vdCurP=P;
   const v=parseVideoData(text);
@@ -8862,19 +8898,7 @@ function buildVideoSlides(P,text){
     }
     return out;
   }
-  const f=window._fetched||{};
-  let info={};
-  const ta=(document.getElementById('ta-data')||{}).value||'';
-  if(ta.trim()){try{info=parseBankyo(parseData(ta));}catch(e){info={};}}
-  const bk=((v.V1||{})['銘柄']||'').split('|');
-  const ctx={
-    name:getName()||info.name||(bk[0]||'').trim(),
-    code:getTicker()||info.code||(bk[1]||'').trim(),
-    price:((document.getElementById('inp-cur-price')||{}).value||'').trim()||info.price||'',
-    period:getPeriod()||info.change||'',
-    isDown:getDir()==='down',
-    desc:info.desc||(f.business?String(f.business).slice(0,40):'')
-  };
+  const ctx=vdStockCtx(v);
   const n=ctx.name||'',c=ctx.code||'';
   const isDown=ctx.isDown;
   if(th)out.push({html:buildVThumb3(thVParts()),name:`${c}_${n}_0_サムネ`,thumb:true});
@@ -14943,6 +14967,7 @@ function ktKindAfterOpen(kind,json){
     try{renderImageStock();}catch(e){}
   }else if(kind==='price'){
     window._fetched=j.priceFetched||null;
+    try{pvClose();if(document.getElementById('sa-tab-movie')?.style.display==='flex')requestAnimationFrame(()=>pvOpen(true));}catch(e){}   // PJ を替えたら自動動画も作り直す
     if(!json){const ta=document.getElementById('th-input');if(ta){const p=ta.value.split('：');ta.value=[p[0]||'',p[1]||'',kgGet('th3')].join('：');}}   // 新規：3段目は共通設定の初期値
     if(!json)['gem-model','gem-article-model'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=kgGet('init-'+id);});   // 新規：モデルは共通設定の初期値
     try{renderPriceFetchInfo();}catch(e){}
@@ -15334,7 +15359,9 @@ function setMode(mode){
     yav.style.minWidth=ynv.style.minWidth=isBoth?'0':'';
     ynv.style.overflowY=isBoth?'auto':'';if(!isBoth){ynv.style.height='';ynv.style.flex='1';}
   }
-  document.getElementById('slides-view').style.display=(!isThumb&&!isVideo&&!isYa&&!isYn)?'flex':'none';
+  const isPv=mode==='pv';
+  document.getElementById('pv-view').style.display=isPv?'flex':'none';
+  document.getElementById('slides-view').style.display=(!isThumb&&!isVideo&&!isYa&&!isYn&&!isPv)?'flex':'none';
   document.getElementById('yn-view').style.display=isYn?'flex':'none';
   document.getElementById('tab-yn').classList.toggle('active',isYn&&!isBoth);
   document.getElementById('tab-yb').classList.toggle('active',isBoth);
@@ -15342,7 +15369,7 @@ function setMode(mode){
   document.getElementById('tab-ya').classList.toggle('active',isYa&&!isBoth);
   document.getElementById('thumb-view').style.display=isThumb?'flex':'none';
   document.getElementById('video-view').style.display=isVideo?'flex':'none';
-  document.getElementById('tab-slides').classList.toggle('active',!isThumb&&!isVideo&&!isYa&&!isYn);
+  document.getElementById('tab-slides').classList.toggle('active',!isThumb&&!isVideo&&!isYa&&!isYn&&!isPv);
   document.getElementById('tab-thumb').classList.toggle('active',isThumb);
   document.getElementById('tab-video').classList.toggle('active',isVideo);
   if(isThumb)renderThumbPreview();
@@ -16324,6 +16351,85 @@ async function evVizCoverImage(orientation){
   const k=orientation==='portrait'?'v':'h',t=evThVal(k);
   if(!t)throw new Error(`${k==='v'?'縦':'横'}のサムネの文がありません（右の画面の「サムネ」に入れてください）`);
   return await evThImage(k==='v'?'v2':k,t);
+}
+// ---- 株価分析の 🎞 自動動画（縦）：部品は KessanViz.stock。文は 🎬 動画タブのスライド文・台本、チャートは同じデータ ----
+const PV_SLOT={chart:1,reasons:2,strengths:3,risks:4,summary:5};
+let _pvHandle=null;
+const pvStatus=t=>{const el=document.getElementById('pv-status');if(el)el.textContent=t||'';};
+function pvSettings(){try{return JSON.parse((document.getElementById('pv-settings')||{}).value||'null')||null;}catch(e){return null;}}
+// QR は部品に画像で渡す
+async function pvQr(url){
+  if(!url||typeof QRCode==='undefined')return null;
+  const box=document.createElement('div');
+  try{new QRCode(box,{text:url,width:360,height:360,correctLevel:QRCode.CorrectLevel.M});}catch(e){console.warn(e);return null;}
+  await new Promise(r=>setTimeout(r,60));
+  const cv=box.querySelector('canvas');return cv?cv.toDataURL('image/png'):null;
+}
+async function pvData(){
+  const text=vdVal('vd','slides');if(!text)return null;
+  const v=parseVideoData(text),ctx=vdStockCtx(v),s1=v.V1||{},s5=v.V5||{},isDown=ctx.isDown;
+  const lines=vdChartLines('vd');
+  const candles=lines.map(r=>{const c=r.split(',');return{d:c[0].trim(),o:+c[1],h:+c[2],l:+c[3],c:+c[4],v:+(c[5]||0)};}).filter(c=>[c.o,c.h,c.l,c.c].every(isFinite)).sort((a,b)=>a.d<b.d?-1:1);
+  const ch=vdSplitChange(s1['変化']||ctx.period),basis=s1['基準']||ch.rest;
+  const bk=(s1['銘柄']||'').split('|'),name=(bk[0]||'').trim()||ctx.name,code=(bk[1]||'').trim()||ctx.code;
+  const block=(sec,def)=>({title:(sec||{})['見出し']||def,points:vPtsParse((sec||{}).pts).map(p=>({h:p.h,s:p.sub}))});
+  const ch5=vdSplitChange(s5['変化']||s1['変化']||ctx.period);
+  const from=basis?String(basis).trim().replace(/比$/,'').replace(/(高値|安値)$/,'$1から'):ch5.rest;
+  const rows=[{label:isDown?'下落幅':'上昇幅',value:ch5.pct?(from?from+' ':'')+ch5.pct:'',tone:isDown?'red':'green'},{label:isDown?'下落要因':'上昇要因',value:s5['要因']||''},{label:'強み',value:s5['強み']||''},{label:'弱み・注意点',value:s5['弱み']||''}].filter(r=>r.value);
+  return{code,name,desc:ctx.desc||'',price:fmtPrice(ctx.price||s1['株価']||'',code),change_pct:ch.pct,basis:basis||'',lead:s1['一言']||'',is_down:isDown,
+    chart_label:lines.length?`${chartGranularityLabel(lines)}チャート（${chartPeriodLabel(lines)}）`:'',candles,
+    reasons:block(v.V2,isDown?'なぜ下落している？':'なぜ上昇している？'),strengths:block(v.V3,'この会社の強み'),risks:block(v.V4,'一方で注意点も'),
+    summary:{title:'現時点の整理',rows,question:s5['問い']||(isDown?'では、現在株価は本当に安いのか？':'では、この上昇はどこまで続くのか？'),note_title:'noteではここから分析',note_items:VD_NOTE_ITEMS[isDown?'down':'up'],cta:'続きはnoteで',cta_sub:'プロフィール／QRコードから',qr:await pvQr(vdNoteUrl()),disclaimer:VIDEO_DISCLAIMER}};
+}
+// 台本は 🎬 動画タブから入れる。変わった場面だけ入れ替え、文の時刻も作り直す（同じ台本の音声・手で直した時刻はそのまま）
+function pvMergeScript(KV){
+  const st=KV.stock.ensureSettings(pvSettings());
+  for(const id in PV_SLOT){
+    const text=vdVal('vd','s'+PV_SLOT[id]),cur=st.narration[id];
+    if(!cur||cur.src!==text){st.narration[id]={text,seconds:cur?cur.seconds:null,src:text};delete st.beats[id];}
+  }
+  return st;
+}
+async function pvTts(text){
+  const voice=vdVal('vd','tts-voice')||'Erinome',model=vdVal('vd','tts-model')||undefined;
+  const res=await fetch('/api/tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,voice,model})});
+  let data={};try{data=await res.json();}catch(e){}
+  if(!res.ok||!data.ok||!data.audioBase64)throw new Error(data.error||('読み上げに失敗しました（HTTP '+res.status+'）'));
+  const bin=atob(data.audioBase64),bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+  return{blob:new Blob([bytes],{type:data.mimeType||'audio/wav'}),seconds:data.seconds||null};
+}
+const pvAudioStore={
+  get:async k=>{try{return k==='bgm'?await KT_YN.get('bgm:viz'):await KT_TTS.get('vd:pv:'+k);}catch(e){return null;}},
+  put:async(k,rec)=>{if(k==='bgm')await KT_YN.put('bgm:viz',rec);else await KT_TTS.put('vd:pv:'+k,rec);},
+  del:async k=>{if(k==='bgm')await KT_YN.del('bgm:viz');else await KT_TTS.del('vd:pv:'+k);},
+};
+// 🎬 動画タブで作った音声（台本が同じなら使う）
+async function pvSceneAudio(id){
+  const a=window._vdTts.vd[PV_SLOT[id]];if(!a||!a.b64)return null;
+  const bin=atob(a.b64),bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+  return{blob:new Blob([bytes],{type:'audio/wav'}),text:a.text||''};
+}
+// 書き出しのときに、いまの文の縦サムネを作る
+async function pvCover(){
+  if(!thVParts().some(x=>x.trim()))return null;
+  const b=await renderVideoToBlob({html:thumbVHtml(''),thumb:true});
+  return await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result));r.onerror=()=>rej(r.error);r.readAsDataURL(b);});
+}
+function pvClose(){if(_pvHandle){try{_pvHandle.unmount();}catch(e){}_pvHandle=null;}}
+// force＝文を読み直す。開くたびにも読み直すが、組み立て済みで force でなければプレビューはそのまま
+async function pvOpen(force){
+  if(_pvHandle&&!force)return;
+  const host=document.getElementById('pv-mount'),ctl=document.getElementById('pv-controls');if(!host)return;
+  pvStatus('読み込み中…');
+  let KV;try{KV=await evVizLoad();}catch(e){pvStatus(e.message);return;}
+  const data=await pvData();
+  if(!data){pvClose();host.innerHTML='';ctl.innerHTML='';pvStatus('先に 🎬 動画タブでスライドの文と台本を作ってください');return;}
+  if(!data.candles.length)pvStatus('チャートのデータがありません（スライド作成タブで株探データを取得してください）');else pvStatus('');
+  const settings=pvMergeScript(KV),el=document.getElementById('pv-settings');el.value=JSON.stringify(settings);
+  const props={data,settings,controlsEl:ctl,tts:pvTts,audioStore:pvAudioStore,transcribe:evVizTranscribe,importBgm:evVizImportBgm,importSceneAudio:pvSceneAudio,coverImage:pvCover,
+    onChange:st=>{el.value=JSON.stringify(st);if(typeof saveState==='function')saveState();}};
+  if(_pvHandle)_pvHandle.update(props);else _pvHandle=KV.stock.mount(host,props);
+  if(typeof saveState==='function')saveState();
 }
 // ---- 分析動画の音声（ナレーション・BGM） ----
 // 読み上げは /api/tts（声・モデルは 🎬 動画タブの決算側の設定 ev-tts-voice / ev-tts-model と同じ）
