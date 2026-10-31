@@ -1748,7 +1748,6 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
     <button class="sa-subtab active" data-satab="make" onclick="switchPriceTab('make')">📊 スライド作成</button>
     <button class="sa-subtab" data-satab="article" onclick="switchPriceTab('article')">📝 記事・SNS</button>
     <button class="sa-subtab" data-satab="video" onclick="switchPriceTab('video')">🎬 動画</button>
-    <button class="sa-subtab" data-satab="movie" onclick="switchPriceTab('movie')">🎞 自動動画</button>
   </div>
   <div id="sa-tab-make">
 
@@ -2000,17 +1999,6 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
   </div><!-- /sa-tab-article -->
 
   <div id="sa-tab-video" class="sa" style="display:none;"></div><!-- /sa-tab-video（中身はJSで生成） -->
-  <!-- 🎞 自動動画（縦）：🎬 動画タブのスライド文・台本と、チャートのデータから部品（KessanViz.stock）で動画を作る。プレビューは右の pv-view -->
-  <div id="sa-tab-movie" class="sa" style="display:none;flex-direction:column;gap:6px;">
-    <div class="sa-card">
-      <div style="display:flex;align-items:center;gap:6px;">
-        <button class="btn-sm" onclick="pvOpen(true)" style="flex:none;" title="🎬 動画タブのスライド文・台本とチャートを読み直します。台本が変わった場面は、音声を作り直してください">📥 動画タブの内容を読み直す</button>
-        <span id="pv-status" style="font-size:11px;color:var(--text-sub);"></span>
-      </div>
-      <div id="pv-controls" style="margin-top:6px;"></div>
-      <textarea id="pv-settings" style="display:none;"></textarea>
-    </div>
-  </div>
 
   <div id="status"></div>
   <div id="mob-prev">
@@ -5276,18 +5264,16 @@ risk_3=`;
 
 // 株価分析：サイドバーのサブタブ切替（1.2.＝スライド作成 / 3.＝記事・SNS）
 function switchPriceTab(t){
+  if(t==='movie')t='video';   // 前の版で保存した「自動動画」タブ
   document.querySelectorAll('#mode-price .sa-subtab[data-satab]').forEach(b=>b.classList.toggle('active',b.dataset.satab===t));   // 動画タブ内の内側タブ（data-satabなし）は触らない
-  const mk=document.getElementById('sa-tab-make'), ar=document.getElementById('sa-tab-article'), vd=document.getElementById('sa-tab-video'), mv=document.getElementById('sa-tab-movie');
+  const mk=document.getElementById('sa-tab-make'), ar=document.getElementById('sa-tab-article'), vd=document.getElementById('sa-tab-video');
   if(mk) mk.style.display = t==='make' ? '' : 'none';
   if(ar) ar.style.display = t==='article' ? '' : 'none';
   if(vd) vd.style.display = t==='video' ? '' : 'none';
-  if(mv) mv.style.display = t==='movie' ? 'flex' : 'none';
-  if(t==='movie'){setMode('pv');pvOpen();if(typeof ytSyncTabs==='function')ytSyncTabs();return;}
-  if(document.getElementById('pv-view')?.style.display==='flex')setMode('slides');
   // 動画タブでは右側のプレビューも縦スライドに切り替える（戻る時はスライドへ）
   if(typeof setMode==='function'){
-    if(t==='video'){setMode(typeof ytOrient==='function'&&ytOrient()==='y'?ytPaneMode():'video');if(typeof ytUpdateFreeInfo==='function')ytUpdateFreeInfo();}
-    else if(['tab-video','tab-ya','tab-yn','tab-yb'].some(id=>document.getElementById(id)?.classList.contains('active')))setMode('slides');
+    if(t==='video'){setMode(ytVdMode());if(ytOrient()==='a')pvOpen();if(typeof ytUpdateFreeInfo==='function')ytUpdateFreeInfo();}
+    else if(document.getElementById('pv-view')?.style.display==='flex'||['tab-video','tab-ya','tab-yn','tab-yb'].some(id=>document.getElementById(id)?.classList.contains('active')))setMode('slides');
     if(typeof ytSyncTabs==='function')ytSyncTabs();
   }
 }
@@ -7553,6 +7539,18 @@ function vdBuildTabHtml(P){
   </div>
   </div>
 
+  ${P==='vd'?`<div id="vd-pane-movie" style="display:none;">
+  <!-- 🤖 縦（自動）：縦（SNS）のスライド文・台本と、チャートのデータから部品（KessanViz.stock）で動画を作る。プレビューは右の pv-view -->
+  <div class="sa-card">
+    <div style="display:flex;align-items:center;gap:6px;">
+      <button class="btn-sm" onclick="pvOpen(true)" style="flex:none;" title="縦（SNS）のスライド文・台本とチャートを読み直します。台本が変わった場面は、音声を作り直してください">📥 縦（SNS）の内容を読み直す</button>
+      <span id="pv-status" style="font-size:11px;color:var(--text-sub);"></span>
+    </div>
+    <div id="pv-controls" style="margin-top:6px;"></div>
+    <textarea id="pv-settings" style="display:none;"></textarea>
+  </div>
+  </div>`:''}
+
   <div id="${P}-pane-sns" style="display:none;">
   <div class="sa-card">
     <h2 style="display:flex;justify-content:space-between;align-items:center;">投稿文（動画用）${P==='vd'?`<button class="btn-sm" onclick="geminiVideoSns('${P}',this)" style="background:#4f46e5;color:#fff;font-weight:normal;" title="X・Instagram・TikTok・YouTubeショート の投稿文だけを、AIで作り直します。台本・縦スライド・音声はそのままです">🤖 SNS再生成</button>`:''}</h2>
@@ -7597,6 +7595,8 @@ async function vdPasteInto(P,id){
 }
 function vdInnerTab(P,t){
   ['video','sns','data'].forEach(k=>{vdEl(P,'itab-'+k).classList.toggle('active',t===k);vdEl(P,'pane-'+k).style.display=t===k?'':'none';});
+  // 縦（自動）：SNS・データは縦と同じ。🎬 動画の中身だけ自動動画に替える
+  const mv=vdEl(P,'pane-movie');if(mv){const auto=ytOrient()==='a';mv.style.display=t==='video'&&auto?'':'none';if(auto)vdEl(P,'pane-video').style.display='none';}
 }
 // 投稿文の末尾に必ず付ける固定タグ（設定タブで変更可・両タブ共通）
 const VD_FIXED_TAGS_DEFAULT='#ナレスラ #編集なしで動画作成';
@@ -11534,7 +11534,8 @@ function ytRestoreFields(){
   const nm=ytEl('nlm-min');if(nm&&nm.value==='8')nm.value='12';   // NotebookLMは長さを守らないので、長めに作らせる目安として12分（旧既定値8分から）
 }
 // 縦（SNS）／横（YouTube）の切り替え
-const ytOrient=()=>((document.getElementById('vd-orient')||{}).value||'v');
+const ytOrient=()=>((document.getElementById('vd-orient')||{}).value||'v');   // v＝縦（SNS）／a＝縦（自動）／y＝横
+const ytVdMode=()=>ytOrient()==='y'?ytPaneMode():ytOrient()==='a'?'pv':'video';   // 動画タブのときの右側の表示
 // 横のとき右ペインに出すもの：前に選んだ表示（既定は並べて表示）
 const ytPaneMode=()=>{let m='';try{m=sessionStorage.getItem('yt-pane')||'';}catch(e){}return['ytaudio','ytnare','ytboth'].includes(m)?m:'ytboth';};
 // サムネイルの文言と型（note／YouTube）は、note用と YouTube用（横動画）で別に持つ。
@@ -11592,7 +11593,8 @@ function ytSetOrient(o){
   document.getElementById('vd-orient-v').style.display=o==='y'?'none':'';
   document.getElementById('vd-orient-y').style.display=o==='y'?'':'none';
   document.querySelectorAll('.vd-orient-btn').forEach(b=>b.classList.toggle('active',b.dataset.o===o));
-  if(document.getElementById('sa-tab-video')?.style.display!=='none')setMode(o==='y'?ytPaneMode():'video');
+  vdInnerTab('vd',['video','sns','data'].find(k=>vdEl('vd','itab-'+k)?.classList.contains('active'))||'video');
+  if(document.getElementById('sa-tab-video')?.style.display!=='none'){setMode(ytVdMode());if(o==='a')pvOpen();}
   if(o==='y')ytUpdateFreeInfo();
   saveState();
 }
@@ -11600,6 +11602,7 @@ function ytOrientBar(){
   return `<input type="hidden" id="vd-orient" value="v">
 <div class="sa-subtabs" style="margin-bottom:6px;">
   <button class="sa-subtab vd-orient-btn active" data-o="v" onclick="ytSetOrient('v')">📱 縦（SNS）</button>
+  <button class="sa-subtab vd-orient-btn" data-o="a" onclick="ytSetOrient('a')">🤖 縦（自動）</button>
   <button class="sa-subtab vd-orient-btn" data-o="y" onclick="ytSetOrient('y')">📺 横（YouTube）</button>
 </div>`;
 }
@@ -14810,7 +14813,7 @@ async function ynRestore(){
   window._thCtxReady=true;ytSyncTabs();
   yaRestore();
   ynRestore();ysRestore();
-  if(ytOrient()==='y')ytSetOrient('y');
+  if(ytOrient()!=='v')ytSetOrient(ytOrient());
   try{const it=sessionStorage.getItem('yt-itab');if(it&&ytEl('itab-'+it))ytInnerTab(it);}catch(e){}
   ytUpdateFreeInfo();
   // レポート欄は「📋 貼り付け」や読み込みでJSから値が入ると input イベントが出ないので、
@@ -14967,7 +14970,7 @@ function ktKindAfterOpen(kind,json){
     try{renderImageStock();}catch(e){}
   }else if(kind==='price'){
     window._fetched=j.priceFetched||null;
-    try{pvClose();if(document.getElementById('sa-tab-movie')?.style.display==='flex')requestAnimationFrame(()=>pvOpen(true));}catch(e){}   // PJ を替えたら自動動画も作り直す
+    try{pvClose();if(document.getElementById('sa-tab-video')?.style.display!=='none'&&ytOrient()==='a')requestAnimationFrame(()=>pvOpen(true));}catch(e){}   // PJ を替えたら自動動画も作り直す
     if(!json){const ta=document.getElementById('th-input');if(ta){const p=ta.value.split('：');ta.value=[p[0]||'',p[1]||'',kgGet('th3')].join('：');}}   // 新規：3段目は共通設定の初期値
     if(!json)['gem-model','gem-article-model'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=kgGet('init-'+id);});   // 新規：モデルは共通設定の初期値
     try{renderPriceFetchInfo();}catch(e){}
@@ -16352,7 +16355,7 @@ async function evVizCoverImage(orientation){
   if(!t)throw new Error(`${k==='v'?'縦':'横'}のサムネの文がありません（右の画面の「サムネ」に入れてください）`);
   return await evThImage(k==='v'?'v2':k,t);
 }
-// ---- 株価分析の 🎞 自動動画（縦）：部品は KessanViz.stock。文は 🎬 動画タブのスライド文・台本、チャートは同じデータ ----
+// ---- 株価分析の 🤖 縦（自動）：部品は KessanViz.stock。文は 縦（SNS）のスライド文・台本、チャートは同じデータ ----
 const PV_SLOT={chart:1,reasons:2,strengths:3,risks:4,summary:5};
 let _pvHandle=null;
 const pvStatus=t=>{const el=document.getElementById('pv-status');if(el)el.textContent=t||'';};
@@ -16381,7 +16384,7 @@ async function pvData(){
     reasons:block(v.V2,isDown?'なぜ下落している？':'なぜ上昇している？'),strengths:block(v.V3,'この会社の強み'),risks:block(v.V4,'一方で注意点も'),
     summary:{title:'現時点の整理',rows,question:s5['問い']||(isDown?'では、現在株価は本当に安いのか？':'では、この上昇はどこまで続くのか？'),note_title:'noteではここから分析',note_items:VD_NOTE_ITEMS[isDown?'down':'up'],cta:'続きはnoteで',cta_sub:'プロフィール／QRコードから',qr:await pvQr(vdNoteUrl()),disclaimer:VIDEO_DISCLAIMER}};
 }
-// 台本は 🎬 動画タブから入れる。変わった場面だけ入れ替え、文の時刻も作り直す（同じ台本の音声・手で直した時刻はそのまま）
+// 台本は 縦（SNS）から入れる。変わった場面だけ入れ替え、文の時刻も作り直す（同じ台本の音声・手で直した時刻はそのまま）
 function pvMergeScript(KV){
   const st=KV.stock.ensureSettings(pvSettings());
   for(const id in PV_SLOT){
@@ -16403,7 +16406,7 @@ const pvAudioStore={
   put:async(k,rec)=>{if(k==='bgm')await KT_YN.put('bgm:viz',rec);else await KT_TTS.put('vd:pv:'+k,rec);},
   del:async k=>{if(k==='bgm')await KT_YN.del('bgm:viz');else await KT_TTS.del('vd:pv:'+k);},
 };
-// 🎬 動画タブで作った音声（台本が同じなら使う）
+// 縦（SNS）で作った音声（台本が同じなら使う）
 async function pvSceneAudio(id){
   const a=window._vdTts.vd[PV_SLOT[id]];if(!a||!a.b64)return null;
   const bin=atob(a.b64),bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
@@ -16423,7 +16426,7 @@ async function pvOpen(force){
   pvStatus('読み込み中…');
   let KV;try{KV=await evVizLoad();}catch(e){pvStatus(e.message);return;}
   const data=await pvData();
-  if(!data){pvClose();host.innerHTML='';ctl.innerHTML='';pvStatus('先に 🎬 動画タブでスライドの文と台本を作ってください');return;}
+  if(!data){pvClose();host.innerHTML='';ctl.innerHTML='';pvStatus('先に 📱 縦（SNS）でスライドの文と台本を作ってください');return;}
   if(!data.candles.length)pvStatus('チャートのデータがありません（スライド作成タブで株探データを取得してください）');else pvStatus('');
   const settings=pvMergeScript(KV),el=document.getElementById('pv-settings');el.value=JSON.stringify(settings);
   const props={data,settings,controlsEl:ctl,tts:pvTts,audioStore:pvAudioStore,transcribe:evVizTranscribe,importBgm:evVizImportBgm,importSceneAudio:pvSceneAudio,coverImage:pvCover,
