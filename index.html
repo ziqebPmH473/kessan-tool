@@ -8554,8 +8554,10 @@ function evTh2Fill(force){
   au.value=JSON.stringify(d);
   if(typeof saveState==='function')saveState();
   if(typeof evThPreview==='function')evThPreview();
+  if(force)evTh2Input();
 }
-function evTh2Input(){if(typeof saveState==='function')saveState();evThPreview();}
+// 2段の文は動画の縦サムネになるので、直したら少し待って画像を作り直す
+function evTh2Input(){if(typeof saveState==='function')saveState();evThPreview();clearTimeout(_evThTimer);_evThTimer=setTimeout(()=>evThApply(['v']),1200);}
 // 2段の画像に使う文。欄が全部空なら3段の文から作る
 function evTh2Parts(){const v=evTh2Val();if(v.label.trim()||v.top.trim()||v.bot.trim())return v;const src=evThVal('v')||evThVal('h')||(typeof evVizThumbText==='function'?evVizThumbText():'');return src?evTh2Derive(src):null;}
 
@@ -16250,7 +16252,7 @@ async function evThApply(kinds){
   try{
     const KV=window.KessanViz||await evVizLoad();
     const imgs={};
-    for(const k of kinds){const t=evThVal(k);imgs[k]=t?await evThImage(k,t):null;}
+    for(const k of kinds){const t=evThVal(k);imgs[k]=t?await evThImage(k==='v'?'v2':k,t):null;}   // 縦動画と一緒に保存する縦サムネは2段構成（すみぽん 2026-10-31）
     const st=evVizSettings()||evVizDefaultSettings(KV);   // 画像を作る間に動画側で変えた分も含めて、最新の設定に入れる
     if('h' in imgs)st.cover_image_landscape=imgs.h;
     if('v' in imgs)st.cover_image_portrait=imgs.v;
@@ -16264,7 +16266,7 @@ async function evThApply(kinds){
 async function evVizCoverImage(orientation){
   const k=orientation==='portrait'?'v':'h',t=evThVal(k);
   if(!t)throw new Error(`${k==='v'?'縦':'横'}のサムネの文がありません（右の画面の「サムネ」に入れてください）`);
-  return await evThImage(k,t);
+  return await evThImage(k==='v'?'v2':k,t);
 }
 // ---- 分析動画の音声（ナレーション・BGM） ----
 // 読み上げは /api/tts（声・モデルは 🎬 動画タブの決算側の設定 ev-tts-voice / ev-tts-model と同じ）
