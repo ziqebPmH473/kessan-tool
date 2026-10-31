@@ -8633,7 +8633,7 @@ function thVRefill(){thVFill(true);if(typeof saveState==='function')saveState();
 function thVInput(){if(typeof saveState==='function')saveState();debouncedThumb();}
 // 縦のサムネに使う文。欄が全部空なら上の文から作る
 function thVParts(){const v=thVVal();return v.some(x=>x.trim())?v:thVDerive((document.getElementById('th-input')||{}).value||'');}
-function buildVThumb3(parts,bare,P){
+function buildVThumb3(parts){
   const W=VSLIDE_W,H=VSLIDE_H,PX=56,LH=1.28,FIT=0.94,SHIFT=0.056;   // SHIFT：字は行の中で文字サイズのこの比率ぶん下に寄るので、そのぶん上へずらす
   const SAFE_T=Math.round((H-1440)/2),SAFE_B=H-SAFE_T,h0=Math.round(1440*0.32),b1=SAFE_T+h0,b2=SAFE_B-h0;   // 3:4 の中の高さは 上段：中段：下段＝32：36：32
   const usable=W-PX*2;
@@ -8647,10 +8647,11 @@ function buildVThumb3(parts,bare,P){
     const html=lines.map((sg,i)=>`<div class="v-txt" style="font-size:${sz[i]}px;line-height:${LH};white-space:nowrap;">${segsHtml(sg,color)}</div>`).join('');
     return `<div style="position:absolute;left:0;right:0;top:${top}px;height:${bottom-top}px;background:${bg};"><div style="position:absolute;left:0;right:0;top:${inTop-top}px;height:${inH}px;display:flex;align-items:center;justify-content:center;overflow:hidden;"><div style="font-weight:${weight};text-align:center;font-family:${THUMB_FF};transform:translateY(${-shift}px);">${html}</div></div></div>`;
   };
-  const dt=new Date(),dateStr=`${dt.getFullYear()}.${dt.getMonth()+1}.${dt.getDate()}`,cat=P==='ev'?'決算分析':'株価分析';
-  return `<div class="vth">${vLogo('dark')}${band(parts[0],0,b1,SAFE_T,b1,'transparent','#ffffff',700,5)}${band(parts[1],b1,b2,b1,b2,'#fff','#004aad',900,3.8)}${band(parts[2],b2,H,b2,SAFE_B,'transparent','#ffffff',700,5)}
-${bare?'':`  <div class="vth-top"><div class="vth-cat"><i></i>${esc(cat)}</div><div class="vth-date">${esc(dateStr)}</div></div>
-  <div class="vth-cta">タップで動画を再生 ▶</div>`}</div>`;
+  const dt=new Date(),dateStr=`${dt.getFullYear()}.${dt.getMonth()+1}.${dt.getDate()}`;
+  // 上に「株価分析＋日付」のバー（100px）、下に「タップで動画を再生」のバー（116px）。東証ツール・決算の2段と同じ（3:4 の外なので、切り抜くと見えない）
+  const head=`<div style="position:absolute;left:0;right:0;top:0;height:100px;z-index:3;background:#000;display:flex;align-items:center;justify-content:space-between;padding:0 ${PX}px;box-sizing:border-box;font-family:${THUMB_FF};font-size:46px;font-weight:700;color:#fff;line-height:1;"><div style="display:flex;align-items:center;gap:14px;"><i style="display:block;width:13px;height:51px;background:#f59e0b;"></i>株価分析</div><div>${esc(dateStr)}</div></div>`;
+  const foot=`<div style="position:absolute;left:0;right:0;bottom:0;height:116px;z-index:3;background:#000;display:flex;align-items:center;justify-content:flex-end;padding:0 ${PX}px;box-sizing:border-box;font-family:${THUMB_FF};font-size:52px;font-weight:700;color:#f59e0b;line-height:1;">タップで動画を再生 ▶</div>`;
+  return `<div class="vth">${vLogo('dark')}${band(parts[0],0,b1,SAFE_T,b1,'transparent','#ffffff',700,5)}${band(parts[1],b1,b2,b1,b2,'#fff','#004aad',900,3.8)}${band(parts[2],b2,H,b2,SAFE_B,'transparent','#ffffff',700,5)}${head}${foot}</div>`;
 }
 
 // ============================================================
@@ -8876,7 +8877,7 @@ function buildVideoSlides(P,text){
   };
   const n=ctx.name||'',c=ctx.code||'';
   const isDown=ctx.isDown;
-  if(th)out.push({html:buildVThumb3(thVParts(),false,'vd'),name:`${c}_${n}_0_サムネ`,thumb:true});
+  if(th)out.push({html:buildVThumb3(thVParts()),name:`${c}_${n}_0_サムネ`,thumb:true});
   out.push(
     {html:buildV1(v,ctx),name:`${c}_${n}_1_株価推移`},
     {html:buildVPoints(v.V2,isDown?'② 下落理由':'② 上昇理由','',isDown?'なぜ下落している？':'なぜ上昇している？'),name:`${c}_${n}_2_${isDown?'下落理由':'上昇理由'}`},
@@ -15509,9 +15510,9 @@ function renderThumbPreview(){
   inner.innerHTML=html;
   renderThumbVPreview(text,Math.round(SLIDE_H*sc));
 }
-// 横動画の縦のサムネ（Instagram・Lemon8・TikTok・リール用）：上の分類・日付と、下の「タップで動画を再生」は入れない
+// 横動画の縦のサムネ（Instagram・Lemon8・TikTok・リール用）
 function thumbVHtml(text){
-  return buildVThumb3(thVParts(),true);
+  return buildVThumb3(thVParts());
 }
 function renderThumbVPreview(text,h){
   const wrap=document.getElementById('thv-preview-wrap');if(!wrap||!text)return;
