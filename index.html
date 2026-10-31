@@ -2309,7 +2309,7 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
                 <div id="ev-th2" style="display:none;flex-direction:column;gap:3px;border-top:1px dashed var(--border);padding-top:4px;">
                     <div style="display:flex;align-items:center;gap:6px;">
                         <span style="font-size:11px;font-weight:700;color:var(--text-sub);">縦2段の文（ラベル／上段／下段。改行で行を分ける）</span>
-                        <button class="btn-sm" onclick="evTh2Fill(true)" style="flex:none;padding:1px 6px;font-size:10px;margin-left:auto;" title="上の文（上段：中段：下段）から3つの欄を作り直します。上段は橙→黄色にして「で」の後ろで改行、下段は銘柄名をグループ・HD の前で改行、ラベルは3段目の文">📥 上の文から作り直す</button>
+                        <button class="btn-sm" onclick="evTh2Fill(true)" style="flex:none;padding:1px 6px;font-size:10px;margin-left:auto;" title="上の文（上段：中段：下段）から3つの欄を作り直します。上段は橙→黄色にして、株価の動きは上昇なら橙・下落なら水色、「で」の後ろで改行、下段は銘柄名をグループ・HD の前で改行、ラベルは3段目の文">📥 上の文から作り直す</button>
                     </div>
                     <div style="display:flex;gap:4px;">
                         <textarea id="ev-viz-th2-label" oninput="evTh2Input()" placeholder="ラベル" style="flex:0.7;height:40px;min-height:40px;font-size:11px;"></textarea>
@@ -8584,10 +8584,10 @@ function vthSplitName(t){
   const m=t.match(/^(.{2,})(ホールディングス|ホールディング|グループ|ＨＤ|HD)$/);
   return m?[m[1],m[2]]:[t];
 }
-// 縦2段の文（ラベル／上段／下段）を、3段の文「上段：中段：下段」から作る：上段は橙→黄色（2段では橙と水色が強い）・「で」の後ろで改行、下段は銘柄名（グループ・HD の前で改行）、ラベルは3段目の文（色指定は外す）
+// 縦2段の文（ラベル／上段／下段）を、3段の文「上段：中段：下段」から作る：上段は橙→黄色（2段では橙と水色が強い）、株価の動きは上昇なら橙・下落なら水色（すみぽん 2026-11-01）・「で」の後ろで改行、下段は銘柄名（グループ・HD の前で改行）、ラベルは3段目の文（色指定は外す）
 function evTh2Derive(text){
   const parts=thumbParts(text||'').map(x=>x.replace(/\s*\n\s*/g,''));
-  const top=vthSplitDe((parts[0]||'').replace(/\*([^*]+)\*/g,'%$1%')).join('\n');
+  const top=vthSplitDe((parts[0]||'').replace(/\*([^*]+)\*/g,'%$1%').replace(/#([^#]*(?:上昇|大幅高|ストップ高|急騰))#/g,'*$1*')).join('\n');
   const bot=vthSplitName(parts[1]||'').join('\n');
   const label=parts[2]?parseThumbnailMarkup(parts[2]).map(x=>x.text).join('').trim():'';
   return {label,top,bot};
