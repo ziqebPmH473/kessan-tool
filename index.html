@@ -14944,6 +14944,7 @@ function ktKindAfterOpen(kind,json){
   }else if(kind==='price'){
     window._fetched=j.priceFetched||null;
     if(!json){const ta=document.getElementById('th-input');if(ta){const p=ta.value.split('：');ta.value=[p[0]||'',p[1]||'',kgGet('th3')].join('：');}}   // 新規：3段目は共通設定の初期値
+    if(!json)['gem-model','gem-article-model'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=kgGet('init-'+id);});   // 新規：モデルは共通設定の初期値
     try{renderPriceFetchInfo();}catch(e){}
     try{thumbSyncFromControls();}catch(e){}
     try{vdBuildScriptBoxes('vd',true);vdRestoreFields('vd',ktVdState('vd',json));vdUpdateScriptStats('vd');}catch(e){}
@@ -15832,6 +15833,9 @@ const KG_ITEMS=[
   {g:'voice',key:'tts-speed',label:'台本の読み上げの速さ',ids:['vd-tts-speed','ev-tts-speed'],def:'faster',opts:[['normal','ふつう'],['fast','少し速め'],['faster','速め']],tip:'縦動画（株価分析・決算分析）の読み上げの頭に付ける指示（分析動画と同じ文）。変えたあとは「🔄 全部作り直す」で音声を作り直してください'},
   {g:'voice',key:'oped-vol',label:'OP・EDの音量（%）',ids:[],def:'85',tip:'横動画の書き出しで、OP・EDの音声にかける大きさ。100＝作ったままの大きさ。100より大きくもできます（大きすぎると音が割れます）'},
   {g:'model',key:'model',label:'縦動画の文章モデル',ids:['vd-model','ev-model']},
+  // 株価分析の2つは「新しいPJの初期値」（欄はPJごとに保存のまま。開いているPJ・保存済みのPJは変えない）
+  {g:'model',key:'init-gem-model',label:'株価分析：出力データ作成の初期モデル',ids:[],optsFrom:'gem-model',def:'gemini-3.5-flash-lite',tip:'新しい株価分析のPJで、はじめに選ばれているモデル'},
+  {g:'model',key:'init-gem-article-model',label:'株価分析：記事・SNS生成の初期モデル',ids:[],optsFrom:'gem-article-model',def:'',tip:'新しい株価分析のPJで、はじめに選ばれているモデル'},
   ...YT_AI_TASKS.map(([k,n])=>({g:'ytmodel',key:'yt-m-'+k,label:n,ids:['yt-m-'+k]})),
   {g:'post',key:'fixed-tags',label:'固定タグ',ids:['vd-fixed-tags','ev-fixed-tags'],tip:'X・Instagram・TikTokの投稿文の末尾に必ず付けるタグ（空欄で付けない）'},
   {g:'post',key:'xnote',label:'note案内文',ids:['vd-xnote'],tip:'縦動画のX投稿文（返信用）の3行目に入れる案内文'},
@@ -15903,7 +15907,7 @@ function kgSet(key,val){
   if(it&&(!it.ctx||it.ctx===kgCtx()))it.ids.forEach(id=>{const el=document.getElementById(id);if(el)el.value=val;});
 }
 function kgBuild(){
-  const opts=it=>{const el=it.ids[0]&&document.getElementById(it.ids[0]);return el&&el.tagName==='SELECT'?el.innerHTML:null;};
+  const opts=it=>{const id=it.optsFrom||it.ids[0],el=id&&document.getElementById(id);return el&&el.tagName==='SELECT'?el.innerHTML:null;};
   const groups={};
   KG_ITEMS.forEach(it=>{
     const v=kgGet(it.key),o=opts(it),tip=it.tip?` title="${esc(it.tip)}"`:'';
