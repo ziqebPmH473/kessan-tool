@@ -2096,6 +2096,19 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
         </div>
       </div>
       <p style="font-size:10px;color:var(--text-sub);margin:0;">「：」で上段・中段・下段を区切る。色指定: <span style="color:#ff914d">*オレンジ*</span>　<span style="color:#5ce1e6">#水色#</span>　<span style="color:#ffde59">%黄色%</span></p>
+      <!-- 縦のサムネの文は別の欄（上段／中段／下段）。欄の改行はそのまま行になる。初期値は上の文から。すみぽん 2026-11-01 -->
+      <div style="display:flex;flex-direction:column;gap:3px;margin-top:4px;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span class="sa-sub" style="margin-top:0;">縦のサムネの文（改行で行を分ける）</span>
+          <button class="btn-sm" onclick="thVRefill()" style="flex:none;padding:1px 6px;font-size:10px;margin-left:auto;" title="上の「サムネ入力」の文から3つの欄を作り直します">📥 上の文から作り直す</button>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <textarea id="th-v1" oninput="thVInput()" placeholder="上段" style="flex:1;height:58px;min-height:58px;font-size:11px;"></textarea>
+          <textarea id="th-v2" oninput="thVInput()" placeholder="中段" style="flex:1;height:58px;min-height:58px;font-size:11px;"></textarea>
+          <textarea id="th-v3" oninput="thVInput()" placeholder="下段" style="flex:1;height:58px;min-height:58px;font-size:11px;"></textarea>
+        </div>
+        <input type="hidden" id="th-v-auto">
+      </div>
     </div>
     <details class="sa-card">
       <summary class="sa-sub" style="margin-top:0;cursor:pointer;">背景画像（黒帯に透過表示）</summary>
@@ -4477,7 +4490,7 @@ reason_4=`;
             // 株価分析タブ（他タブと同じ仕組みで保持する）
             'inp-ticker', 'inp-name', 'inp-base-date', 'inp-base-price',
             'inp-cur-date', 'inp-cur-price', 'inp-period',
-            'ta-report', 'ta-data', 'th-input',
+            'ta-report', 'ta-data', 'th-input', 'th-v1', 'th-v2', 'th-v3', 'th-v-auto',
             'gem-model', 'gem-months', 'gem-article-model',
             's6-axis-min', 's6-axis-max', 's6-axis-step',
             'art-title', 'art-body', 'art-thumb', 'art-tags', 'art-x', 'art-yt', 'art-url', 'art-sec', 'art-raw', 'art-check', 'note-id', 'art-rel-days', 'art-rel-url', 'art-rel-intro', 'art-pub',
@@ -8602,6 +8615,44 @@ function buildVThumb2(text,P,catOver,bare,p2){
   return `<div class="vth">${vLogo('dark')}${label}<div style="display:flex;flex-direction:column;height:${H}px;">${head}${band(topL,s0,700,h0,'#000','#ffffff',top0,0)}${band(botL,s1,900,h1,'#fff','#004aad',0,bot1)}${foot}</div></div>`;
 }
 
+// 株価分析の縦サムネ（3段）：3:4（1080×1440。上下 240px を除いた範囲）で見たときの作り（すみぽん 2026-11-01）
+//   文は縦用の欄（上段／中段／下段）から。欄の改行はそのまま行になる
+//   帯は 9:16 いっぱいに塗り、字は「帯のうち 3:4 に入る部分」の中央に置く。上段の帯は上端まで、下段の帯は下端まで黒
+const thVIds=['th-v1','th-v2','th-v3'];
+const thVVal=()=>thVIds.map(id=>(document.getElementById(id)||{}).value||'');
+function thVDerive(text){const p=thumbParts(text).map(x=>x.trim());return [p[0]||'',p[1]||'',p[2]||''];}
+// 上の文から3つの欄を入れる。全部空のときと、前に自動で入れた文のままの欄だけ（直した文は残す）。force＝全部入れ直す
+function thVFill(force){
+  const src=((document.getElementById('th-input')||{}).value||'').trim(),au=document.getElementById('th-v-auto');if(!src||!au)return;
+  const d=thVDerive(src),vals=thVVal(),empty=vals.every(v=>!v.trim());
+  let prev=[];try{prev=JSON.parse(au.value||'[]');}catch(e){}
+  thVIds.forEach((id,i)=>{const el=document.getElementById(id);if(el&&(force||empty||vals[i]===(prev[i]||'')))el.value=d[i];});
+  au.value=JSON.stringify(d);
+}
+function thVRefill(){thVFill(true);if(typeof saveState==='function')saveState();renderThumbPreview();}
+function thVInput(){if(typeof saveState==='function')saveState();debouncedThumb();}
+// 縦のサムネに使う文。欄が全部空なら上の文から作る
+function thVParts(){const v=thVVal();return v.some(x=>x.trim())?v:thVDerive((document.getElementById('th-input')||{}).value||'');}
+function buildVThumb3(parts,bare,P){
+  const W=VSLIDE_W,H=VSLIDE_H,PX=56,LH=1.28,FIT=0.94,SHIFT=0.056;   // SHIFT：字は行の中で文字サイズのこの比率ぶん下に寄るので、そのぶん上へずらす
+  const SAFE_T=Math.round((H-1440)/2),SAFE_B=H-SAFE_T,h0=Math.round(1440*0.32),b1=SAFE_T+h0,b2=SAFE_B-h0;   // 3:4 の中の高さは 上段：中段：下段＝32：36：32
+  const usable=W-PX*2;
+  const band=(t,top,bottom,inTop,inBottom,bg,color,weight,maxC)=>{
+    const lines=String(t||'').split('\n').map(x=>x.trim()).filter(Boolean).map(parseThumbnailMarkup);
+    const cap=Math.floor(usable/maxC),inH=inBottom-inTop;
+    let sz=lines.map(sg=>{const em=thumbTextEm(sg.map(x=>x.text).join(''),weight);return em?Math.max(20,Math.min(cap,Math.floor(usable/em))):cap;});
+    const tot=a=>a.reduce((s,f)=>s+f*LH,0),lim=inH*FIT;
+    if(tot(sz)>lim){const k=lim/tot(sz);sz=sz.map(f=>Math.max(20,Math.floor(f*k)));}
+    const shift=Math.round(Math.max(0,...sz)*SHIFT);
+    const html=lines.map((sg,i)=>`<div class="v-txt" style="font-size:${sz[i]}px;line-height:${LH};white-space:nowrap;">${segsHtml(sg,color)}</div>`).join('');
+    return `<div style="position:absolute;left:0;right:0;top:${top}px;height:${bottom-top}px;background:${bg};"><div style="position:absolute;left:0;right:0;top:${inTop-top}px;height:${inH}px;display:flex;align-items:center;justify-content:center;overflow:hidden;"><div style="font-weight:${weight};text-align:center;font-family:${THUMB_FF};transform:translateY(${-shift}px);">${html}</div></div></div>`;
+  };
+  const dt=new Date(),dateStr=`${dt.getFullYear()}.${dt.getMonth()+1}.${dt.getDate()}`,cat=P==='ev'?'決算分析':'株価分析';
+  return `<div class="vth">${vLogo('dark')}${band(parts[0],0,b1,SAFE_T,b1,'transparent','#ffffff',700,5)}${band(parts[1],b1,b2,b1,b2,'#fff','#004aad',900,3.8)}${band(parts[2],b2,H,b2,SAFE_B,'transparent','#ffffff',700,5)}
+${bare?'':`  <div class="vth-top"><div class="vth-cat"><i></i>${esc(cat)}</div><div class="vth-date">${esc(dateStr)}</div></div>
+  <div class="vth-cta">タップで動画を再生 ▶</div>`}</div>`;
+}
+
 // ============================================================
 // 株価分析：①〜⑤
 // ============================================================
@@ -8825,7 +8876,7 @@ function buildVideoSlides(P,text){
   };
   const n=ctx.name||'',c=ctx.code||'';
   const isDown=ctx.isDown;
-  if(th)out.push({html:buildVThumb(th,'vd'),name:`${c}_${n}_0_サムネ`,thumb:true});
+  if(th)out.push({html:buildVThumb3(thVParts(),false,'vd'),name:`${c}_${n}_0_サムネ`,thumb:true});
   out.push(
     {html:buildV1(v,ctx),name:`${c}_${n}_1_株価推移`},
     {html:buildVPoints(v.V2,isDown?'② 下落理由':'② 上昇理由','',isDown?'なぜ下落している？':'なぜ上昇している？'),name:`${c}_${n}_2_${isDown?'下落理由':'上昇理由'}`},
@@ -15440,6 +15491,7 @@ function debouncedThumb(){clearTimeout(thumbTimer);thumbTimer=setTimeout(renderT
 
 function renderThumbPreview(){
   const text=document.getElementById('th-input').value.trim();
+  thVFill(false);   // 縦の欄も、直していない欄だけ追従
   const card=document.getElementById('th-preview-card');
   if(!text){card.style.display='none';return;}
   const html=buildThumbSlide(text);
@@ -15459,7 +15511,7 @@ function renderThumbPreview(){
 }
 // 横動画の縦のサムネ（Instagram・Lemon8・TikTok・リール用）：上の分類・日付と、下の「タップで動画を再生」は入れない
 function thumbVHtml(text){
-  return buildVThumb(text,null,null,true);
+  return buildVThumb3(thVParts(),true);
 }
 function renderThumbVPreview(text,h){
   const wrap=document.getElementById('thv-preview-wrap');if(!wrap||!text)return;
