@@ -7368,6 +7368,22 @@ async function downloadAll(){
 // スライドごとに音声化して保持し、最後に1本へ連結する。
 // ============================================================
 const VSLIDE_W=1080,VSLIDE_H=1920;
+// ChatGPT の出典の目印（:chatgpt-content-reference{index="0"} など）が文字のまま付いてくることがあるので、貼り付けたときに消す。
+// 📋 貼付のボタン（クリップボードを読む所）と、欄へ直接の貼り付けの両方で効くよう、1か所で処理する
+const AI_CITE_RE=/[ \t]*:?(?:chatgpt-content-reference\{[^{}\n]*\}|contentReference\[oaicite:\d+\]\{[^{}\n]*\})/g;
+const stripAiCite=t=>String(t==null?'':t).replace(AI_CITE_RE,'');
+if(navigator.clipboard&&navigator.clipboard.readText){
+  const readRaw=navigator.clipboard.readText.bind(navigator.clipboard);
+  navigator.clipboard.readText=async()=>stripAiCite(await readRaw());
+}
+document.addEventListener('input',e=>{
+  const el=e.target;if(!el||(el.tagName!=='TEXTAREA'&&el.tagName!=='INPUT')||typeof el.value!=='string')return;
+  if(!/chatgpt-content-reference|contentReference\[oaicite/.test(el.value))return;
+  const v=stripAiCite(el.value);if(v===el.value)return;
+  const left=(el.value.length-(el.selectionEnd??el.value.length));
+  el.value=v;
+  try{el.selectionStart=el.selectionEnd=Math.max(0,v.length-left);}catch(err){}
+},true);   // 欄の oninput より先に消す
 const VIDEO_DISCLAIMER='この動画は情報提供を目的としており、特定の銘柄や金融商品の売買を推奨するものではありません。投資判断はご自身の責任でお願いします。';
 const VD_TTS_CHARS_PER_SEC=7;
 // 読み上げの速さの指示（分析動画・東証の動画の SPEED_HINT と同じ文）。読み上げの頭に付ける。台本の保存や文字起こしの照合には入れない
