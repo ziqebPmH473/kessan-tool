@@ -1437,6 +1437,14 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
             </div>
             <div style="font-size:10px;color:var(--text-sub);margin-top:4px;line-height:1.5;">MP4 は下の「MP4 を書き出す」でブラウザだけで作れます（Chrome / Edge、数分）。1920×1080・30fps・無音。高画質が要るときは「💾 MP4用データ」を kessan-visualizer の <code>npm run render</code> に渡す。</div>
             <!-- 抽出データ（文・数字）を画面で直す。部品の KessanViz.mountEdit。直すと動画データを作り直してプレビューに反映 -->
+            <!-- 動画の種類：決算か、業績修正だけの開示か。自動は今回の実績の有無で判断。業績修正は 表紙・株価・業績予想・注目ポイント・総括 の短い動画 -->
+            <div id="ev-viz-kindrow" style="display:none;margin-top:6px;font-size:11px;color:var(--text-sub);align-items:center;gap:6px;" title="決算の数字が資料に無いときは、業績修正の短い動画にします。違うときはここで選び直せます（台本も作り直します）">
+              <span style="flex:none;">動画の種類</span>
+              <select id="ev-viz-kind" onchange="evVizKindChange(this.value)" style="font-size:11px;">
+                <option value="">自動で判断</option><option value="earnings">決算</option><option value="revision">業績修正だけ</option>
+              </select>
+              <span id="ev-viz-kindnote" style="flex:1;min-width:0;"></span>
+            </div>
             <details id="ev-viz-editbox" style="margin-top:6px;" ontoggle="evVizEditToggle(this)">
               <summary style="font-size:11px;color:var(--text-sub);cursor:pointer;" title="スライドに出る文（見出し・注目ポイント・総括のもとになる文）と数字（損益・貸借対照表・CF・推移・セグメント）を直せます。不要な期やセグメントは消せます">✏ データを直す（文・数字・不要な行の削除）</summary>
               <div id="ev-viz-edit" style="margin-top:4px;"></div>
@@ -9093,7 +9101,9 @@ function evThumbText(){
 // PTS（米国株は時間外）は値がその時々で変わるので、台本と同じく数字を書かずに「大幅高」などで言う（±1%未満＝ほぼ変わらず、±5%未満＝上昇／下落、それ以上＝大幅高／安）。「PTS」の字は入れない（2026-10-15 すみぽん）
 function evVizThumbText(){
   const d=evData()||{};const hd=d.HEADER||{},mr=d.MARKET_REACTION||{};
-  const label=hd.result_label?`*${hd.result_label}*`:'決算発表';
+  const rev=(evVizData()||{visualization:{}}).visualization.disclosure_kind==='revision';   // 業績修正だけの開示
+  const revWord=(String((d.GUIDANCE||{}).status||'').match(/上方修正|下方修正/)||['業績修正'])[0];
+  const label=rev?`*${revWord}*`:hd.result_label?`*${hd.result_label}*`:'決算発表';
   const pct=evVizPct(mr.price_change);let mv='';
   if(pct!=null){
     const a=Math.abs(pct),venue=String(mr.post_price_label||'').match(/PTS|時間外/i);
@@ -9104,7 +9114,8 @@ function evVizThumbText(){
     else mv=(a>=10?Math.round(a):Math.round(a*10)/10)+'％'+(pct>0?'上昇':'下落');
   }
   const mid=VD_CFG.ev.name()||hd.company||'';
-  const bot=String(kgGet('ev-th3')||'').trim()||'図解で%決算解説%';
+  const bot0=String(kgGet('ev-th3')||'').trim()||'図解で%決算解説%';
+  const bot=rev?bot0.replace('決算解説','業績修正解説'):bot0;
   return `${mv?`${label}で#${mv}#`:label}：${mid}：${bot}`;
 }
 // サムネ文言：株価分析は「サムネイル」タブ（note用）のテキストをそのまま使う
@@ -16151,18 +16162,45 @@ async function evVizRebuild(){
     evVizStore({...d,visualization:viz});return true;
   }catch(e){console.warn('viz rebuild',e);return false;}
 }
+// 台本を全部作り直す。業績修正だけのときは、動画に出ないシーンの古い台本を消す（残すと音声を作る対象に入る）
+function evVizFullScript(KV,viz){
+  const st=evVizSettings()||evVizDefaultSettings(KV),script=KV.narrationScript(viz),narration={...(st.narration||{})};
+  if(viz.disclosure_kind==='revision')Object.keys(narration).forEach(k=>{if(!script[k])delete narration[k];});
+  return KV.applyScript({...st,narration},script,true);
+}
+// 動画の種類の欄：抽出データがあるときだけ出す
+function evVizKindRefresh(){
+  const row=document.getElementById('ev-viz-kindrow'),sel=document.getElementById('ev-viz-kind'),note=document.getElementById('ev-viz-kindnote');if(!row||!sel||!note)return;
+  const d=evVizData();if(!d||!d.analysis){row.style.display='none';return;}
+  row.style.display='flex';
+  sel.value=(d.analysis.edits&&d.analysis.edits.disclosure_kind)||'';
+  note.textContent=d.visualization.disclosure_kind==='revision'?'業績修正として作成（短い動画）':'決算として作成';
+}
+async function evVizKindChange(kind){
+  const d=evVizData();if(!d||!d.analysis)return;
+  let KV;try{KV=await evVizLoad();}catch(e){evVizStatus(e.message,'error');return;}
+  const edits={...(d.analysis.edits||{}),hide_highlights:(d.analysis.edits&&d.analysis.edits.hide_highlights)||[]};
+  if(kind)edits.disclosure_kind=kind;else delete edits.disclosure_kind;
+  const analysis={...d.analysis,edits};
+  let viz;try{viz=KV.build(analysis,evVizExtras());}catch(e){evVizStatus('動画データを作り直せませんでした: '+((e&&e.message)||e),'error');return;}
+  const stEl=document.getElementById('ev-viz-settings');
+  if(stEl&&viz.disclosure_kind!==d.visualization.disclosure_kind){try{stEl.value=JSON.stringify(evVizFullScript(KV,viz));}catch(e){console.warn('viz script',e);}}
+  evVizStore({...d,analysis,visualization:viz});
+  evThApply();
+  evVizStatus(viz.disclosure_kind==='revision'?'業績修正の短い動画に切り替えました（台本も作り直しました）':'決算の動画に切り替えました（台本も作り直しました）','ok');
+}
 function evVizCommit(KV,parsed,source){
   const isViz=!!(parsed.data&&parsed.data.ratings&&parsed.data.display_unit);
   const viz=isViz?parsed.data:KV.build(parsed.data,evVizExtras());
   // 台本も同時に作る（データが新しくなったので、前の台本は作り直す。直した文も消える）。
   // 部品まかせだと、台本は左の音声の欄が最初に出たときにしか作られず、作り直したデータでは前の台本が残っていた
   const stEl=document.getElementById('ev-viz-settings');
-  if(stEl&&KV.narrationScript&&KV.applyScript){try{stEl.value=JSON.stringify(KV.applyScript(evVizSettings()||evVizDefaultSettings(KV),KV.narrationScript(viz),true));}catch(e){console.warn('viz script',e);}}
+  if(stEl&&KV.narrationScript&&KV.applyScript){try{stEl.value=JSON.stringify(evVizFullScript(KV,viz));}catch(e){console.warn('viz script',e);}}
   evVizStore({analysis:isViz?null:parsed.data,visualization:viz,source,created:new Date().toISOString()});
   evThApply();   // 右の画面のサムネの文から、サムネ画像も入れる
   const warn=(viz.warnings||[]).length+(parsed.warnings||[]).length;
   // 四半期単独（2Q・3Q・通期）が取れていないときは、前の四半期の短信も添付すると出せることを知らせる
-  const pt=(viz.company||{}).period_type;const qHint=(pt==='Q2'||pt==='Q3'||pt==='FY')&&!viz.quarter_standalone?'／四半期単独のスライドは出ません（短信に四半期別の表が無いとき。前の四半期の短信も添付して作り直すと出せます）':'';
+  const pt=(viz.company||{}).period_type;const qHint=viz.disclosure_kind==='revision'?'／業績修正の短い動画にしました':(pt==='Q2'||pt==='Q3'||pt==='FY')&&!viz.quarter_standalone?'／四半期単独のスライドは出ません（短信に四半期別の表が無いとき。前の四半期の短信も添付して作り直すと出せます）':'';
   evVizStatus('動画データを作りました'+(warn?'（確認したい点 '+warn+'件。右のプレビューの上に出ます）':'')+qHint,'ok');
   if(window._earnTab==='viz')earnPrevMode('viz');
   return true;
@@ -16660,6 +16698,7 @@ function evVizYtExtra(){
   return ['■ noteで個別銘柄の分析記事を公開中\n'+dgNoteUrl(),fixed].filter(Boolean).join('\n\n');
 }
 async function evVizMount(force){
+  evVizKindRefresh();
   const host=document.getElementById('earn-viz-mount'),empty=document.getElementById('earn-viz-empty');if(!host)return;
   const d=evVizData();
   if(!d){if(_evVizHandle){try{_evVizHandle.unmount();}catch(e){}_evVizHandle=null;}_evVizLastJson='';host.innerHTML='';if(empty)empty.style.display='';evVizCutRenderSoon();return;}
