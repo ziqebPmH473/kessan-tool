@@ -15881,8 +15881,9 @@ const DG_FIXED_DEF=`ナレーションや分析には生成AIを使用してい�
 const DG_FIXED_OLD=['ナレーションや分析には生成AIを使用しています。',`本動画にはAI生成コンテンツが含まれています。
 ナレーションの音声と、決算内容の分析・要約に生成AIを活用しています（図解はツールが決算の数値から描いています）。
 内容の正確性には十分配慮していますが、最終的な判断はご自身でお願いいたします。`];
-function dgFixedMigrate(){try{const v=String(kgGet('dg-fixed')||'').trim();if(v&&DG_FIXED_OLD.some(o=>o.trim()===v))kgSet('dg-fixed',DG_FIXED_DEF);}catch(e){}}
-const DG_OUTRO_DEF='noteでも、決算の解説を発信しています。詳しくは概要欄のリンクか、QRコードを読み込んでご覧ください。';
+function dgFixedMigrate(){try{const v=String(kgGet('dg-fixed')||'').trim();if(v&&DG_FIXED_OLD.some(o=>o.trim()===v))kgSet('dg-fixed',DG_FIXED_DEF);if(String(kgGet('dg-outro')||'').trim()===DG_OUTRO_OLD)kgSet('dg-outro',DG_OUTRO_DEF);}catch(e){}}
+const DG_OUTRO_DEF='今回ご紹介した決算は、ブログでさらに詳しく解説しています。noteでも、個別銘柄の分析を発信しています。どちらも概要欄のリンクからご覧ください。';
+const DG_OUTRO_OLD='noteでも、決算の解説を発信しています。詳しくは概要欄のリンクか、QRコードを読み込んでご覧ください。';   // 前の既定（ブログの案内を足す前。すみぽん 2026-11-03）
 const KG_ITEMS=[
   {g:'thumb',key:'th3',label:'株価分析：3段目の初期値',ids:[],def:'#底値#と%５つの反転サイン%'},
   {g:'thumb',key:'ev-th3',label:'決算の分析動画：3段目',ids:[],def:'図解で%決算解説%',tip:'決算の分析動画のサムネの3段目（決まった文）。上段＝今回の評価と株価の動き、中段＝社名は自動。色指定: *オレンジ* #水色# %黄色%'},
@@ -15909,6 +15910,7 @@ const KG_ITEMS=[
   {g:'post',key:'yt-p-fixed',label:'概要欄の定型文（使用ツール・AIの注意書き）',ids:['yt-p-fixed'],area:1,def:YT_POST_FIXED},
   {g:'post',key:'vd-yt-fixed',label:'縦動画の概要欄の定型文（YouTubeショート）',ids:[],area:1,def:VD_YT_FIXED_DEF,tip:'株価分析の縦動画の、YouTubeショートの概要欄に入れる定型文（使用ツール・AIの注意書き）'},
   {g:'digest',key:'note-url',label:'note のトップURL',ids:[],def:'',tip:'決算まとめの概要欄の「▼ noteはこちら」と、最後のスライドの QR コードに使います（https://note.com/… ）。空なら note のトップ https://note.com/ になります'},
+  {g:'digest',key:'blog-url',label:'ブログの記事一覧のURL',ids:[],def:'https://sumikko-money.com/category/financial-analysis/',tip:'決算まとめの概要欄の「■ ブログで各銘柄の詳しい決算解説を公開中」に使います'},
   {g:'digest',key:'dg-fixed',label:'概要欄：目次の下の固定文（AI の利用・注意事項）',ids:[],area:1,def:DG_FIXED_DEF,tip:'決算まとめの概要欄で、目次の下・タグの上に入れる文。空にすると初期値に戻ります'},
   {g:'digest',key:'dg-outro',label:'最後の文（読み上げ）',ids:[],area:1,def:DG_OUTRO_DEF,tip:'決算まとめの最後の読み上げ文の初期値。まとめの PJ でも直せます（直していない PJ は、ここを変えると追従します）'},
   ...KG_SNS.map(([k,n])=>({g:'snsstock',key:'yt-f-'+k+'@stock',label:n,ids:['yt-f-'+k],ctx:'stock',area:1,def:YT_SNS_FIXED[k]})),
@@ -16830,6 +16832,7 @@ async function dgLoadItems(force){
     const dates=items.map(it=>it.priced).filter(Boolean).sort();
     if(dates.length){const d=dates[dates.length-1];if(!settings.date_auto||settings.date===settings.date_auto)settings={...settings,date:d,date_auto:d};else settings={...settings,date_auto:d};}
     // 最後の文：共通設定の初期値（手で直していなければ追従）
+    dgFixedMigrate();
     const outroDef=String(kgGet('dg-outro')||DG_OUTRO_DEF);
     if(!String(settings.outro.text||'').trim()||settings.outro_auto===undefined||settings.outro.text===settings.outro_auto){if(settings.outro.text!==outroDef)settings={...settings,outro:{text:outroDef,seconds:null}};settings={...settings,outro_auto:outroDef};}
     // QR（note の URL が変わったら作り直す）
@@ -16909,6 +16912,9 @@ async function dgDescRender(force){
   lines.push(moved&&after?jp+'の市場で注目された決算と、引け後に発表された決算をまとめて解説します。':moved?jp+'の市場で注目された決算をまとめて解説します。':after?jp+'の引け後に発表された決算をまとめて解説します。':jp+'に発表された決算をまとめて解説します。');
   lines.push('業績の変化や増減益の背景、今後の見通しをコンパクトに整理しています。');
   lines.push('');
+  lines.push('■ ブログで各銘柄の詳しい決算解説を公開中');
+  lines.push(String(kgGet('blog-url')||'').trim());
+  lines.push('');
   lines.push('■ noteで個別銘柄の分析記事を公開中');
   lines.push(noteUrl);
   lines.push('');
@@ -16921,7 +16927,7 @@ async function dgDescRender(force){
     if(it&&it.noteUrl)lines.push('　▶ 記事：'+it.noteUrl);
   });
   const outro=chapters.find(c=>c.kind==='outro');
-  if(outro)lines.push(dgMmss(outro.startSec)+' noteのご案内');
+  if(outro)lines.push(dgMmss(outro.startSec)+' ブログ・noteのご案内');
   if(!items.length&&intro)lines.push('00:00 オープニング');
   lines.push('');
   dgFixedMigrate();
