@@ -9114,8 +9114,7 @@ function evVizThumbText(){
     else mv=(a>=10?Math.round(a):Math.round(a*10)/10)+'％'+(pct>0?'上昇':'下落');
   }
   const mid=VD_CFG.ev.name()||hd.company||'';
-  const bot0=String(kgGet('ev-th3')||'').trim()||'図解で%決算解説%';
-  const bot=rev?bot0.replace('決算解説','業績修正解説'):bot0;
+  const bot=String(kgGet('ev-th3')||'').trim()||'図解で%決算解説%';   // 業績修正でも同じ（すみぽん 2026-11-03）
   return `${mv?`${label}で#${mv}#`:label}：${mid}：${bot}`;
 }
 // サムネ文言：株価分析は「サムネイル」タブ（note用）のテキストをそのまま使う
