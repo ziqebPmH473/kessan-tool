@@ -1494,7 +1494,8 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
             <textarea id="ea-check" readonly placeholder="チェックの結果（どこを・どう直したか）がここに出ます" style="min-height:46px;font-size:11px;margin-top:4px;"></textarea>
           </div>
           <div class="tool-section">
-            <div class="section-heading">2. note 記事</div>
+            <!-- 決算の note 記事は書かないので閉じておく（2026-11-01 すみぽん）。開けば今までどおり使える -->
+            <details><summary class="section-heading" style="cursor:pointer;">2. note 記事</summary>
             <div style="font-size:11px;color:var(--text-sub);" title="表は使わない（noteは表を表示できない）。最初の段落のあとに注意書きが入ります">表なし。最初の段落のあとに注意書きが入ります。</div>
             <div class="input-row" style="margin-top:4px;">
               <button class="btn-sm" onclick="eaArtAi(this,'n')" style="flex:1;min-width:0;background:#4f46e5;color:#fff;" title="noteだけを API で作り直します（もう一方の記事はそのまま）">🤖 noteだけ作る</button>
@@ -1531,6 +1532,7 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
             </div>
             <div style="font-size:10px;color:var(--text-sub);margin-top:2px;" title="note の URL は有料記事へのリンク用。決算の note は無料なので、概要欄・ブログ・QR には入れません（すみぽん 2026-10-16）">控えだけです。概要欄やブログには入れません。</div>
             <textarea id="ea-n-raw" style="display:none;"></textarea>
+            </details>
           </div>
           <div class="tool-section">
             <div class="section-heading">3. ブログ記事</div>
