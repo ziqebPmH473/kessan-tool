@@ -1035,6 +1035,20 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
 .kc-msg{padding:16px;text-align:center;color:#64748b;}
 .kc-err{color:#b91c1c;}
 @media (max-width:700px){.kc-months{grid-template-columns:1fr;}.kc-nav{width:18px;font-size:24px;}.kc-tbl .kc-opt{display:none;}}
+/* 注目銘柄（🔥。決算カレンダーと同じ全画面の作り） */
+.hs-bar{background:#f97316;}
+.hs-tag{display:inline-block;margin:1px 2px 1px 0;padding:0 5px;border-radius:3px;font-size:10px;line-height:16px;white-space:nowrap;background:#e2e8f0;color:#334155;}
+.hs-tag.yv{background:#fee2e2;color:#991b1b;}.hs-tag.kk,.hs-tag.kd,.hs-tag.ks{background:#ffedd5;color:#9a3412;}.hs-tag.ke{background:#dcfce7;color:#166534;}
+.hs-tag.kt,.hs-tag.mt{background:#e0e7ff;color:#3730a3;}.hs-tag.mb{background:#fce7f3;color:#9d174d;}.hs-tag.kn{background:#fef9c3;color:#854d0e;}
+.hs-why{font-size:11px;color:#475569;}
+.hs-score{font-weight:bold;color:#c2410c;}
+.hs-up{color:#dc2626;}.hs-down{color:#2563eb;}
+.hs-side{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px;}
+.hs-side h3{font-size:14px;margin:0 0 6px;border-left:4px solid #f97316;padding-left:6px;}
+.hs-side ol{margin:0;padding-left:22px;font-size:12px;line-height:1.7;}
+.hs-side a{color:#1d4ed8;text-decoration:none;}.hs-side a:hover{text-decoration:underline;}
+.hs-cat{display:inline-block;font-size:10px;background:#f1f5f9;color:#475569;padding:0 4px;border-radius:3px;margin-right:4px;}
+@media (max-width:700px){.hs-side{grid-template-columns:1fr;}}
 
 /* ===== 共通設定（⚙。すべてのPJで共通の設定を、画面に重ねて出す） ===== */
 .kg-hide{display:none!important;}
@@ -1238,6 +1252,7 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
             <button type="button" class="kt-pjbtn kt-pjdel" onclick="ktPjDelete()" title="開いているPJを消す（確認あり）">削除</button>
             <button type="button" class="kt-pjbtn" onclick="kgOpen()" title="共通設定：すべてのPJで共通の設定（声・モデル・定型文・サムネの初期値・スライドの色・OP/ED・BGM）">⚙ 設定</button>
             <button type="button" class="kt-pjbtn" onclick="kcOpen()" title="決算カレンダー：日本株・米国株の決算発表の予定日をカレンダーで見る">📅 予定</button>
+            <button type="button" class="kt-pjbtn" onclick="hsOpen()" title="注目銘柄：株探・Yahoo!ファイナンス・みんかぶのランキングを集めて、いま注目されている日本株を点数順に並べる（どの銘柄を分析するか迷ったとき用。PJには入らない）">🔥 注目</button>
             <button type="button" class="kt-pjbtn" onclick="tqOpen()" title="サムネだけ：文字だけ入れて、横・縦のサムネ画像をダウンロード（noteのまとめ記事など、PJを作らないとき用。保存はしません）">🖼 サムネ</button>
             <button type="button" class="kt-pjbtn" onclick="exportTabData(window._ktKind)" title="エクスポート：開いているPJの内容（裏データ含む）をJSONで保存">📤 書出</button>
             <button type="button" class="kt-pjbtn" onclick="importTabDataPick(window._ktKind)" title="インポート：保存したJSONを読み込んで続きから再開">📥 読込</button>
@@ -15832,6 +15847,60 @@ function kcOpen(){
   kcMarket(KC.mk);
 }
 function kcClose(){document.getElementById('kc-view').hidden=true;document.body.style.overflow='';}
+
+// =====================================================
+// 注目銘柄（🔥）。株探・Yahoo!ファイナンス・みんかぶのランキングを /api/hot-stocks で集めて、点数順に並べる。
+// 点数のつけ方はサーバー側（functions/api/hot-stocks.js）。画面は並べて絞るだけ。
+// =====================================================
+const HS={data:null,busy:false};
+function hsOpen(){
+  document.getElementById('hs-view').hidden=false;document.body.style.overflow='hidden';
+  if(!HS.data&&!HS.busy)hsLoad(false);else hsRender();
+}
+function hsClose(){document.getElementById('hs-view').hidden=true;document.body.style.overflow='';}
+async function hsLoad(fresh){
+  HS.busy=true;
+  document.getElementById('hs-list').innerHTML='<div class="kc-msg">各サイトのランキングを読んでいます…（10〜20秒）</div>';
+  try{
+    const r=await fetch('/api/hot-stocks'+(fresh?'?fresh=1':''));
+    const j=await r.json().catch(()=>({ok:false,error:'返事が読めません（'+r.status+'）'}));
+    if(!j.ok)throw new Error(j.error||('エラー '+r.status));
+    HS.data=j;
+  }catch(e){
+    document.getElementById('hs-list').innerHTML='<div class="kc-msg kc-err">読めませんでした：'+kcEsc(e.message)+'</div>';HS.busy=false;return;
+  }
+  HS.busy=false;hsRender();
+}
+function hsRender(){
+  const j=HS.data;if(!j)return;
+  const q=document.getElementById('hs-q').value.trim().toLowerCase(),onlyEarn=document.getElementById('hs-earn').checked;
+  const srcLabel=Object.fromEntries((j.sources||[]).map(s=>[s.key,s.label]));
+  const t=j.fetchedAt?new Date(j.fetchedAt):null;
+  let note='集めた元：'+(j.sources||[]).map(s=>s.label).join('・')+'。点は「いくつの表に、どれだけ上位で載ったか」。同じ表でも 1 位が一番高く、下にいくほど低い。'
+    +(t?'　取得：'+(t.getMonth()+1)+'/'+t.getDate()+' '+String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0'):'');
+  if(j.failed&&j.failed.length)note+='<br><span class="kc-err">読めなかった元：'+kcEsc(j.failed.join('、'))+'（残りの表だけで並べています）</span>';
+  document.getElementById('hs-src').innerHTML=note;
+  const rows=(j.stocks||[]).filter(s=>{
+    if(onlyEarn&&!s.hits.some(h=>h.src==='ke'))return false;
+    if(!q)return true;
+    return (s.code+' '+s.name+' '+s.market+' '+s.why.join(' ')).toLowerCase().includes(q);
+  });
+  const pct=p=>{if(!p)return '';const n=parseFloat(p);return '<span class="'+(n>0?'hs-up':n<0?'hs-down':'')+'">'+kcEsc(p)+'%</span>';};
+  let h='<table class="kc-tbl"><thead><tr><th>順位</th><th>コード</th><th>銘柄</th><th class="kc-opt">市場</th><th>株価</th><th>前日比</th><th>点</th><th>載った表（数字は順位）</th><th>材料</th></tr></thead><tbody>';
+  rows.forEach((s,i)=>{
+    h+='<tr><td class="c">'+(i+1)+'</td><td class="c"><a href="https://kabutan.jp/stock/?code='+kcEsc(s.code)+'" target="_blank" rel="noopener">'+kcEsc(s.code)+'</a></td>'
+      +'<td><a href="https://kabutan.jp/stock/news?code='+kcEsc(s.code)+'" target="_blank" rel="noopener" title="株探のニュース一覧を開く">'+kcEsc(s.name)+'</a></td>'
+      +'<td class="c kc-opt">'+kcEsc(s.market)+'</td><td class="r">'+kcEsc(s.price)+'</td><td class="r">'+pct(s.pct)+'</td><td class="r hs-score">'+s.score+'</td>'
+      +'<td>'+s.hits.map(x=>'<span class="hs-tag '+x.src+'" title="'+kcEsc(srcLabel[x.src]||x.src)+'：'+x.rank+'位（'+x.pts+'点）">'+kcEsc((srcLabel[x.src]||x.src).replace(/^(株探|Yahoo|みんかぶ) /,''))+' '+x.rank+'</span>').join('')+'</td>'
+      +'<td class="hs-why">'+kcEsc(s.why.join(' ／ '))+'</td></tr>';
+  });
+  h+='</tbody></table>';
+  if(!rows.length)h='<div class="kc-msg">当てはまる銘柄がありません</div>';
+  document.getElementById('hs-list').innerHTML=h;
+  document.getElementById('hs-news').innerHTML=(j.news||[]).slice(0,15).map(n=>'<li><span class="hs-cat">'+kcEsc(n.cat||'')+'</span><a href="'+kcEsc(n.url)+'" target="_blank" rel="noopener">'+kcEsc(n.title)+'</a></li>').join('');
+  const th=((j.themes&&j.themes.kabutan)||[]).filter(x=>!/TOPIX|JPX|日経|読売|S&P|ETF/.test(x.theme));   // 指数のテーマは出さない（点でも外している）
+  document.getElementById('hs-themes').innerHTML=th.slice(0,15).map(x=>'<li><b>'+kcEsc(x.theme)+'</b>　<span class="hs-why">'+x.stocks.map(s=>'<a href="https://kabutan.jp/stock/?code='+kcEsc(s.code)+'" target="_blank" rel="noopener">'+kcEsc(s.name)+'</a>').join('、')+'</span></li>').join('');
+}
 function kcMarket(mk){
   KC.mk=mk;try{localStorage.setItem('kc-mk',mk);}catch(e){}
   document.querySelectorAll('.kc-mk').forEach(b=>b.classList.toggle('on',b.dataset.mk===mk));
@@ -17509,6 +17578,29 @@ async function dgCopy(id,btn){
   </div>
 </div>
 
+
+<!-- 注目銘柄（上の「🔥 注目」で開く。PJには入らない）。株サイトのランキングを /api/hot-stocks で集めて、点数順に並べる -->
+<div id="hs-view" class="kc" hidden>
+  <div class="kc-in">
+    <div class="kc-head">
+      <h2>🔥 いま注目の銘柄（日本株）</h2>
+      <button class="kc-close" onclick="hsClose()">✕ 閉じる</button>
+    </div>
+    <div class="kc-bar hs-bar"></div>
+    <div class="kc-filter">
+      <label for="hs-q">コード・銘柄名・材料：</label>
+      <input type="text" id="hs-q" oninput="hsRender()" placeholder="例：半導体、決算、4062">
+      <label style="font-size:12px;white-space:nowrap;"><input type="checkbox" id="hs-earn" onchange="hsRender()"> 決算を発表した銘柄だけ</label>
+      <button onclick="hsLoad(true)" style="margin-left:auto;background:#fff;border-color:#cbd5e1;" title="サーバーに1時間おいた結果を捨てて、各サイトを読み直す">🔄 読み直す</button>
+    </div>
+    <div class="kc-note" id="hs-src"></div>
+    <div id="hs-list"></div>
+    <div class="hs-side">
+      <div><h3>📰 株探の人気ニュース（直近8時間）</h3><ol id="hs-news"></ol></div>
+      <div><h3>🏷 人気の株式テーマ</h3><ol id="hs-themes"></ol></div>
+    </div>
+  </div>
+</div>
 
 <!-- サムネだけ（上の「🖼 サムネだけ」で開く）。PJ・保存・DBには関わらない。文字だけ入れて横・縦のサムネをダウンロードする -->
 <div id="tq-view" class="kg" hidden onclick="if(event.target===this)tqClose()">
