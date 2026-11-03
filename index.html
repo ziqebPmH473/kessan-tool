@@ -1999,7 +1999,7 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
 
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">タイトル</label><button class="btn-sm" onclick="copyText(document.getElementById('art-title').value,this)">📋 コピー</button></div>
     <textarea id="art-title" placeholder="生成後にタイトルが入ります" rows="2" style="height:46px;min-height:46px;"></textarea>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">本文（note）</label><span style="display:flex;gap:4px;"><button class="btn-sm" onclick="saBlogZip(this)" style="background:#16a34a;color:#fff;" title="この note の本文をブログ用の ZIP にします（記事.txt＋アイキャッチ）。本文の違いは2つ：「## 1.」の下のティッカー行を外し、「## 2.」の下に有料の区切りを入れます（ブログではそこから先が「note で続きを読む」になります）。ブログのコンソール →「新しい記事」→「まとめて貼る」に落とすと記事になります">💾 ブログ用 ZIP</button><button class="btn-sm" onclick="copyText(document.getElementById('art-body').value,this)">📋 コピー</button></span></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">本文（note）</label><span style="display:flex;gap:4px;"><button class="btn-sm" onclick="saBlogZip(this)" style="background:#16a34a;color:#fff;" title="この note の本文をブログ用の ZIP にします（記事.txt＋アイキャッチ＋スライド作成タブの画像6枚と「ご注意」を本文の枠の順に）。本文の違いは2つ：「## 1.」の下のティッカー行を外し、「## 2.」の下に有料の区切りを入れます（ブログではそこから先が「note で続きを読む」になります）。ブログのコンソール →「新しい記事」→「まとめて貼る」に落とすと記事になります">💾 ブログ用 ZIP</button><button class="btn-sm" onclick="copyText(document.getElementById('art-body').value,this)">📋 コピー</button></span></div>
     <textarea id="art-body" placeholder="生成後にnote記事本文が入ります" style="min-height:130px;"></textarea>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">ハッシュタグ</label><button class="btn-sm" onclick="copyText(document.getElementById('art-tags').value,this)">📋 コピー</button></div>
     <textarea id="art-tags" placeholder="生成後にハッシュタグが入ります" rows="2" style="height:46px;min-height:46px;"></textarea>
@@ -10903,7 +10903,7 @@ async function ygArtAi(k,btn){
   finally{if(btn)btn.disabled=false;}
 }
 // ---- 株価分析「記事・SNS」のブログ用 ZIP（sumikko-money の docs/article-zip.md。決算分析の eaBlogZip と同じ形）----
-// 本文は note に使ったものをそのまま。違いは2つ：「## 1.」の下の ^コード／$ティッカー の行を外す、「## 2.」の下に有料の区切り（<!-- ここから有料 -->）を入れる（すみぽん 2026-11-03）。
+// 画像は saBlogSlides（スライド作成タブの6枚＋ご注意を本文の枠に割り当て）。本文は note に使ったものをそのまま。違いは2つ：「## 1.」の下の ^コード／$ティッカー の行を外す、「## 2.」の下に有料の区切り（<!-- ここから有料 -->）を入れる（すみぽん 2026-11-03）。
 // ブログではその区切りから先が出ず「note で続きを読む」の案内になる。note の URL は【note】に入れる。アイキャッチは横のサムネ
 function saBlogBody(body){
   const lines=String(body||'').split('\n').filter(l=>!/^[\^$][A-Za-z0-9.\-]+\s*$/.test(l.trim())&&!/^\s*<!--\s*ここから有料\s*-->\s*$/.test(l));
@@ -10911,6 +10911,40 @@ function saBlogBody(body){
   if(i<0){const hs=lines.map((l,j)=>/^##\s/.test(l)?j:-1).filter(j=>j>=0);i=hs.length>=2?hs[1]:-1;}   // 「## 2.」が無ければ2つ目の大見出し
   if(i>=0)lines.splice(i+1,0,'','<!-- ここから有料 -->','');
   return lines.join('\n').replace(/\n{3,}/g,'\n\n').trim();
+}
+// ブログ本文の画像の枠に、スライド作成タブの6枚（01現状整理〜06まとめ）と固定の「ご注意」画像を割り当てる（すみぽん 2026-11-03）
+// ・枠の行 [ここに「…」のスライド画像を挿入]／[ここに「ご注意」の画像を挿入] を、直前の見出し（## 1〜5・## まとめ）で判定する
+// ・ブログのコンソールは画像をファイル名の順に枠へ上から入れるので、本文の枠の順に 01_, 02_ … と名前を付ける
+// ・見出しが分からない枠・同じスライドの2つ目の枠は行ごと外す（枠と画像の数をそろえる）
+const SA_FRAME_RE=/^\s*\[ここに「(.+?)」の(?:スライド)?画像を挿入\]\s*$/;
+async function saBlogSlides(body,st){
+  const lines=String(body||'').split('\n');
+  if(!lines.some(l=>SA_FRAME_RE.test(l)))return{body,files:[],note:'本文に画像の枠が無いので画像なし'};
+  const text=((document.getElementById('ta-data')||{}).value||'').trim();
+  if(!text)return{body,files:[],note:'スライドデータが無いので画像なし（スライド作成タブで作ると入ります）'};
+  let slides;try{slides=buildAll(parseData(text));}catch(e){console.warn('[sa] slides',e);return{body,files:[],note:'スライドデータを読めず画像なし'};}
+  const SAFE=t=>String(t||'').replace(/[\\/:*?"<>|]/g,'_').trim();
+  let heading='',dropped=0;const pick=[],out=[];
+  for(const l of lines){
+    if(/^##\s/.test(l))heading=l;
+    const m=l.match(SA_FRAME_RE);
+    if(!m){out.push(l);continue;}
+    let idx=-1;
+    if(/ご注意/.test(m[1]))idx=6;
+    else{const h=heading.match(/^##\s*([1-5])[.．]/);if(h)idx=+h[1]-1;else if(/^##\s*まとめ/.test(heading)||/まとめ/.test(m[1]))idx=5;}
+    if(idx<0||idx>=slides.length+1||pick.some(x=>x.idx===idx)){dropped++;continue;}
+    pick.push({idx,title:m[1]});out.push(l);
+  }
+  const files=[];
+  for(let i=0;i<pick.length;i++){
+    const {idx,title}=pick[i],name=`画像/${String(i+1).padStart(2,'0')}_${SAFE(title)}.png`;
+    if(st)st(`画像を作っています… ${i+1}/${pick.length}`);
+    try{
+      if(idx===6){const r=await fetch('assets/disclaimer_note.png');if(r.ok)files.push({name,blob:await r.blob()});else dropped++;}
+      else files.push({name,blob:await renderToBlob(slides[idx])});
+    }catch(e){console.warn('[sa] slide png',e);dropped++;}
+  }
+  return{body:out.join('\n').replace(/\n{3,}/g,'\n\n').trim(),files,note:`画像${files.length}枚`+(dropped?`（枠${dropped}つは見出しに合わず外した）`:'')};
 }
 async function saBlogZip(btn){
   const v=id=>((document.getElementById(id)||{}).value||'').trim();
@@ -10923,7 +10957,9 @@ async function saBlogZip(btn){
     const zip=new JSZip();
     const th=v('th-input');
     if(th){try{st('アイキャッチを作っています…');const b=await thumbPngBlob(th);if(b)zip.file('アイキャッチ.png',b);}catch(e){console.warn('[sa] eyecatch',e);}}
-    const body=saBlogBody(body0),code=getTicker()||'';
+    const sl=await saBlogSlides(saBlogBody(body0),st);
+    const body=sl.body,code=getTicker()||'';
+    sl.files.forEach(f=>zip.file(f.name,f.blob));
     const hasPaid=/<!-- ここから有料 -->/.test(body);
     const blocks=[['【タイトル】',title],['【カテゴリ】','株価分析'],['【銘柄コード】',code],['【本　文】',body],['【ハッシュタグ】',tags],['【note】',v('art-url')]]
       .filter(([,x])=>x).map(([h,x])=>h+'\n'+x).join('\n\n')+'\n';
@@ -10931,7 +10967,7 @@ async function saBlogZip(btn){
     st('ZIP にまとめています…');
     const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:3}});
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${code||'stock'}_${getName()||'article'}_記事.zip`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);
-    const notes=[th?'アイキャッチ1枚':'アイキャッチなし（サムネイルの文が無い）',hasPaid?'':'「## 2.」の見出しが無いので有料の区切りは入れていません',v('art-url')?'':'note の URL は空（公開後に記事URLを入れて作り直すとブログから案内できます）'].filter(Boolean);
+    const notes=[th?'アイキャッチ1枚':'アイキャッチなし（サムネイルの文が無い）',sl.note,hasPaid?'':'「## 2.」の見出しが無いので有料の区切りは入れていません',v('art-url')?'':'note の URL は空（公開後に記事URLを入れて作り直すとブログから案内できます）'].filter(Boolean);
     st(`✅ 保存しました（${(blob.size/1024).toFixed(0)} KB・${notes.join('・')}）`,'ok');
   }catch(e){st('❌ '+(e&&e.message||e),'error');}
   finally{if(btn){btn.disabled=false;btn.textContent=o;}}
