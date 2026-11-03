@@ -16911,11 +16911,11 @@ async function dgDescRender(force){
   lines.push(moved&&after?jp+'の市場で注目された決算と、引け後に発表された決算をまとめて解説します。':moved?jp+'の市場で注目された決算をまとめて解説します。':after?jp+'の引け後に発表された決算をまとめて解説します。':jp+'に発表された決算をまとめて解説します。');
   lines.push('業績の変化や増減益の背景、今後の見通しをコンパクトに整理しています。');
   lines.push('');
-  lines.push('■ ブログで各銘柄の詳しい決算解説を公開中');
-  lines.push(String(kgGet('blog-url')||'').trim());
-  lines.push('');
   lines.push('■ noteで個別銘柄の分析記事を公開中');
   lines.push(noteUrl);
+  lines.push('');
+  lines.push('■ ブログで各銘柄の詳しい決算解説を公開中');   // note → ブログの順（すみぽん 2026-11-03）
+  lines.push(String(kgGet('blog-url')||'').trim());
   lines.push('');
   lines.push('■ 動画の目次');
   // 冒頭は 1 銘柄目と同じチャプター（YouTube のチャプターは 00:00 から・3つ以上・各10秒以上）
