@@ -2916,7 +2916,7 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
 
             const label = btnEl ? btnEl.innerText : '';
             if (btnEl) { btnEl.disabled = true; btnEl.innerText = '整形中…'; }
-            setGemStatus('gem-earn-status', `Geminiで整形中…（決算資料${files.length}件）`, 'info');
+            setGemStatus('gem-earn-status', `${aiName(ov)}で整形中…（決算資料${files.length}件）`, 'info');
             // 横動画のデータも同じ呼び出しで作る（末尾に動画用の JSON を出させる）。取れなければ後で2回目を呼ぶ
             let KVjoin = null;
             try { KVjoin = await evVizLoad(); } catch (e) { console.warn('KessanViz load', e); }
@@ -3099,7 +3099,7 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
 
             const label = btnEl ? btnEl.innerText : '';
             if (btnEl) { btnEl.disabled = true; btnEl.innerText = '整形中…'; }
-            setGemStatus('gem-sa-status', 'Geminiで整形中…', 'info');
+            setGemStatus('gem-sa-status', aiName(ov)+'で整形中…', 'info');
             const r = await callGeminiAnalyze(buildSaNBPrompt() + GROUNDING_RULE, resources, { cls: 'high', temperature: 0.2, modelOverride: ov });
             if (btnEl) { btnEl.disabled = false; btnEl.innerText = label; }
 
@@ -5687,6 +5687,8 @@ async function aiKeys(){
 }
 async function aiKey(){return (await aiKeys()).gemini;}
 const aiIsClaude=m=>/^claude-/.test(String(m||''));
+// 進行中の表示に出す AI の名前（選んだモデルが claude-〜 なら Claude、それ以外は Gemini。すみぽん 2026-11-03）
+const aiName=m=>aiIsClaude(m)?'Claude':'Gemini';
 async function aiFetch(url,init){
   const keys=await aiKeys();
   if(!keys.gemini&&!keys.claude)return fetch(url,init);
@@ -5850,7 +5852,7 @@ async function geminiFormatStock(btnEl){
   }
   const o=btnEl?btnEl.textContent:'';
   if(btnEl){btnEl.disabled=true;btnEl.textContent='整形中…';}
-  saSetGemStatus('Geminiで整形中…','info');
+  saSetGemStatus(aiName(ov)+'で整形中…','info');
   const r=await saCallGeminiAnalyze(NB_PROMPT+chartOverride+SA_GROUNDING_RULE,resources,{cls:autoHigh?'high':'low',temperature:0.2,modelOverride:ov});
   if(btnEl){btnEl.disabled=false;btnEl.textContent=o;}
   if(!r.ok){saSetGemStatus('エラー: '+r.error,'error');return;}
@@ -6385,7 +6387,7 @@ async function geminiArticle(btnEl){
   const ov=(document.getElementById('gem-article-model')||{}).value||'';
   const o=btnEl?btnEl.textContent:'';
   if(btnEl){btnEl.disabled=true;btnEl.textContent='生成中…';}
-  setArtStatus('Geminiで記事生成中…（30秒〜1分）','info');
+  setArtStatus(aiName(ov)+'で記事生成中…（30秒〜1分）','info');
   const r=await saCallGeminiAnalyze(prompt,resources,{cls:'high',temperature:0.7,modelOverride:ov});
   if(btnEl){btnEl.disabled=false;btnEl.textContent=o;}
   if(!r.ok){setArtStatus('エラー: '+r.error,'error');return;}
@@ -8163,7 +8165,7 @@ async function geminiVideo(P,btnEl){
   const ov=vdVal(P,'model');
   const o=btnEl?btnEl.textContent:'';
   if(btnEl){btnEl.disabled=true;btnEl.textContent='生成中…';}
-  vdStatus(P,'Geminiで台本・スライド・投稿文を生成中…（30秒〜1分）','info');
+  vdStatus(P,aiName(ov)+'で台本・スライド・投稿文を生成中…（30秒〜1分）','info');
   const r=await saCallGeminiAnalyze(prompt,resources,{cls:'high',temperature:0.7,modelOverride:ov});
   if(btnEl){btnEl.disabled=false;btnEl.textContent=o;}
   if(!r.ok){vdStatus(P,'エラー: '+r.error,'error');return false;}
@@ -8205,7 +8207,7 @@ async function geminiVideoSns(P,btnEl){
 出力は「7. 【X用ハッシュタグ】」「8. 【Instagram投稿文】」「9. 【TikTok投稿文】」「10. 【YouTubeショート】」の4ブロックだけを、この順で、見出しを付けて出す（1〜6は出力しない）。`;
   const o=btnEl?btnEl.textContent:'';
   if(btnEl){btnEl.disabled=true;btnEl.textContent='生成中…';}
-  vdStatus(P,'GeminiでSNSの投稿文を作り直し中…','info');
+  vdStatus(P,aiName(vdVal(P,'model'))+'でSNSの投稿文を作り直し中…','info');
   const r=await saCallGeminiAnalyze(prompt,resources,{cls:'high',temperature:0.7,modelOverride:vdVal(P,'model')});
   if(btnEl){btnEl.disabled=false;btnEl.textContent=o;}
   if(!r.ok){vdStatus(P,'エラー: '+r.error,'error');return false;}
@@ -16328,7 +16330,7 @@ async function evVizGenerate(btnEl,opts){
   const hint=((document.getElementById('p-name')||{}).value||'')+' '+((document.getElementById('p-code')||{}).value||'');
   const ov=(document.getElementById('ev-viz-model')||{}).value||'';
   const label=btnEl?btnEl.innerText:'';if(btnEl){btnEl.disabled=true;btnEl.innerText='作成中…';}
-  evVizStatus('Gemini で財務数値を抽出中…（PDF '+files.length+'件。1〜3分かかることがあります）','info');
+  evVizStatus(aiName(ov)+' で財務数値を抽出中…（PDF '+files.length+'件。1〜3分かかることがあります）','info');
   const r=await callGeminiAnalyze(KV.prompt({companyHint:hint.trim()}),[],{cls:'high',temperature:0.2,modelOverride:ov,files});
   if(btnEl){btnEl.disabled=false;btnEl.innerText=label;}
   if(!r.ok){evVizStatus('エラー: '+r.error,'error');return false;}
