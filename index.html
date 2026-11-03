@@ -1966,7 +1966,7 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
 
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">タイトル</label><button class="btn-sm" onclick="copyText(document.getElementById('art-title').value,this)">📋 コピー</button></div>
     <textarea id="art-title" placeholder="生成後にタイトルが入ります" rows="2" style="height:46px;min-height:46px;"></textarea>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">本文（note）</label><button class="btn-sm" onclick="copyText(document.getElementById('art-body').value,this)">📋 コピー</button></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">本文（note）</label><span style="display:flex;gap:4px;"><button class="btn-sm" onclick="saBlogZip(this)" style="background:#16a34a;color:#fff;" title="この note の本文をブログ用の ZIP にします（記事.txt＋アイキャッチ）。本文の違いは2つ：「## 1.」の下のティッカー行を外し、「## 2.」の下に有料の区切りを入れます（ブログではそこから先が「note で続きを読む」になります）。ブログのコンソール →「新しい記事」→「まとめて貼る」に落とすと記事になります">💾 ブログ用 ZIP</button><button class="btn-sm" onclick="copyText(document.getElementById('art-body').value,this)">📋 コピー</button></span></div>
     <textarea id="art-body" placeholder="生成後にnote記事本文が入ります" style="min-height:130px;"></textarea>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><label style="font-size:11px;color:var(--text-sub);">ハッシュタグ</label><button class="btn-sm" onclick="copyText(document.getElementById('art-tags').value,this)">📋 コピー</button></div>
     <textarea id="art-tags" placeholder="生成後にハッシュタグが入ります" rows="2" style="height:46px;min-height:46px;"></textarea>
@@ -10699,7 +10699,7 @@ function ygArticlePrompt(kind){
 ・構成と見出しは、記事として読みやすいように、レポートの内容から決める。大見出しは ##、小見出しは ###。最後はまとめの章で終える。
 ・見出しに「第1章」などの番号は付けない。見出しは、その章の中身が分かる言葉にする。
 ・スマホで斜め読みしても要点が伝わるよう、重要な数字・分析の結論・注意したいリスクは、Markdownの太字（**〇〇**）で強調する。1章につき2〜3か所。** と文字の間にスペースを入れない。括弧「」『』（）は ** の外に置く。
-${note?'・Markdownの表は使わない（noteは表を表示できない）。数字の比較は箇条書きにする。':'・数字の比較は、Markdownの表にする。表のすぐ上か下に、何の表かが分かる一文を置く。\n・【要点】を3行書く。1行40字前後。記号や番号は付けない。売買を促す言い方をしない。'}
+${note?'・Markdownの表は使わない（noteは表を表示できない）。数字の比較は箇条書きにする。':'・数字の比較は、Markdownの表にする。表のすぐ上か下に、何の表かが分かる一文を置く。'}
 ・売買をすすめる表現、読者への行動要求（「〜すべきです」「〜する必要があります」）、将来の株価の断定は書かない。
 ・理由が資料に無いときは、理由を書かず事実だけ書く。理由が分からない・資料に無い・断定できない、ということ自体は、どんな言い方でも書かない（「資料からは特定できない」「理由を断定する記載はない」「確定的な要因は示されていない」など）。読者は資料を見ていない。
 ・出典の番号、URL、免責文、動画の案内は書かない（あとで別に付ける）。
@@ -10709,7 +10709,7 @@ ${note?'・Markdownの表は使わない（noteは表を表示できない）。
 5〜7個。テーマの言葉を入れる。どの記事にも付く言葉は使わない。
 
 【出力形式（厳守）】
-次の${note?'3':'4'}つを、この見出しと順番で出力する。見出しは行頭に置き、次の行からコードブロックを始める。前置き・感想は不要。
+次の3つを、この見出しと順番で出力する。見出しは行頭に置き、次の行からコードブロックを始める。前置き・感想は不要。
 【タイトル】
 \`\`\`
 （記事の題名）
@@ -10722,13 +10722,7 @@ ${note?'・Markdownの表は使わない（noteは表を表示できない）。
 \`\`\`
 #タグ1 #タグ2 #タグ3 #タグ4 #タグ5
 \`\`\`
-${note?'':`【要点】
-\`\`\`
-（1行目）
-（2行目）
-（3行目）
-\`\`\`
-`}
+
 【レポート】
 ${doc}`;
 }
@@ -10741,18 +10735,8 @@ function ygNoteDisclaimer(body){
   blocks.splice(i+1,0,YG_NOTE_DISCLAIMER);
   return blocks.join('\n\n');
 }
-// ブログの有料の区切り：最初の大見出し（##）の次に「<!-- ここから有料 -->」の行を入れる（すでにあれば入れ直す）。
-// ブログではそこから先が出ず「note で続きを読む」の案内になる（sumikko-money の docs/article-format.md）。株価分析の横動画のブログだけ（YT動画タブには有料の note が無い）
-const YG_PAID_LINE='<!-- ここから有料 -->';
-function ygBlogPaidLine(body){
-  const lines=String(body||'').split('\n').filter(l=>!/^\s*<!--\s*ここから有料\s*-->\s*$/.test(l));
-  if(ytGen())return lines.join('\n');
-  const i=lines.findIndex(l=>/^##\s/.test(l));
-  if(i<0)return lines.join('\n');
-  lines.splice(i+1,0,'',YG_PAID_LINE,'');
-  return lines.join('\n').replace(/\n{3,}/g,'\n\n');
-}
-// note の株価のカード：最初の大見出し（##）の次に「^コード」（米国株は「$ティッカー」）を1段落で入れる。株価分析タブの note で使う（横動画の note には入れない。すみぽん 2026-11-03）
+// note の株価のカード：最初の大見出し（##）の次に「^コード」（米国株は「$ティッカー」）を1段落で入れる。株価分析タブの note と横動画の note で共通（YT動画タブには銘柄が無いので入れない）
+function ygNoteTicker(body){return ytGen()?body:saNoteTicker(body);}
 function saNoteTicker(body){
   // 銘柄コードは株価分析タブの「inp-ticker」（JP/US は「mkt」）。sa-code-input は個別銘柄分析の欄なので、ここでは空のことが多い（空なら予備として見る）
   let code=getTicker(),us=getMkt()==='us';
@@ -10775,9 +10759,8 @@ function ygArtApply(k,text){
   ytEl('a-'+k+'-raw').value=text;
   ytEl('a-'+k+'-title').value=fixBoldBrackets(p.title||'');
   const body=noteSentenceBreaks(fixBoldBrackets(p.body||''));
-  ytEl('a-'+k+'-body').value=k==='n'?ygNoteDisclaimer(body):ygBlogPaidLine(body);   // ブログは、ページの作り（sumikko-money）で注意書きが出る。有料の区切りは最初の見出しの次
+  ytEl('a-'+k+'-body').value=k==='n'?ygNoteTicker(ygNoteDisclaimer(body)):body;   // ブログは、ページの作り（sumikko-money）で注意書きが出る
   ytEl('a-'+k+'-tags').value=p.hashtags||'';
-  if(k==='b'){const pt=ytEl('a-b-points');if(pt)pt.value=eaParsePoints(text);}   // 【要点】はブログ用 ZIP の記事.txt に入れる
   ygArtUrlApply(false,k);   // 動画のURLは導入のすぐあと（注意書きの上）に入る
   saveState();
   ygArtStatus(k,`✅ 反映しました（本文${(p.body||'').length.toLocaleString()}字）`,'ok');
@@ -10823,30 +10806,37 @@ async function ygArtAi(k,btn){
   }catch(e){ygArtStatus(k,'❌ '+e.message,'error');}
   finally{if(btn)btn.disabled=false;}
 }
-// ---- ブログ用 ZIP（sumikko-money の docs/article-zip.md。決算分析の eaBlogZip と同じ形）----
-// 記事.txt ＋ アイキャッチ.png（横のサムネ）。画像/・動画/ は無い（株価分析の横動画は YouTube の URL で案内する）
-async function ygBlogZip(btn){
-  const title=ytVal('a-b-title'),body0=ytVal('a-b-body'),tags=ytVal('a-b-tags');
-  if(!title||!body0){alert('先にブログ記事を作ってください');return;}
+// ---- 株価分析「記事・SNS」のブログ用 ZIP（sumikko-money の docs/article-zip.md。決算分析の eaBlogZip と同じ形）----
+// 本文は note に使ったものをそのまま。違いは2つ：「## 1.」の下の ^コード／$ティッカー の行を外す、「## 2.」の下に有料の区切り（<!-- ここから有料 -->）を入れる（すみぽん 2026-11-03）。
+// ブログではその区切りから先が出ず「note で続きを読む」の案内になる。note の URL は【note】に入れる。アイキャッチは横のサムネ
+function saBlogBody(body){
+  const lines=String(body||'').split('\n').filter(l=>!/^[\^$][A-Za-z0-9.\-]+\s*$/.test(l.trim())&&!/^\s*<!--\s*ここから有料\s*-->\s*$/.test(l));
+  let i=lines.findIndex(l=>/^##\s*2[.．]/.test(l));
+  if(i<0){const hs=lines.map((l,j)=>/^##\s/.test(l)?j:-1).filter(j=>j>=0);i=hs.length>=2?hs[1]:-1;}   // 「## 2.」が無ければ2つ目の大見出し
+  if(i>=0)lines.splice(i+1,0,'','<!-- ここから有料 -->','');
+  return lines.join('\n').replace(/\n{3,}/g,'\n\n').trim();
+}
+async function saBlogZip(btn){
+  const v=id=>((document.getElementById(id)||{}).value||'').trim();
+  const title=v('art-title'),body0=v('art-body'),tags=v('art-tags');
+  if(!title||!body0){alert('先に記事を作ってください');return;}
   if(typeof JSZip==='undefined'){alert('ZIP の部品を読めていません。ページを再読み込みしてください');return;}
-  const st=(m,c)=>ygArtStatus('b',m,c);
+  const st=(m,c)=>setGemStatus('gem-article-status',m,c);
   const o=btn?btn.textContent:'';if(btn){btn.disabled=true;btn.textContent='作成中…';}
   try{
     const zip=new JSZip();
-    // アイキャッチ：横のサムネ（サムネイルのタブの文があるときだけ）
-    const th=((document.getElementById('th-input')||{}).value||'').trim();
-    if(th){try{st('アイキャッチを作っています…');const b=await thumbPngBlob(th);if(b)zip.file('アイキャッチ.png',b);}catch(e){console.warn('[yg] eyecatch',e);}}
-    // 本文：YouTube の URL の段落は外す（ZIP の【YouTube】に入る）。有料の区切りは最初の見出しの次
-    const isYt=l=>/^https?:\/\/(www\.|m\.)?(youtube\.com|youtu\.be)\/\S+$/.test(l.trim());
-    const body=ygBlogPaidLine(body0.split(/\n{2,}/).map(x=>x.trim()).filter(x=>x&&!isYt(x)).join('\n\n'));
-    const gen=ytGen(),code=gen?'':(getTicker()||'');
-    const blocks=[['【タイトル】',title],['【カテゴリ】',gen?'':'株価分析'],['【銘柄コード】',code],['【要点】',ytVal('a-b-points')],['【本　文】',body],['【ハッシュタグ】',tags],['【note】',ytNoteUrl()],['【YouTube】',ytVal('p-yturl')]]
-      .filter(([,v])=>v).map(([h,v])=>h+'\n'+v).join('\n\n')+'\n';
+    const th=v('th-input');
+    if(th){try{st('アイキャッチを作っています…');const b=await thumbPngBlob(th);if(b)zip.file('アイキャッチ.png',b);}catch(e){console.warn('[sa] eyecatch',e);}}
+    const body=saBlogBody(body0),code=getTicker()||'';
+    const hasPaid=/<!-- ここから有料 -->/.test(body);
+    const blocks=[['【タイトル】',title],['【カテゴリ】','株価分析'],['【銘柄コード】',code],['【本　文】',body],['【ハッシュタグ】',tags],['【note】',v('art-url')]]
+      .filter(([,x])=>x).map(([h,x])=>h+'\n'+x).join('\n\n')+'\n';
     zip.file('記事.txt',blocks);
     st('ZIP にまとめています…');
     const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:3}});
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${ytFileBase('code','article')}_記事.zip`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);
-    st(`✅ 保存しました（${(blob.size/1024).toFixed(0)} KB${th?'・アイキャッチ1枚':'・アイキャッチなし（サムネイルのタブに文が無い）'}${ytNoteUrl()?'':'・note の URL は空'}）`,'ok');
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${code||'stock'}_${getName()||'article'}_記事.zip`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+    const notes=[th?'アイキャッチ1枚':'アイキャッチなし（サムネイルの文が無い）',hasPaid?'':'「## 2.」の見出しが無いので有料の区切りは入れていません',v('art-url')?'':'note の URL は空（公開後に記事URLを入れて作り直すとブログから案内できます）'].filter(Boolean);
+    st(`✅ 保存しました（${(blob.size/1024).toFixed(0)} KB・${notes.join('・')}）`,'ok');
   }catch(e){st('❌ '+(e&&e.message||e),'error');}
   finally{if(btn){btn.disabled=false;btn.textContent=o;}}
 }
@@ -11398,9 +11388,6 @@ ${[['n','note記事（無料）','表なしで作ります。動画のURLは最�
   <input type="text" id="yt-a-${k}-title" oninput="saveState()" placeholder="タイトル" style="width:100%;box-sizing:border-box;font-size:11px;">
   <textarea id="yt-a-${k}-body" data-yh-slot="yh-slot-a${k}" oninput="saveState()" placeholder="本文" style="min-height:0;height:96px;font-size:11px;width:100%;box-sizing:border-box;"></textarea>
   <input type="text" id="yt-a-${k}-tags" oninput="saveState()" placeholder="ハッシュタグ" style="width:100%;box-sizing:border-box;font-size:11px;">
-  ${k==='b'?`<textarea id="yt-a-b-points" style="display:none;"></textarea>
-  ${row(`<button class="btn-sm" onclick="ygBlogZip(this)" style="flex:1;min-width:0;background:#16a34a;color:#fff;" title="記事.txt（タイトル・要点・本文・ハッシュタグ・noteとYouTubeのURL）と、横のサムネのアイキャッチを1つの ZIP にします。ブログのコンソール →「新しい記事」→「まとめて貼る」に落とすと記事になります">💾 ブログ用 ZIP を保存</button>`)}
-  <div style="font-size:10px;color:var(--text-sub);">本文は最初の見出しまでがブログに出て、その先は「note で続きを読む」になります。</div>`:''}
   ${i===0?`<div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:6px;">
     <label style="font-size:11px;color:var(--text-sub);flex:none;">関連記事</label>
     <select id="yt-a-rel-sel" onchange="relOnPick(REL_YT)" style="flex:1;min-width:0;font-size:11px;padding:4px;"><option value="">（記事を作ると自動で選ばれます）</option></select>
@@ -11440,7 +11427,7 @@ ${[['n','note記事（無料）','表なしで作ります。動画のURLは最�
 </div>
 </div>`;
 }
-const YT_PERSIST_IDS=['vd-orient','th-ctx','th-note-text','th-note-preset','yt-th-text','yt-th-preset','yg-th-text','yg-th-preset','yt-g-theme','yt-g-report','yt-g-aud','yt-a-n-raw','yt-a-n-title','yt-a-n-body','yt-a-n-tags','yt-a-rel-url','yt-a-rel-intro','yt-a-b-raw','yt-a-b-title','yt-a-b-body','yt-a-b-tags','yt-a-b-points','yt-a-check','yt-link-state','yt-doc','yt-series','yt-struct-min','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-t1','yt-p-t2','yt-p-t3','yt-p-s1','yt-p-s2','yt-p-s3','yt-p-body','yt-p-xbody','yt-p-hook','yt-p-announce','yt-p-ypbody','yt-p-igbody','yt-p-ttbody','yt-p-points','yt-p-xtags','yt-p-yptags','yt-p-igtags','yt-p-tttags','yt-p-l8title','yt-p-l8intro','yt-p-l8tags','yt-p-yp','yt-p-ig','yt-p-l8t','yt-p-ttt','yt-p-reel','yt-p-fixapplied','yt-p-l8','yt-p-tt','yt-f-yp','yt-f-ig','yt-f-l8','yt-f-tt','yt-p-yturl','yt-p-tags','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-m-cut','yt-m-read','yt-m-plan','yt-m-post','yt-m-qr','yt-m-oped','yt-yomi','yt-yomi-for','yt-open','yt-open-for','ya-gtext','ya-gap','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan','yt-oped-kind','yt-op-s1','yt-op-s2','yt-op-s3','yt-op-v1','yt-op-v2','yt-op-v3','yt-op-lead','yt-op-tail','yt-ed-v','yt-op-cands','yt-ed-cands','yt-oped-bg'];
+const YT_PERSIST_IDS=['vd-orient','th-ctx','th-note-text','th-note-preset','yt-th-text','yt-th-preset','yg-th-text','yg-th-preset','yt-g-theme','yt-g-report','yt-g-aud','yt-a-n-raw','yt-a-n-title','yt-a-n-body','yt-a-n-tags','yt-a-rel-url','yt-a-rel-intro','yt-a-b-raw','yt-a-b-title','yt-a-b-body','yt-a-b-tags','yt-a-check','yt-link-state','yt-doc','yt-series','yt-struct-min','yt-fix-note',...YT_FIX_ITEMS.map(x=>'yt-fix-'+x[0]),'yt-post','yt-p-t1','yt-p-t2','yt-p-t3','yt-p-s1','yt-p-s2','yt-p-s3','yt-p-body','yt-p-xbody','yt-p-hook','yt-p-announce','yt-p-ypbody','yt-p-igbody','yt-p-ttbody','yt-p-points','yt-p-xtags','yt-p-yptags','yt-p-igtags','yt-p-tttags','yt-p-l8title','yt-p-l8intro','yt-p-l8tags','yt-p-yp','yt-p-ig','yt-p-l8t','yt-p-ttt','yt-p-reel','yt-p-fixapplied','yt-p-l8','yt-p-tt','yt-f-yp','yt-f-ig','yt-f-l8','yt-f-tt','yt-p-yturl','yt-p-tags','yt-p-desc','yt-p-x','yt-p-fixed','yt-note-url','yt-months','yt-nlm-min','yt-m-cut','yt-m-read','yt-m-plan','yt-m-post','yt-m-qr','yt-m-oped','yt-yomi','yt-yomi-for','yt-open','yt-open-for','ya-gtext','ya-gap','ya-plan','ya-target','ya-fmt','ya-use-parts','ya-ctx','yn-plan','yt-oped-kind','yt-op-s1','yt-op-s2','yt-op-s3','yt-op-v1','yt-op-v2','yt-op-v3','yt-op-lead','yt-op-tail','yt-ed-v','yt-op-cands','yt-ed-cands','yt-oped-bg'];
 // ---- 動画の種類：株価分析の横動画＝stock ／ YT動画タブ＝gen ----
 // 画面と関数は1組だけ。種類を切り替えると、作品ごとの欄（localStorage）と IndexedDB のキーを入れ替える。
 // 株価分析の側は今までのキーのまま、YT動画の側は前に 'gen:' を付ける。設計：docs/design/2026-09-21_YT動画タブ.md
