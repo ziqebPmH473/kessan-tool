@@ -9168,8 +9168,8 @@ function earnPrevMode(m){
   if(m==='video')renderVideoPrev('ev');
   if(m==='viz'){
     evVizMount();evThSwitch(evThOrientKind());
-    // サムネの文がまだ無い PJ（この機能より前に作った PJ）は、開いたときに整形データから入れる
-    if(!evThVal('h')&&!evThVal('v')&&evData()){evThAutoFill();evThApply();}
+    // 開いたときに整形データから入れ直す（手で直した文は evThAutoFill が残す。文がまだ無い PJ もここで入る）
+    if(evData()){evThAutoFill();evThApply();}
   }
 }
 
@@ -16412,9 +16412,16 @@ function evThInput(k){
   clearTimeout(_evThTimer);_evThTimer=setTimeout(()=>evThApply(['h','v']),1200);
 }
 // 整形データからサムネの文を入れる。空の欄と、前に自動で入れた文のままの欄だけ（直した文は残す）
+// 手で直した文は残す：欄が空か、前に自動で入れた文のままなら全部入れ替える。上段だけ自動のまま（中段の社名などを直した）なら上段だけ入れ替える
+// （整形データの読み取りを直したあと、開き直すだけで「決算発表で下落」が「大幅増益で下落」になるように。すみぽん 2026-11-03）
 function evThAutoFill(){
   const t=evVizThumbText(),au=document.getElementById('ev-viz-th-auto');if(!t||!au)return;
-  ['h','v'].forEach(k=>{const el=document.getElementById('ev-viz-th-'+k);if(el&&(!el.value.trim()||el.value===au.value))el.value=t;});
+  const top=s=>String(s||'').split('：')[0].trim();
+  ['h','v'].forEach(k=>{
+    const el=document.getElementById('ev-viz-th-'+k);if(!el)return;
+    if(!el.value.trim()||el.value===au.value)el.value=t;
+    else if(au.value&&top(el.value)===top(au.value)&&top(t)!==top(au.value))el.value=[top(t),...el.value.split('：').slice(1)].join('：');
+  });
   au.value=t;evTh2Fill(false);if(typeof saveState==='function')saveState();evThPreview();
 }
 // 画像（1920px までの JPEG の data URL。動画側の取り込みと同じ形）
