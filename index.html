@@ -1570,6 +1570,12 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
               <button class="main-btn" onclick="eaBlogZip(this)" style="flex:1;background:#16a34a;" title="記事.txt・アイキャッチ・各場面の画像・分析動画の MP4 を1つの ZIP にします。ブログのコンソール →「新しい記事」→「まとめて貼る」に落とすと記事になります">💾 ブログ用 ZIP を保存</button>
             </div>
             <div id="ea-zip-status" style="display:none;font-size:11px;margin-top:3px;"></div>
+            <div class="input-row" style="margin-top:10px;gap:4px;align-items:center;">
+              <label style="font-size:11px;color:var(--text-sub);flex:none;">ブログの記事URL</label>
+              <input type="text" id="ea-blog-url" placeholder="ブログに公開したあとのURL" oninput="saveState()" onchange="evVizMount(true)" style="flex:1;min-width:0;font-size:11px;">
+              <button class="btn-sm" onclick="eaPaste('ea-blog-url',()=>evVizMount(true))" style="flex:none;">📋 貼付</button>
+            </div>
+            <div style="font-size:10px;color:var(--text-sub);margin-top:2px;" title="空のあいだは、⚙ 共通設定の「ブログのURL」（トップページ）が入ります">分析動画の YouTube 概要欄に入ります。</div>
           </div>
         </div>
         </div><!-- /mode-earnings -->
@@ -15909,7 +15915,7 @@ const KG_ITEMS=[
   {g:'post',key:'yt-p-fixed',label:'概要欄の定型文（使用ツール・AIの注意書き）',ids:['yt-p-fixed'],area:1,def:YT_POST_FIXED},
   {g:'post',key:'vd-yt-fixed',label:'縦動画の概要欄の定型文（YouTubeショート）',ids:[],area:1,def:VD_YT_FIXED_DEF,tip:'株価分析の縦動画の、YouTubeショートの概要欄に入れる定型文（使用ツール・AIの注意書き）'},
   {g:'digest',key:'note-url',label:'note のトップURL',ids:[],def:'',tip:'決算まとめの概要欄の「▼ noteはこちら」と、最後のスライドの QR コードに使います（https://note.com/… ）。空なら note のトップ https://note.com/ になります'},
-  {g:'digest',key:'blog-url',label:'ブログのURL',ids:[],def:'https://sumikko-money.com/',tip:'決算まとめの概要欄の「■ ブログで各銘柄の詳しい決算解説を公開中」に使います'},
+  {g:'digest',key:'blog-url',label:'ブログのURL',ids:[],def:'https://sumikko-money.com/',tip:'決算まとめの概要欄の「■ ブログで各銘柄の詳しい決算解説を公開中」と、決算の分析動画の概要欄（ブログの記事URLが空のとき）に使います'},
   {g:'digest',key:'dg-fixed',label:'概要欄：目次の下の固定文（AI の利用・注意事項）',ids:[],area:1,def:DG_FIXED_DEF,tip:'決算まとめの概要欄で、目次の下・タグの上に入れる文。空にすると初期値に戻ります'},
   {g:'digest',key:'dg-outro',label:'最後の文（読み上げ）',ids:[],area:1,def:DG_OUTRO_DEF,tip:'決算まとめの最後の読み上げ文の初期値。まとめの PJ でも直せます（直していない PJ は、ここを変えると追従します）'},
   ...KG_SNS.map(([k,n])=>({g:'snsstock',key:'yt-f-'+k+'@stock',label:n,ids:['yt-f-'+k],ctx:'stock',area:1,def:YT_SNS_FIXED[k]})),
@@ -16692,11 +16698,13 @@ function kgVizToPj(){
   el.value=cur?JSON.stringify(evVizWithSecDefaults(cur)):'';   // まだ設定が無ければ、描くときに初期値で作られる
   if(typeof saveState==='function')saveState();evVizMount(true);alert('入れました');
 }
-// 分析動画の YouTube 概要欄で、本文とハッシュタグの間に入れる文：note の案内 → 固定文（決算まとめの概要欄と同じ。共通設定「noteのURL」「目次の下の固定文」）
+// 分析動画の YouTube 概要欄で、本文とハッシュタグの間に入れる文：note の案内 → ブログの案内 → 固定文（決算まとめの概要欄と同じ。共通設定「noteのURL」「ブログのURL」「目次の下の固定文」）
+// ブログはこの銘柄の記事（ea-blog-url）。空ならブログのトップ（すみぽん 2026-11-03）
 function evVizYtExtra(){
   try{dgFixedMigrate();}catch(e){}
   const fixed=String(kgGet('dg-fixed')||DG_FIXED_DEF).trim();
-  return ['■ noteで個別銘柄の分析記事を公開中\n'+dgNoteUrl(),fixed].filter(Boolean).join('\n\n');
+  const blog=String((document.getElementById('ea-blog-url')||{}).value||'').trim()||String(kgGet('blog-url')||'').trim();
+  return ['■ noteで個別銘柄の分析記事を公開中\n'+dgNoteUrl(),'■ ブログで詳しい決算解説を公開中\n'+blog,fixed].filter(Boolean).join('\n\n');
 }
 async function evVizMount(force){
   evVizKindRefresh();
