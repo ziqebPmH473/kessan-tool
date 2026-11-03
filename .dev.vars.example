@@ -3,3 +3,5 @@
 # 下の xxxxx を自分の Gemini APIキー（Google AI Studioで発行）に置き換えてください。
 # .dev.vars は .gitignore 済みなのでGitには入りません（キーは外に出ません）。
 GEMINI_API_KEY=xxxxx
+# Claude（Anthropic）を使うときだけ。https://console.anthropic.com/settings/keys で発行したキー。使わなければこの行は無くてよい
+ANTHROPIC_API_KEY=xxxxx

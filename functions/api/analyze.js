@@ -4,6 +4,8 @@
 // ・APIキーは環境変数 GEMINI_API_KEY からサーバー側でのみ読む
 //   （ローカル: .dev.vars / 本番: CF Pages の環境変数）
 // ・ブラウザからは prompt と（任意で）resources を受け取るだけ
+// ・models に claude-〜 があれば Anthropic（環境変数 ANTHROPIC_API_KEY）を呼ぶ（2026-11-03）。
+//   ふだんは画面の aiFetch が直接呼ぶので、ここを通るのはキーを画面に渡せないURL（プレビュー等）のときだけ
 // ============================================================
 
 const MODEL = "gemini-3.5-flash-lite";
@@ -41,7 +43,8 @@ function json(obj, status = 200) {
 export async function onRequestPost(context) {
   const { request, env } = context;
   const key = env.GEMINI_API_KEY;
-  if (!key || key === "xxxxx") {
+  const claudeKey = (!env.ANTHROPIC_API_KEY || env.ANTHROPIC_API_KEY === "xxxxx") ? "" : env.ANTHROPIC_API_KEY;
+  if ((!key || key === "xxxxx") && !claudeKey) {
     return json({ ok: false, error: "APIキーが未設定です（.dev.vars の GEMINI_API_KEY を設定してください）" }, 400);
   }
 
@@ -88,6 +91,22 @@ export async function onRequestPost(context) {
   // json: true のときは、答えを JSON の形式で返させる（書き方の崩れで読めなくなるのを防ぐ。検索・URL読みとは一緒に使えない）
   if (payload.json === true && !body.tools) body.generationConfig.responseMimeType = "application/json";
 
+  // Claude 用の本文（資料・添付・検索・JSON指定を同じ意味で組み立てる。PDF は document、画像は image）
+  const clContent = [];
+  for (const f of files) {
+    if (!(f && f.data && f.mimeType)) continue;
+    const source = { type: "base64", media_type: f.mimeType, data: f.data };
+    clContent.push(/^image\//.test(f.mimeType) ? { type: "image", source } : { type: "document", source });
+  }
+  clContent.push({ type: "text", text: fullPrompt });
+  const clBody = { max_tokens: 16000, messages: [{ role: "user", content: clContent }] };
+  const clTools = [];
+  if (payload.search === true) clTools.push({ type: "web_search_20260209", name: "web_search", max_uses: 5 });
+  if (payload.url === true) clTools.push({ type: "web_fetch_20260209", name: "web_fetch", max_uses: 5 });
+  if (clTools.length) clBody.tools = clTools;
+  if (payload.json === true && !clTools.length) clBody.system = "答えは JSON だけを出力してください。前置き・説明・コードブロックは付けないでください。";
+  const isClaude = (m) => /^claude-/.test(String(m || ""));
+
   // モデルは配列(models)で優先順に受け取り、上限(429)なら次の下位モデルへフォールバックする。
   const models = (Array.isArray(payload.models) && payload.models.length)
     ? payload.models
@@ -111,6 +130,35 @@ export async function onRequestPost(context) {
     const m = models[i];
     const t0 = Date.now();
     try {
+      if (isClaude(m)) {
+        if (!claudeKey) { lastErr = "Claude のAPIキーが未設定です（ANTHROPIC_API_KEY）"; note(m, 0, t0, lastErr); continue; }
+        const res = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-api-key": claudeKey, "anthropic-version": "2026-10-21" },
+          body: JSON.stringify({ ...clBody, model: m }),
+        });
+        const raw0 = await res.text();
+        let data;
+        try { data = JSON.parse(raw0); }
+        catch { throw new Error(`HTTP ${res.status} 応答がJSONではありません: ${raw0.slice(0, 80)}`); }
+        if (res.ok) {
+          if (data.stop_reason === "refusal") {
+            lastErr = "Claude が回答を断りました" + (data.stop_details && data.stop_details.explanation ? "：" + data.stop_details.explanation : "");
+            note(m, 0, t0, lastErr); continue;
+          }
+          const text = (data.content || []).filter((x) => x.type === "text").map((x) => x.text || "").join("").trim();
+          const u = data.usage || {};
+          const inTok = (u.input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0);
+          const usage = { promptTokenCount: inTok, candidatesTokenCount: u.output_tokens || 0, totalTokenCount: inTok + (u.output_tokens || 0) };
+          return json({ ok: true, text, usage, model: m, fellBack: i > 0, failures });
+        }
+        const raw = data && data.error && data.error.message ? data.error.message : `HTTP ${res.status}`;
+        lastErr = raw;
+        note(m, res.status, t0, raw);
+        if (!isTransient(res.status, raw)) return json({ ok: false, error: "Claude API エラー: " + raw, model: m, failures }, 502);
+        continue;
+      }
+      if (!key || key === "xxxxx") { lastErr = "Gemini のAPIキーが未設定です"; note(m, 0, t0, lastErr); continue; }
       const res = await fetch(ENDPOINT(m, key), {
         method: "POST",
         headers: { "Content-Type": "application/json" },

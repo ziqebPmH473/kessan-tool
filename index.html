@@ -1353,6 +1353,9 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
                     <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite（500回/日）</option>
                     <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite（500回/日）</option>
                     <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite（20回/日）</option>
+                    <option value="claude-haiku-5-5">Claude Haiku 5.5</option>
+                    <option value="claude-sonnet-5-5">Claude Sonnet 5.5</option>
+                    <option value="claude-opus-5-5">Claude Opus 5.5</option>
                 </select>
             </div>
             <div class="input-row" style="margin-top: 4px;">
@@ -1427,6 +1430,9 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
                 <option value="gemini-3-flash-preview">Gemini 3 Flash（20回/日）</option>
                 <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite（500回/日）</option>
                 <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite（500回/日）</option>
+                <option value="claude-haiku-5-5">Claude Haiku 5.5</option>
+                <option value="claude-sonnet-5-5">Claude Sonnet 5.5</option>
+                <option value="claude-opus-5-5">Claude Opus 5.5</option>
               </select>
             </div>
             <div class="input-row" style="margin-top:4px;">
@@ -1488,6 +1494,9 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
                 <option value="gemini-3-flash-preview">Gemini 3 Flash（20回/日）</option>
                 <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite（500回/日）</option>
                 <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite（500回/日）</option>
+                <option value="claude-haiku-5-5">Claude Haiku 5.5</option>
+                <option value="claude-sonnet-5-5">Claude Sonnet 5.5</option>
+                <option value="claude-opus-5-5">Claude Opus 5.5</option>
               </select>
             </div>
             <div class="input-row" style="margin-top:4px;gap:4px;align-items:center;">
@@ -1698,6 +1707,9 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
                     <option value="gemini-3.5-flash-lite" selected>Gemini 3.5 Flash Lite（500回/日）</option>
                     <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite（500回/日）</option>
                     <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite（20回/日）</option>
+                    <option value="claude-haiku-5-5">Claude Haiku 5.5</option>
+                    <option value="claude-sonnet-5-5">Claude Sonnet 5.5</option>
+                    <option value="claude-opus-5-5">Claude Opus 5.5</option>
                 </select>
             </div>
             <div class="input-row" style="margin-top: 4px;">
@@ -1854,6 +1866,9 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
         <option value="gemini-3.5-flash-lite" selected>Gemini 3.5 Flash Lite（500回/日）</option>
         <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite（500回/日）</option>
         <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite（20回/日）</option>
+        <option value="claude-haiku-5-5">Claude Haiku 5.5</option>
+        <option value="claude-sonnet-5-5">Claude Sonnet 5.5</option>
+        <option value="claude-opus-5-5">Claude Opus 5.5</option>
       </select>
     </div>
     <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:4px;">
@@ -1966,6 +1981,9 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
         <option value="gemini-3-flash-preview">Gemini 3 Flash（20回/日）</option>
         <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite（500回/日）</option>
         <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite（500回/日）</option>
+        <option value="claude-haiku-5-5">Claude Haiku 5.5</option>
+        <option value="claude-sonnet-5-5">Claude Sonnet 5.5</option>
+        <option value="claude-opus-5-5">Claude Opus 5.5</option>
       </select>
     </div>
     <button class="btn btn-full" id="art-gen-btn" onclick="geminiArticle(this)" style="background:#0d9488;color:#fff;margin-top:6px;">📝 記事・SNSを生成</button>
@@ -5649,29 +5667,48 @@ function copyNBPrompt(btn){copyText(NB_PROMPT,btn);}
 //   考える時間の長い 3.8・3.7 Flash が毎回切られて下のモデルへ降格していた（HTTP 524）。
 // ・呼び方と返す形は fetch('/api/analyze',…) と同じ（組み立て・下のモデルへの切り替えは functions/api/analyze.js と同じ）。
 // ・キーは /api/gemini-key から受け取ってメモリにだけ持つ（保存しない）。受け取れないときは今までどおり /api/analyze へ。
+// ・Claude（Anthropic）のモデル（claude-〜）を選んだときは、同じ形で Anthropic の API を画面から直接呼ぶ（2026-11-03）。
+//   キーは /api/gemini-key が Gemini のキーと一緒に返す（環境変数 ANTHROPIC_API_KEY）。
 // ============================================================
-let _aiKey=null;
-async function aiKey(){
+let _aiKey=null;   // {gemini:'…',claude:'…'}。取りに行く前は null
+async function aiKeys(){
   if(_aiKey!==null)return _aiKey;
-  try{const r=await fetch('/api/gemini-key',{cache:'no-store'});const d=await r.json();_aiKey=(r.ok&&d.ok&&d.key)||'';}
-  catch(e){_aiKey='';}
+  try{const r=await fetch('/api/gemini-key',{cache:'no-store'});const d=await r.json();_aiKey=(r.ok&&d.ok)?{gemini:d.key||'',claude:d.claudeKey||''}:{gemini:'',claude:''};}
+  catch(e){_aiKey={gemini:'',claude:''};}
   return _aiKey;
 }
+async function aiKey(){return (await aiKeys()).gemini;}
+const aiIsClaude=m=>/^claude-/.test(String(m||''));
 async function aiFetch(url,init){
-  const key=await aiKey();
-  if(!key)return fetch(url,init);
+  const keys=await aiKeys();
+  if(!keys.gemini&&!keys.claude)return fetch(url,init);
   const out=(obj,status=200)=>new Response(JSON.stringify(obj),{status,headers:{'Content-Type':'application/json'}});
   let p;try{p=JSON.parse(init.body);}catch(e){return out({ok:false,error:'リクエストの解析に失敗しました'},400);}
   const prompt=(p&&p.prompt||'').trim();
   if(!prompt)return out({ok:false,error:'prompt が空です'},400);
   const resText=(Array.isArray(p.resources)?p.resources:[]).map(r=>`【${r.label||'資料'}】\n${r.text||''}`).join('\n\n');
   const full=resText?`以下の資料のみを根拠として、指示に厳密に従って回答してください。資料に無い情報を創作しないでください。\n\n===== 資料 =====\n${resText}\n\n===== 指示 =====\n${prompt}`:prompt;
+  const files=(Array.isArray(p.files)?p.files:[]).filter(f=>f&&f.data&&f.mimeType);
+  // Gemini 用の本文
   const parts=[{text:full}];
-  for(const f of(Array.isArray(p.files)?p.files:[]))if(f&&f.data&&f.mimeType)parts.push({inline_data:{mime_type:f.mimeType,data:f.data}});
+  for(const f of files)parts.push({inline_data:{mime_type:f.mimeType,data:f.data}});
   const body={contents:[{role:'user',parts}],generationConfig:{temperature:typeof p.temperature==='number'?p.temperature:0.4}};
   if(p.search===true)body.tools=[{google_search:{}}];
   if(p.url===true)body.tools=[...(body.tools||[]),{url_context:{}}];
   if(p.json===true&&!body.tools)body.generationConfig.responseMimeType='application/json';
+  // Claude 用の本文（資料・添付・検索・JSON指定を同じ意味で組み立てる。PDF は document、画像は image として渡す）
+  const clContent=[];
+  for(const f of files){
+    const src={type:'base64',media_type:f.mimeType,data:f.data};
+    clContent.push(/^image\//.test(f.mimeType)?{type:'image',source:src}:{type:'document',source:src});
+  }
+  clContent.push({type:'text',text:full});
+  const clBody={model:'',max_tokens:16000,messages:[{role:'user',content:clContent}]};
+  const clTools=[];
+  if(p.search===true)clTools.push({type:'web_search_20260209',name:'web_search',max_uses:5});
+  if(p.url===true)clTools.push({type:'web_fetch_20260209',name:'web_fetch',max_uses:5});
+  if(clTools.length)clBody.tools=clTools;
+  if(p.json===true&&!clTools.length)clBody.system='答えは JSON だけを出力してください。前置き・説明・コードブロックは付けないでください。';
   const models=(Array.isArray(p.models)&&p.models.length)?p.models:[p.model||'gemini-3.5-flash-lite'];
   const isTransient=(st,raw)=>st===429||st>=500||/quota|rate|exhaust|limit:\s*0|overload|high demand|unavailable|temporarily|try again|resource has been exhausted/i.test(raw||'');
   const kindOf=(st,raw)=>(st===429||/quota|exhaust|rate.?limit|limit:\s*0|per day|per minute|resource has been exhausted/i.test(raw||''))?'quota'
@@ -5679,21 +5716,39 @@ async function aiFetch(url,init){
   const failures=[];let lastErr='';
   const note=(m,st,t0,msg)=>failures.push({model:m,status:st,kind:kindOf(st,msg),sec:Math.round((Date.now()-t0)/100)/10,error:String(msg||'').slice(0,160)});
   for(let i=0;i<models.length;i++){
-    const m=models[i],t0=Date.now();
+    const m=models[i],t0=Date.now(),cl=aiIsClaude(m);
     try{
-      // キーは URL に載せず、ヘッダーで渡す
-      const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`,
-        {method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},body:JSON.stringify(body)});
+      if(cl&&!keys.claude){const msg='Claude のAPIキーが未設定です（Cloudflare の環境変数 ANTHROPIC_API_KEY）';lastErr=msg;note(m,0,t0,msg);continue;}
+      if(!cl&&!keys.gemini){const msg='Gemini のAPIキーが未設定です';lastErr=msg;note(m,0,t0,msg);continue;}
+      let res;
+      if(cl){
+        // Anthropic。キーはヘッダーで渡す。画面から直接呼ぶのを許可するヘッダーが要る
+        res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',
+          headers:{'Content-Type':'application/json','x-api-key':keys.claude,'anthropic-version':'2026-10-21','anthropic-dangerous-direct-browser-access':'true'},
+          body:JSON.stringify({...clBody,model:m})});
+      }else{
+        // Google。キーは URL に載せず、ヘッダーで渡す
+        res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`,
+          {method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':keys.gemini},body:JSON.stringify(body)});
+      }
       const raw0=await res.text();
       let data;try{data=JSON.parse(raw0);}catch(e){throw new Error(`HTTP ${res.status} 応答がJSONではありません: ${raw0.slice(0,80)}`);}
       if(res.ok){
+        if(cl){
+          // 安全側で断られたとき（stop_reason: refusal）は、このモデルを諦めて次へ
+          if(data.stop_reason==='refusal'){const msg='Claude が回答を断りました'+(data.stop_details&&data.stop_details.explanation?'：'+data.stop_details.explanation:'');lastErr=msg;note(m,0,t0,msg);continue;}
+          const text=(data.content||[]).filter(x=>x.type==='text').map(x=>x.text||'').join('').trim();
+          const u=data.usage||{};const inTok=(u.input_tokens||0)+(u.cache_read_input_tokens||0)+(u.cache_creation_input_tokens||0);
+          const usage={promptTokenCount:inTok,candidatesTokenCount:u.output_tokens||0,totalTokenCount:inTok+(u.output_tokens||0)};
+          return out({ok:true,text,usage,model:m,fellBack:i>0,failures});
+        }
         const text=((data.candidates&&data.candidates[0]&&data.candidates[0].content&&data.candidates[0].content.parts)||[])
           .filter(x=>!x.thought).map(x=>x.text||'').join('').trim();
         return out({ok:true,text,usage:data.usageMetadata||null,model:m,fellBack:i>0,failures});
       }
       const raw=data&&data.error&&data.error.message?data.error.message:`HTTP ${res.status}`;
       lastErr=raw;note(m,res.status,t0,raw);
-      if(!isTransient(res.status,raw))return out({ok:false,error:'Gemini API エラー: '+raw,model:m,failures},502);
+      if(!isTransient(res.status,raw))return out({ok:false,error:(cl?'Claude API エラー: ':'Gemini API エラー: ')+raw,model:m,failures},502);
     }catch(e){lastErr=(e&&e.message)?e.message:String(e);note(m,0,t0,lastErr);}
   }
   return out({ok:false,error:'全モデルが混雑/上限のようです。少し待って再試行してください（最後のエラー: '+lastErr+'）',triedModels:models,failures},502);
@@ -7476,7 +7531,7 @@ const VD_CFG={
 const vdEl=(P,id)=>document.getElementById(`${P}-${id}`);
 const vdVal=(P,id)=>((vdEl(P,id)||{}).value||'').trim();
 const VD_MODEL_OPTIONS=`<option value="" selected>自動（上位から上限で自動降格）</option>
-<option value="gemini-3.8-flash">Gemini 3.8 Flash（20回/日）</option><option value="gemini-3.7-flash">Gemini 3.7 Flash（20回/日）</option><option value="gemini-3.6-flash">Gemini 3.6 Flash（20回/日）</option><option value="gemini-3.5-flash">Gemini 3.5 Flash（20回/日）</option><option value="gemini-3-flash-preview">Gemini 3 Flash（20回/日）</option><option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite（500回/日）</option><option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite（500回/日）</option>`;
+<option value="gemini-3.8-flash">Gemini 3.8 Flash（20回/日）</option><option value="gemini-3.7-flash">Gemini 3.7 Flash（20回/日）</option><option value="gemini-3.6-flash">Gemini 3.6 Flash（20回/日）</option><option value="gemini-3.5-flash">Gemini 3.5 Flash（20回/日）</option><option value="gemini-3-flash-preview">Gemini 3 Flash（20回/日）</option><option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite（500回/日）</option><option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite（500回/日）</option><option value="claude-haiku-5-5">Claude Haiku 5.5</option><option value="claude-sonnet-5-5">Claude Sonnet 5.5</option><option value="claude-opus-5-5">Claude Opus 5.5</option>`;
 const VD_VOICE_OPTIONS=`<option value="Zephyr">Zephyr (Bright)</option><option value="Puck">Puck (Upbeat)</option><option value="Charon">Charon (Informative)</option><option value="Kore">Kore (Firm)</option><option value="Fenrir">Fenrir (Excitable)</option><option value="Leda">Leda (Youthful)</option><option value="Orus">Orus (Firm)</option><option value="Aoede">Aoede (Breezy)</option><option value="Callirrhoe">Callirrhoe (Easy-going)</option><option value="Autonoe">Autonoe (Bright)</option><option value="Enceladus">Enceladus (Breathy)</option><option value="Iapetus">Iapetus (Clear)</option><option value="Umbriel">Umbriel (Easy-going)</option><option value="Algieba">Algieba (Smooth)</option><option value="Despina">Despina (Smooth)</option><option value="Erinome" selected>Erinome (Clear)</option><option value="Algenib">Algenib (Gravelly)</option><option value="Rasalgethi">Rasalgethi (Informative)</option><option value="Laomedeia">Laomedeia (Upbeat)</option><option value="Achernar">Achernar (Soft)</option><option value="Alnilam">Alnilam (Firm)</option><option value="Schedar">Schedar (Even)</option><option value="Gacrux">Gacrux (Mature)</option><option value="Pulcherrima">Pulcherrima (Forward)</option><option value="Achird">Achird (Friendly)</option><option value="Zubenelgenubi">Zubenelgenubi (Casual)</option><option value="Vindemiatrix">Vindemiatrix (Gentle)</option><option value="Sadachbita">Sadachbita (Lively)</option><option value="Sadaltager">Sadaltager (Knowledgeable)</option><option value="Sulafat">Sulafat (Warm)</option>`;
 
 // ---- 株価分析の TikTok：縦動画の代わりにリール動画（サムネ → noteのQR）を上げる（縦動画は上げない。2026-10-18 試し）。投稿文はAIの文のまま ----
@@ -9196,7 +9251,7 @@ function earnPrevMode(m){
 // ============================================================
 // ---- 横動画：Gemini のモデル（作業ごとに設定タブで選ぶ）----
 // 回数の上限・混雑・時間切れのときは、同じモデルでやり直さずに、選んだモデルから一覧の順に下のモデルへ切り替える（Lite は除く。切り替えは functions/api/analyze.js）
-const YT_MODEL_LIST=[['gemini-3.8-flash','Gemini 3.8 Flash（20回/日）'],['gemini-3.7-flash','Gemini 3.7 Flash（20回/日）'],['gemini-3.6-flash','Gemini 3.6 Flash（20回/日）'],['gemini-3.5-flash','Gemini 3.5 Flash（20回/日）'],['gemini-3-flash-preview','Gemini 3 Flash（20回/日）'],['gemini-3.5-flash-lite','Gemini 3.5 Flash Lite（500回/日）'],['gemini-3.1-flash-lite','Gemini 3.1 Flash Lite（500回/日）'],['gemini-2.5-flash-lite','Gemini 2.5 Flash Lite（20回/日）']];
+const YT_MODEL_LIST=[['gemini-3.8-flash','Gemini 3.8 Flash（20回/日）'],['gemini-3.7-flash','Gemini 3.7 Flash（20回/日）'],['gemini-3.6-flash','Gemini 3.6 Flash（20回/日）'],['gemini-3.5-flash','Gemini 3.5 Flash（20回/日）'],['gemini-3-flash-preview','Gemini 3 Flash（20回/日）'],['gemini-3.5-flash-lite','Gemini 3.5 Flash Lite（500回/日）'],['gemini-3.1-flash-lite','Gemini 3.1 Flash Lite（500回/日）'],['gemini-2.5-flash-lite','Gemini 2.5 Flash Lite（20回/日）'],['claude-haiku-5-5','Claude Haiku 5.5'],['claude-sonnet-5-5','Claude Sonnet 5.5'],['claude-opus-5-5','Claude Opus 5.5']];
 const YT_AI_TASKS=[['cut','カットの判定',''],['oped','OP・EDの案',''],['read','まとまりの読み取り',''],['qr','QRの位置',''],['src','足した出典の読み取り',''],['plan','演出の割り当て',''],['post','記事・投稿文','']];   // 3つ目は既定のモデル（空＝自動）   // 画面の並び＝使う順（音声 → スライド → 演出 → 記事・SNS）
 const YT_MODEL_AUTO='自動（上から順に。上限なら次へ・Lite除く）';
 const ytModelName=m=>((YT_MODEL_LIST.find(x=>x[0]===m)||[])[1]||m).replace(/（.*$/,'');
@@ -9209,8 +9264,10 @@ function ytModels(task){
   const sel=YT_RUN[task]||((document.getElementById('yt-m-'+task)||{}).value)||'';
   // 上限で下へ切り替えるときも Lite には落とさない（3.5 Flash Lite では読み取りの位置が大きくずれて使えなかった。2026-09-21）。Lite は自分で選んだときだけ使う
   const all=YT_MODEL_LIST.map(x=>x[0]),i=all.indexOf(sel);
-  const below=all.slice(i+1).filter(m=>!/lite/.test(m));   // 自動・一覧に無いモデルは i=-1 なので、上から全部
-  return sel&&i>=0?[sel,...below]:sel?[sel,...all.filter(m=>!/lite/.test(m))]:below;
+  // Claude を選んだときは Claude の中だけで下へ。Gemini（自動も）は Gemini の中だけ（Claude には勝手に切り替えない。2026-11-03）
+  const same=m=>!/lite/.test(m)&&aiIsClaude(m)===aiIsClaude(sel);
+  const below=all.slice(i+1).filter(same);   // 自動・一覧に無いモデルは i=-1 なので、上から全部
+  return sel&&i>=0?[sel,...below]:sel?[sel,...all.filter(same)]:below;
 }
 // Gemini のエラーを、どのモデルで何が起きたかの日本語にする
 function ytAiErr(d,task){
@@ -12218,7 +12275,7 @@ async function yaAiJudge(btn){
     const data=await res.json();if(!data.ok)throw new Error(ytAiErr(data,'cut'));
     yaEl('plan').value=data.text||'';saveState();
     if(yaApplyPlan(yaParsePlan(data.text||''))){
-      const fb=data.fellBack&&data.failures?'・降格：'+data.failures.map(f=>String(f.model).replace('gemini-','')+' '+(f.status||'通信')+' '+f.sec+'秒').join(' / '):'';
+      const fb=data.fellBack&&data.failures?'・降格：'+data.failures.map(f=>String(f.model).replace(/^(gemini|claude)-/,'')+' '+(f.status||'通信')+' '+f.sec+'秒').join(' / '):'';
       yaEl('st-ai').innerHTML+=`（モデル: ${esc(data.model||'?')}${esc(fb)}）`;
     }
   }catch(e){yaStatus('st-ai','❌ '+esc(e.message),'error');}
