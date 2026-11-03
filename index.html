@@ -5625,6 +5625,14 @@ P0:現在株価の数値
 // ============================================================
 // COPY HELPERS
 // ============================================================
+// 「📋 貼付」「📋 貼り付け」のボタンは、押したことが分かるように一瞬だけ緑にする（文字は変えない。どの貼付ボタンにも効く。すみぽん 2026-11-03）
+document.addEventListener('click',e=>{
+  const b=e.target&&e.target.closest&&e.target.closest('button');
+  if(!b||!/📋\s*(結果を)?貼(付|り付け)/.test(b.textContent||''))return;
+  if(b._pasteTimer){clearTimeout(b._pasteTimer);}else b._pasteBg=b.style.background;
+  b.style.background='var(--positive)';b.style.color='#fff';
+  b._pasteTimer=setTimeout(()=>{b.style.background=b._pasteBg||'';b.style.color='';delete b._pasteTimer;delete b._pasteBg;},600);
+},true);
 function copyText(text,btn){
   navigator.clipboard.writeText(text).catch(()=>{
     const t=document.createElement('textarea');
