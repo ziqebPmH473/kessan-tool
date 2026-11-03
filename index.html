@@ -2893,7 +2893,7 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
 
             if (!r.ok) { setGemStatus('gem-earn-status', 'エラー: ' + r.error, 'error'); return; }
             const split = evVizSplitResponse(r.text);
-            document.getElementById('input-data').value = split.text;
+            document.getElementById('input-data').value = normalizeDataText(split.text);
             // 株探の確定値で自動補完（自動取得済みのときのみ。ボタンは手動リカバリ用に残す）
             if (window._earnFetched) complementEarnData(); else renderImage();
             evThAutoFill();   // 分析動画のサムネの文（整形データから）
@@ -3028,7 +3028,7 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
             const h = split.text.indexOf('[HEADER]');
             if (h < 0) { setGemStatus('gem-earn-status', '出力データ（[HEADER] から始まる部分）が見つかりません。答えを全部コピーして貼り付けてください', 'error'); return; }
             // 前置きの文や、テキストを囲んだコードブロックの印は外す
-            const text = split.text.slice(h).replace(/\n?```\s*$/, '').trim();
+            const text = normalizeDataText(split.text.slice(h).replace(/\n?```\s*$/, '').trim());
             document.getElementById('input-data').value = text;
             if (window._earnFetched) complementEarnData(); else { renderImage(); saveState(); }
             evThAutoFill();   // 分析動画のサムネの文（整形データから）
@@ -3325,18 +3325,32 @@ point_2=`;
         // ---------------------------------------------
         // 画像生成・描画機能
         // ---------------------------------------------
+        // 「[HEADER] company=… code=… result_label=…」のように、セクションや項目が1行につながった文を、1行1項目に直す
+        // （AI の答えで改行が落ちることがある。2026-11-03 PLTR・AAPL で result_label が読めず、サムネが「決算発表で下落」になった）
+        function normalizeDataText(text) {
+            const out = [];
+            for (let line of String(text || '').split('\n')) {
+                const sm = line.match(/^\s*(\[[A-Za-z0-9_]+\])\s+(\S.*)$/);
+                if (sm) { out.push(sm[1]); line = sm[2]; }
+                const parts = line.split(/\s+(?=[A-Za-z_][A-Za-z0-9_]*=)/);
+                if (parts.length >= 2 && /^\s*[A-Za-z_][A-Za-z0-9_]*=/.test(line)) out.push(...parts);
+                else out.push(line);
+            }
+            return out.join('\n');
+        }
         function parseInput(text) {
             const data = {};
             let currentSection = null;
-            text.split('\n').forEach(line => {
+            normalizeDataText(text).split('\n').forEach(line => {
                 line = line.trim();
                 if (!line) return;
                 if (line.startsWith('[') && line.endsWith(']')) {
                     currentSection = line.substring(1, line.length - 1);
-                    data[currentSection] = {};
+                    data[currentSection] = data[currentSection] || {};   // 同じセクションが2回あるとき（自動取得の補完で足した分）は、先の値を残して足りない項目だけ足す
                 } else if (currentSection && line.includes('=')) {
                     const idx = line.indexOf('=');
-                    data[currentSection][line.substring(0, idx).trim()] = line.substring(idx + 1).trim();
+                    const k = line.substring(0, idx).trim(), v = line.substring(idx + 1).trim();
+                    if (!data[currentSection][k] || data[currentSection][k] === '-' || data[currentSection][k] === '---') data[currentSection][k] = v;
                 }
             });
             return data;
@@ -4127,7 +4141,7 @@ point_2=`;
         // 既存テキストの「空欄の key=」だけを埋める（section を見て対象を限定）。'---' '-' も空欄扱い
         // force＝入っている値も上書きする（自動取得を押し直したとき。株探から取る項目だけが fields に入る）
         function patchDataText(text, fields, force) {
-            const lines = text.split('\n');
+            const lines = normalizeDataText(text).split('\n');
             let sec = null;
             for (let i = 0; i < lines.length; i++) {
                 const t = lines[i].trim();
