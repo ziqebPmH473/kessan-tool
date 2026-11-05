@@ -39,7 +39,9 @@ const SCHEMA_HIST = `CREATE TABLE IF NOT EXISTS projects_hist (
   PRIMARY KEY (id, version)
 )`;
 const MAX_JSON = 1900000;   // D1 の1値の上限（2MB）より少し小さく
-const HIST_KEEP = 30;       // 1つの id につき残す履歴の数
+const HIST_KEEP = 5;        // 1つの id につき残す履歴の数（30 だと D1 の無料枠 500MB を使い切った。2026-11-05）
+// 履歴には画像の base64（分析動画の表紙など、1枚 200KB 前後）を残さない。戻したときは表紙を作り直す
+const histSlim = json => json.replace(/data:image\/[\w.+-]+;base64,[A-Za-z0-9+\/=]{200,}/g, 'data:,hist-omitted');
 let ensured = false;
 async function ensure(db) {
   if (ensured) return;
@@ -52,12 +54,19 @@ async function ensure(db) {
 function histStmts(db, r, now) {
   return [
     db.prepare(`INSERT OR REPLACE INTO projects_hist (id, version, kind, title, json, meta, updated_at, saved_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind(r.id, r.version, r.kind || '', r.title || '', r.json, r.meta || '{}', r.updated_at, now),
+      .bind(r.id, r.version, r.kind || '', r.title || '', histSlim(r.json), r.meta || '{}', r.updated_at, now),
     db.prepare(`DELETE FROM projects_hist WHERE id = ? AND version NOT IN (SELECT version FROM projects_hist WHERE id = ? ORDER BY version DESC LIMIT ${HIST_KEEP})`)
       .bind(r.id, r.id),
   ];
 }
 const parseJ = s => { try { return JSON.parse(s); } catch (e) { return null; } };
+// D1 のエラーを、画面の右下に出せる文にする（原因が分かる言い方で。2026-11-05 の満杯のときに画面から分からなかった）
+function dbErrorText(e) {
+  const m = String(e && e.message ? e.message : e);
+  if (/disk is full|database is full|storage limit|quota/i.test(m)) return 'サーバーの保存場所（DB）がいっぱいです。docs/setup/D1_履歴の掃除.md の手順で空けてください（元: ' + m.slice(0, 80) + '）';
+  if (/too large|too big|exceeds/i.test(m)) return '内容が大きすぎて保存できません（元: ' + m.slice(0, 80) + '）';
+  return m;
+}
 const rowMeta = r => ({ kind: r.kind, title: r.title, version: r.version, createdAt: r.created_at, updatedAt: r.updated_at, meta: parseJ(r.meta) || {} });
 const rowFull = r => Object.assign(rowMeta(r), { json: parseJ(r.json) });
 
@@ -154,7 +163,7 @@ export async function onRequestPut(context) {
     await db.batch(stmts);
     return json({ ok: true, versions, updatedAt: now });
   } catch (e) {
-    return json({ ok: false, error: String(e && e.message ? e.message : e) }, 500);
+    return json({ ok: false, error: dbErrorText(e) }, 500);
   }
 }
 
