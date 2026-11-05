@@ -1373,9 +1373,10 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
                 <div class="input-row" style="margin-top:4px;">
                     <button class="btn-sm" onclick="earnManualApply()" style="flex:1; min-width:0;">✅ 欄の内容で展開</button>
                 </div>
-                <div style="font-size:11px; color:var(--text-sub); margin-top:6px;" title="貼った答えのファクトチェック。「✅ FC」でプロンプトのコピーと FC 用の添付ZIP（_FC添付.zip）の保存が同時に行われます。新しいチャットにZIPを添付してプロンプトを貼る → 指摘が出たら「🔧 修正」で直した全文を出させ、もう一度「📋 貼り付けて展開」。「🔍 FC CK」は修正後の検算用。">答えの FC：「✅ FC」でプロンプトのコピーと FC 用 ZIP の保存。新しいチャットに ZIP を添付して貼る。直した全文をもう一度「貼り付けて展開」。</div>
-                <div class="input-row" style="margin-top:4px;">
+                <div style="font-size:11px; color:var(--text-sub); margin-top:6px;" title="貼った答えのファクトチェック。「✅ FC」でプロンプトをコピーします。「ZIP も保存」に印があるときは FC 用の添付ZIP（_FC添付.zip）も保存します（初回だけ必要。貼り付けて展開すると印は外れます。別の端末で続けるときは印を付け直してください）。新しいチャットにZIPを添付してプロンプトを貼る → 指摘が出たら「🔧 修正」で直した全文を出させ、もう一度「📋 貼り付けて展開」。「🔍 FC CK」は修正後の検算用。">答えの FC：「✅ FC」でプロンプトをコピー（「ZIP も保存」の印があれば FC 用 ZIP も保存）。新しいチャットに ZIP を添付して貼る。直した全文をもう一度「貼り付けて展開」。</div>
+                <div class="input-row" style="margin-top:4px; align-items:center;">
                     <button class="btn-prompt" onclick="earnManualFcCopy(this)">✅ FC</button>
+                    <label style="font-size:11px; color:var(--text-sub); display:flex; align-items:center; gap:3px; white-space:nowrap; cursor:pointer;" title="FC 用 ZIP は初回だけ保存すればよいので、貼り付けて展開すると印が外れます。別の端末で続けるときなど、もう一度 ZIP が要るときは印を付けてください"><input type="checkbox" id="earn-manual-fc-zip" checked> ZIP も保存</label>
                     <button class="btn-prompt" onclick="copyFactCheckVerify(this)">🔍 FC CK</button>
                     <button class="btn-prompt" onclick="earnManualFixCopy(this)">🔧 修正</button>
                 </div>
@@ -3033,7 +3034,10 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
 --出力データ--
 ` + raw;
             copyText(prompt, btn);
-            await earnManualZipSave(m, 'FC添付', '✅ FC のプロンプトをコピーし、FC 用の添付ZIPを保存しました。新しいチャットにZIPを添付してプロンプトを貼ってください');
+            // ZIP は初回だけ要る（指摘を直して貼り直したあとの 2 回目以降は、前に保存した ZIP をそのまま添付する）。「ZIP も保存」の印で決める（すみぽん 2026-11-05）
+            const zipCk = document.getElementById('earn-manual-fc-zip');
+            if (!zipCk || zipCk.checked) await earnManualZipSave(m, 'FC添付', '✅ FC のプロンプトをコピーし、FC 用の添付ZIPを保存しました。新しいチャットにZIPを添付してプロンプトを貼ってください');
+            else setGemStatus('gem-earn-status', '✅ FC のプロンプトをコピーしました（ZIP は保存していません。前に保存した _FC添付.zip を添付してください）', 'ok');
         }
         // 指摘を直して、もう一度「📋 貼り付けて展開」できる形（出力データ＋json）で全文を出させる
         function earnManualFixCopy(btn) {
