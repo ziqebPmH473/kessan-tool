@@ -3079,8 +3079,9 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
                 } catch (e) { vizNote = '／分析動画データは失敗（' + ((e && e.message) || e) + '）'; }
             }
             setGemStatus('gem-earn-status', '展開しました（2. の欄）' + vizNote, /失敗|合いません|入っていません/.test(vizNote) ? 'error' : 'ok');
-            // API の「📤 出力データ作成」と同じく、最後にタブ内容を JSON で書き出す
-            try { exportTabData('earnings'); } catch (e) { console.warn('export', e); }
+            // 貼り付けのたびに JSON を書き出していたのはやめた（FC で直すたびに出て邪魔だった。すみぽん 2026-11-05）。
+            // 展開できたので、次の「✅ FC」では ZIP を出さない（初回に保存した ZIP を添付する）
+            const zipCk = document.getElementById('earn-manual-fc-zip'); if (zipCk) { zipCk.checked = false; saveState(); }
         }
 
         // 個別銘柄タブ：Geminiで整形 → #sa-input-data に投入して描画
