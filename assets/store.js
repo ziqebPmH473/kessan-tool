@@ -263,7 +263,7 @@
         try { if (typeof S.onChange === 'function') S.onChange(); } catch (e) {}
       }
     } catch (e) {
-      restore(); if (!e.login) { setStatus('error'); schedulePush(8000); }
+      restore(); if (!e.login) { setStatus('error', '通信できませんでした（' + String((e && e.message) || e).slice(0, 40) + '）'); schedulePush(8000); }
     } finally {
       S.pushing = false;
       if (S.again) { S.again = false; schedulePush(300); }
@@ -339,8 +339,12 @@
       document.body.appendChild(el);
     }
     const t = STATUS_TEXT[st] || STATUS_TEXT.local;
-    el.innerHTML = '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:' + t[1] + ';margin-right:6px;vertical-align:middle;"></span>' + t[0];
-    el.title = detail || t[2] || '';
+    // 失敗の理由（サーバーの error 文・HTTP の番号）は札そのものに出す（2026-11-05 の D1 満杯のとき、画面から原因が分からなかった）
+    let d = detail ? String(detail) : '';
+    if (/^HTTP 5\d\d$/.test(d)) d += '（サーバーが応答できませんでした。しばらくして自動で送り直します）';
+    const label = (st === 'error' && d) ? '保存できませんでした：' + (d.length > 70 ? d.slice(0, 70) + '…' : d) : t[0];
+    el.innerHTML = '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:' + t[1] + ';margin-right:6px;vertical-align:middle;"></span>' + label.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    el.title = (d ? d + ' / ' : '') + (t[2] || '');
     el.style.cursor = (st === 'login' || st === 'notloaded') ? 'pointer' : 'default';
   }
 
