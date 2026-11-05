@@ -2807,8 +2807,8 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
         // legacy は フェーズ1までの pid 無しキー（'gen:audio' など）の行き先。
         const ktYtKind = () => (typeof ytGen === 'function' && ytGen()) ? 'yt' : 'price';
         const ktLegacyYt = k => (k.startsWith('gen:') ? { kind: 'yt', key: k.slice(4) } : { kind: 'price', key: k });
-        const KT_FILES = KTStore.mediaNs('files', ktIdbNs('kessanToolFiles', 'files'), {        // 決算資料PDF・サムネ背景
-            kindOf: k => (k === 'earn' ? 'earnings' : ktYtKind()),
+        const KT_FILES = KTStore.mediaNs('files', ktIdbNs('kessanToolFiles', 'files'), {        // 決算資料PDF・サムネ背景・分析動画の表紙画像（ev:cover:h／v）
+            kindOf: k => ((k === 'earn' || k.startsWith('ev:')) ? 'earnings' : ktYtKind()),
             legacy: k => ({ kind: k === 'earn' ? 'earnings' : 'price', key: k }) });
         const KT_TTS   = KTStore.mediaNs('tts',   ktIdbNs('kessanTool-vdTts', 'parts'), {       // スライドごとの音声（ev:＝決算の動画、vd:＝横動画）
             kindOf: k => (k.startsWith('ev:') ? 'earnings' : k.startsWith('dg:') ? 'digest' : ktYtKind()),
@@ -16626,6 +16626,39 @@ async function evThDownload(k,btn){
   }catch(e){alert('サムネを作れませんでした：'+(e&&e.message||e));}
   finally{if(btn){btn.disabled=false;btn.textContent=o;}}
 }
+// ---- 分析動画の表紙画像（横・縦）：PJ の JSON に base64 で持たず、ファイル（KT_FILES → R2）に置く。設定には目印（kt-file:ev:cover:h）だけ ----
+// 2枚で約 420KB あり、保存のたびに D1 と履歴に積まれて無料枠 500MB を使い切った（すみぽん 2026-11-05）。
+// 部品（KessanViz）は data URL しか知らないので、渡す直前に evCoverLoad で戻し、部品から返ってきた設定は evCoverStore で目印に戻す
+const EV_COVER_KEY={cover_image_landscape:'ev:cover:h',cover_image_portrait:'ev:cover:v'};
+const EV_COVER_REF='kt-file:';
+let _evCoverCache={},_evCoverPid='',_evCoverQ=Promise.resolve();
+function evCoverCacheFor(){const pid=(typeof KTStore!=='undefined'&&KTStore.pidFor('earnings',false))||'';if(pid!==_evCoverPid){_evCoverPid=pid;_evCoverCache={};}return _evCoverCache;}
+// 設定の表紙が data URL ならファイルに置き、目印に置き換えた設定を返す（渡した st は変えない）。null にした表紙はファイルも消す
+async function evCoverStore(st){
+  if(!st)return st;const c=evCoverCacheFor();let out=st;
+  for(const f in EV_COVER_KEY){const v=st[f],key=EV_COVER_KEY[f];
+    if(typeof v==='string'&&v.startsWith('data:')){
+      if(c[key]!==v){c[key]=v;try{await KT_FILES.put(key,v);}catch(e){console.warn('[ev] 表紙の保存',e);}}
+      out={...out,[f]:EV_COVER_REF+key};
+    }else if(v==null&&c[key]){delete c[key];try{await KT_FILES.del(key);}catch(e){}}
+  }
+  return out;
+}
+// 目印を data URL に戻した設定を返す（部品に渡す用）。読めなければ null（表紙なし）
+async function evCoverLoad(st){
+  if(!st)return st;const c=evCoverCacheFor();let out=st;
+  for(const f in EV_COVER_KEY){const v=st[f];
+    if(typeof v==='string'&&v.startsWith(EV_COVER_REF)){const key=v.slice(EV_COVER_REF.length);
+      let du=c[key];if(!du){try{du=await KT_FILES.get(key);}catch(e){}if(typeof du==='string'&&du.startsWith('data:'))c[key]=du;else du=null;}
+      out={...out,[f]:du};}
+  }
+  return out;
+}
+// 部品から返ってきた設定を欄に入れる（表紙は目印にしてから）。順番が入れ替わらないように1列で
+function evVizSettingsWrite(st,after){
+  _evCoverQ=_evCoverQ.then(()=>evCoverStore(st)).then(s2=>{const el=document.getElementById('ev-viz-settings');if(el)el.value=JSON.stringify(s2);if(typeof saveState==='function')saveState();if(after)after(s2);}).catch(e=>console.warn('[ev] 設定の保存',e));
+  return _evCoverQ;
+}
 // 文から画像を作り、動画の設定に入れる（分析動画のデータがまだ無ければ、作ったときに入れる）
 async function evThApply(kinds){
   if(!evVizData())return;
@@ -16638,8 +16671,7 @@ async function evThApply(kinds){
     const st=evVizSettings()||evVizDefaultSettings(KV);   // 画像を作る間に動画側で変えた分も含めて、最新の設定に入れる
     if('h' in imgs)st.cover_image_landscape=imgs.h;
     if('v' in imgs)st.cover_image_portrait=imgs.v;
-    const el=document.getElementById('ev-viz-settings');if(el)el.value=JSON.stringify(st);
-    if(typeof saveState==='function')saveState();
+    await evVizSettingsWrite(st);
     evVizMount(true);
     if(st0){st0.textContent='✓ 動画に入れました';setTimeout(()=>{if(st0.textContent==='✓ 動画に入れました')st0.textContent='';},2500);}
   }catch(e){if(st0)st0.textContent='サムネを作れませんでした：'+e.message;}
@@ -16950,7 +16982,9 @@ async function evVizMount(force){
   // 抽出データ（analysis）が残っていれば、最新の変換ロジックで visualization を作り直す（表示の改善を古い PJ にも効かせる）
   let vizNow=d.visualization;
   if(d.analysis){try{vizNow=KV.build(d.analysis,evVizExtras());}catch(e){console.warn('viz rebuild',e);}}
-  const props={visualization:vizNow,settings:evVizSettings()||evVizDefaultSettings(KV),controlsEl:document.getElementById('ev-viz-controls'),importCoverImage:evVizCoverImage,tts:evVizTts,audioStore:evVizAudioStore,importBgm:evVizImportBgm,transcribe:evVizTranscribe,ytDescExtra:evVizYtExtra(),onChange:(st)=>{const el=document.getElementById('ev-viz-settings');if(el){el.value=JSON.stringify(st);if(typeof saveState==='function')saveState();}const k=st&&st.orientation==='portrait'?'v':'h';if(k!==_evThKind)evThSwitch(k);}};
+  let st0=evVizSettings()||evVizDefaultSettings(KV);
+  if(Object.keys(EV_COVER_KEY).some(f=>typeof st0[f]==='string'&&st0[f].startsWith('data:')))st0=await evCoverStore(st0).then(s2=>{const el=document.getElementById('ev-viz-settings');if(el)el.value=JSON.stringify(s2);if(typeof saveState==='function')saveState();return s2;});   // 古い PJ：JSON の中の表紙をファイルへ
+  const props={visualization:vizNow,settings:await evCoverLoad(st0),controlsEl:document.getElementById('ev-viz-controls'),importCoverImage:evVizCoverImage,tts:evVizTts,audioStore:evVizAudioStore,importBgm:evVizImportBgm,transcribe:evVizTranscribe,ytDescExtra:evVizYtExtra(),onChange:(st)=>{evVizSettingsWrite(st);const k=st&&st.orientation==='portrait'?'v':'h';if(k!==_evThKind)evThSwitch(k);}};
   if(_evVizHandle){_evVizHandle.update(props);}else{_evVizHandle=KV.mount(host,props);}
   _evVizLastJson=json;
   evVizCutRenderSoon();
