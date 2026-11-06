@@ -3237,7 +3237,7 @@ ${stockPriceInfo}
 
         // FC CK：修正後レポートの検算用（指摘の修正内容が正しいかを確認させる）
         function copyFactCheckVerify(btnElement) {
-            copyToClipboard('修正後内容が正しいか確認してください\n正しくない場合には、不明点や確認点があればすべて調査し、レポートに記載できる形式で修正後内容を提示してください。', btnElement, '✔ コピー完了！');
+            copyToClipboard('指摘箇所、指摘内容から指摘箇所の修正を行うことが妥当か、修正後内容が正しいか確認してください。\n正しくない場合には、不明点や確認点があればすべて調査し、レポートに記載できる形式で修正後内容を提示してください。\n結果はそのまま読むので、コードブロックには入れないでください。引用・出典・脚注も付けないでください。', btnElement, '✔ コピー完了！');
         }
 
         function copyFactCheckFix(btnElement) {
