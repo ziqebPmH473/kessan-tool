@@ -8779,7 +8779,8 @@ function buildVThumb2(text,P,catOver,bare,p2){
     const html=lines.map((sg,i)=>`<div style="font-size:${sz[i]}px;line-height:${LH};white-space:nowrap;">${segsHtml(sg,color)}</div>`).join('');
     return `<div style="box-sizing:border-box;background:${bg};height:${h}px;display:flex;align-items:center;justify-content:center;padding:${padT}px ${PX}px ${padB}px;overflow:hidden;"><div style="font-weight:${weight};text-align:center;font-family:${THUMB_FF};">${html}</div></div>`;
   };
-  const head=bare?`<div style="height:${HEAD}px;background:#000;"></div>`
+  //   p.no_date＝上のバーに日付を出さない（決算まとめ：上段に日付があるので）
+  const head=bare||p.no_date?`<div style="height:${HEAD}px;background:#000;"></div>`
     :`<div style="background:#000;height:${HEAD}px;display:flex;align-items:center;justify-content:flex-end;padding:0 ${PX}px;font-family:${THUMB_FF};overflow:hidden;"><div style="font-size:46px;font-weight:700;color:#fff;line-height:1;">${esc(dateStr)}</div></div>`;
   const label=bare||!cat?'':`<div style="position:absolute;left:${PX}px;top:${LABEL_Y}px;z-index:3;display:inline-block;background:transparent;color:#fff;border:5px solid #fff;font-size:${LABEL_FS}px;font-weight:900;line-height:1;padding:18px 40px;border-radius:999px;font-family:${THUMB_FF};white-space:nowrap;">${esc(cat)}</div>`;
   const foot=bare?`<div style="height:${FOOT}px;background:#000;"></div>`
@@ -17316,7 +17317,7 @@ function dgTh2Parts(){
   const plain=parts[0]?parseThumbnailMarkup(parts[0]).map(x=>x.text).join('').trim():'';
   const i=plain.indexOf('の');
   const top=i>0&&i<plain.length-1?plain.slice(0,i)+'\n%'+plain.slice(i+1)+'%':'%'+(plain||'注目銘柄')+'%';
-  return {label:'',top,bot:'図解で\n決算解説'};
+  return {label:'',top,bot:'図解で\n決算解説',no_date:true};   // no_date：上のバーの日付を出さない（上段に日付があるので2つになる。すみぽん 2026-11-08）
 }
 function dgThKeyInput(){if(typeof saveState==='function')saveState();dgThAuto();}
 function dgThCandPick(sel){if(!sel.value)return;const el=document.getElementById('dg-th-key');if(el)el.value=sel.value;sel.value='';dgThKeyInput();}
