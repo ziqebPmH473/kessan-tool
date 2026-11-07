@@ -1061,6 +1061,7 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
 .kg-close{padding:6px 14px;border:1px solid #cbd5e1;border-radius:8px;background:#f1f5f9;cursor:pointer;font-weight:bold;}
 .kg-sec{margin-top:14px;}
 .kg-sec h3{font-size:13px;margin:0 0 4px;padding-left:8px;border-left:4px solid #2563eb;}
+.kg-sec h4{font-size:11.5px;margin:10px 0 2px;padding:2px 8px;background:#eef2ff;color:#3730a3;border-radius:5px;}
 .kg-note{font-size:10.5px;color:#64748b;margin:2px 0 4px;}
 .kg-row{display:flex;gap:6px;align-items:center;margin-top:5px;}
 .kg-row>label{flex:none;width:9.5em;font-size:11px;color:#475569;}
@@ -15169,12 +15170,14 @@ function ktKindAfterOpen(kind,json){
     window._earnFetched=j.earnFetched||null;
     {const p=document.getElementById('p-date');if(p&&(!json||!p.value)){p.value=earnDefaultDate();p.dispatchEvent(new Event('change'));}}   // 新規、または開いた PJ に決算日が無いときは初期値
     if(!json){const ah=document.getElementById('p-post-after-hours');if(ah)ah.checked=true;}
+    if(!json)['gem-earn-model','ev-viz-model','ea-model'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=kgGet('init-'+id);});   // 新規：モデルは共通設定の初期値
     try{const c=document.getElementById('ev-count-auto');if(c&&typeof evAutoCount==='function')c.textContent=evAutoCount()+'枚';}catch(e){}
     try{vdBuildScriptBoxes('ev',true);vdRestoreFields('ev',ktVdState('ev',json));vdUpdateScriptStats('ev');}catch(e){}
     try{renderImage();}catch(e){}
   }else if(kind==='stock'){
     window._saFetched=j.fetched||null;
     if(!json)try{initSaDates();}catch(e){}
+    if(!json){const el=document.getElementById('gem-sa-model');if(el)el.value=kgGet('init-gem-sa-model');}   // 新規：モデルは共通設定の初期値
     try{switchSaCompareMode(getSaCompareMode());}catch(e){}
     try{renderImageStock();}catch(e){}
   }else if(kind==='price'){
@@ -16158,10 +16161,16 @@ const KG_ITEMS=[
   {g:'voice',key:'tts-model',label:'台本の声のモデル',ids:['vd-tts-model','ev-tts-model']},
   {g:'voice',key:'tts-speed',label:'台本の読み上げの速さ',ids:['vd-tts-speed','ev-tts-speed'],def:'faster',opts:[['normal','ふつう'],['fast','少し速め'],['faster','速め']],tip:'縦動画（株価分析・決算分析）の読み上げの頭に付ける指示（分析動画と同じ文）。変えたあとは「🔄 全部作り直す」で音声を作り直してください'},
   {g:'voice',key:'oped-vol',label:'OP・EDの音量（%）',ids:[],def:'85',tip:'横動画の書き出しで、OP・EDの音声にかける大きさ。100＝作ったままの大きさ。100より大きくもできます（大きすぎると音が割れます）'},
-  {g:'model',key:'model',label:'縦動画の文章モデル',ids:['vd-model','ev-model']},
-  // 株価分析の2つは「新しいPJの初期値」（欄はPJごとに保存のまま。開いているPJ・保存済みのPJは変えない）
-  {g:'model',key:'init-gem-model',label:'株価分析：出力データ作成の初期モデル',ids:[],optsFrom:'gem-model',def:'gemini-3.5-flash-lite',tip:'新しい株価分析のPJで、はじめに選ばれているモデル'},
-  {g:'model',key:'init-gem-article-model',label:'株価分析：記事・SNS生成の初期モデル',ids:[],optsFrom:'gem-article-model',def:'',tip:'新しい株価分析のPJで、はじめに選ばれているモデル'},
+  // AIのモデル：画面ごとに見出しを分けて出す（kg-g-model-earn／-stock／-price、横動画は kg-g-ytmodel）。すみぽん 2026-11-07
+  //   init-… は「新しいPJの初期値」（欄はPJごとに保存のまま。開いているPJ・保存済みのPJは変えない。ktKindAfterOpen で新規のときだけ入れる）
+  //   「縦動画の文章モデル」だけは初期値ではなく、決算分析・株価分析の縦動画の欄そのもの（PJには保存せず、いつも共通）
+  {g:'model-earn',key:'init-gem-earn-model',label:'出力データ作成',ids:[],optsFrom:'gem-earn-model',def:'',tip:'新しい決算分析のPJで、はじめに選ばれているモデル（出力データ作成）'},
+  {g:'model-earn',key:'init-ev-viz-model',label:'分析動画',ids:[],optsFrom:'ev-viz-model',def:'',tip:'新しい決算分析のPJで、はじめに選ばれているモデル（分析動画の数値の抽出・評価）'},
+  {g:'model-earn',key:'init-ea-model',label:'記事（note・ブログ）',ids:[],optsFrom:'ea-model',def:'',tip:'新しい決算分析のPJで、はじめに選ばれているモデル（📝 記事）'},
+  {g:'model-earn',key:'model',label:'縦動画の文章',ids:['vd-model','ev-model'],tip:'決算分析と株価分析の縦動画で共通のモデル（初期値ではなく、いつもこの値）'},
+  {g:'model-stock',key:'init-gem-sa-model',label:'出力データ作成',ids:[],optsFrom:'gem-sa-model',def:'',tip:'新しい個別銘柄分析のPJで、はじめに選ばれているモデル'},
+  {g:'model-price',key:'init-gem-model',label:'出力データ作成',ids:[],optsFrom:'gem-model',def:'gemini-3.5-flash-lite',tip:'新しい株価分析のPJで、はじめに選ばれているモデル'},
+  {g:'model-price',key:'init-gem-article-model',label:'記事・SNS生成',ids:[],optsFrom:'gem-article-model',def:'',tip:'新しい株価分析のPJで、はじめに選ばれているモデル'},
   ...YT_AI_TASKS.map(([k,n])=>({g:'ytmodel',key:'yt-m-'+k,label:n,ids:['yt-m-'+k]})),
   {g:'post',key:'fixed-tags',label:'固定タグ',ids:['vd-fixed-tags','ev-fixed-tags'],tip:'X・Instagram・TikTokの投稿文の末尾に必ず付けるタグ（空欄で付けない）'},
   {g:'post',key:'xnote',label:'note案内文',ids:['vd-xnote'],tip:'縦動画のX投稿文（返信用）の3行目に入れる案内文'},
@@ -17835,8 +17844,16 @@ async function dgCopy(id,btn){
 
     <div class="kg-sec">
       <h3>AIのモデル</h3>
-      <div id="kg-g-model"></div>
-      <div class="kg-note" title="回数の上限・混雑・時間切れのときは、同じモデルでやり直さずに、選んだモデルから一覧の順に下のモデルへ自動で切り替えます（Lite には切り替えません。読み取りの位置が大きくずれて使えなかったため）。すべてだめで止まったら、ここで別のモデルを選んでもう一度押してください。">横動画（Gemini）：上限・混雑のときは下のモデルへ自動で切り替え（Lite除く）。止まったら、別のモデルを選んでもう一度。</div>
+      <div class="kg-note">新しいPJを作ったときに選ばれているモデルです（開いているPJ・保存済みのPJは変わりません。PJの画面のモデル欄で変えられます）。</div>
+      <h4>決算分析</h4>
+      <div id="kg-g-model-earn"></div>
+      <h4>個別銘柄分析</h4>
+      <div id="kg-g-model-stock"></div>
+      <h4>株価分析</h4>
+      <div id="kg-g-model-price"></div>
+      <div class="kg-note" style="margin-top:4px;">縦動画の文章モデルは決算分析と共通（上の「決算分析」にあります）。</div>
+      <h4>YT動画（横動画）</h4>
+      <div class="kg-note" title="回数の上限・混雑・時間切れのときは、同じモデルでやり直さずに、選んだモデルから一覧の順に下のモデルへ自動で切り替えます（Lite には切り替えません。読み取りの位置が大きくずれて使えなかったため）。すべてだめで止まったら、ここで別のモデルを選んでもう一度押してください。">横動画はPJごとではなく、いつもここのモデルを使います。上限・混雑のときは下のモデルへ自動で切り替え（Lite除く）。止まったら、別のモデルを選んでもう一度。</div>
       <div id="kg-g-ytmodel"></div>
     </div>
 
