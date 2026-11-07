@@ -2075,7 +2075,7 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
                     <label style="font-size:11px;color:var(--text-sub);flex:none;" title="横サムネの中段に大きく出す一文。市場の様子と選んだ銘柄をまとめて表す 6〜8 文字（縦サムネには使いません）">中段の一文（横）</label>
                     <input type="text" id="dg-th-key" oninput="dgThKeyInput()" placeholder="空なら銘柄名の列（6〜8文字）" style="flex:1;min-width:0;font-size:11px;">
                     <select id="dg-th-cands" onchange="dgThCandPick(this)" style="flex:none;max-width:150px;font-size:11px;display:none;"></select>
-                    <button class="btn-sm" onclick="dgThKeyGen(this)" style="flex:none;background:#4f46e5;color:#fff;" title="各銘柄の一言・判定・株価の動きから、一文を3案作ります（モデルは ⚙ 設定 › 決算まとめ）">✨ API で作る</button>
+                    <button class="btn-sm" onclick="dgThKeyGen(this)" style="flex:none;background:#4f46e5;color:#fff;" title="各銘柄の一言・判定・株価の動きから、一文を3案作ります（モデルは ⚙ 設定 › AIのモデル › 決算まとめ）">✨ API で作る</button>
                 </div>
                 <div id="dg-th-key-status" style="display:none;font-size:11px;"></div>
                 <textarea id="dg-th" oninput="dgThInput()" placeholder="上段：中段：下段（銘柄を読むと自動で入ります）" style="height:46px;min-height:46px;"></textarea>
@@ -16207,7 +16207,7 @@ const KG_ITEMS=[
   {g:'digest',key:'blog-url',label:'ブログのURL',ids:[],def:'https://sumikko-money.com/',tip:'決算まとめの概要欄の「■ ブログで各銘柄の詳しい決算解説を公開中」と、決算の分析動画の概要欄（ブログの記事URLが空のとき）に使います'},
   {g:'digest',key:'dg-fixed',label:'概要欄：目次の下の固定文（AI の利用・注意事項）',ids:[],area:1,def:DG_FIXED_DEF,tip:'決算まとめの概要欄で、目次の下・タグの上に入れる文。空にすると初期値に戻ります'},
   {g:'digest',key:'dg-outro',label:'最後の文（読み上げ）',ids:[],area:1,def:DG_OUTRO_DEF,tip:'決算まとめの最後の読み上げ文の初期値。まとめの PJ でも直せます（直していない PJ は、ここを変えると追従します）'},
-  {g:'digest',key:'dg-model',label:'サムネの一文のモデル',ids:[],optsFrom:'ev-viz-model',def:'',tip:'決算まとめのサムネの中段の一文（✨ API で作る）に使う AI のモデル。「自動」は Gemini を上位から順に'},
+  {g:'model-digest',key:'dg-model',label:'サムネの一文',ids:[],optsFrom:'ev-viz-model',def:'',tip:'決算まとめのサムネの中段の一文（✨ API で作る）に使う AI のモデル（初期値ではなく、いつもこの値）。「自動」は Gemini を上位から順に'},
   ...KG_SNS.map(([k,n])=>({g:'snsstock',key:'yt-f-'+k+'@stock',label:n,ids:['yt-f-'+k],ctx:'stock',area:1,def:YT_SNS_FIXED[k]})),
   ...KG_SNS.map(([k,n])=>({g:'snsgen',key:'yt-f-'+k+'@gen',label:n,ids:['yt-f-'+k],ctx:'gen',area:1,def:YT_SNS_FIXED_GEN[k]})),
   ...[['rect','四角枠',YN_COL.green],['underline','下線',YN_COL.red],['highlight','ハイライト',YN_COL.yellow]].map(([t,n,c])=>({g:'mark',key:'mark-'+t,label:n,ids:[],def:c,
@@ -17933,6 +17933,8 @@ async function dgCopy(id,btn){
       <h4>株価分析</h4>
       <div id="kg-g-model-price"></div>
       <div class="kg-note" style="margin-top:4px;">縦動画の文章モデルは決算分析と共通（上の「決算分析」にあります）。</div>
+      <h4>決算まとめ</h4>
+      <div id="kg-g-model-digest"></div>
       <h4>YT動画（横動画）</h4>
       <div class="kg-note" title="回数の上限・混雑・時間切れのときは、同じモデルでやり直さずに、選んだモデルから一覧の順に下のモデルへ自動で切り替えます（Lite には切り替えません。読み取りの位置が大きくずれて使えなかったため）。すべてだめで止まったら、ここで別のモデルを選んでもう一度押してください。">横動画はPJごとではなく、いつもここのモデルを使います。上限・混雑のときは下のモデルへ自動で切り替え（Lite除く）。止まったら、別のモデルを選んでもう一度。</div>
       <div id="kg-g-ytmodel"></div>
