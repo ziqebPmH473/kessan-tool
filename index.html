@@ -5687,9 +5687,11 @@ function copyAnalysis(btn){copyText(buildAnalysisText(),btn);}
 function saCopyFactCheck(btn){
   const report=document.getElementById('ta-report').value.trim();
   if(!report){alert('レポートを貼り付けてください');return;}
-  copyText(`以下のレポートは、以下の指示でAIが生成したものです。\nレポートのファクトチェックを行い、誤っている箇所と指示に沿っていない箇所のみを指摘してください。\n指摘がある場合には、指摘箇所・指摘内容・修正後内容を記載してください。\n不明点や確認点があればすべて調査し、レポートに記載できる形式で修正後内容を提示してください。\n\n--指示--\n${buildAnalysisText()}\n\n--レポート--\n${report}`,btn);
+  // 文は決算分析のファクトチェック（copyFactCheck）と同じ（「件数が多くてもすべて指摘」「レイアウトや出力形式の指摘は不要」を足した。すみぽん 2026-11-08）
+  copyText(`以下のレポートは、以下の指示でAIが生成したものです。\nレポートのファクトチェックを行い、誤っている箇所と指示に沿っていない箇所のみを指摘してください。\n指摘は件数が多くても構わないので、すべて指摘してください。\n指摘がある場合には、指摘箇所、指摘内容、修正後内容を記載してください。\n不明点や確認点があればすべて調査し、レポートに記載できる形式で修正後内容を提示してください。\nレイアウトや出力形式に関する指摘は不要です。\n\n--指示--\n${buildAnalysisText()}\n\n--レポート--\n\n${report}`,btn);
 }
-function copyRecheck(btn){copyText('修正後内容が正しいか確認してください\n正しくない場合には、不明点や確認点があればすべて調査し、レポートに記載できる形式で修正後内容を提示してください。',btn);}
+// 文は決算分析の FC CK（copyFactCheckVerify。2026-11-07 の文）と同じ（すみぽん 2026-11-08）
+function copyRecheck(btn){copyText('指摘箇所、指摘内容から指摘箇所の修正を行うことが妥当か、修正後内容が正しいか確認してください。\n正しくない場合には、不明点や確認点があればすべて調査し、レポートに記載できる形式で修正後内容を提示してください。\n結果はそのまま読むので、コードブロックには入れないでください。引用・出典・脚注も付けないでください。',btn);}
 function copyCorrection(btn){copyText('指摘箇所を指示の内容に沿って修正し、全文出力してください。\nただし、指摘していない箇所は一切変更しないでください。',btn);}
 function copyNBPrompt(btn){copyText(NB_PROMPT,btn);}
 
