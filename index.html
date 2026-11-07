@@ -15964,10 +15964,22 @@ function kcClose(){document.getElementById('kc-view').hidden=true;document.body.
 // 注目銘柄（🔥）。株探・Yahoo!ファイナンス・みんかぶのランキングを /api/hot-stocks で集めて、点数順に並べる。
 // 点数のつけ方はサーバー側（functions/api/hot-stocks.js）。画面は並べて絞るだけ。
 // =====================================================
-const HS={data:null,busy:false};
+const HS={data:null,busy:false,earn:{},earnBusy:{}};
+// 決算の日付の既定：今日（土日祝なら直近の営業日）
+function hsDefaultDate(){const d=new Date();d.setHours(0,0,0,0);while(!isBusinessDay(d))d.setDate(d.getDate()-1);return kcIso(d);}
+// 前営業日
+function hsPrevBiz(iso){const d=new Date(iso+'T00:00:00');do{d.setDate(d.getDate()-1);}while(!isBusinessDay(d));return kcIso(d);}
 function hsOpen(){
   document.getElementById('hs-view').hidden=false;document.body.style.overflow='hidden';
+  const di=document.getElementById('hs-date');if(!di.value)di.value=hsDefaultDate();
   if(!HS.data&&!HS.busy)hsLoad(false);else hsRender();
+}
+// その日に決算を発表した会社（選んだ日の場中・引け後 ＋ 前営業日の引け後）を /api/earnings-day から読む。日ごとに覚えておく
+function hsEarnLoad(){
+  const date=document.getElementById('hs-date').value;if(!date||HS.earn[date]||HS.earnBusy[date])return;
+  HS.earnBusy[date]=1;
+  fetch('/api/earnings-day?date='+date+'&prev='+hsPrevBiz(date)).then(r=>r.json()).then(j=>{if(!j.ok)throw new Error(j.error||'読めません');HS.earn[date]=j;})
+    .catch(e=>{HS.earn[date]={ok:false,error:e.message,items:[],failed:[]};}).finally(()=>{HS.earnBusy[date]=0;hsRender();});
 }
 function hsClose(){document.getElementById('hs-view').hidden=true;document.body.style.overflow='';}
 async function hsLoad(fresh){
@@ -15986,14 +15998,29 @@ async function hsLoad(fresh){
 function hsRender(){
   const j=HS.data;if(!j)return;
   const q=document.getElementById('hs-q').value.trim().toLowerCase(),onlyEarn=document.getElementById('hs-earn').checked;
+  // 決算を発表した会社：選んだ日の TDnet の一覧（読めるまで・読めなかったら、株探の当日の表で代用）
+  const date=document.getElementById('hs-date').value,ed=HS.earn[date];
+  if(onlyEarn&&!ed)hsEarnLoad();
+  const earnMap=new Map();if(ed&&ed.ok)for(const it of ed.items)earnMap.set(it.code,it);
+  const useTd=!!(ed&&ed.ok);
+  const md=iso=>{const [y,m,d]=iso.split('-').map(Number);return m+'/'+d;};
   const srcLabel=Object.fromEntries((j.sources||[]).map(s=>[s.key,s.label]));
   const t=j.fetchedAt?new Date(j.fetchedAt):null;
   let note='集めた元：'+(j.sources||[]).map(s=>s.label).join('・')+'。点は「いくつの表に、どれだけ上位で載ったか」。同じ表でも 1 位が一番高く、下にいくほど低い。'
     +(t?'　取得：'+(t.getMonth()+1)+'/'+t.getDate()+' '+String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0'):'');
   if(j.failed&&j.failed.length)note+='<br><span class="kc-err">読めなかった元：'+kcEsc(j.failed.join('、'))+'（残りの表だけで並べています）</span>';
+  if(onlyEarn){
+    if(!ed)note+='<br>決算を発表した会社の一覧（TDnet）を読んでいます…（それまでは株探の当日の表で絞っています）';
+    else if(!ed.ok)note+='<br><span class="kc-err">決算を発表した会社の一覧（TDnet）が読めませんでした：'+kcEsc(ed.error||'')+'。株探の当日の表で絞っています</span>';
+    else{
+      const cur=ed.items.filter(x=>x.day===date),pre=ed.items.filter(x=>x.day!==date),inRank=ed.items.filter(x=>(j.stocks||[]).some(s=>s.code===x.code)).length;
+      note+='<br>決算発表（TDnet の決算短信）：'+md(date)+' '+cur.length+'社（場中 '+cur.filter(x=>x.timing==='場中').length+'・引け後 '+cur.filter(x=>x.timing==='引け後').length+'）'+(ed.prev?' ＋ 前営業日 '+md(ed.prev)+' の引け後 '+pre.length+'社':'')+'。このうちランキングに載ったのは '+inRank+'社';
+      if(ed.failed&&ed.failed.length)note+='<br><span class="kc-err">読めなかった日：'+kcEsc(ed.failed.join('、'))+'</span>';
+    }
+  }
   document.getElementById('hs-src').innerHTML=note;
   const rows=(j.stocks||[]).filter(s=>{
-    if(onlyEarn&&!s.hits.some(h=>h.src==='ke'))return false;
+    if(onlyEarn&&(useTd?!earnMap.has(s.code):!s.hits.some(h=>h.src==='ke')))return false;
     if(!q)return true;
     return (s.code+' '+s.name+' '+s.market+' '+s.why.join(' ')).toLowerCase().includes(q);
   });
@@ -16004,7 +16031,7 @@ function hsRender(){
       +'<td><a href="https://kabutan.jp/stock/news?code='+kcEsc(s.code)+'" target="_blank" rel="noopener" title="株探のニュース一覧を開く">'+kcEsc(s.name)+'</a></td>'
       +'<td class="c kc-opt">'+kcEsc(s.market)+'</td><td class="r">'+kcEsc(s.price)+'</td><td class="r">'+pct(s.pct)+'</td><td class="r hs-score">'+s.score+'</td>'
       +'<td>'+s.hits.map(x=>'<span class="hs-tag '+x.src+'" title="'+kcEsc(srcLabel[x.src]||x.src)+'：'+x.rank+'位（'+x.pts+'点）">'+kcEsc((srcLabel[x.src]||x.src).replace(/^(株探|Yahoo|みんかぶ) /,''))+' '+x.rank+'</span>').join('')+'</td>'
-      +'<td class="hs-why">'+kcEsc(s.why.join(' ／ '))+'</td></tr>';
+      +'<td class="hs-why">'+(earnMap.has(s.code)?'<b>'+kcEsc('決算：'+md(earnMap.get(s.code).day)+' '+earnMap.get(s.code).timing+' '+earnMap.get(s.code).time)+'</b>'+(s.why.length?' ／ ':''):'')+kcEsc(s.why.join(' ／ '))+'</td></tr>';
   });
   h+='</tbody></table>';
   if(!rows.length)h='<div class="kc-msg">当てはまる銘柄がありません</div>';
@@ -17737,6 +17764,7 @@ async function dgCopy(id,btn){
       <label for="hs-q">コード・銘柄名・材料：</label>
       <input type="text" id="hs-q" oninput="hsRender()" placeholder="例：半導体、決算、4062">
       <label style="font-size:12px;white-space:nowrap;"><input type="checkbox" id="hs-earn" onchange="hsRender()"> 決算を発表した銘柄だけ</label>
+      <input type="date" id="hs-date" onchange="hsRender()" style="flex:0 0 auto;min-width:0;width:auto;font-size:12px;" title="この日の発表（場中・引け後）と、前営業日の引け後の発表を「決算を発表した銘柄」にします。土日祝は飛ばします">
       <button onclick="hsLoad(true)" style="margin-left:auto;background:#fff;border-color:#cbd5e1;" title="サーバーに1時間おいた結果を捨てて、各サイトを読み直す">🔄 読み直す</button>
     </div>
     <div class="kc-note" id="hs-src"></div>
