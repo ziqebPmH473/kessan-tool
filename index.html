@@ -8759,7 +8759,8 @@ function buildVThumb2(text,P,catOver,bare,p2){
   const cat=catOver!=null?catOver:p.label;
   const SAFE_T=Math.round((H-1440)/2),SAFE_B=H-SAFE_T;
   // 上段：下段＝6：4（東証ツールは 5：5）。上段はラベル＋2行でほぼ埋まり、下段は銘柄名の1行がふつうなので（すみぽん 2026-10-31）
-  const bodyH=H-HEAD-FOOT,h0=Math.round(bodyH*0.6),h1=bodyH-h0;
+  // ラベルが無いとき（決算まとめ：上下とも2行）は 5：5。3:4 に切ったときに上段・下段の見える部分が同じ高さになる（2026-11-08）
+  const bodyH=H-HEAD-FOOT,h0=Math.round(bodyH*(cat?0.6:0.5)),h1=bodyH-h0;
   const LABEL_FS=72,LABEL_Y=SAFE_T+64,LABEL_H=LABEL_FS+36+10;   // ラベル：白枠・白字の丸帯（字 72px＋上下 18px＋枠 5px）。3:4 の上端から 64px 下げる（詰まって見えた。すみぽん 2026-10-31）
   const usable=W-PX*2,cap=Math.floor(usable/MAXC);
   const sizes=(lines,weight,limitH)=>{
@@ -8771,7 +8772,8 @@ function buildVThumb2(text,P,catOver,bare,p2){
   const toLines=t=>String(t||'').split('\n').map(x=>x.trim()).filter(Boolean).map(parseThumbnailMarkup);
   const topL=toLines(p.top),botL=toLines(p.bot);
   // 字を置く範囲（3:4 に入る部分）：上段＝ラベルの下から帯の下端まで、下段＝帯の上端から 3:4 の下端まで。字はその範囲の中央に置き、大きさもその高さいっぱい
-  const top0=(LABEL_Y+LABEL_H+16)-HEAD,bot1=(HEAD+h0+h1)-SAFE_B;   // 上段の上の詰め・下段の下の詰め（px）
+  //   ラベルが無いときは上段も 3:4 の上端から（前はラベルの分だけ下に詰めていて、上段の字が 3:4 の中央より下に寄っていた。2026-11-08）
+  const top0=(cat?(LABEL_Y+LABEL_H+16):SAFE_T)-HEAD,bot1=(HEAD+h0+h1)-SAFE_B;   // 上段の上の詰め・下段の下の詰め（px）
   const s0=sizes(topL,700,h0-top0),s1=sizes(botL,900,h1-bot1);
   const band=(lines,sz,weight,h,bg,color,padT,padB)=>{
     const html=lines.map((sg,i)=>`<div style="font-size:${sz[i]}px;line-height:${LH};white-space:nowrap;">${segsHtml(sg,color)}</div>`).join('');
