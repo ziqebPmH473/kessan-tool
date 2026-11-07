@@ -2064,15 +2064,27 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
         <div id="capture-area-digest" class="sa" style="display:none;flex-direction:column;gap:6px;padding:8px;">
             <div style="font-size:11px;color:var(--text-sub);">決算まとめ 1920×1080 プレビュー。文・音声・書き出しは左のパネルで</div>
             <!-- まとめ用のサムネ（動画には入れない。YouTube に別で上げる）。型は「サムネだけ」の横（youtube）と同じ -->
+            <!-- 横（1920×1080）は YouTube、縦（1080×1920・中段なしの2段）は TikTok・インスタの縦版の動画に。中段の一文は AI で作る（銘柄名の列だと字が小さくなる。すみぽん 2026-11-08） -->
             <div id="dg-thbox" class="sa-card" style="display:flex;flex-direction:column;gap:4px;">
                 <div style="display:flex;align-items:center;gap:6px;">
-                    <span class="sa-sub" style="margin:0;">サムネ（1920×1080・動画とは別に YouTube に上げる）</span>
-                    <button class="btn-sm" onclick="dgThDownload(this)" style="margin-left:auto;flex:none;background:#16a34a;color:#fff;" title="PNG をダウンロード">💾 PNG</button>
+                    <span class="sa-sub" style="margin:0;">サムネ（横＝YouTube、縦＝TikTok・インスタ。動画とは別に上げる）</span>
+                    <button class="btn-sm" onclick="dgThDownload(this,'h')" style="margin-left:auto;flex:none;background:#16a34a;color:#fff;" title="横 1920×1080 の PNG をダウンロード">💾 横PNG</button>
+                    <button class="btn-sm" onclick="dgThDownload(this,'v')" style="flex:none;background:#16a34a;color:#fff;" title="縦 1080×1920 の PNG をダウンロード（中段なしの2段）">💾 縦PNG</button>
                 </div>
+                <div class="input-row" style="gap:4px;align-items:center;">
+                    <label style="font-size:11px;color:var(--text-sub);flex:none;" title="横サムネの中段に大きく出す一文。市場の様子と選んだ銘柄をまとめて表す 6〜8 文字（縦サムネには使いません）">中段の一文（横）</label>
+                    <input type="text" id="dg-th-key" oninput="dgThKeyInput()" placeholder="空なら銘柄名の列（6〜8文字）" style="flex:1;min-width:0;font-size:11px;">
+                    <select id="dg-th-cands" onchange="dgThCandPick(this)" style="flex:none;max-width:150px;font-size:11px;display:none;"></select>
+                    <button class="btn-sm" onclick="dgThKeyGen(this)" style="flex:none;background:#4f46e5;color:#fff;" title="各銘柄の一言・判定・株価の動きから、一文を3案作ります（モデルは ⚙ 設定 › 決算まとめ）">✨ API で作る</button>
+                </div>
+                <div id="dg-th-key-status" style="display:none;font-size:11px;"></div>
                 <textarea id="dg-th" oninput="dgThInput()" placeholder="上段：中段：下段（銘柄を読むと自動で入ります）" style="height:46px;min-height:46px;"></textarea>
                 <input type="text" id="dg-th-auto" style="display:none;">
-                <p style="font-size:10px;color:var(--text-sub);margin:0;">「：」で上段・中段・下段を区切る。色指定: <span style="color:#ff914d">*オレンジ*</span>　<span style="color:#5ce1e6">#水色#</span>　<span style="color:#ffde59">%黄色%</span></p>
-                <div id="dg-th-prev" style="position:relative;overflow:hidden;border:1px solid var(--border);border-radius:4px;align-self:flex-start;display:none;"><div id="dg-th-prev-in"></div></div>
+                <p style="font-size:10px;color:var(--text-sub);margin:0;">「：」で上段・中段・下段を区切る。色指定: <span style="color:#ff914d">*オレンジ*</span>　<span style="color:#5ce1e6">#水色#</span>　<span style="color:#ffde59">%黄色%</span>。縦は中段なしの2段：上段「11月8日（白）／注目銘柄（黄色）」、下段「図解で／決算解説」（上段の日付は横の1段目から）</p>
+                <div style="display:flex;gap:8px;align-items:flex-start;">
+                    <div id="dg-th-prev" style="position:relative;overflow:hidden;border:1px solid var(--border);border-radius:4px;flex:none;display:none;"><div id="dg-th-prev-in"></div></div>
+                    <div id="dg-th-prev-v" style="position:relative;overflow:hidden;border:1px solid var(--border);border-radius:4px;flex:none;display:none;"><div id="dg-th-prev-v-in"></div></div>
+                </div>
             </div>
             <div id="dg-empty" style="padding:30px;text-align:center;color:var(--text-sub);font-size:12px;border:1px dashed var(--border);border-radius:8px;">左で銘柄をチェックすると、ここに動画が出ます。</div>
             <div id="dg-mount"></div>
@@ -15051,7 +15063,7 @@ const TAB_IO={
   // YT動画：横動画のパネル（#yt-root）は、このタブを開いている間だけ #mode-yt の中にある。
   // 右側のサムネイル（#thumb-view）は株価分析と共用の画面なので、YT動画を開いている間だけ YT動画の欄として扱う（tabIoElements）
   yt:      {label:'YT動画',    roots:['#mode-yt'],                                           codeId:null,            nameId:'yt-g-theme'},
-  digest:  {label:'決算まとめ', roots:['#mode-digest'],                                       codeId:null,            nameId:'dg-title'},
+  digest:  {label:'決算まとめ', roots:['#mode-digest','#dg-thbox'],                            codeId:null,            nameId:'dg-title'},   // #dg-thbox＝右側のサムネの欄（文・中段の一文）。前は右側が保存の範囲に入っておらず、サムネの文が PJ に残らなかった（2026-11-08）
 };
 // ============================================================
 // PJ の一覧・切り替え・新規・削除（上の1行）
@@ -16190,6 +16202,7 @@ const KG_ITEMS=[
   {g:'digest',key:'blog-url',label:'ブログのURL',ids:[],def:'https://sumikko-money.com/',tip:'決算まとめの概要欄の「■ ブログで各銘柄の詳しい決算解説を公開中」と、決算の分析動画の概要欄（ブログの記事URLが空のとき）に使います'},
   {g:'digest',key:'dg-fixed',label:'概要欄：目次の下の固定文（AI の利用・注意事項）',ids:[],area:1,def:DG_FIXED_DEF,tip:'決算まとめの概要欄で、目次の下・タグの上に入れる文。空にすると初期値に戻ります'},
   {g:'digest',key:'dg-outro',label:'最後の文（読み上げ）',ids:[],area:1,def:DG_OUTRO_DEF,tip:'決算まとめの最後の読み上げ文の初期値。まとめの PJ でも直せます（直していない PJ は、ここを変えると追従します）'},
+  {g:'digest',key:'dg-model',label:'サムネの一文のモデル',ids:[],optsFrom:'ev-viz-model',def:'',tip:'決算まとめのサムネの中段の一文（✨ API で作る）に使う AI のモデル。「自動」は Gemini を上位から順に'},
   ...KG_SNS.map(([k,n])=>({g:'snsstock',key:'yt-f-'+k+'@stock',label:n,ids:['yt-f-'+k],ctx:'stock',area:1,def:YT_SNS_FIXED[k]})),
   ...KG_SNS.map(([k,n])=>({g:'snsgen',key:'yt-f-'+k+'@gen',label:n,ids:['yt-f-'+k],ctx:'gen',area:1,def:YT_SNS_FIXED_GEN[k]})),
   ...[['rect','四角枠',YN_COL.green],['underline','下線',YN_COL.red],['highlight','ハイライト',YN_COL.yellow]].map(([t,n,c])=>({g:'mark',key:'mark-'+t,label:n,ids:[],def:c,
@@ -17283,11 +17296,60 @@ function dgYtTitle(items,jp){
 }
 // ---- まとめ用のサムネ（上段：中段：下段。型は「サムネだけ」の横） ----
 const dgThVal=()=>((document.getElementById('dg-th')||{}).value||'').trim();
+// 中段の一文（dg-th-key）。横サムネの中段だけに使う
+const dgThKey=()=>((document.getElementById('dg-th-key')||{}).value||'').trim();
 function dgThText(){
   const d=dgVal('dg-date');const m=String(d).match(/(\d{4})-(\d{2})-(\d{2})/);const jp=m?parseInt(m[2],10)+'月'+parseInt(m[3],10)+'日':'';
   const names=_dgItems.map(it=>it.visualization.company.name).filter(Boolean);
   // すみぽんの見本（2026-10-17）：上「#10月16日#の*注目銘柄*」・中「GO/SHIFT/ベイカレント」・下「図解で%決算分析%」（# 水色・* オレンジ・% 黄色）
-  return [jp?`#${jp}#の*注目銘柄*`:'*注目銘柄*',names.length?names.slice(0,4).join('/')+(names.length>4?' ほか':''):'','図解で%決算分析%'].join('：');
+  // 中段：一文があればそれ（銘柄名の列は銘柄が増えると字が小さくなる。すみぽん 2026-11-08）。無ければ今までどおり銘柄名
+  const key=dgThKey();
+  const mid=key||(names.length?names.slice(0,4).join('/')+(names.length>4?' ほか':''):'');
+  return [jp?`#${jp}#の*注目銘柄*`:'*注目銘柄*',mid,'図解で%決算分析%'].join('：');
+}
+// 縦（2段）の文（すみぽん 2026-11-08）：上段＝「11月8日」（白）と「注目銘柄」（黄色）の2行、下段＝「図解で」「決算解説」の2行。ラベル（左上の丸帯）は無し。中段の一文は横だけに使う
+//   上段は横の1段目の文から（色指定は外し、「の」の前を日付の行、後ろを黄色の行に）。横の1段目を手で直していれば、それに追従する
+function dgTh2Parts(){
+  const parts=thumbParts(dgThVal()).map(x=>x.replace(/\s*\n\s*/g,''));
+  const plain=parts[0]?parseThumbnailMarkup(parts[0]).map(x=>x.text).join('').trim():'';
+  const i=plain.indexOf('の');
+  const top=i>0&&i<plain.length-1?plain.slice(0,i)+'\n%'+plain.slice(i+1)+'%':'%'+(plain||'注目銘柄')+'%';
+  return {label:'',top,bot:'図解で\n決算解説'};
+}
+function dgThKeyInput(){if(typeof saveState==='function')saveState();dgThAuto();}
+function dgThCandPick(sel){if(!sel.value)return;const el=document.getElementById('dg-th-key');if(el)el.value=sel.value;sel.value='';dgThKeyInput();}
+function dgThKeyStatus(msg,cls){const el=document.getElementById('dg-th-key-status');if(!el)return;el.textContent=msg||'';el.style.display=msg?'block':'none';el.style.color=cls==='error'?'#ef4444':cls==='ok'?'#16a34a':'var(--text-sub)';}
+// 一文を AI で3案作る：各銘柄の一言（headline）・判定（verdict）・株価の動き（表紙のカードの下の行）を渡す
+async function dgThKeyGen(btn){
+  if(!_dgItems.length){dgThKeyStatus('先に銘柄をチェックしてください','error');return;}
+  const d=dgVal('dg-date');const m=String(d).match(/(\d{4})-(\d{2})-(\d{2})/);const jp=m?parseInt(m[2],10)+'月'+parseInt(m[3],10)+'日':'';
+  const lines=_dgItems.map((it,i)=>{const v=it.visualization,s=v.summary||{};const sub=(it.subline||it.autoLine||'').trim();return `${i+1}. ${v.company.name}（${v.company.code}）${it.afterHours?'（引け後の発表）':''}\n   一言：${(s.headline||'').trim()||'（なし）'}\n   判定・株価：${sub||'（なし）'}`;});
+  const prompt=`あなたは投資系 YouTube チャンネルのサムネイルの文言を考える編集者です。
+${jp?jp+'に':''}発表された決算をまとめて解説する動画のサムネイルに、中央に大きく出す一文を考えます。
+取り上げる銘柄と、それぞれの決算の一言・判定・株価の動きは次のとおりです。
+
+${lines.join('\n')}
+
+条件：
+- 市場の様子（この日の決算全体の雰囲気）と、取り上げた銘柄をまとめて表す一文にする。
+- 6〜8文字。社名・証券コード・金額や増減率などの数字は入れない。
+- 見た人が中身を知りたくなる言い回しにする。断定的な投資の推奨はしない。
+- 違う切り口で3案。
+
+出力は JSON の配列（文字列3つ）だけ。前置き・説明は書かない。`;
+  if(btn)btn.disabled=true;dgThKeyStatus('一文を考えています…','');
+  try{
+    const r=await callGeminiAnalyze(prompt,[],{cls:'high',temperature:0.8,modelOverride:String(kgGet('dg-model')||'')});
+    if(!r.ok)throw new Error(r.error||'AI の呼び出しに失敗しました');
+    const mm=String(r.text||'').match(/\[[\s\S]*?\]/);let arr=[];try{arr=JSON.parse(mm?mm[0]:'[]');}catch(e){}
+    arr=(Array.isArray(arr)?arr:[]).map(x=>String(x||'').replace(/\s+/g,'').replace(/[\/／]/g,'').trim()).filter(Boolean).slice(0,3);
+    if(!arr.length)throw new Error('AI の出力から一文を読み取れませんでした：'+String(r.text||'').slice(0,80));
+    const el=document.getElementById('dg-th-key');if(el)el.value=arr[0];
+    const sel=document.getElementById('dg-th-cands');if(sel){sel.innerHTML='<option value="">ほかの案…</option>'+arr.slice(1).map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');sel.style.display=arr.length>1?'':'none';}
+    dgThKeyInput();
+    dgThKeyStatus(`✅ ${arr.length}案できました（1案目を入れました${arr.length>1?'。ほかの案は右の選択から':''}）`,'ok');
+  }catch(e){dgThKeyStatus('❌ '+(e&&e.message||e),'error');}
+  finally{if(btn)btn.disabled=false;}
 }
 // 空か、前に自動で入れた文のままなら入れ直す（直した文は残す）
 function dgThAuto(){
@@ -17297,26 +17359,33 @@ function dgThAuto(){
   dgThPreview();
 }
 function dgThInput(){if(typeof saveState==='function')saveState();clearTimeout(_dgThTimer);_dgThTimer=setTimeout(dgThPreview,300);}
+// 縦サムネの HTML（中段なしの2段。決算分析の2段と同じ部品 buildVThumb2。上の日付バー・下の「タップで動画を再生」あり）
+const dgThHtmlV=()=>buildVThumb2('',null,null,false,dgTh2Parts());
 function dgThPreview(){
-  const text=dgThVal(),wrap=document.getElementById('dg-th-prev'),inner=document.getElementById('dg-th-prev-in');if(!wrap||!inner)return;
-  if(!text){wrap.style.display='none';return;}
+  const text=dgThVal(),wrap=document.getElementById('dg-th-prev'),inner=document.getElementById('dg-th-prev-in'),wrapV=document.getElementById('dg-th-prev-v'),innerV=document.getElementById('dg-th-prev-v-in');if(!wrap||!inner)return;
+  if(!text){wrap.style.display='none';if(wrapV)wrapV.style.display='none';return;}
   wrap.style.display='';
-  const W=SLIDE_W,H=SLIDE_H,h=Math.min(240,Math.floor(((wrap.parentElement.clientWidth||600)-4)*H/W)),sc=h/H;
-  wrap.style.width=Math.round(W*sc)+'px';wrap.style.height=Math.round(H*sc)+'px';
-  inner.style.cssText=`position:absolute;top:0;left:0;width:${W}px;height:${H}px;transform:scale(${sc});transform-origin:top left;pointer-events:none;`;
-  inner.innerHTML=tqHtmlH(text,'youtube');
+  const h=Math.min(240,Math.floor(((wrap.parentElement.clientWidth||600)-12)*SLIDE_H/(SLIDE_W+SLIDE_H*VSLIDE_W/VSLIDE_H)));   // 横と縦を同じ高さで横に並べる
+  const fit=(w,inn,W,H,html)=>{const sc=h/H;w.style.display='';w.style.width=Math.round(W*sc)+'px';w.style.height=Math.round(H*sc)+'px';inn.style.cssText=`position:absolute;top:0;left:0;width:${W}px;height:${H}px;transform:scale(${sc});transform-origin:top left;pointer-events:none;`;inn.innerHTML=html;};
+  fit(wrap,inner,SLIDE_W,SLIDE_H,tqHtmlH(text,'youtube'));
+  if(wrapV&&innerV)fit(wrapV,innerV,VSLIDE_W,VSLIDE_H,dgThHtmlV());
 }
-async function dgThDownload(btn){
+// kind：'h'＝横 1920×1080（YouTube）、'v'＝縦 1080×1920（TikTok・インスタ。2段）
+async function dgThDownload(btn,kind){
   const text=dgThVal();if(!text){alert('サムネの文を入れてください');return;}
   if(btn)btn.disabled=true;
   try{
-    const cont=document.getElementById('th-render-target');
-    cont.innerHTML=tqHtmlH(text,'youtube');
-    await new Promise(r=>setTimeout(r,400));
     let blob;
-    try{const canvas=await html2canvas(cont.querySelector('.th-slide'),{width:SLIDE_W,height:SLIDE_H,scale:1920/SLIDE_W,useCORS:true,allowTaint:true,backgroundColor:'#000000',logging:false});blob=await new Promise(res=>canvas.toBlob(res,'image/png'));}
-    finally{cont.innerHTML='';}
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='digest_'+(dgVal('dg-date')||'thumb')+'_thumb.png';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+    if(kind==='v'){
+      blob=await renderVideoToBlob({html:dgThHtmlV(),thumb:true});
+    }else{
+      const cont=document.getElementById('th-render-target');
+      cont.innerHTML=tqHtmlH(text,'youtube');
+      await new Promise(r=>setTimeout(r,400));
+      try{const canvas=await html2canvas(cont.querySelector('.th-slide'),{width:SLIDE_W,height:SLIDE_H,scale:1920/SLIDE_W,useCORS:true,allowTaint:true,backgroundColor:'#000000',logging:false});blob=await new Promise(res=>canvas.toBlob(res,'image/png'));}
+      finally{cont.innerHTML='';}
+    }
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='digest_'+(dgVal('dg-date')||'thumb')+'_thumb'+(kind==='v'?'_縦':'')+'.png';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),3000);
   }catch(e){alert('サムネを作れませんでした：'+(e&&e.message||e));}
   finally{if(btn)btn.disabled=false;}
 }
