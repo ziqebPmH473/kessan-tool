@@ -1770,6 +1770,13 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
                 <input type="text" id="dg-yt-title" style="flex:1;min-width:0;font-size:11px;">
                 <button class="btn-sm" onclick="dgCopy('dg-yt-title',this)" style="flex:none;" title="コピー">📋</button>
               </div>
+              <!-- 縦版（インスタ・TikTok）の紹介文。URL は入れず「プロフィールのリンクから」。開始時間は縦の動画の長さ（すみぽん 2026-11-08） -->
+              <div style="font-size:11px;font-weight:700;margin-top:10px;" title="縦版（TikTok・インスタ）の投稿に貼る文。URL は入れず、ブログ・note はプロフィールのリンクに案内します。開始時間は縦の動画の長さから自動で入ります">📱 紹介文（インスタ・TikTok）</div>
+              <div class="input-row" style="margin-top:4px;">
+                <button class="btn-sm" onclick="dgSnsRender(true)" style="flex:1;min-width:0;" title="いまの銘柄・時間で紹介文を作り直します（手で直した文は消えます）">🔄 作り直す</button>
+                <button class="btn-sm" onclick="dgCopy('dg-sns',this)" style="flex:1;min-width:0;background:#16a34a;color:#fff;">📋 コピー</button>
+              </div>
+              <textarea id="dg-sns" style="font-size:11px;height:200px;min-height:80px;margin-top:4px;line-height:1.5;"></textarea>
             </details>
             <!-- 決算まとめの表紙（本日のラインアップ）で、各銘柄のカードの社名（「ホールディングス」を落とすなど）と下の行（「増収増益 ｜ PTS 大幅安」など）を書き換える。PTS で作った動画を翌日の引け後に使うときなど -->
             <details id="dg-coverbox" style="margin-top:8px;" ontoggle="if(this.open)dgCoverRender()">
@@ -1781,6 +1788,7 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
             <!-- 保存用（PJ と一緒に保存される）：日付・一覧の名前・選んだ PJ（並び順）・部品の設定 -->
             <input type="text" id="dg-date" style="display:none;">
             <textarea id="dg-desc-auto" style="display:none;"></textarea>
+            <textarea id="dg-sns-auto" style="display:none;"></textarea>
             <input type="text" id="dg-yt-title-auto" style="display:none;">
             <input type="text" id="dg-title" style="display:none;">
             <textarea id="dg-ids" style="display:none;"></textarea>
@@ -17285,6 +17293,46 @@ async function dgDescRender(force){
   // タイトル案（値動きを前に。すみぽん 2026-10-17）：【GO/SHIFT/ベイカレント】SHIFTが急騰、明暗分かれた決算の理由を図解｜10月16日の注目決算
   const tt=document.getElementById('dg-yt-title');
   if(tt){const t=dgYtTitle(items,jp);const ta2=document.getElementById('dg-yt-title-auto');const pv=ta2?ta2.value:'';if(force||!tt.value.trim()||tt.value===pv){tt.value=t;if(ta2)ta2.value=t;}}
+  dgSnsRender(force,{KV,settings,items,jp});
+}
+// 縦版（インスタ・TikTok）の紹介文（すみぽんの文案 2026-11-08）。YouTube の概要欄と違い URL は入れない（キャプションのリンクは押せない）ので、ブログ・note は「プロフィールのリンクから」。
+//   1行目は短く（日付・銘柄数・図解でまとめて解説。SNS は最初の1行しか見えないので）、2段落目は YouTube と同じ説明（日付は1行目にあるので「当日の」）。
+//   開始時間は縦の動画の長さ（最後の読み上げが縦用の文なので、横と少し違うことがある）。ctx＝dgDescRender から渡される（KV・settings・items・jp）
+async function dgSnsRender(force,ctx){
+  const ta=document.getElementById('dg-sns');if(!ta)return;
+  let KV,settings,items,jp;
+  if(ctx){({KV,settings,items,jp}=ctx);}
+  else{
+    try{KV=await evVizLoad();}catch(e){return;}
+    settings={...KV.digest.defaultSettings(dgVal('dg-date')||undefined),...(dgSettings()||{})};items=_dgItems;
+    const d=dgVal('dg-date');const m=String(d).match(/(\d{4})-(\d{2})-(\d{2})/);jp=m?parseInt(m[2],10)+'月'+parseInt(m[3],10)+'日':'';
+  }
+  const chapters=KV.digest.timeline(items.map(it=>({visualization:it.visualization,settings:it.settings})),{...settings,orientation:'portrait',width:1080,height:1920});
+  const moved=items.some(it=>!it.afterHours),after=items.some(it=>it.afterHours);
+  const lines=[];
+  lines.push(`${jp}の注目決算${items.length?items.length+'銘柄':''}を、図解でまとめて解説。`);
+  lines.push('');
+  lines.push(moved&&after?'当日の市場で注目された決算と、引け後に発表された決算を取り上げます。':moved?'当日の市場で注目された決算を取り上げます。':after?'引け後に発表された決算を取り上げます。':'発表された注目決算を取り上げます。');
+  lines.push('業績の変化や増減益の背景、今後の見通しをコンパクトに整理しました。');
+  lines.push('');
+  lines.push('■ 紹介銘柄・開始時間の目安');
+  chapters.filter(c=>c.kind==='item').forEach((c,i)=>lines.push((i===0?'00:00 オープニング・':dgMmss(c.startSec)+' ')+c.label));
+  const outro=chapters.find(c=>c.kind==='outro');
+  if(outro)lines.push(dgMmss(outro.startSec)+' ブログ・noteのご案内');
+  if(!items.length)lines.push('00:00 オープニング');
+  lines.push('');
+  lines.push('■ さらに詳しく知りたい方へ');
+  lines.push('ブログで詳しい決算解説、noteで個別銘柄の分析記事を公開中。');
+  lines.push('プロフィールのリンクからご覧いただけます。');
+  lines.push('');
+  dgFixedMigrate();
+  const fixed=String(kgGet('dg-fixed')||DG_FIXED_DEF).trim();
+  if(fixed){lines.push(fixed);lines.push('');}
+  const tagNames=items.map(it=>String(it.visualization.company.name||'').replace(/[\s　#＃]/g,'')).filter(Boolean).map(n=>'#'+n);
+  lines.push(['#日本株','#決算分析','#株式投資'].concat(tagNames).join(' '));
+  const text=lines.join('\n');
+  const au=document.getElementById('dg-sns-auto');const prev=au?au.value:'';
+  if(force||!ta.value.trim()||ta.value===prev){ta.value=text;if(au)au.value=text;if(typeof saveState==='function')saveState();}
 }
 // タイトル：銘柄名（4つまで「/」）＋ いちばん動いた銘柄とその動き ＋ 全体の向き ＋ 日付
 //   動きの言葉：±10%以上 急騰／急落、±5%以上 大幅高／大幅安、それ未満 上昇／下落（PTS も同じ言葉）。値動きが取れなければ動きは書かない
