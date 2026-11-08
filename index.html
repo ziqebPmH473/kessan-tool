@@ -17182,7 +17182,7 @@ async function dgLoadItems(force){
     const noteUrl=dgNoteUrl();
     if(!settings.note_qr||settings.note_qr_url!==noteUrl){settings={...settings,note_qr:await dgQr(noteUrl),note_qr_url:noteUrl};}
     dgSet('dg-settings',JSON.stringify(settings));if(settings.date)dgSet('dg-date',settings.date);
-    const props={items:items.map(it=>({visualization:it.visualization,settings:it.settings,narration:it.narration,after_hours:it.afterHours,announced:it.announced,subline:it.subline,display_name:it.displayName})),settings,controlsEl:document.getElementById('dg-controls'),tts:dgTts,audioStore:dgAudioStore,importBgm:evVizImportBgm,transcribe:evVizTranscribe,speed:kgGet('viz-speed')||'fast',
+    const props={items:items.map(it=>({visualization:it.visualization,settings:it.settings,narration:it.narration,after_hours:it.afterHours,announced:it.announced,subline:it.subline,display_name:it.displayName})),settings,controlsEl:document.getElementById('dg-controls'),tts:dgTts,audioStore:dgAudioStore,importBgm:evVizImportBgm,transcribe:evVizTranscribe,speed:kgGet('viz-speed')||'fast',extraFiles:dgThExtraFiles,
       // 部品は起動のときにも設定を整えて onChange を呼ぶ。銘柄を選んでいない新規の PJ をそれで「触った」扱いにすると、空の PJ が保存されて増えた（2026-10-17）。
       // 銘柄を選んでいるとき（＝人が触ったあと）だけ dgTouch。選んでいなければ画面の控えだけ
       onChange:st=>{dgSet('dg-settings',JSON.stringify(st));if(st.date)dgSet('dg-date',st.date);if(dgIds().length)dgTouch();else if(typeof saveState==='function')saveState();dgTitle();dgDescSoon();dgThAuto();}};
@@ -17376,23 +17376,31 @@ function dgThPreview(){
   if(wrapV&&innerV)fit(wrapV,innerV,VSLIDE_W,VSLIDE_H,dgThHtmlV());
 }
 // kind：'h'＝横 1920×1080（YouTube）、'v'＝縦 1080×1920（TikTok・インスタ。2段）
+// サムネの画像（PNG の Blob）。文が空なら null
+async function dgThBlob(kind){
+  const text=dgThVal();if(!text)return null;
+  if(kind==='v')return renderVideoToBlob({html:dgThHtmlV(),thumb:true});
+  const cont=document.getElementById('th-render-target');
+  cont.innerHTML=tqHtmlH(text,'youtube');
+  await new Promise(r=>setTimeout(r,400));
+  try{const canvas=await html2canvas(cont.querySelector('.th-slide'),{width:SLIDE_W,height:SLIDE_H,scale:1920/SLIDE_W,useCORS:true,allowTaint:true,backgroundColor:'#000000',logging:false});return await new Promise(res=>canvas.toBlob(res,'image/png'));}
+  finally{cont.innerHTML='';}
+}
+const dgThFileName=kind=>'digest_'+(dgVal('dg-date')||'thumb')+'_thumb'+(kind==='v'?'_縦':'')+'.png';
 async function dgThDownload(btn,kind){
-  const text=dgThVal();if(!text){alert('サムネの文を入れてください');return;}
+  if(!dgThVal()){alert('サムネの文を入れてください');return;}
   if(btn)btn.disabled=true;
   try{
-    let blob;
-    if(kind==='v'){
-      blob=await renderVideoToBlob({html:dgThHtmlV(),thumb:true});
-    }else{
-      const cont=document.getElementById('th-render-target');
-      cont.innerHTML=tqHtmlH(text,'youtube');
-      await new Promise(r=>setTimeout(r,400));
-      try{const canvas=await html2canvas(cont.querySelector('.th-slide'),{width:SLIDE_W,height:SLIDE_H,scale:1920/SLIDE_W,useCORS:true,allowTaint:true,backgroundColor:'#000000',logging:false});blob=await new Promise(res=>canvas.toBlob(res,'image/png'));}
-      finally{cont.innerHTML='';}
-    }
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='digest_'+(dgVal('dg-date')||'thumb')+'_thumb'+(kind==='v'?'_縦':'')+'.png';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+    const blob=await dgThBlob(kind);
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=dgThFileName(kind);a.click();setTimeout(()=>URL.revokeObjectURL(a.href),3000);
   }catch(e){alert('サムネを作れませんでした：'+(e&&e.message||e));}
   finally{if(btn)btn.disabled=false;}
+}
+// MP4 の書き出しのあとに一緒に保存するサムネ（部品の extraFiles。横の MP4 なら横サムネ、縦なら縦サムネ。すみぽん 2026-11-08）。文が空・作れないときは無し
+async function dgThExtraFiles(orientation){
+  const kind=orientation==='portrait'?'v':'h';
+  try{const blob=await dgThBlob(kind);if(!blob)return [];return [{name:dgThFileName(kind),href:URL.createObjectURL(blob)}];}
+  catch(e){console.warn('[digest] thumb',e);return [];}
 }
 // ============================================================
 // 📝 記事（決算分析）：note 記事・ブログ記事・ブログ用 ZIP
