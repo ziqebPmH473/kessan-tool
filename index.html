@@ -17626,9 +17626,49 @@ function eaArtApply(k,text){
   return true;
 }
 // 記事のプロンプト：note とブログを1回で出す。出力は「===== note =====」「===== ブログ =====」の2つに分けさせ、ツールが分けて各欄へ入れる
+// 分析動画のデータを、記事の AI に渡す文字に起こす（決算資料の数字・理由・注目点。「2.」の整形済みデータを作らない流れでは、決算資料の内容はここからしか入らない。すみぽん 2026-11-10）
+function eaVizText(){
+  const d=evVizData();if(!d||!d.visualization)return '';
+  const V=d.visualization,A=d.analysis||{},L=[];
+  const nz=s=>s&&s!=='—'&&s!=='-';
+  const kpiLine=k=>`${k.label}：${k.current.display}（前年同期 ${k.previous.display}、${k.change_display}）`;
+  const c=V.company||{};
+  L.push(`■ 対象：${c.name||''}（${c.code||''}）${c.fiscal_period_label||''}${c.accounting_standard?`、${c.accounting_standard}`:''}`);
+  const s=V.summary||{};
+  if(s.headline)L.push(`■ 見出し：${s.headline}${s.verdict?`（${s.verdict}）`:''}`);
+  if((s.kpis||[]).length)L.push('■ 決算ハイライト（累計）',...s.kpis.map(k=>'・'+kpiLine(k)));
+  const q=V.quarter_standalone;
+  if(q&&(q.kpis||[]).length)L.push(`■ ${q.label}${q.verdict?`（${q.verdict}）`:''}`,...q.kpis.map(k=>'・'+kpiLine(k)));
+  const tr=(V.income_statement||{}).table_rows||[];
+  if(tr.length)L.push('■ 損益の内訳',...tr.filter(k=>nz(k.current.display)).map(k=>'・'+kpiLine(k)));
+  if((V.trends||[]).length)L.push('■ 業績推移',...V.trends.map(t=>`・${t.period_label}${t.is_forecast?'（会社予想）':''}：売上高 ${t.revenue_display}、営業利益 ${t.operating_income_display}${nz(t.operating_margin_display)?`（営業利益率 ${t.operating_margin_display}）`:''}${nz(t.net_income_display)?`、純利益 ${t.net_income_display}`:''}`));
+  const fc=V.forecast_compare;
+  if(fc&&(fc.rows||[]).length){
+    L.push(`■ 業績予想${fc.status?`：${fc.status}`:''}（${fc.col1_header} → ${fc.col2_header}）`,...fc.rows.map(r=>`・${r.label}：${r.before_display} → ${r.after_display}${nz(r.rate_display)?`（${r.rate_display}）`:''}${nz(r.progress_display)?`、進捗率 ${r.progress_display}`:''}`));
+    if(fc.dividend)L.push(`・配当：${fc.dividend.before_display} → ${fc.dividend.after_display}`);
+    if(fc.reason)L.push(`・理由：${fc.reason}`);
+  }
+  const bs=V.balance_sheet;
+  if(bs&&nz(bs.total_assets_display)){
+    L.push(`■ 貸借対照表：総資産 ${bs.total_assets_display}（前期末 ${bs.previous_total_assets_display}）、自己資本比率 ${bs.equity_ratio.display}（前期末 ${bs.previous_equity_ratio.display}）`);
+    (bs.blocks||[]).filter(b=>b.emphasize||Math.abs(b.change_pct||0)>=20).forEach(b=>L.push(`・${b.label}：${b.display}（${b.change_display}）${b.note?` ${b.note}`:''}`));
+  }
+  const cf=(V.cash_flow||{}).bars||[];
+  if(cf.length)L.push('■ キャッシュフロー',...cf.filter(b=>nz(b.display)).map(b=>`・${b.label}：${b.display}（前年同期 ${b.previous_display}）`));
+  const sg=V.segments;
+  if(sg&&(sg.items||[]).length)L.push(`■ ${sg.type_label||'セグメント'}`,...sg.items.map(i=>`・${i.name}：売上 ${i.revenue_display}${nz(i.yoy_display)?`（前年比 ${i.yoy_display}）`:''}${nz(i.share_display)?`、構成比 ${i.share_display}`:''}${nz(i.margin_display)?`、利益率 ${i.margin_display}`:''}${i.is_growth_driver?'【牽引】':''}${i.description?` — ${i.description}`:''}`));
+  const sp=V.stock_price;
+  if(sp&&sp.pre&&sp.post)L.push(`■ 株価：${sp.pre.label} ${sp.pre.display} → ${sp.post.label} ${sp.post.display}（${sp.change_display}${sp.stop?`、ストップ${sp.stop==='high'?'高':'安'}`:''}）`);
+  const ai=A.ai_insights||{};
+  const cat=(title,arr)=>{if(!(arr||[]).length)return;L.push(`■ ${title}`,...arr.map(i=>`・${i.title}：${i.description||''}${i.reason?`（${i.reason}）`:''}`));};
+  cat('増減の要因',ai.key_drivers);cat('よかった点',ai.positives);cat('気になる点',ai.negatives);cat('特殊要因',ai.unusual_points);cat('リスク',ai.risks);cat('今後の注目点',ai.next_points_to_watch);
+  if(!(ai.key_drivers||[]).length&&V.highlights){const h=V.highlights;L.push('■ 注目ポイント',...[...(h.good||[]),...(h.watch||[])].map(x=>`・${x.title}：${x.before} → ${x.after}（${x.change}）${x.reason?` ${x.reason}`:''}`));}
+  if((V.ratings||[]).length)L.push('■ 5つの評価',...V.ratings.filter(r=>r.available!==false).map(r=>`・${r.label}：${r.grade}（${r.reason}）`));
+  return L.join('\n');
+}
 function eaArticlePrompt(scenes,only){
-  const report=eaVal('fc-report'),data=eaVal('input-data');
-  if(!report&&!data)throw new Error('「1.」のFCレポート貼付欄か「2.」の整形済みデータを入れてください');
+  const report=eaVal('fc-report'),data=eaVal('input-data'),vizText=eaVizText();
+  if(!report&&!data&&!vizText)throw new Error('「1.」のFCレポート貼付欄か、分析動画のデータ（または「2.」の整形済みデータ）を入れてください');
   const sc=scenes||window._eaScenes||[];
   const frames=sc.map(s=>eaFrameLine(s.title));
   const block=(head,body)=>`【${head}】\n\`\`\`\n${body}\n\`\`\``;
@@ -17636,7 +17676,7 @@ function eaArticlePrompt(scenes,only){
   const outN=[block('タイトル','（記事の題名。1行）'),block('本　文','（Markdown）'),block('ハッシュタグ','#タグ1 #タグ2 #タグ3 #タグ4 #タグ5')].join('\n');
   const outB=outN+'\n'+block('要点','（1行目）\n（2行目）\n（3行目）');
   return `あなたは、決算の内容を個人投資家に分かりやすく伝える書き手です。
-下の【分析レポート】と【整形済みデータ】をもとに、【基本情報】の銘柄の今回の決算について、${wN&&wB?'「noteの無料記事」と「ブログの記事」の2本を書いてください。\n2本は同じ事実・同じ流れでよい。違いは下の【noteだけの決まり】【ブログだけの決まり】のとおり。':wN?'noteの無料記事を書いてください。':'ブログの記事を書いてください。'}
+下の【分析レポート】【決算資料の抽出データ】【整形済みデータ】をもとに、【基本情報】の銘柄の今回の決算について、${wN&&wB?'「noteの無料記事」と「ブログの記事」の2本を書いてください。\n2本は同じ事実・同じ流れでよい。違いは下の【noteだけの決まり】【ブログだけの決まり】のとおり。':wN?'noteの無料記事を書いてください。':'ブログの記事を書いてください。'}
 
 【${wN&&wB?'2本に共通の書き方':'書き方'}】
 ・資料に書かれている事実と数字だけを使う。資料に無い内容を足さない。
@@ -17675,6 +17715,9 @@ ${eaBasicInfo()}
 
 【分析レポート】
 ${report||'（なし）'}
+
+【決算資料の抽出データ】（決算資料から読み取った数字・理由・注目点）
+${vizText||'（なし）'}
 
 【整形済みデータ】
 ${data||'（なし）'}`;
