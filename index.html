@@ -6094,6 +6094,7 @@ async function pasteArtUrl(){
     if(!t){alert('クリップボードが空です');return;}
     document.getElementById('art-url').value=t;
     if(typeof saveState==='function')saveState();
+    if(typeof ndupSoon==='function')ndupSoon();   // 貼った記事がこの PJ 自身の記事なら、同じ銘柄の警告から外れる
   }catch(e){alert('クリップボードへのアクセスが拒否されました。手動で貼り付けてください。');}
 }
 
@@ -6208,9 +6209,13 @@ async function relFetch(btn,silent){
   }finally{ if(btn){btn.disabled=false;btn.textContent=o;} }
 }
 // ---- 株価分析：note に同じ銘柄の記事がもう上がっていないか（すみぽん 2026-11-11）----
-// コードを入れたとき・PJ を開いたときに、note の記事一覧（無料も含めて全部）から同じ銘柄の記事を探し、コード欄の下にタイトルとリンクを出す。
+// コードを入れたとき・PJ を開いたときに、note の有料記事の一覧から同じ銘柄の記事を探し、コード欄の下にタイトルとリンクを出す。
+// 「note記事のURL」欄と同じ記事はこの PJ 自身の記事なので、数えない（URL の後ろの ?shared… などは外して、記事の番号 /n/n… で比べる）。
 // 一覧は30分おぼえておく（🔄 で取り直す）。同じ銘柄＝ハッシュタグかタイトルに証券コードがある／タイトルに銘柄名がある
-const NDUP_CACHE_KEY='kt-note-all',NDUP_CACHE_MIN=30;
+const NDUP_CACHE_KEY='kt-note-paid',NDUP_CACHE_MIN=30;
+try{localStorage.removeItem('kt-note-all');}catch(e){}   // 無料も含めていたころの一覧
+// note の URL から記事の番号（/n/ のあとの n…）を取る。取れなければ ? と # より前
+function ndupKey(u){u=String(u||'').trim();const m=u.match(/\/n\/(n[0-9a-z]+)/i);return m?m[1].toLowerCase():u.replace(/[?#].*$/,'').replace(/\/+$/,'');}
 let _ndupList=null,_ndupAt=0,_ndupBusy=null,_ndupTimer=null;
 function ndupMatch(it,code,name){
   const title=String(it.title||''),c=String(code||'').toLowerCase();
@@ -6226,10 +6231,10 @@ async function ndupLoad(force){
   if(_ndupBusy)return _ndupBusy;
   const id=(relVal('note-id')||'sumikko_money').trim().replace(/^@/,'');
   _ndupBusy=(async()=>{
-    const res=await fetch(`/api/note-articles?urlname=${encodeURIComponent(id)}&days=3650&paid=0`);
+    const res=await fetch(`/api/note-articles?urlname=${encodeURIComponent(id)}&days=3650&paid=1`);
     const d=await res.json();
     if(!res.ok||!d.ok)throw new Error((d&&d.error)||`HTTP ${res.status}`);
-    _ndupList=d.items||[];_ndupAt=Date.now();
+    _ndupList=(d.items||[]).filter(it=>it&&it.price>0);_ndupAt=Date.now();
     try{localStorage.setItem(NDUP_CACHE_KEY,JSON.stringify({at:_ndupAt,items:_ndupList}));}catch(e){}
     return _ndupList;
   })();
@@ -6247,11 +6252,11 @@ async function ndupCheck(force){
   try{list=await ndupLoad(force);}
   catch(e){if(getTicker()===code)show('#f8fafc','#e2e8f0',`<div style="display:flex;gap:6px;align-items:center;"><span style="flex:1;color:var(--text-sub);">note の記事を調べられませんでした（${esc((e&&e.message)||e)}）</span>${redo}</div>`);return;}
   if(getTicker()!==code)return;   // 調べている間にコードが変わった
-  const mine=relVal('art-url').trim();
-  const hit=list.filter(it=>it&&it.url&&ndupMatch(it,code,name)).sort((a,b)=>String(b.publishAt).localeCompare(String(a.publishAt)));
-  if(!hit.length){show('#f0fdf4','#bbf7d0',`<div style="display:flex;gap:6px;align-items:center;"><span style="flex:1;color:#166534;">✅ note にこの銘柄の記事はまだありません（${list.length}本を確認）</span>${redo}</div>`);return;}
-  show('#fffbeb','#fcd34d',`<div style="display:flex;gap:6px;align-items:center;"><b style="flex:1;color:#92400e;">⚠ note にこの銘柄の記事があります（${hit.length}本）</b>${redo}</div>`+
-    hit.map(it=>`<div style="margin-top:2px;"><span style="color:var(--text-sub);">${esc((it.publishAt||'').slice(0,10))}${mine&&it.url===mine?'・この PJ の記事':''}</span> <a href="${esc(it.url)}" target="_blank" rel="noopener" style="color:#1d4ed8;word-break:break-all;">${esc(it.title||it.url)}</a></div>`).join(''));
+  const mine=ndupKey(relVal('art-url'));
+  const all=list.filter(it=>it&&it.url&&ndupMatch(it,code,name)),hit=all.filter(it=>!(mine&&ndupKey(it.url)===mine)).sort((a,b)=>String(b.publishAt).localeCompare(String(a.publishAt)));
+  if(!hit.length){show('#f0fdf4','#bbf7d0',`<div style="display:flex;gap:6px;align-items:center;"><span style="flex:1;color:#166534;">✅ note にこの銘柄の${all.length?'ほかの':''}有料記事は${all.length?'':'まだ'}ありません（${all.length?'この PJ の記事を除く・':''}${list.length}本を確認）</span>${redo}</div>`);return;}
+  show('#fffbeb','#fcd34d',`<div style="display:flex;gap:6px;align-items:center;"><b style="flex:1;color:#92400e;">⚠ note にこの銘柄の有料記事があります（${hit.length}本）</b>${redo}</div>`+
+    hit.map(it=>`<div style="margin-top:2px;"><span style="color:var(--text-sub);">${esc((it.publishAt||'').slice(0,10))}</span> <a href="${esc(it.url)}" target="_blank" rel="noopener" style="color:#1d4ed8;word-break:break-all;">${esc(it.title||it.url)}</a></div>`).join(''));
 }
 // コード・銘柄名を打っている途中は待ち、手が止まってから調べる
 function ndupSoon(){clearTimeout(_ndupTimer);_ndupTimer=setTimeout(()=>{if(window._ktKind==='price'&&!window._ktSwitching)ndupCheck().catch(e=>console.warn('[ndup]',e));},700);}
@@ -15181,7 +15186,7 @@ function ktDocTitle(){
   }catch(e){}
   try{if(typeof ndupSoon==='function')ndupSoon();}catch(e){}   // 株価分析：note に同じ銘柄の記事が無いかも、同じきっかけ（PJ を開く・コードや社名を入れる）で調べる
 }
-document.addEventListener('input',e=>{try{const t=TAB_IO[window._ktKind],id=e.target&&e.target.id;if(t&&id&&(id===t.codeId||id===t.nameId))ktDocTitle();}catch(_){}},true);
+document.addEventListener('input',e=>{try{const t=TAB_IO[window._ktKind],id=e.target&&e.target.id;if(t&&id&&(id===t.codeId||id===t.nameId))ktDocTitle();else if(id==='art-url'&&typeof ndupSoon==='function')ndupSoon();}catch(_){}},true);
 async function ktPjRefresh(){try{await KTStore.refreshRows();}catch(e){}ktPjFill();}
 // ---- 記事タブ：noteに公開した日と、その週の何本目か（メンバーシップの「週1本／週2本」に合わせて公開範囲を変えるため）----
 // 公開日は hidden の art-pub（PJのjson）と、一覧の meta.published（KTStore.setPublished）の両方に持つ。数えるときは一覧の meta を使う（全種類のPJが対象）
