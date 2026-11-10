@@ -1452,21 +1452,19 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
             <div style="font-size:11px;color:var(--text-sub);margin-top:4px;">「📤 出力データ作成」で分析動画のデータも同時に作られます。ここのボタンは作り直し用です。</div>
             <details style="margin-top:6px;">
               <summary style="font-size:11px;color:var(--text-sub);cursor:pointer;" title="「💬 プロンプトをコピー」でプロンプトのコピーと添付ZIP（決算資料）の保存が同時に行われます。ChatGPT に ZIP を添付してプロンプトを貼り、返ってきた JSON を貼り付けます">手動で作る（ChatGPT など。API が混んでいるとき）</summary>
-              <div style="font-size:11px;color:var(--text-sub);margin-top:4px;" title="ChatGPT の答えは、json のコードブロックごとコピーしてください。">ZIP を添付してプロンプトを貼り、答え（json）をコピーして貼り付け。</div>
               <div class="input-row" style="margin-top:4px;">
-                <button class="btn-sm" onclick="evVizCopyPrompt(this)" style="flex:1;min-width:0;background:#475569;color:#fff;">💬 プロンプトをコピー</button>
-                <button class="btn-sm" onclick="evVizPaste()" style="flex:1;min-width:0;">📋 貼り付けて読み込む</button>
+                <button class="btn-sm" onclick="evVizCopyPrompt(this)" style="flex:1;min-width:0;background:#475569;color:#fff;" title="プロンプトをコピーし、添付 ZIP（決算資料）も保存します。ChatGPT に ZIP を添付してプロンプトを貼ってください">💬 プロンプトをコピー</button>
+                <button class="btn-sm" onclick="evVizPaste()" style="flex:1;min-width:0;" title="クリップボードの答え（json）を下の欄に貼ります">📋 貼り付け</button>
               </div>
               <textarea id="ev-viz-paste" placeholder="AI の出力（json のコードブロックのまま）をここに貼り付け" style="font-size:11px;height:60px;min-height:40px;margin-top:4px;font-family:monospace;"></textarea>
-              <div class="input-row" style="margin-top:4px;">
-                <button class="btn-sm" onclick="evVizLoadPasted()" style="flex:1;min-width:0;">✅ 欄の内容で読み込む</button>
-              </div>
-              <div style="font-size:11px;color:var(--text-sub);margin-top:6px;" title="貼った JSON のファクトチェック。「✅ FC」でプロンプトをコピーします。「ZIP も保存」に印があるときは FC 用の添付ZIP（_FC添付.zip。決算資料）も保存します（初回だけ必要。読み込むと印は外れます。別の端末で続けるときは印を付け直してください）。新しいチャットに ZIP を添付してプロンプトを貼る → 指摘が出たら「🔧 修正」で直した全文を出させ、もう一度「📋 貼り付けて読み込む」。「🔍 FC CK」は修正後の検算用。">答えの FC：「✅ FC」でプロンプトをコピー（「ZIP も保存」の印があれば FC 用 ZIP も保存）。新しいチャットに ZIP を添付して貼る。直した全文をもう一度「貼り付けて読み込む」。</div>
               <div class="input-row" style="margin-top:4px;align-items:center;">
-                <button class="btn-prompt" onclick="evVizFcCopy(this)">✅ FC</button>
+                <button class="btn-prompt" onclick="evVizFcCopy(this)" title="貼った JSON のファクトチェック用プロンプトをコピーします。「ZIP も保存」に印があれば FC 用の添付 ZIP（_FC添付.zip）も保存します。新しいチャットに ZIP を添付して貼ってください">✅ FC</button>
                 <label style="font-size:11px;color:var(--text-sub);display:flex;align-items:center;gap:3px;white-space:nowrap;cursor:pointer;" title="FC 用 ZIP は初回だけ保存すればよいので、読み込むと印が外れます。別の端末で続けるときなど、もう一度 ZIP が要るときは印を付けてください"><input type="checkbox" id="ev-viz-fc-zip" checked> ZIP も保存</label>
-                <button class="btn-prompt" onclick="evVizFcVerify(this)">🔍 FC CK</button>
-                <button class="btn-prompt" onclick="evVizFixCopy(this)">🔧 修正</button>
+                <button class="btn-prompt" onclick="evVizFcVerify(this)" title="修正後の検算用。指摘の修正内容が正しいかを確認させる文をコピーします">🔍 FC CK</button>
+                <button class="btn-prompt" onclick="evVizFixCopy(this)" title="指摘を直した JSON を全文出させる文をコピーします。直した全文を欄に貼り直してください">🔧 修正</button>
+              </div>
+              <div class="input-row" style="margin-top:4px;">
+                <button class="btn-sm" onclick="evVizLoadPasted()" style="flex:1;min-width:0;background:#4f46e5;color:#fff;" title="欄の JSON を検証して動画データにします（FC で直した全文を貼り直してから）">✅ 読み込む</button>
               </div>
             </details>
             <div class="input-row" style="margin-top:6px;">
@@ -16601,7 +16599,7 @@ function evVizFixCopy(btn){
 async function evVizPaste(){
   let t;try{t=await navigator.clipboard.readText();}catch(e){alert('クリップボードへのアクセスが拒否されました。欄に手動で貼り付けてください。');return;}
   const ta=document.getElementById('ev-viz-paste');if(ta)ta.value=t;
-  evVizLoadPasted();
+  evVizStatus('欄に貼りました。「✅ FC」でファクトチェックし、直した全文を貼り直してから「✅ 読み込む」を押してください','info');   // 貼るだけ。読み込みは FC のあと（すみぽん 2026-11-10）
 }
 async function evVizLoadPasted(){
   const text=((document.getElementById('ev-viz-paste')||{}).value||'').trim();
