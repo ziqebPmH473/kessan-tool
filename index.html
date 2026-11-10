@@ -9258,10 +9258,12 @@ function evVizThumbText(){
   const revWord=(String((d.GUIDANCE||{}).status||(viz.forecast_compare||{}).status||'').match(/上方修正|下方修正/)||['業績修正'])[0];
   const resultLabel=hd.result_label||(viz.summary||{}).result_label||'';
   const label=rev?`*${revWord}*`:resultLabel?`*${resultLabel}*`:'決算発表';
-  const pct=evVizPct(mr.price_change);let mv='';
+  // 株価の動き：動画データの株価（自動取得から作った変化率・場のラベル・ストップ高安）が先。無ければ「2.」の市場の反応（「2.」を使わない流れで上段が評価ラベルだけになっていた。川重 2026-11-10 すみぽん）
+  const sp=viz.stock_price||null;
+  const pct=sp&&sp.change_pct!=null?sp.change_pct:evVizPct(mr.price_change);let mv='';
   if(pct!=null){
-    const a=Math.abs(pct),venue=String(mr.post_price_label||'').match(/PTS|時間外/i);
-    const stop=(!venue&&/円/.test(String(mr.post_price||''))&&window.KessanViz&&KessanViz.tse)?KessanViz.tse.stopKind(evVizPrice(mr.post_price),evVizPrice(mr.post_price)-evVizPrice(mr.pre_price)):null;   // ストップ高・安（円建て・取引所の値だけ。2026-10-28 すみぽん）
+    const a=Math.abs(pct),venue=String(sp?((sp.post||{}).label||''):(mr.post_price_label||'')).match(/PTS|時間外/i);
+    const stop=sp?(sp.stop||null):((!venue&&/円/.test(String(mr.post_price||''))&&window.KessanViz&&KessanViz.tse)?KessanViz.tse.stopKind(evVizPrice(mr.post_price),evVizPrice(mr.post_price)-evVizPrice(mr.pre_price)):null);   // ストップ高・安（円建て・取引所の値だけ。2026-10-28 すみぽん）
     if(stop)mv='ストップ'+(stop==='high'?'高':'安');
     else if(venue)mv=(a<1?'ほぼ変わらず':a<5?(pct>0?'上昇':'下落'):'大幅'+(pct>0?'高':'安'));   // 小幅は使わない（2026-10-28 すみぽん）
     else if(a<1)mv='株価は横ばい';
