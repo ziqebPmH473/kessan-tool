@@ -1459,7 +1459,7 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
               <textarea id="ev-viz-paste" placeholder="AI の出力（json のコードブロックのまま）をここに貼り付け" style="font-size:11px;height:60px;min-height:40px;margin-top:4px;font-family:monospace;"></textarea>
               <div class="input-row" style="margin-top:4px;align-items:center;">
                 <button class="btn-prompt" onclick="evVizFcCopy(this)" title="貼った JSON のファクトチェック用プロンプトをコピーします。「ZIP も保存」に印があれば FC 用の添付 ZIP（_FC添付.zip）も保存します。新しいチャットに ZIP を添付して貼ってください">✅ FC</button>
-                <label style="font-size:11px;color:var(--text-sub);display:flex;align-items:center;gap:3px;white-space:nowrap;cursor:pointer;" title="FC 用 ZIP は初回だけ保存すればよいので、読み込むと印が外れます。別の端末で続けるときなど、もう一度 ZIP が要るときは印を付けてください"><input type="checkbox" id="ev-viz-fc-zip" checked> ZIP も保存</label>
+                <label style="font-size:11px;color:var(--text-sub);display:flex;align-items:center;gap:3px;white-space:nowrap;cursor:pointer;" title="FC 用 ZIP は初回だけ保存すればよいので、貼り付けると印が外れます。別の端末で続けるときなど、もう一度 ZIP が要るときは印を付けてください"><input type="checkbox" id="ev-viz-fc-zip" checked> ZIP も保存</label>
                 <button class="btn-prompt" onclick="evVizFcVerify(this)" title="修正後の検算用。指摘の修正内容が正しいかを確認させる文をコピーします">🔍 FC CK</button>
                 <button class="btn-prompt" onclick="evVizFixCopy(this)" title="指摘を直した JSON を全文出させる文をコピーします。直した全文を欄に貼り直してください">🔧 修正</button>
               </div>
@@ -16600,6 +16600,7 @@ async function evVizPaste(){
   let t;try{t=await navigator.clipboard.readText();}catch(e){alert('クリップボードへのアクセスが拒否されました。欄に手動で貼り付けてください。');return;}
   const ta=document.getElementById('ev-viz-paste');if(ta)ta.value=t;
   evVizStatus('欄に貼りました。「✅ FC」でファクトチェックし、直した全文を貼り直してから「✅ 読み込む」を押してください','info');   // 貼るだけ。読み込みは FC のあと（すみぽん 2026-11-10）
+  const zipCk=document.getElementById('ev-viz-fc-zip');if(zipCk){zipCk.checked=false;if(typeof saveState==='function')saveState();}   // FC 用 ZIP は初回だけ。貼り付けると印が外れる（決算分析の手動と同じ）
 }
 async function evVizLoadPasted(){
   const text=((document.getElementById('ev-viz-paste')||{}).value||'').trim();
