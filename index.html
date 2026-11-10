@@ -1450,8 +1450,11 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
               </div>
               <textarea id="ev-viz-paste" placeholder="AI の出力（json のコードブロックのまま）をここに貼り付け" style="font-size:11px;height:60px;min-height:40px;margin-top:4px;font-family:monospace;"></textarea>
               <div class="input-row" style="margin-top:4px;">
+                <button class="btn-sm" onclick="evVizFcCopy(this)" style="flex:1;min-width:0;" title="貼った JSON のファクトチェック用プロンプトをコピーします。新しいチャットに同じ決算資料（PDF）を添付して貼ってください。指摘が出たら「🔧 修正」で直した全文を出させ、欄に貼り直して「✅ 検証して読み込む」">✅ FC</button>
+                <button class="btn-sm" onclick="evVizFixCopy(this)" style="flex:1;min-width:0;" title="FC の指摘を直した JSON を全文出させる指示をコピーします">🔧 修正</button>
                 <button class="btn-sm" onclick="evVizLoadPasted()" style="flex:1;min-width:0;background:#4f46e5;color:#fff;">✅ 検証して読み込む</button>
               </div>
+              <div style="font-size:11px;color:var(--text-sub);margin-top:4px;">貼った JSON の FC：「✅ FC」でプロンプトをコピー → 新しいチャットに同じ PDF を添付して貼る → 指摘が出たら「🔧 修正」で直した全文を出させ、貼り直して「✅ 検証して読み込む」。</div>
             </details>
             <div class="input-row" style="margin-top:6px;">
               <button class="btn-sub" onclick="evVizDownload('props')" style="flex:1;font-size:11px;">💾 MP4用データ</button>
@@ -16524,6 +16527,35 @@ async function evVizCopyPrompt(btn){
   const hint=((document.getElementById('p-name')||{}).value||'')+' '+((document.getElementById('p-code')||{}).value||'');
   try{await navigator.clipboard.writeText(KV.prompt({companyHint:hint.trim()}));const t=btn.innerText;btn.innerText='コピーしました';setTimeout(()=>btn.innerText=t,1200);}
   catch(e){alert('クリップボードに書き込めませんでした');}
+}
+// 貼った動画用 JSON のファクトチェック用プロンプト。決算分析タブの手動（earnManualFcCopy）と同じ頼み方で、根拠は同じ決算資料（PDF）。
+// 新しいチャットに PDF を添付して貼る（作ったチャットの先入観を持ち込まない）。すみぽん 2026-11-10
+async function evVizFcCopy(btn){
+  const raw=((document.getElementById('ev-viz-paste')||{}).value||'').trim();
+  if(!raw){alert('AI の答え（JSON）を欄に貼り付けてから押してください');return;}
+  let KV;try{KV=await evVizLoad();}catch(e){alert(e.message);return;}
+  const hint=((document.getElementById('p-name')||{}).value||'')+' '+((document.getElementById('p-code')||{}).value||'');
+  const names=(window._earnFiles||[]).map(f=>f.name).join('、');
+  const prompt=(names?`添付の決算資料（${names}）を、表も含めて全ページ読んでから作業してください。\n\n`:'添付の決算資料を、表も含めて全ページ読んでから作業してください。\n\n')+
+`以下の JSON は、以下の指示でAIが生成したものです。
+JSON のファクトチェックを行い、誤っている箇所と指示に沿っていない箇所のみを指摘してください。
+数値・日付・名称は、添付の決算資料の値と突き合わせて確かめてください。
+指摘は件数が多くても構わないので、すべて指摘してください。
+指摘がある場合には、指摘箇所（JSON のキー）、指摘内容、修正後内容を記載してください。
+不明点や確認点があればすべて調査し、JSON に記載できる形式で修正後内容を提示してください。
+レイアウトや出力形式に関する指摘は不要です。
+
+--指示--
+`+KV.prompt({companyHint:hint.trim()})+`
+
+--JSON--
+`+raw;
+  copyText(prompt,btn);
+  evVizStatus('✅ FC のプロンプトをコピーしました。新しいチャットに同じ決算資料（PDF）を添付して貼ってください','ok');
+}
+// 指摘を直して、もう一度「✅ 検証して読み込む」できる形で JSON を全文出させる
+function evVizFixCopy(btn){
+  copyText('指摘箇所を指示の内容に沿って修正し、JSON を最初と同じ形式（```json のコードブロック1つ）で全文出力してください。\nただし、指摘していない箇所は一切変更しないでください。',btn);
 }
 async function evVizPaste(){
   let t;try{t=await navigator.clipboard.readText();}catch(e){alert('クリップボードへのアクセスが拒否されました。欄に手動で貼り付けてください。');return;}
