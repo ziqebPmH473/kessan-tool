@@ -15117,7 +15117,21 @@ function ktPjFill(){
   if(sel._ktHtml!==h){sel.innerHTML=h;sel._ktHtml=h;}
   if(!window._ktSwitching&&sel.value!==want)sel.value=want;
   try{artPubRender();}catch(e){}
+  ktDocTitle();
 }
+// ブラウザのタブ名：開いている PJ の銘柄（コード＋名前。YT動画・決算まとめはテーマ・タイトル）を先頭に付ける。
+// 例「6965 浜松ホトニクス - マーケット分析 画像ジェネレーター」。何も入っていなければ元の名前だけ（すみぽん 2026-11-10）
+function ktDocTitle(){
+  try{
+    if(window._ktSwitching)return;   // 切り替えの途中は前の PJ の欄が残っているので、終わってから付ける
+    const base=window._ktDocTitle0||(window._ktDocTitle0=document.title);
+    const kind=window._ktKind,t=TAB_IO[kind];let head='';
+    if(t){const f={};[t.codeId,t.nameId,'yt-a-n-title','yt-p-t1'].forEach(id=>{if(id)f[id]=(document.getElementById(id)||{}).value||'';});head=ktTabTitle(kind,f);}
+    const want=head?head+' - '+base:base;
+    if(document.title!==want)document.title=want;
+  }catch(e){}
+}
+document.addEventListener('input',e=>{try{const t=TAB_IO[window._ktKind],id=e.target&&e.target.id;if(t&&id&&(id===t.codeId||id===t.nameId))ktDocTitle();}catch(_){}},true);
 async function ktPjRefresh(){try{await KTStore.refreshRows();}catch(e){}ktPjFill();}
 // ---- 記事タブ：noteに公開した日と、その週の何本目か（メンバーシップの「週1本／週2本」に合わせて公開範囲を変えるため）----
 // 公開日は hidden の art-pub（PJのjson）と、一覧の meta.published（KTStore.setPublished）の両方に持つ。数えるときは一覧の meta を使う（全種類のPJが対象）
