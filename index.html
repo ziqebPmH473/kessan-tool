@@ -9238,9 +9238,12 @@ function evThumbText(){
 // PTS（米国株は時間外）は値がその時々で変わるので、台本と同じく数字を書かずに「大幅高」などで言う（±1%未満＝ほぼ変わらず、±5%未満＝上昇／下落、それ以上＝大幅高／安）。「PTS」の字は入れない（2026-10-15 すみぽん）
 function evVizThumbText(){
   const d=evData()||{};const hd=d.HEADER||{},mr=d.MARKET_REACTION||{};
-  const rev=(evVizData()||{visualization:{}}).visualization.disclosure_kind==='revision';   // 業績修正だけの開示
-  const revWord=(String((d.GUIDANCE||{}).status||'').match(/上方修正|下方修正/)||['業績修正'])[0];
-  const label=rev?`*${revWord}*`:hd.result_label?`*${hd.result_label}*`:'決算発表';
+  const viz=(evVizData()||{visualization:{}}).visualization||{};
+  const rev=viz.disclosure_kind==='revision';   // 業績修正だけの開示
+  // 修正の種類と今期の評価ラベルは、「2.」の欄にあればそれ、無ければ動画データ（AI の forecast.revision・result_label。2026-11-10 すみぽん）
+  const revWord=(String((d.GUIDANCE||{}).status||(viz.forecast_compare||{}).status||'').match(/上方修正|下方修正/)||['業績修正'])[0];
+  const resultLabel=hd.result_label||(viz.summary||{}).result_label||'';
+  const label=rev?`*${revWord}*`:resultLabel?`*${resultLabel}*`:'決算発表';
   const pct=evVizPct(mr.price_change);let mv='';
   if(pct!=null){
     const a=Math.abs(pct),venue=String(mr.post_price_label||'').match(/PTS|時間外/i);
@@ -9286,7 +9289,7 @@ function earnPrevMode(m){
   if(m==='viz'){
     evVizMount();evThSwitch(evThOrientKind());
     // 開いたときに整形データから入れ直す（手で直した文は evThAutoFill が残す。文がまだ無い PJ もここで入る）
-    if(evData()){evThAutoFill();evThApply();}
+    if(evData()||evVizData()){evThAutoFill();evThApply();}   // 「2.」が無くても、動画データの評価ラベルから入れる（2026-11-10）
   }
 }
 
@@ -16417,6 +16420,7 @@ async function evVizEditRefresh(){
   const hl=(d.visualization&&d.visualization.highlights)||null;
   let fr=null;try{fr=(evVizExtras()||{}).forecast_revision||null;}catch(e){}
   if(!fr&&d.analysis.forecast_revision)fr=d.analysis.forecast_revision;   // 「2.」に無く、抽出データに入っているとき（手で読み込んだデータなど）
+  if(!fr&&KV.forecastRevision){try{fr=KV.forecastRevision(d.analysis);}catch(e){}}   // どちらにも無ければ AI の forecast（修正前・修正状況）から作る（2026-11-10 すみぽん）
   const props={analysis:d.analysis,highlightTitles:hl?{good:(hl.good||[]).map(x=>x.title),watch:(hl.watch||[]).map(x=>x.title)}:null,forecastRevision:fr,onChange:evVizEditApply};
   if(_evEditHandle){_evEditHandle.update(props);}else{host.innerHTML='';_evEditHandle=KV.mountEdit(host,props);}
 }
@@ -16559,22 +16563,25 @@ function evVizOku(str){
 function evVizPct(str){if(!str)return null;const m=String(str).replace(/[，,]/g,'').match(/-?[\d.]+/);if(!m)return null;const v=parseFloat(m[0]);return isFinite(v)?v:null;}
 function evVizPrice(str){if(!str)return null;const m=String(str).replace(/[，,]/g,'').match(/[\d.]+/);if(!m)return null;const v=parseFloat(m[0]);return isFinite(v)?v:null;}
 function evVizExtras(){
-  const d=evData();if(!d)return {};
+  const d=evData()||{};   // 決算分析タブの「2.」の欄（スライド用データ）。無くても動画は作れる（2026-11-10 すみぽん）
   const out={};
-  // 株価：CHART_DATA（YYYY-MM-DD,始値,高値,安値,終値,出来高;）
-  // 「2.」に無いとき（ChatGPT の答えで [CHART_DATA] ごと抜けたとき。自動取得は欄が無いと埋められない）は、1枚画像と同じく自動取得の株価を使う
+  // 株価：株探の自動取得の値（_earnFetched）をそのまま使う。「2.」の株価データは AI が自動取得の値を写したものなので、見るのは自動取得が無いときだけ
+  //   （以前は「2.」が先だった。1枚画像の流れの上に分析動画を載せた経緯によるもの。2026-11-10 すみぽん）
   const ef=window._earnFetched,efd=ef&&(ef.d||ef);
-  const raw=(((d.CHART_DATA||{}).data||'').trim().split(';').filter(r=>/^\d{4}-\d{2}-\d{2},/.test(r.trim())).length>=2?((d.CHART_DATA||{}).data||''):((efd&&efd.chartData)||'')).trim();
+  const chartOk=s=>String(s||'').trim().split(';').filter(r=>/^\d{4}-\d{2}-\d{2},/.test(r.trim())).length>=2;
+  const raw=String(chartOk(efd&&efd.chartData)?efd.chartData:((d.CHART_DATA||{}).data||'')).trim();
   if(raw){
     const prices=[];
     for(const row of raw.split(';')){const c=row.split(',').map(x=>x.trim());if(c.length<5||!/^\d{4}-\d{2}-\d{2}$/.test(c[0]))continue;const close=parseFloat(c[4]);if(!isFinite(close))continue;prices.push({date:c[0],open:parseFloat(c[1])||null,high:parseFloat(c[2])||null,low:parseFloat(c[3])||null,close,volume:parseFloat(c[5])||null});}
     if(prices.length>=2){
-      // 「2.」の欄に無い値（ChatGPT の答えで抜けたとき）は、自動取得の値と決算発表日の欄で補う
-      const ff=(typeof earnFetchedFields==='function'&&earnFetchedFields())||{};const mr={...(ff.MARKET_REACTION||{})};
+      // 決算前後の株価・変化率：自動取得の値が先。無い項目だけ「2.」の市場の反応で補う
+      const ff=(typeof earnFetchedFields==='function'&&earnFetchedFields())||{};const mr={};
       for(const [k,v] of Object.entries(d.MARKET_REACTION||{}))if(v&&v!=='-'&&v!=='---')mr[k]=v;
+      for(const [k,v] of Object.entries(ff.MARKET_REACTION||{}))if(v)mr[k]=v;
       const h=d.HEADER||{};
       const market=getMarket()==='us'?'us':'jp';
-      let ann=null;const ad=String((h.announcement_date&&h.announcement_date!=='-'&&h.announcement_date!=='---')?h.announcement_date:((document.getElementById('p-date')||{}).value||''));const m1=ad.match(/(\d{4})[\/年.-](\d{1,2})[\/月.-](\d{1,2})/);if(m1)ann=m1[1]+'-'+m1[2].padStart(2,'0')+'-'+m1[3].padStart(2,'0');
+      // 発表日：基本情報の「発表日」の欄が先。無ければ「2.」の announcement_date
+      let ann=null;const ad=String(((document.getElementById('p-date')||{}).value||'')||((h.announcement_date&&h.announcement_date!=='-'&&h.announcement_date!=='---')?h.announcement_date:''));const m1=ad.match(/(\d{4})[\/年.-](\d{1,2})[\/月.-](\d{1,2})/);if(m1)ann=m1[1]+'-'+m1[2].padStart(2,'0')+'-'+m1[3].padStart(2,'0');
       const pre=evVizPrice(mr.pre_price),post=evVizPrice(mr.post_price);
       out.market={prices,announcement_date:ann,pre_price:pre!=null?{label:mr.pre_price_label||'決算前',value:pre}:null,post_price:post!=null?{label:mr.post_price_label||'決算後',value:post}:null,price_change_pct:evVizPct(mr.price_change),price_unit:market==='us'?'ドル':'円'};
     }
