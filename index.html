@@ -1337,6 +1337,9 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
             </div>
             <div id="gem-earn-drop" style="margin-top:4px; padding:10px; border:1px dashed var(--border); border-radius:6px; text-align:center; font-size:11px; color:var(--text-sub);">＋ ここにドラッグ＆ドロップで追加（1ファイルずつ複数回でも可）</div>
             <div id="gem-earn-filelist" style="margin-top:4px; display:flex; flex-wrap:wrap; gap:4px;"></div>
+            <!-- 1枚画像のデータ作成。分析動画だけ使う流れになったので閉じておく（開けば今までどおり使える。すみぽん 2026-11-10） -->
+            <details style="margin-top:6px;">
+            <summary style="font-size:11px; color:var(--text-sub); cursor:pointer;" title="1枚画像用の「2.」の出力データを作るところ（チャート期間・モデル・出力データ作成・手動・notebookLM用）。分析動画だけ作るときは使いません">1枚画像のデータ作成（チャート期間・出力データ作成・手動・notebookLM用）</summary>
             <div class="input-row" style="margin-top: 6px; gap:4px; align-items:center;">
                 <label style="font-size:11px; color:var(--text-sub); flex:none;">チャート期間</label>
                 <input type="number" id="gem-earn-months" min="1" value="6" placeholder="全期間" oninput="if((document.getElementById('input-data').value||'').trim())renderImage()" style="width:60px; flex:none; font-size:11px; padding:4px;">
@@ -1391,9 +1394,13 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
                     <button class="btn-prompt" onclick="copyNotebookLM(this)" style="flex:1;">📓 NotebookLM</button>
                 </div>
             </details>
+            </details>
         </div>
 
         <div class="tool-section">
+            <!-- 1枚画像用。分析動画だけ使う流れになったので閉じておく（開けば今までどおり使える。すみぽん 2026-11-10） -->
+            <details>
+            <summary style="font-size:11px; color:var(--text-sub); cursor:pointer;" title="1枚画像用の「2.」の出力データを貼る欄と、画像の保存。分析動画だけ作るときは使いません">2. データ入力 ＆ 画像生成（1枚画像用）</summary>
             <div class="section-heading" style="display: flex; justify-content: space-between; border-bottom: none; padding-bottom: 0; align-items:center;">
                 <span style="border-bottom: 2px solid var(--accent); padding-bottom: 4px;">2. データ入力 ＆ 画像生成</span>
                 <span style="display:flex; gap:4px; flex:none;">
@@ -1413,6 +1420,7 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
                 <p style="font-size:12px; color:var(--negative); font-weight:bold; margin-top:0;">※保存ダイアログが出ない場合は、下の画像を右クリック（スマホは長押し）して保存してください👇</p>
                 <img id="mobile-preview-img" src="" alt="生成画像プレビュー">
             </div>
+            </details>
         </div>
         </div><!-- /earn-tab-main -->
         <div id="earn-tab-video" class="sa" style="display:none;flex-direction:column;gap:6px;"></div>
@@ -1443,18 +1451,23 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
             <div id="ev-viz-status" style="display:none;font-size:11px;margin-top:3px;"></div>
             <div style="font-size:11px;color:var(--text-sub);margin-top:4px;">「📤 出力データ作成」で分析動画のデータも同時に作られます。ここのボタンは作り直し用です。</div>
             <details style="margin-top:6px;">
-              <summary style="font-size:11px;color:var(--text-sub);cursor:pointer;" title="プロンプトを ChatGPT などに PDF と一緒に貼り、返ってきた JSON を貼り付けます">手動で作る（ChatGPT など。API が混んでいるとき）</summary>
+              <summary style="font-size:11px;color:var(--text-sub);cursor:pointer;" title="「💬 プロンプトをコピー」でプロンプトのコピーと添付ZIP（決算資料）の保存が同時に行われます。ChatGPT に ZIP を添付してプロンプトを貼り、返ってきた JSON を貼り付けます">手動で作る（ChatGPT など。API が混んでいるとき）</summary>
+              <div style="font-size:11px;color:var(--text-sub);margin-top:4px;" title="ChatGPT の答えは、json のコードブロックごとコピーしてください。">ZIP を添付してプロンプトを貼り、答え（json）をコピーして貼り付け。</div>
               <div class="input-row" style="margin-top:4px;">
-                <button class="btn-sm" onclick="evVizCopyPrompt(this)" style="flex:1;min-width:0;">📋 プロンプトをコピー</button>
-                <button class="btn-sm" onclick="evVizPaste()" style="flex:1;min-width:0;">📋 結果を貼り付け</button>
+                <button class="btn-sm" onclick="evVizCopyPrompt(this)" style="flex:1;min-width:0;background:#475569;color:#fff;">💬 プロンプトをコピー</button>
+                <button class="btn-sm" onclick="evVizPaste()" style="flex:1;min-width:0;">📋 貼り付けて読み込む</button>
               </div>
               <textarea id="ev-viz-paste" placeholder="AI の出力（json のコードブロックのまま）をここに貼り付け" style="font-size:11px;height:60px;min-height:40px;margin-top:4px;font-family:monospace;"></textarea>
               <div class="input-row" style="margin-top:4px;">
-                <button class="btn-sm" onclick="evVizFcCopy(this)" style="flex:1;min-width:0;" title="貼った JSON のファクトチェック用プロンプトをコピーします。新しいチャットに同じ決算資料（PDF）を添付して貼ってください。指摘が出たら「🔧 修正」で直した全文を出させ、欄に貼り直して「✅ 検証して読み込む」">✅ FC</button>
-                <button class="btn-sm" onclick="evVizFixCopy(this)" style="flex:1;min-width:0;" title="FC の指摘を直した JSON を全文出させる指示をコピーします">🔧 修正</button>
-                <button class="btn-sm" onclick="evVizLoadPasted()" style="flex:1;min-width:0;background:#4f46e5;color:#fff;">✅ 検証して読み込む</button>
+                <button class="btn-sm" onclick="evVizLoadPasted()" style="flex:1;min-width:0;">✅ 欄の内容で読み込む</button>
               </div>
-              <div style="font-size:11px;color:var(--text-sub);margin-top:4px;">貼った JSON の FC：「✅ FC」でプロンプトをコピー → 新しいチャットに同じ PDF を添付して貼る → 指摘が出たら「🔧 修正」で直した全文を出させ、貼り直して「✅ 検証して読み込む」。</div>
+              <div style="font-size:11px;color:var(--text-sub);margin-top:6px;" title="貼った JSON のファクトチェック。「✅ FC」でプロンプトをコピーします。「ZIP も保存」に印があるときは FC 用の添付ZIP（_FC添付.zip。決算資料）も保存します（初回だけ必要。読み込むと印は外れます。別の端末で続けるときは印を付け直してください）。新しいチャットに ZIP を添付してプロンプトを貼る → 指摘が出たら「🔧 修正」で直した全文を出させ、もう一度「📋 貼り付けて読み込む」。「🔍 FC CK」は修正後の検算用。">答えの FC：「✅ FC」でプロンプトをコピー（「ZIP も保存」の印があれば FC 用 ZIP も保存）。新しいチャットに ZIP を添付して貼る。直した全文をもう一度「貼り付けて読み込む」。</div>
+              <div class="input-row" style="margin-top:4px;align-items:center;">
+                <button class="btn-prompt" onclick="evVizFcCopy(this)">✅ FC</button>
+                <label style="font-size:11px;color:var(--text-sub);display:flex;align-items:center;gap:3px;white-space:nowrap;cursor:pointer;" title="FC 用 ZIP は初回だけ保存すればよいので、読み込むと印が外れます。別の端末で続けるときなど、もう一度 ZIP が要るときは印を付けてください"><input type="checkbox" id="ev-viz-fc-zip" checked> ZIP も保存</label>
+                <button class="btn-prompt" onclick="evVizFcVerify(this)">🔍 FC CK</button>
+                <button class="btn-prompt" onclick="evVizFixCopy(this)">🔧 修正</button>
+              </div>
             </details>
             <div class="input-row" style="margin-top:6px;">
               <button class="btn-sub" onclick="evVizDownload('props')" style="flex:1;font-size:11px;">💾 MP4用データ</button>
@@ -16522,11 +16535,33 @@ function evVizCommit(KV,parsed,source){
   if(window._earnTab==='viz')earnPrevMode('viz');
   return true;
 }
+// ---- 分析動画の手動（ChatGPT など）。決算分析タブの手動（earnManual*）と同じ作り：プロンプトのコピーと添付 ZIP（決算資料）の保存を同時に行う。すみぽん 2026-11-10 ----
+// ZIP の中身の説明（作るときも、答えのファクトチェックのときも同じ）
+function evVizZipHeader(){
+  const names=(window._earnFiles||[]).map(f=>f.name).join('、');
+  return `添付のZIPを展開し、中のファイルをすべて読んでから作業してください。PDFは表も含めて全ページ読んでください。\n・${names}：決算資料\n\n`;
+}
+// 添付 ZIP（決算資料だけ）を保存。suffix でファイル名を分ける
+async function evVizZipSave(suffix,okMsg){
+  const files=window._earnFiles||[];
+  if(!files.length){alert('決算資料（PDF）がありません。「📊 決算分析」タブの「決算資料」に添付してください。');return false;}
+  try{
+    const zip=new JSZip();const used=new Set();
+    files.forEach((f,i)=>{let n=f.name||`決算資料${i+1}.pdf`;if(used.has(n))n=`${i+1}_${n}`;used.add(n);zip.file(n,f.data,{base64:true});});
+    const blob=await zip.generateAsync({type:'blob'});
+    const code=((document.getElementById('p-code')||{}).value||'').trim(),name=((document.getElementById('p-name')||{}).value||'').trim();
+    const base=[code,name].filter(Boolean).join('_').replace(/[\/:*?"<>|]/g,'')||'決算';
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${base}_分析動画_${suffix}.zip`;
+    document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+    evVizStatus(okMsg,'ok');return true;
+  }catch(e){evVizStatus('ZIPを作れませんでした: '+((e&&e.message)||e),'error');return false;}
+}
 async function evVizCopyPrompt(btn){
+  if(!(window._earnFiles||[]).length){alert('決算資料（PDF）がありません。「📊 決算分析」タブの「決算資料」に添付してください。');return;}
   let KV;try{KV=await evVizLoad();}catch(e){alert(e.message);return;}
   const hint=((document.getElementById('p-name')||{}).value||'')+' '+((document.getElementById('p-code')||{}).value||'');
-  try{await navigator.clipboard.writeText(KV.prompt({companyHint:hint.trim()}));const t=btn.innerText;btn.innerText='コピーしました';setTimeout(()=>btn.innerText=t,1200);}
-  catch(e){alert('クリップボードに書き込めませんでした');}
+  copyText(evVizZipHeader()+KV.prompt({companyHint:hint.trim()}),btn);
+  await evVizZipSave('ChatGPT添付','✅ プロンプトをコピーし、添付ZIPを保存しました。ChatGPTにZIPを添付してプロンプトを貼ってください');
 }
 // 貼った動画用 JSON のファクトチェック用プロンプト。決算分析タブの手動（earnManualFcCopy）と同じ頼み方で、根拠は同じ決算資料（PDF）。
 // 新しいチャットに PDF を添付して貼る（作ったチャットの先入観を持ち込まない）。すみぽん 2026-11-10
@@ -16535,8 +16570,7 @@ async function evVizFcCopy(btn){
   if(!raw){alert('AI の答え（JSON）を欄に貼り付けてから押してください');return;}
   let KV;try{KV=await evVizLoad();}catch(e){alert(e.message);return;}
   const hint=((document.getElementById('p-name')||{}).value||'')+' '+((document.getElementById('p-code')||{}).value||'');
-  const names=(window._earnFiles||[]).map(f=>f.name).join('、');
-  const prompt=(names?`添付の決算資料（${names}）を、表も含めて全ページ読んでから作業してください。\n\n`:'添付の決算資料を、表も含めて全ページ読んでから作業してください。\n\n')+
+  const prompt=evVizZipHeader()+
 `以下の JSON は、以下の指示でAIが生成したものです。
 JSON のファクトチェックを行い、誤っている箇所と指示に沿っていない箇所のみを指摘してください。
 数値・日付・名称は、添付の決算資料の値と突き合わせて確かめてください。
@@ -16551,7 +16585,14 @@ JSON のファクトチェックを行い、誤っている箇所と指示に沿
 --JSON--
 `+raw;
   copyText(prompt,btn);
-  evVizStatus('✅ FC のプロンプトをコピーしました。新しいチャットに同じ決算資料（PDF）を添付して貼ってください','ok');
+  // ZIP は初回だけ要る（指摘を直して貼り直したあとの 2 回目以降は、前に保存した ZIP をそのまま添付する）。「ZIP も保存」の印で決める（決算分析の手動と同じ）
+  const zipCk=document.getElementById('ev-viz-fc-zip');
+  if(!zipCk||zipCk.checked)await evVizZipSave('FC添付','✅ FC のプロンプトをコピーし、FC 用の添付ZIPを保存しました。新しいチャットにZIPを添付してプロンプトを貼ってください');
+  else evVizStatus('✅ FC のプロンプトをコピーしました（ZIP は保存していません。前に保存した _FC添付.zip を添付してください）','ok');
+}
+// FC CK：修正後の検算用（指摘の修正内容が正しいかを確認させる。決算分析の copyFactCheckVerify と同じ文で、「レポート」を「JSON」に）
+function evVizFcVerify(btn){
+  copyText('指摘箇所、指摘内容から指摘箇所の修正を行うことが妥当か、修正後内容が正しいか確認してください。\n正しくない場合には、不明点や確認点があればすべて調査し、JSON に記載できる形式で修正後内容を提示してください。\n結果はそのまま読むので、コードブロックには入れないでください。引用・出典・脚注も付けないでください。',btn);
 }
 // 指摘を直して、もう一度「✅ 検証して読み込む」できる形で JSON を全文出させる
 function evVizFixCopy(btn){
@@ -16569,6 +16610,7 @@ async function evVizLoadPasted(){
   const parsed=KV.parse(text);
   if(!parsed.ok){evVizStatus('形式エラー '+parsed.errors.length+'件: '+parsed.errors.slice(0,4).map(e=>e.path+' '+e.message).join(' / '),'error');return;}
   evVizCommit(KV,parsed,'paste');
+  const zipCk=document.getElementById('ev-viz-fc-zip');if(zipCk){zipCk.checked=false;if(typeof saveState==='function')saveState();}   // FC 用 ZIP は初回だけ（決算分析の手動と同じ）
 }
 function evVizClear(){if(!evVizData())return;if(!confirm('分析動画のデータを消しますか？'))return;evVizStore(null);const st=document.getElementById('ev-viz-settings');if(st)st.value='';evVizStatus('消しました','info');}
 function evVizDownload(kind){
