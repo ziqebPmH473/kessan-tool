@@ -1803,47 +1803,48 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
             <textarea id="dg-ids" style="display:none;"></textarea>
             <textarea id="dg-settings" style="display:none;"></textarea>
           </div>
-          <!-- SNS：書き出し（部品が #dg-export に描く。縦・横のボタン）→ 概要欄・タイトル案 → X の投稿文 → インスタ・TikTok の紹介文 -->
+          <!-- SNS：書き出し（部品が #dg-export に描く。縦・横のボタン）→ インスタ・TikTok の紹介文 → YouTube（概要欄・タイトル案）→ YouTube の URL → X の投稿文（並びは すみぽん 2026-11-12） -->
           <div class="tool-section" id="dg-pane-sns" style="display:none;">
             <div class="section-heading">SNS（書き出し・概要欄・投稿文）</div>
-            <div style="font-size:11px;font-weight:700;">動画の書き出し</div>
-            <div id="dg-export"></div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <span style="font-size:11px;font-weight:700;flex:none;">動画の書き出し</span>
+              <div id="dg-export" style="flex:1;min-width:0;"></div>
+            </div>
             <!-- 概要欄（説明 → note → 目次 → 定型文 → 注意 → タグ）。区切りの秒数は部品から -->
             <div id="dg-descbox" style="margin-top:10px;">
-              <div style="font-size:11px;font-weight:700;" title="YouTube の概要欄に貼る文。目次の開始時間は動画の長さから自動で入ります">📝 概要欄（YouTube。目次の時間は自動）</div>
-              <div style="font-size:10px;color:var(--text-sub);margin-top:4px;">note の URL と「最後の文」の初期値は ⚙ 設定 › 決算まとめ</div>
+              <!-- 縦版（インスタ・TikTok）の紹介文。URL は入れず「プロフィールのリンクから」。開始時間は縦の動画の長さ（すみぽん 2026-11-08） -->
+              <div style="font-size:11px;font-weight:700;" title="縦版（TikTok・インスタ）の投稿に貼る文。URL は入れず、ブログ・note はプロフィールのリンクに案内します。開始時間は縦の動画の長さから自動で入ります">📱 紹介文（インスタ・TikTok）</div>
+              <div class="input-row" style="margin-top:4px;">
+                <button class="btn-sm" onclick="dgSnsRender(true)" style="flex:1;min-width:0;" title="いまの銘柄・時間で紹介文を作り直します（手で直した文は消えます）">🔄 作り直す</button>
+                <button class="btn-sm" onclick="dgCopy('dg-sns',this)" style="flex:1;min-width:0;background:#16a34a;color:#fff;">📋 コピー</button>
+              </div>
+              <textarea id="dg-sns" style="font-size:11px;height:100px;min-height:60px;margin-top:4px;line-height:1.5;"></textarea>
+              <div style="font-size:11px;font-weight:700;margin-top:10px;" title="YouTube の概要欄に貼る文。目次の開始時間は動画の長さから自動で入ります。note の URL と「最後の文」の初期値は ⚙ 設定 › 決算まとめ">📝 概要欄（YouTube。目次の時間は自動）</div>
               <div class="input-row" style="margin-top:4px;">
                 <button class="btn-sm" onclick="dgDescRender(true)" style="flex:1;min-width:0;" title="いまの銘柄・時間で概要欄を作り直します（手で直した文は消えます）">🔄 作り直す</button>
                 <button class="btn-sm" onclick="dgCopy('dg-desc',this)" style="flex:1;min-width:0;background:#16a34a;color:#fff;">📋 コピー</button>
               </div>
-              <textarea id="dg-desc" style="font-size:11px;height:220px;min-height:80px;margin-top:4px;line-height:1.5;"></textarea>
+              <textarea id="dg-desc" style="font-size:11px;height:100px;min-height:60px;margin-top:4px;line-height:1.5;"></textarea>
               <div class="input-row" style="margin-top:4px;gap:4px;align-items:center;">
                 <label style="font-size:11px;color:var(--text-sub);flex:none;">タイトル案</label>
                 <input type="text" id="dg-yt-title" style="flex:1;min-width:0;font-size:11px;">
                 <button class="btn-sm" onclick="dgCopy('dg-yt-title',this)" style="flex:none;" title="コピー">📋</button>
               </div>
               <!-- X 用の投稿文（すみぽん 2026-11-12）。インスタの紹介文を短くした形：1行目（日付・銘柄数）→ 説明 → タグ → YouTube の URL。URL は下の欄（入れると最後の行に入る） -->
-              <div style="display:flex;align-items:center;gap:6px;margin-top:10px;">
-                <span style="font-size:11px;font-weight:700;" title="X に貼る文。日付・銘柄数・タグは選んだ銘柄から自動で入ります。最後の行は下の「YouTubeのURL」">🐦 投稿文（X）</span>
-                <span id="dg-x-count" style="font-size:10px;color:var(--text-sub);" title="X の数え方（全角は2・半角は1・URL は23。280 まで）"></span>
-              </div>
-              <div class="input-row" style="margin-top:4px;gap:4px;align-items:center;">
+              <div class="input-row" style="margin-top:10px;gap:4px;align-items:center;">
                 <label style="font-size:11px;color:var(--text-sub);flex:none;">YouTubeのURL</label>
                 <input type="text" id="dg-yt-url" placeholder="YouTube に上げたあとの URL（投稿文の最後の行に入ります）" oninput="dgXRender(false)" style="flex:1;min-width:0;font-size:11px;">
                 <button class="btn-sm" onclick="eaPaste('dg-yt-url',()=>{dgTouch();dgXRender(false);})" style="flex:none;">📋 貼付</button>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;margin-top:10px;">
+                <span style="font-size:11px;font-weight:700;" title="X に貼る文。日付・銘柄数・タグは選んだ銘柄から自動で入ります。最後の行は下の「YouTubeのURL」">🐦 投稿文（X）</span>
+                <span id="dg-x-count" style="font-size:10px;color:var(--text-sub);" title="X の数え方（全角は2・半角は1・URL は23。280 まで）"></span>
               </div>
               <div class="input-row" style="margin-top:4px;">
                 <button class="btn-sm" onclick="dgXRender(true)" style="flex:1;min-width:0;" title="いまの銘柄・URL で投稿文を作り直します（手で直した文は消えます）">🔄 作り直す</button>
                 <button class="btn-sm" onclick="dgCopy('dg-x',this)" style="flex:1;min-width:0;background:#16a34a;color:#fff;">📋 コピー</button>
               </div>
-              <textarea id="dg-x" oninput="dgXCount()" style="font-size:11px;height:110px;min-height:60px;margin-top:4px;line-height:1.5;"></textarea>
-              <!-- 縦版（インスタ・TikTok）の紹介文。URL は入れず「プロフィールのリンクから」。開始時間は縦の動画の長さ（すみぽん 2026-11-08） -->
-              <div style="font-size:11px;font-weight:700;margin-top:10px;" title="縦版（TikTok・インスタ）の投稿に貼る文。URL は入れず、ブログ・note はプロフィールのリンクに案内します。開始時間は縦の動画の長さから自動で入ります">📱 紹介文（インスタ・TikTok）</div>
-              <div class="input-row" style="margin-top:4px;">
-                <button class="btn-sm" onclick="dgSnsRender(true)" style="flex:1;min-width:0;" title="いまの銘柄・時間で紹介文を作り直します（手で直した文は消えます）">🔄 作り直す</button>
-                <button class="btn-sm" onclick="dgCopy('dg-sns',this)" style="flex:1;min-width:0;background:#16a34a;color:#fff;">📋 コピー</button>
-              </div>
-              <textarea id="dg-sns" style="font-size:11px;height:200px;min-height:80px;margin-top:4px;line-height:1.5;"></textarea>
+              <textarea id="dg-x" oninput="dgXCount()" style="font-size:11px;height:72px;min-height:50px;margin-top:4px;line-height:1.5;"></textarea>
             </div>
           </div>
         </div>
@@ -17134,6 +17135,7 @@ function evVizTrim(pcm,rate,qz,from,to){
   const s=Math.max(from,a*win-Math.round(rate*EV_CUT_HEAD)),e=Math.min(to,(b+1)*win+Math.round(rate*EV_CUT_TAIL));
   return pcm.subarray(s,e);
 }
+let _evCutOpen=false;   // 「音声の切れ目」は閉じておく（ずっと開いておく必要がない。すみぽん 2026-11-12）。開いたら、描き直しても開いたまま
 let _evCut=null,_evCutTimer=null,_evCutAudio=null;   // _evCut = {full:{pcm,rate,blob,url}, ids, texts, cuts:[秒], orig:[秒]}
 function evVizCutRenderSoon(){clearTimeout(_evCutTimer);_evCutTimer=setTimeout(()=>evVizCutLoad().catch(e=>console.warn('viz cut',e)),600);}
 // 元の1本と、それがどのシーンの台本か（保存した音声の文と照らし合わせる）を読み、今の切れ目を求める
@@ -17176,8 +17178,8 @@ function evVizCutDraw(){
   const c=_evCut,changed=c.cuts.some((x,i)=>Math.abs(x-c.orig[i])>1e-6);
   const B=(label,on,tip)=>`<button class="btn-sm" onclick="${on}" title="${tip||''}" style="flex:none;min-width:0;padding:2px 6px;font-size:11px;">${label}</button>`;
   box.style.display='block';
-  box.innerHTML=`<div style="font-weight:700;margin-bottom:2px;">🎚 音声の切れ目</div>
-  <div style="color:var(--text-sub);margin-bottom:4px;">読み上げは作り直さずに、元の1本の音声を切り直します（読み上げの回数は使いません）。▶で切れ目の前後を聞いて、ずらしてください。</div>
+  box.innerHTML=`<details ${_evCutOpen?'open':''} ontoggle="_evCutOpen=this.open"><summary style="font-weight:700;cursor:pointer;" title="読み上げを作り直さずに、シーンの切れ目だけをずらせます">🎚 音声の切れ目</summary>
+  <div style="color:var(--text-sub);margin:4px 0;">読み上げは作り直さずに、元の1本の音声を切り直します（読み上げの回数は使いません）。▶で切れ目の前後を聞いて、ずらしてください。</div>
   ${c.cuts.map((t,i)=>`<div style="display:flex;align-items:center;gap:3px;margin-top:3px;flex-wrap:wrap;">
     <span style="flex:1;min-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(c.texts[i])}｜${esc(c.texts[i+1])}">${esc(name(c.ids[i]))} ｜ ${esc(name(c.ids[i+1]))}</span>
     <span style="font-variant-numeric:tabular-nums;min-width:44px;text-align:right;${Math.abs(t-c.orig[i])>1e-6?'color:#d97706;font-weight:700;':''}">${t.toFixed(2)}秒</span>
@@ -17187,7 +17189,7 @@ function evVizCutDraw(){
   <div style="display:flex;gap:4px;margin-top:6px;">
     <button class="btn-sm" onclick="evVizCutApply(this)" ${changed?'':'disabled'} style="flex:1;min-width:0;background:#4f46e5;color:#fff;">✂ この切れ目で切り直す</button>
     <button class="btn-sm" onclick="_evCut.cuts=_evCut.orig.slice();evVizCutDraw();" ${changed?'':'disabled'} style="flex:none;min-width:0;">元に戻す</button>
-  </div>`;
+  </div></details>`;
 }
 function evVizCutMove(i,d){
   const c=_evCut;if(!c)return;
@@ -17518,8 +17520,8 @@ async function dgDescRender(force){
   dgSnsRender(force,{KV,settings,items,jp});
   dgXRender(force,{items,jp});
 }
-// X 用の投稿文（すみぽんの文案 2026-11-12）。インスタの紹介文を短くした形：1行目（日付・銘柄数）→ 説明の1文 → タグ（#決算分析 ＋ 銘柄名）→ YouTube の URL（欄 dg-yt-url。空なら行ごと入れない）
-//   例：11月11日の注目決算5銘柄を、図解でまとめて解説。／当日の市場で注目された決算と、引け後に発表された決算をコンパクトに整理しました。／#決算分析 #三井金属 #DOWA …／https://youtu.be/…
+// X 用の投稿文（すみぽんの文案 2026-11-12）。1行目（日付・場中／引け後・銘柄数）→ ブログの案内 → タグ（#決算分析 ＋ 銘柄名）→ YouTube の URL（欄 dg-yt-url。空なら行ごと入れない）
+//   例：11月11日に注目された決算と引け後に発表された決算、計5銘柄をまとめて解説。／詳しい分析はブログでも公開中。プロフィールのリンクからご覧いただけます。／#決算分析 #三井金属 #DOWA …／https://youtu.be/…
 //   force=false：手で直した文は上書きしない（前にツールが作った文と同じときだけ作り直す）。ctx＝dgDescRender から渡される（items・jp）
 function dgXRender(force,ctx){
   const ta=document.getElementById('dg-x');if(!ta)return;
@@ -17528,8 +17530,8 @@ function dgXRender(force,ctx){
   else{items=_dgItems;const d=dgVal('dg-date');const m=String(d).match(/(\d{4})-(\d{2})-(\d{2})/);jp=m?parseInt(m[2],10)+'月'+parseInt(m[3],10)+'日':'';}
   const moved=items.some(it=>!it.afterHours),after=items.some(it=>it.afterHours);
   const lines=[];
-  lines.push(`${jp}の注目決算${items.length?items.length+'銘柄':''}を、図解でまとめて解説。`);
-  lines.push((moved&&after?'当日の市場で注目された決算と、引け後に発表された決算':moved?'当日の市場で注目された決算':after?'引け後に発表された決算':'発表された注目決算')+'をコンパクトに整理しました。');
+  lines.push((moved&&after?jp+'に注目された決算と引け後に発表された決算':moved?jp+'に注目された決算':after?jp+'の引け後に発表された決算':jp+'に発表された決算')+(items.length?'、計'+items.length+'銘柄':'')+'をまとめて解説。');
+  lines.push('詳しい分析はブログでも公開中。プロフィールのリンクからご覧いただけます。');
   const tagNames=items.map(it=>ktShortName(it.visualization.company.name).replace(/[\s　#＃]/g,'')).filter(Boolean).map(n=>'#'+n);
   lines.push(['#決算分析'].concat(tagNames).join(' '));
   const url=dgVal('dg-yt-url').trim();
