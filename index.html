@@ -9302,11 +9302,14 @@ async function downloadVideoSlides(P){
   finally{btns.forEach(b=>b.disabled=false);}
 }
 
+// サムネ・タイトル・概要欄に出す短い社名：「ホールディングス」と、その前の「・」・空白を外す（すみぽん 2026-11-12）。外すと空になるときは元のまま。
+//   例：レゾナック・ホールディングス → レゾナック、DOWAホールディングス → DOWA。動画の部品（kessan-visualizer の shortCompanyName）にも同じ決まりがある
+function ktShortName(name){const s=String(name||'');const t=s.replace(/[\s　・･·]*ホールディングス/g,'').trim();return t||s.trim();}
 // 決算分析のサムネ文言：整形データから組む（上段=今回の評価、中段=社名、下段=通期予想の状態 or 問い）
 function evThumbText(){
   const d=evData()||{};const hd=d.HEADER||{},g=d.GUIDANCE||{};
   const top=hd.result_label?`*${hd.result_label}*`:'決算発表';
-  const mid=VD_CFG.ev.name()||hd.company||'';
+  const mid=ktShortName(VD_CFG.ev.name()||hd.company||'');
   const bot=/修正/.test(g.status||'')?`#${g.status}#も`:'市場の反応は？';
   return `${top}：${mid}：${bot}`;
 }
@@ -9331,7 +9334,7 @@ function evVizThumbText(){
     else if(a<1)mv='株価は横ばい';
     else mv=(a>=10?Math.round(a):Math.round(a*10)/10)+'％'+(pct>0?'上昇':'下落');
   }
-  const mid=VD_CFG.ev.name()||hd.company||'';
+  const mid=ktShortName(VD_CFG.ev.name()||hd.company||'');
   const bot=String(kgGet('ev-th3')||'').trim()||'図解で%決算解説%';   // 業績修正でも同じ（すみぽん 2026-11-03）
   return `${mv?`${label}で#${mv}#`:label}：${mid}：${bot}`;
 }
@@ -17374,9 +17377,9 @@ function dgCoverRender(){
   const o=dgCovers();
   if(!_dgItems.length){box.innerHTML='<div style="font-size:11px;color:var(--text-sub);">銘柄を選ぶと、ここに出ます。</div>';return;}
   box.innerHTML=_dgItems.map(it=>{
-    const c=o[it.id]||{};const name=esc(it.visualization.company.name||'');
+    const c=o[it.id]||{};const name=esc(ktShortName(it.visualization.company.name||''));
     return `<div style="display:flex;gap:6px;align-items:center;">
-      <input type="text" value="${esc(c.name||'')}" placeholder="${name}" title="カードの社名（空欄なら PJ の社名）" oninput="dgCoverSet('${esc(it.id)}',this.value,'name')" style="flex:none;width:9em;font-size:11px;font-weight:700;">
+      <input type="text" value="${esc(c.name||'')}" placeholder="${name}" title="カードの社名（空欄なら PJ の社名から「ホールディングス」を外したもの）" oninput="dgCoverSet('${esc(it.id)}',this.value,'name')" style="flex:none;width:9em;font-size:11px;font-weight:700;">
       <input type="text" value="${esc(c.line||'')}" placeholder="${esc(it.autoLine||'')}" title="カードの下の行（空欄なら自動の行）" oninput="dgCoverSet('${esc(it.id)}',this.value)" style="flex:1;min-width:0;font-size:11px;">
     </div>`;
   }).join('');
@@ -17443,7 +17446,7 @@ async function dgDescRender(force){
   dgFixedMigrate();
   const fixed=String(kgGet('dg-fixed')||DG_FIXED_DEF).trim();
   if(fixed){lines.push(fixed);lines.push('');}
-  const tagNames=items.map(it=>String(it.visualization.company.name||'').replace(/[\s　#＃]/g,'')).filter(Boolean).map(n=>'#'+n);
+  const tagNames=items.map(it=>ktShortName(it.visualization.company.name).replace(/[\s　#＃]/g,'')).filter(Boolean).map(n=>'#'+n);
   lines.push(['#日本株','#決算分析','#株式投資'].concat(tagNames).join(' '));
   const text=lines.join('\n');
   // 前に自動で入れた文は欄（dg-desc-auto）に残す（再読み込みしても、手で直していない欄だけ作り直せるように）
@@ -17487,7 +17490,7 @@ async function dgSnsRender(force,ctx){
   dgFixedMigrate();
   const fixed=String(kgGet('dg-fixed')||DG_FIXED_DEF).trim();
   if(fixed){lines.push(fixed);lines.push('');}
-  const tagNames=items.map(it=>String(it.visualization.company.name||'').replace(/[\s　#＃]/g,'')).filter(Boolean).map(n=>'#'+n);
+  const tagNames=items.map(it=>ktShortName(it.visualization.company.name).replace(/[\s　#＃]/g,'')).filter(Boolean).map(n=>'#'+n);
   lines.push(['#日本株','#決算分析','#株式投資'].concat(tagNames).join(' '));
   const text=lines.join('\n');
   const au=document.getElementById('dg-sns-auto');const prev=au?au.value:'';
@@ -17496,9 +17499,9 @@ async function dgSnsRender(force,ctx){
 // タイトル：銘柄名（4つまで「/」）＋ いちばん動いた銘柄とその動き ＋ 全体の向き ＋ 日付
 //   動きの言葉：±10%以上 急騰／急落、±5%以上 大幅高／大幅安、それ未満 上昇／下落（PTS も同じ言葉）。値動きが取れなければ動きは書かない
 function dgYtTitle(items,jp){
-  const names=items.map(it=>it.visualization.company.name).filter(Boolean);
+  const names=items.map(it=>ktShortName(it.visualization.company.name)).filter(Boolean);
   const head='【'+(names.length?names.slice(0,4).join('/')+(names.length>4?' ほか':''):'注目企業')+'】';
-  const moves=items.map(it=>({name:it.visualization.company.name,pct:(it.visualization.stock_price||{}).change_pct,stop:(it.visualization.stock_price||{}).stop||null})).filter(m=>typeof m.pct==='number'&&isFinite(m.pct));
+  const moves=items.map(it=>({name:ktShortName(it.visualization.company.name),pct:(it.visualization.stock_price||{}).change_pct,stop:(it.visualization.stock_price||{}).stop||null})).filter(m=>typeof m.pct==='number'&&isFinite(m.pct));
   const word=(p,stop)=>{if(stop)return 'ストップ'+(stop==='high'?'高':'安');const a=Math.abs(p);return a>=10?(p>0?'急騰':'急落'):a>=5?(p>0?'大幅高':'大幅安'):(p>0?'上昇':'下落');};
   const top=moves.slice().sort((a,b)=>Math.abs(b.pct)-Math.abs(a.pct))[0];
   const up=moves.some(m=>m.pct>=1),down=moves.some(m=>m.pct<=-1);
@@ -17512,7 +17515,7 @@ const dgThVal=()=>((document.getElementById('dg-th')||{}).value||'').trim();
 const dgThKey=()=>((document.getElementById('dg-th-key')||{}).value||'').trim();
 function dgThText(){
   const d=dgVal('dg-date');const m=String(d).match(/(\d{4})-(\d{2})-(\d{2})/);const jp=m?parseInt(m[2],10)+'月'+parseInt(m[3],10)+'日':'';
-  const names=_dgItems.map(it=>it.visualization.company.name).filter(Boolean);
+  const names=_dgItems.map(it=>ktShortName(it.visualization.company.name)).filter(Boolean);
   // すみぽんの見本（2026-10-17）：上「#10月16日#の*注目銘柄*」・中「GO/SHIFT/ベイカレント」・下「図解で%決算分析%」（# 水色・* オレンジ・% 黄色）
   // 中段：一文があればそれ（銘柄名の列は銘柄が増えると字が小さくなる。すみぽん 2026-11-08）。無ければ今までどおり銘柄名
   const key=dgThKey();
