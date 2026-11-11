@@ -1472,7 +1472,7 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
               <button class="btn-sub" onclick="evVizDownload('viz')" style="flex:1;font-size:11px;">💾 JSON</button>
               <button class="btn-sub" onclick="evVizClear()" style="flex:none;font-size:11px;background:#fee2e2;">🗑 消す</button>
             </div>
-            <div style="font-size:10px;color:var(--text-sub);margin-top:4px;line-height:1.5;">MP4 は下の「MP4 を書き出す」でブラウザだけで作れます（Chrome / Edge、数分）。1920×1080・30fps・無音。高画質が要るときは「💾 MP4用データ」を kessan-visualizer の <code>npm run render</code> に渡す。</div>
+            <div style="font-size:10px;color:var(--text-sub);margin-top:4px;line-height:1.5;">MP4 は下の「SNS」タブの「縦の MP4 を書き出す」「横の MP4 を書き出す」でブラウザだけで作れます（Chrome / Edge、数分）。高画質が要るときは「💾 MP4用データ」を kessan-visualizer の <code>npm run render</code> に渡す。</div>
             <!-- 抽出データ（文・数字）を画面で直す。部品の KessanViz.mountEdit。直すと動画データを作り直してプレビューに反映 -->
             <!-- 動画の種類：決算か、業績修正だけの開示か。自動は今回の実績の有無で判断。業績修正は 表紙・株価・業績予想・注目ポイント・総括 の短い動画 -->
             <div id="ev-viz-kindrow" style="display:none;margin-top:6px;font-size:11px;color:var(--text-sub);align-items:center;gap:6px;" title="決算の数字が資料に無いときは、業績修正の短い動画にします。違うときはここで選び直せます（台本も作り直します）">
@@ -2376,7 +2376,7 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
             <div class="prev-wrap" id="ev-prev-area"></div>
         </div>
         <div id="earn-viz-view" class="sa" style="display:none;flex-direction:column;gap:6px;">
-            <div style="font-size:11px;color:var(--text-sub);">横動画（決算ビジュアル）1920×1080 プレビュー。シーンの表示・秒数・書き出しは左のパネルで</div>
+            <div style="font-size:11px;color:var(--text-sub);">分析動画（決算ビジュアル）のプレビュー。向きはプレビューのすぐ上、シーンの表示・秒数は左の「動画」、投稿文と書き出しは左の「SNS」で</div>
             <!-- サムネ（先頭の「サムネ」シーン）。横・縦は同じ文（見せる型は動画の「向き」に合わせる）。出力データ作成で自動で入り、直すと動画にも入る -->
             <div id="earn-viz-th" class="sa-card" style="display:flex;flex-direction:column;gap:4px;">
                 <div style="display:flex;align-items:center;gap:6px;">
@@ -5354,9 +5354,9 @@ risk_3=`;
             // 開いていたタブ・サブタブへ戻す（プレビューは表示してから描き直される）。種別はこのタブが覚えているもの
             const ui = Object.assign({}, window._restoredUi || {}, { mode: ktMode0 });
             if (ui) {
-                if (ui.earnTab === 'video') window._earnTab = 'video';
+                if (ui.earnTab === 'video' && !ktTabGet('kt-earn-tab')) window._earnTab = 'video';
                 if (ui.mode && ui.mode !== 'earnings') switchMode(ui.mode);
-                else if (window._earnTab === 'video') switchEarnTab('video');
+                else if (window._earnTab !== 'main') switchEarnTab(window._earnTab);   // 分析動画・記事も戻す
                 // 非表示のまま切り替えるとプレビューの縮尺が狂うので、株価分析を開いている時だけ戻す
                 if (ui.mode === 'price' && ui.priceTab && ui.priceTab !== 'make') requestAnimationFrame(() => switchPriceTab(ui.priceTab));
             }
@@ -9342,11 +9342,14 @@ function evVizThumbText(){
 function vdThumbText(P){return P==='vd'?((document.getElementById('th-input')||{}).value||'').trim():vdVal('ev','th-input');}
 
 // ---- 決算分析：左のサブタブ（決算分析／動画）。動画タブでは右ペインも縦スライドに切り替える ----
-window._earnTab='main';
+// 開いていたサブタブは、種別（kt-mode）と同じ覚え方：このタブ（sessionStorage）→ 無ければ最後に開いていたもの（localStorage）。リロードで戻す（すみぽん 2026-11-12）
+function ktTabGet(key){try{return sessionStorage.getItem(key)||localStorage.getItem(key+'-last')||'';}catch(e){return '';}}
+function ktTabSet(key,v){try{sessionStorage.setItem(key,v);}catch(e){}try{localStorage.setItem(key+'-last',v);}catch(e){}}
+window._earnTab=['main','video','viz','article'].includes(ktTabGet('kt-earn-tab'))?ktTabGet('kt-earn-tab'):'main';
 function switchEarnTab(t){
   // 動画タブが非表示のときは、保存されていたPJが動画タブでも決算分析に戻す
   if(t==='video'){const vb=document.querySelector('#mode-earnings .sa-subtab[data-etab="video"]');if(vb&&vb.style.display==='none')t='main';}
-  window._earnTab=t;
+  window._earnTab=t;ktTabSet('kt-earn-tab',t);
   document.querySelectorAll('#mode-earnings .sa-subtab[data-etab]').forEach(b=>b.classList.toggle('active',b.dataset.etab===t));
   const m=document.getElementById('earn-tab-main'),v=document.getElementById('earn-tab-video'),z=document.getElementById('earn-tab-viz'),a=document.getElementById('earn-tab-article');
   if(m)m.style.display=t==='main'?'':'none';
@@ -16788,7 +16791,7 @@ function evVizSplitResponse(text){
 const evThVal=k=>((document.getElementById('ev-viz-th-'+k)||{}).value||'').trim();
 let _evThKind='h',_evThTimer=null;
 // 縦・横は動画の「向き」に合わせる（向きを変えると、ここの欄も切り替わる）
-const evThOrientKind=()=>{const st=evVizSettings();return st&&st.orientation==='portrait'?'v':'h';};
+const evThOrientKind=()=>{const st=evVizSettings();return !st||st.orientation==='portrait'?'v':'h';};   // 設定がまだ無ければ縦（初期値）
 function evThSwitch(k){
   _evThKind=k;
   const lb=document.getElementById('ev-th-orient');if(lb)lb.textContent=k==='v'?'縦（1080×1920）':'横（1920×1080）';
@@ -17186,7 +17189,8 @@ function evVizWithSecDefaults(st){
   if(isFinite(vol)&&vol>=0&&vol<=100)audio.bgm_volume=Math.round(vol)/100;
   return {...st,audio,scenes:(st.scenes||[]).map(s=>{const v=evVizSecDefault(s.id);return v==null?s:{...s,duration_sec:v};})};
 }
-function evVizDefaultSettings(KV){return evVizWithSecDefaults(KV.defaultSettings());}
+// 向きは縦で始める（新しい PJ＝設定がまだ無いとき。保存済みの PJ の向きは変えない。すみぽん 2026-11-12）
+function evVizDefaultSettings(KV){return evVizWithSecDefaults(KV.defaultSettings('portrait'));}
 // ⚙ 設定：開いている PJ の秒数を初期値にする／初期値を開いている PJ に入れる
 function kgVizFromPj(){
   const st=evVizSettings();if(!st||!st.scenes){alert('開いているPJに分析動画のデータがありません（決算のPJで分析動画を作ってから押してください）');return;}
@@ -17224,7 +17228,7 @@ async function evVizMount(force){
   if(d.analysis){try{vizNow=KV.build(d.analysis,evVizExtras());}catch(e){console.warn('viz rebuild',e);}}
   let st0=evVizSettings()||evVizDefaultSettings(KV);
   if(Object.keys(EV_COVER_KEY).some(f=>typeof st0[f]==='string'&&st0[f].startsWith('data:')))st0=await evCoverStore(st0).then(s2=>{const el=document.getElementById('ev-viz-settings');if(el)el.value=JSON.stringify(s2);if(typeof saveState==='function')saveState();return s2;});   // 古い PJ：JSON の中の表紙をファイルへ
-  const props={visualization:vizNow,settings:await evCoverLoad(st0),controlsEl:document.getElementById('ev-viz-controls'),importCoverImage:evVizCoverImage,tts:evVizTts,audioStore:evVizAudioStore,importBgm:evVizImportBgm,transcribe:evVizTranscribe,ytDescExtra:evVizYtExtra(),onChange:(st)=>{evVizSettingsWrite(st);const k=st&&st.orientation==='portrait'?'v':'h';if(k!==_evThKind)evThSwitch(k);}};
+  const props={visualization:vizNow,settings:await evCoverLoad(st0),controlsEl:document.getElementById('ev-viz-controls'),importCoverImage:evVizCoverImage,tts:evVizTts,audioStore:evVizAudioStore,importBgm:evVizImportBgm,transcribe:evVizTranscribe,ytDescExtra:evVizYtExtra(),panelTab:ktTabGet('kt-viz-tab')==='sns'?'sns':'video',onPanelTab:t=>ktTabSet('kt-viz-tab',t),onChange:(st)=>{evVizSettingsWrite(st);const k=st&&st.orientation==='portrait'?'v':'h';if(k!==_evThKind)evThSwitch(k);}};
   if(_evVizHandle){_evVizHandle.update(props);}else{_evVizHandle=KV.mount(host,props);}
   _evVizLastJson=json;
   evVizCutRenderSoon();
