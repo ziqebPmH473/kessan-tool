@@ -8459,7 +8459,14 @@ async function vdGenTts(P,i,btn){
     const res=await fetch('/api/tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:vdSpeedHint(P)+text,voice,model})});
     const data=await res.json();
     if(!data.ok)throw new Error(data.error||'不明なエラー');
-    const obj={b64:data.audioBase64,seconds:Math.round((data.seconds||0)*10)/10,voice,model,text,speed:vdSpeed(P)};
+    let b64=data.audioBase64,seconds=Math.round((data.seconds||0)*10)/10;
+    // 速さの指示文を付けたときは、読まれた指示文を落とす（Gemini 3.8 TTS。文字起こしで1文目の読み始めを探す。すみぽん 2026-11-12）
+    if(vdSpeedHint(P)){
+      if(p)p.textContent='読み始めの位置を確かめています…';
+      const sp=await vdSplitByScript(new Blob([vdB64ToBuf(b64)],{type:'audio/wav'}),[text],null,true);
+      if(sp.method!=='そのまま'){b64=vdBufToB64(await sp.segs[0].blob.arrayBuffer());seconds=sp.segs[0].seconds;}
+    }
+    const obj={b64,seconds,voice,model,text,speed:vdSpeed(P)};
     window._vdTts[P][i]=obj;await vdDbPut(`${P}:${i}`,obj);
     vdRenderPlayer(P,i);
     return true;
@@ -8527,17 +8534,39 @@ function vdAlignBounds(texts,words){
     out.push({prevEnd:pe>=0?stream[pe].e:0,start:stream[st].s});
     off+=parts[k].length;
   }
+  // 台本の1文目を読み始めた時刻：3文字続けて合った最初の位置（台本の前に読まれた速さの指示文などに、たまたま同じ字があっても拾わない）
+  out.first=null;
+  for(let i=0;i+2<parts[0].length;i++)if(map[i]>=0&&map[i+1]===map[i]+1&&map[i+2]===map[i]+2){out.first=stream[map[i]].s;break;}
   return out;
 }
+// 台本の1文目を読み始めた時刻（秒）より前に読み上げがあったら（0.8 秒より後に読み始めていたら）、その手前で切る位置（サンプル）。
+// Gemini 3.8 TTS は「この指示文は読まない」などの速さの指示も読むので、動画は1文目から始める（部品の split.ts の leadCut と同じ。すみぽん 2026-11-12）
+function vdLeadCut(first,sil,rate){
+  if(first==null||first<0.8)return 0;
+  const at=Math.round(first*rate);
+  const near=sil.filter(x=>x.end<=at+rate*0.15&&x.end>=at-rate*1.5).sort((x,y)=>y.end-x.end)[0];
+  return near?vdCutIn(near,rate):Math.max(0,at-Math.round(rate*0.1));
+}
 // 1本の読み上げ（WAV）を台本（texts）どおりに分ける。戻り値 {segs:[{blob,seconds}], method}
-async function vdSplitByScript(blob,texts,onStatus){
+// lead＝速さの指示文を付けて読み上げた（1つだけのときも文字起こしで頭を確かめ、読まれた指示文を落とす）
+async function vdSplitByScript(blob,texts,onStatus,lead){
   const count=texts.length;
   const {pcm,rate}=await evVizPcm(blob);
   const seg=(from,to)=>{const part=pcm.subarray(from,to);return{blob:evVizWav(part,rate),seconds:Math.round(part.length/rate*10)/10};};
-  const build=cuts=>{const out=[];let from=0;for(const c of cuts){out.push(seg(from,c));from=c;}out.push(seg(from,pcm.length));return out;};
-  if(count<=1)return{segs:[seg(0,pcm.length)],method:'そのまま'};
+  const build=(cuts,start=0)=>{const out=[];let from=start;for(const c of cuts){out.push(seg(from,c));from=c;}out.push(seg(from,pcm.length));return out;};
   const head=rate*0.3,tail=pcm.length-rate*0.3;
   const sil=vdSilences(pcm,rate,0.12).filter(s=>s.end>head&&s.start<tail);
+  if(count<=1){
+    if(lead){
+      try{
+        if(onStatus)onStatus('文字起こしで読み始めの位置を探しています…');
+        const {words}=await evVizTranscribe(blob);
+        const b=vdAlignBounds(texts,words),lc=vdLeadCut(b?b.first:null,sil,rate);
+        if(lc>0)return{segs:[seg(lc,pcm.length)],method:'頭の指示を落とす'};
+      }catch(e){console.warn('[vd] 読み始めの位置を探せませんでした（そのまま使います）',e);}
+    }
+    return{segs:[seg(0,pcm.length)],method:'そのまま'};
+  }
   // 1. 文字起こしで、各スライドの読み始めの位置を探す
   try{
     if(onStatus)onStatus('文字起こしでスライドの切れ目を探しています…');
@@ -8554,7 +8583,8 @@ async function vdSplitByScript(blob,texts,onStatus){
         const near=sil.filter(x=>x.end<=at+rate*0.15&&x.end>=at-rate*1.2).sort((x,y)=>y.end-x.end)[0];
         return near?vdCutIn(near,rate):Math.max(0,at-Math.round(rate*0.1));
       });
-      if(cuts.every((c,i)=>i===0||c>cuts[i-1]))return{segs:build(cuts),method:'文字起こし'};
+      const lc=vdLeadCut(bounds.first,sil,rate);   // 台本より前に読まれた部分（速さの指示文）は落とす
+      if(cuts.every((c,i)=>i===0?c>lc:c>cuts[i-1]))return{segs:build(cuts,lc),method:'文字起こし'};
       console.warn('[vd] 照合した境目の順番がおかしいので、無音で切ります',cuts);
     }else console.warn('[vd] 台本と文字起こしが合わないので、無音で切ります');
   }catch(e){console.warn('[vd] 文字起こしでの切り分けに失敗。無音で切ります',e);}
@@ -8613,7 +8643,7 @@ async function vdGenAllTts(P,btn,redo){
           throw new Error(m);
         }
         const blob=new Blob([vdB64ToBuf(data.audioBase64)],{type:'audio/wav'});
-        const sp=await vdSplitByScript(blob,gtexts,m=>vdTtsStatus(P,`${m} ${label}`));
+        const sp=await vdSplitByScript(blob,gtexts,m=>vdTtsStatus(P,`${m} ${label}`),!!vdSpeedHint(P));
         methods.push(sp.method);
         for(let k=0;k<g.length;k++){
           const s=sp.segs[k],obj={b64:vdBufToB64(await s.blob.arrayBuffer()),seconds:s.seconds,voice,model,text:gtexts[k],speed:vdSpeed(P),method:sp.method};
