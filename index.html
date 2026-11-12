@@ -7788,8 +7788,8 @@ function vdBuildTabHtml(P){
     <div class="row" style="flex-wrap:nowrap;gap:4px;align-items:center;margin-top:4px;">
       <select id="${P}-tts-voice" onchange="vdTtsSetCommon('${P}','tts-voice',this.value)" title="読み上げの声" style="flex:1;min-width:0;font-size:11px;padding:4px;">${VD_VOICE_OPTIONS}</select>
       <select id="${P}-tts-model" onchange="vdTtsSetCommon('${P}','tts-model',this.value)" title="音声を作るモデル" style="flex:1;min-width:0;font-size:11px;padding:4px;">
-        <option value="gemini-3.8-flash-tts">Gemini 3.8 Flash TTS</option>
-        <option value="gemini-3.1-flash-tts-preview" selected>Gemini 3.1 Flash TTS</option>
+        <option value="gemini-3.8-flash-tts" selected>Gemini 3.8 Flash TTS</option>
+        <option value="gemini-3.1-flash-tts-preview">Gemini 3.1 Flash TTS</option>
         <option value="gemini-2.5-flash-preview-tts">Gemini 2.5 Flash TTS</option>
       </select>
       <select id="${P}-tts-speed" onchange="vdTtsSetCommon('${P}','tts-speed',this.value)" title="読み上げの速さ（音声を作るときの指示。分析動画と同じ文）" style="flex:none;font-size:11px;padding:4px;">
@@ -12977,7 +12977,7 @@ function ytOpedText(role){
 }
 // TTS の声・モデルは、横動画の動画タブの設定（vd）に合わせる。無ければ既定
 // OP・ED の声とモデル。全PJ共通なので欄に id を付けず（付けるとPJの行に入る）、localStorage の kt-oped-voice に持つ（LS_SYNC でサーバーの shared にも入る）
-const YT_OPED_VOICE_KEY='kt-oped-voice',YT_OPED_VOICE_DEF={voice:'Erinome',model:'gemini-3.1-flash-tts-preview'};
+const YT_OPED_VOICE_KEY='kt-oped-voice',YT_OPED_VOICE_DEF={voice:'Erinome',model:'gemini-3.8-flash-tts'};
 function ytOpedVoice(){let v=null;try{v=JSON.parse(localStorage.getItem(YT_OPED_VOICE_KEY)||'null');}catch(e){}v=v||{};return{voice:v.voice||YT_OPED_VOICE_DEF.voice,model:(v.model&&!/2\.5-pro/.test(v.model))?v.model:YT_OPED_VOICE_DEF.model};}
 function ytOpedVoiceFill(){const c=ytOpedVoice();document.querySelectorAll('[data-oped-voice]').forEach(el=>{el.value=c[el.dataset.opedVoice];});}
 function ytOpedVoiceSave(){
