@@ -7650,7 +7650,7 @@ document.addEventListener('input',e=>{
 const VIDEO_DISCLAIMER='この動画は情報提供を目的としており、特定の銘柄や金融商品の売買を推奨するものではありません。投資判断はご自身の責任でお願いします。';
 const VD_TTS_CHARS_PER_SEC=7;
 // 読み上げの速さの指示（分析動画・東証の動画の SPEED_HINT と同じ文）。読み上げの頭に付ける。台本の保存や文字起こしの照合には入れない
-const VD_SPEED_HINT={normal:'',fast:'次の文章を、少し速めのテンポで、はっきりと読み上げてください（この指示文は読まない）。\n\n',faster:'次の文章を、速めのテンポで、きびきびと読み上げてください（この指示文は読まない）。\n\n'};
+const VD_SPEED_HINT={normal:'',fast:'次の文章を、少し速めのテンポで読み上げてください（この指示文は読まない）。\n\n',faster:'次の文章を、速めのテンポで、きびきびと読み上げてください（この指示文は読まない）。\n\n'};
 const vdSpeed=P=>{const v=(vdEl(P,'tts-speed')||{}).value||'normal';return VD_SPEED_HINT[v]!==undefined?v:'normal';};
 const vdSpeedHint=P=>VD_SPEED_HINT[vdSpeed(P)]||'';
 const VD_LOGO='assets/logo_sumikko.png';
