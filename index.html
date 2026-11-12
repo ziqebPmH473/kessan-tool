@@ -17216,9 +17216,26 @@ async function evVizCutLoad(){
     for(let i=0;i<cuts.length;i++){const lo=(i>0?cuts[i-1]:head)+0.1;if(cuts[i]<=lo)cuts[i]=lo;}
     auto=true;
   }
+  // 前に作った音声（頭を落とす前の版）：速さの指示を付けて読み上げていて、まだ頭を確かめていなければ、文字起こしを1回だけ呼んで
+  // 1文目の読み始めを探し、それより前（読まれた指示文）を落として切り直す。読み上げは使わない。確かめたら leadChecked を残し、次からは呼ばない（すみぽん 2026-11-12）
+  const hinted=/^次の文章を.*この指示文は読まない/.test(String(full.text).trim());
+  let leadFixed=false;
+  if(hinted&&!(head>0)&&!full.leadChecked){
+    try{
+      evVizStatus('前に作った読み上げの頭を確かめています（読まれた指示文を落とします。読み上げは使いません）…','info');
+      const {words}=await evVizTranscribe(full.blob);
+      const b=vdAlignBounds([texts[0]],words);
+      const sil=vdSilences(f.pcm,f.rate,0.12).filter(s=>s.end>f.rate*0.3&&s.start<f.pcm.length-f.rate*0.3);
+      const lc=vdLeadCut(b?b.first:null,sil,f.rate)/f.rate;
+      if(lc>0&&lc<cuts[0]-0.3){head=Math.round(lc*100)/100;leadFixed=true;}
+      full={...full,leadChecked:true};
+      if(!leadFixed){try{await KT_TTS.put('ev:viz:full',full);}catch(e){}evVizStatus('読み上げの頭に指示文は入っていませんでした','info');}
+    }catch(e){console.warn('[viz] 読み上げの頭を確かめられませんでした',e);evVizStatus('読み上げの頭を確かめられませんでした（'+((e&&e.message)||e)+'）','error');}
+  }
   if(_evCut&&_evCut.full.url)URL.revokeObjectURL(_evCut.full.url);
   _evCut={full:{...f,qz,blob:full.blob,url:URL.createObjectURL(full.blob),rec:full},ids,texts,cuts,orig:cuts.slice(),total,head};
-  if(auto)await evVizCutApply(null,true);else evVizCutDraw();
+  if(auto||leadFixed){await evVizCutApply(null,true);if(leadFixed)evVizStatus('前に作った読み上げの頭で読まれていた指示文を落としました（読み上げは使っていません）','ok');}
+  else evVizCutDraw();
 }
 function evVizCutDraw(){
   const box=document.getElementById('ev-viz-cutbox');if(!box||!_evCut)return;
