@@ -17451,6 +17451,14 @@ async function dgLoadItems(force){
           let rec=null;try{rec=await KT_TTS.getFor(id,'ev:viz:nar:'+sid);}catch(e){}
           if(rec&&rec.blob&&(rec.text||'').trim()===t)narration[sid]=rec.blob;
         }));
+        // 前に作った読み上げの頭で読まれた速さの指示文（Gemini 3.8 TTS）を落とす。読み上げ1本の頭＝最初のシーンだけ見る（すみぽん 2026-11-12）
+        if(((st.audio&&st.audio.speed)||'normal')!=='normal'){
+          const first=(st.scenes||[]).find(s=>s.enabled!==false&&narration[s.id]);
+          if(first){
+            const b=narration[first.id],r=await ktLeadTrim(b,String(nar[first.id].text||'').trim(),id+':'+first.id+':'+b.size);
+            if(r){narration[first.id]=r.blob;st={...st,narration:{...nar,[first.id]:{...nar[first.id],seconds:r.seconds}}};}
+          }
+        }
         // 引け後（時間外）の発表か・発表日：冒頭の文とまとめの日付に使う
         const ah=f['p-post-after-hours'];const afterHours=ah===true||ah==='true';
         // 発表日（p-date）は表紙の「○月○日発表」に、決算後の株価の日（p-post-date。引け後の発表なら翌営業日＝株価が動いた日）はまとめの日付に
@@ -17478,6 +17486,15 @@ async function dgLoadItems(force){
     // QR（note の URL が変わったら作り直す）
     const noteUrl=dgNoteUrl();
     if(!settings.note_qr||settings.note_qr_url!==noteUrl){settings={...settings,note_qr:await dgQr(noteUrl),note_qr_url:noteUrl};}
+    // 冒頭の読み上げ：前に作ったものの頭で読まれた速さの指示文を落とす（1度確かめたら leadChecked を残す。すみぽん 2026-11-12）
+    if(String(kgGet('viz-speed')||'fast')!=='normal'){
+      let rec=null;try{rec=await KT_TTS.get('dg:nar:intro');}catch(e){}
+      if(rec&&rec.blob&&!rec.leadChecked&&String(rec.text||'').trim()){
+        const r=await ktLeadTrim(rec.blob,String(rec.text).trim(),'dg-intro:'+rec.blob.size);
+        try{await KT_TTS.put('dg:nar:intro',{...rec,leadChecked:true,...(r?{blob:r.blob,seconds:r.seconds}:{})});}catch(e){}
+        if(r&&settings.intro&&String(settings.intro.text||'').trim()===String(rec.text).trim())settings={...settings,intro:{...settings.intro,seconds:r.seconds}};
+      }
+    }
     dgSet('dg-settings',JSON.stringify(settings));if(settings.date)dgSet('dg-date',settings.date);
     const props={items:items.map(it=>({visualization:it.visualization,settings:it.settings,narration:it.narration,after_hours:it.afterHours,announced:it.announced,subline:it.subline,display_name:it.displayName})),settings,controlsEl:document.getElementById('dg-controls'),tts:dgTts,audioStore:dgAudioStore,importBgm:evVizImportBgm,transcribe:evVizTranscribe,speed:kgGet('viz-speed')||'fast',extraFiles:dgThExtraFiles,exportEl:document.getElementById('dg-export'),
       // 部品は起動のときにも設定を整えて onChange を呼ぶ。銘柄を選んでいない新規の PJ をそれで「触った」扱いにすると、空の PJ が保存されて増えた（2026-10-17）。
@@ -17517,6 +17534,25 @@ function dgTitle(){
   const names=_dgItems.map(it=>it.visualization.company.name);
   const t=(m?parseInt(m[2],10)+'/'+parseInt(m[3],10)+' ':'')+'決算まとめ'+(names.length?'（'+names.join('・')+'）':'');
   if(dgVal('dg-title')!==t){dgSet('dg-title',t);if(typeof saveState==='function')saveState();}
+}
+// 前に作った読み上げから、頭で読まれた速さの指示文（Gemini 3.8 TTS）を落とした音声を返す（読み上げは使わない）。落とすものが無ければ null。
+// 文字起こしで1文目の読み始めを探す。結果（落とす秒数）は key ごとにこのブラウザに覚え、同じ音声では文字起こしを2回呼ばない（すみぽん 2026-11-12）
+async function ktLeadTrim(blob,text,key){
+  if(!blob||!text)return null;
+  let head=null;try{const m=JSON.parse(localStorage.getItem('kt-lead:'+key)||'null');if(m&&typeof m.head==='number')head=m.head;}catch(e){}
+  let f;try{f=await evVizPcm(blob);}catch(e){return null;}
+  if(head==null){
+    try{
+      const {words}=await evVizTranscribe(blob);
+      const b=vdAlignBounds([text],words);
+      const sil=vdSilences(f.pcm,f.rate,0.12).filter(s=>s.end>f.rate*0.3&&s.start<f.pcm.length-f.rate*0.3);
+      head=vdLeadCut(b?b.first:null,sil,f.rate)/f.rate;
+    }catch(e){console.warn('[lead] 読み上げの頭を確かめられませんでした',e);return null;}
+    try{localStorage.setItem('kt-lead:'+key,JSON.stringify({head}));}catch(e){}
+  }
+  if(!(head>0))return null;
+  const part=f.pcm.subarray(Math.round(head*f.rate));
+  return{blob:evVizWav(part,f.rate),seconds:Math.round(part.length/f.rate*10)/10};
 }
 // 読み上げ：分析動画と同じ /api/tts（声・モデルも同じ）。分析動画の evVizTts と違い、1本の音声を決算 PJ の 'ev:viz:full' に残さない
 async function dgTts(text){
