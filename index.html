@@ -17223,14 +17223,22 @@ async function evVizCutLoad(){
     const lens=[];for(const r of segs){const p=await evVizPcm(r.blob);lens.push(p.pcm.length/p.rate);}
     const sum=lens.reduce((x,y)=>x+y,0);
     if(sum>total+0.3||total-sum>20)return hide();
-    // 元の1本より短い分は、頭と最後で落とした分。頭の分は、最初のシーンの音声が元の1本のどこから始まるか（波形が同じ位置）で求める
+    // 元の1本より短い：部品が頭（読まれた指示文）・最後（雑音）・各シーンの頭とお尻の無音を落としている。
+    // 各シーンの音声が元の1本のどこにあるか（波形が同じ位置）を探し、切れ目＝次のシーンの始まり、頭＝最初のシーンの始まり、最後＝最後のシーンの終わりにする
+    let offs=null;
     if(total-sum>0.05){
-      const p0=await evVizPcm(segs[0].blob),off=evVizFindOffset(f.pcm,p0.pcm,f.rate);
-      head=off!=null?off/f.rate:total-sum;
-      end=Math.min(total,head+sum);if(total-end<0.05)end=total;
+      offs=[];let from=0;
+      for(const r of segs){const p=await evVizPcm(r.blob),o=evVizFindOffset(f.pcm,p.pcm,f.rate,from);if(o==null){offs=null;break;}offs.push([o,p.pcm.length]);from=o+p.pcm.length;}
       full={...full,leadChecked:true,tailChecked:true};   // 部品が頭と最後を確かめて切った音声
     }
-    let acc=head;cuts=[];for(let i=0;i<lens.length-1;i++){acc+=lens[i];cuts.push(evVizSnapCut(Math.min(total,acc),qz,f.rate));}
+    if(offs){
+      head=offs[0][0]/f.rate;
+      const last=offs[offs.length-1];end=Math.min(total,(last[0]+last[1])/f.rate);if(total-end<0.05)end=total;
+      cuts=offs.slice(1).map(o=>Math.round(o[0]/f.rate*100)/100);
+    }else{
+      head=total-sum>0.05?total-sum:0;
+      let acc=head;cuts=[];for(let i=0;i<lens.length-1;i++){acc+=lens[i];cuts.push(evVizSnapCut(Math.min(total,acc),qz,f.rate));}
+    }
     for(let i=0;i<cuts.length;i++){const lo=(i>0?cuts[i-1]:head)+0.1;if(cuts[i]<=lo)cuts[i]=lo;}
     auto=true;
   }
@@ -17258,12 +17266,12 @@ async function evVizCutLoad(){
   if(auto||edgeFixed){await evVizCutApply(null,true);if(edgeFixed)evVizStatus('前に作った読み上げの頭の指示文・最後の雑音を落としました（読み上げは使っていません）','ok');}
   else evVizCutDraw();
 }
-// 一部（part）の波形が、元の1本（full）のどこから始まるか（サンプル）。頭から 20 秒以内を探す。見つからなければ null
-function evVizFindOffset(full,part,rate){
+// 一部（part）の波形が、元の1本（full）のどこから始まるか（サンプル）。from から 20 秒以内を探す。見つからなければ null
+function evVizFindOffset(full,part,rate,from=0){
   let k=0;while(k<part.length&&Math.abs(part[k])<0.01)k++;
   const w=Math.min(256,part.length-k);if(w<32)return null;
-  const max=Math.min(full.length-part.length,Math.round(rate*20));
-  for(let off=0;off<=max;off++){let ok=true;for(let i=0;i<w;i++){if(Math.abs(full[off+k+i]-part[k+i])>5e-3){ok=false;break;}}if(ok)return off;}
+  const max=Math.min(full.length-part.length,from+Math.round(rate*20));
+  for(let off=from;off<=max;off++){let ok=true;for(let i=0;i<w;i++){if(Math.abs(full[off+k+i]-part[k+i])>5e-3){ok=false;break;}}if(ok)return off;}
   return null;
 }
 function evVizCutDraw(){
@@ -17492,6 +17500,11 @@ async function dgLoadItems(force){
             const b=narration[sc.id],r=await ktEdgeTrim(b,String(nar[sc.id].text||'').trim(),id+':'+sc.id+':'+b.size,sc===first,sc===last);
             if(r){narration[sc.id]=r.blob;st={...st,narration:{...(st.narration||{}),[sc.id]:{...nar[sc.id],seconds:r.seconds}}};}
           }
+          // 各シーンの音声の頭とお尻の長い無音を詰める（頭 0.1 秒・お尻 0.2 秒だけ残す。すみぽん 2026-11-12）
+          for(const sc of order){
+            const r=await ktTightBlob(narration[sc.id]);
+            if(r){narration[sc.id]=r.blob;st={...st,narration:{...(st.narration||{}),[sc.id]:{...((st.narration||{})[sc.id]||nar[sc.id]),seconds:r.seconds}}};}
+          }
         }
         // 引け後（時間外）の発表か・発表日：冒頭の文とまとめの日付に使う
         const ah=f['p-post-after-hours'];const afterHours=ah===true||ah==='true';
@@ -17521,11 +17534,13 @@ async function dgLoadItems(force){
     const noteUrl=dgNoteUrl();
     if(!settings.note_qr||settings.note_qr_url!==noteUrl){settings={...settings,note_qr:await dgQr(noteUrl),note_qr_url:noteUrl};}
     // 冒頭・最後の読み上げ：前に作ったものの頭で読まれた速さの指示文と、最後の雑音を落とす（1度確かめたら edgeChecked を残す。すみぽん 2026-11-12）
+    // あわせて頭とお尻の長い無音を詰める（頭 0.1 秒・お尻 0.2 秒だけ残す。縦の最後の文の前に長い無音があった。tightChecked を残す）
     for(const w of ['intro','outro','outro_v']){
       let rec=null;try{rec=await KT_TTS.get('dg:nar:'+w);}catch(e){}
-      if(!rec||!rec.blob||rec.edgeChecked||!String(rec.text||'').trim())continue;
-      const r=await ktEdgeTrim(rec.blob,String(rec.text).trim(),'dg-'+w+':'+rec.blob.size,!rec.leadChecked,true);
-      try{await KT_TTS.put('dg:nar:'+w,{...rec,leadChecked:true,edgeChecked:true,...(r?{blob:r.blob,seconds:r.seconds}:{})});}catch(e){}
+      if(!rec||!rec.blob||(rec.edgeChecked&&rec.tightChecked)||!String(rec.text||'').trim())continue;
+      let r=rec.edgeChecked?null:await ktEdgeTrim(rec.blob,String(rec.text).trim(),'dg-'+w+':'+rec.blob.size,!rec.leadChecked,true);
+      r=(await ktTightBlob(r?r.blob:rec.blob))||r;
+      try{await KT_TTS.put('dg:nar:'+w,{...rec,leadChecked:true,edgeChecked:true,tightChecked:true,...(r?{blob:r.blob,seconds:r.seconds}:{})});}catch(e){}
       if(r&&settings[w]&&String(settings[w].text||'').trim()===String(rec.text).trim())settings={...settings,[w]:{...settings[w],seconds:r.seconds}};
     }
     dgSet('dg-settings',JSON.stringify(settings));if(settings.date)dgSet('dg-date',settings.date);
@@ -17567,6 +17582,14 @@ function dgTitle(){
   const names=_dgItems.map(it=>it.visualization.company.name);
   const t=(m?parseInt(m[2],10)+'/'+parseInt(m[3],10)+' ':'')+'決算まとめ'+(names.length?'（'+names.join('・')+'）':'');
   if(dgVal('dg-title')!==t){dgSet('dg-title',t);if(typeof saveState==='function')saveState();}
+}
+// 音声の頭とお尻の長い無音を詰めた音声（頭 0.1 秒・お尻 0.2 秒だけ残す。evVizTrim と同じ）。詰めるものが無ければ null（すみぽん 2026-11-12）
+async function ktTightBlob(blob){
+  if(!blob)return null;
+  let f;try{f=await evVizPcm(blob);}catch(e){return null;}
+  const part=evVizTrim(f.pcm,f.rate,evVizQuiet(f.pcm,f.rate),0,f.pcm.length);
+  if(part.length>=f.pcm.length-f.rate*0.05)return null;
+  return{blob:evVizWav(part,f.rate),seconds:Math.round(part.length/f.rate*10)/10};
 }
 // 前に作った読み上げから、頭で読まれた速さの指示文と、読み終えたあとの雑音（どちらも Gemini 3.8 TTS）を落とした音声を返す（読み上げは使わない）。
 // lead／tail で頭・最後のどちらを見るか。落とすものが無ければ null。文字起こしで1文目の読み始め・最後の文字の読み終わりを探す。
