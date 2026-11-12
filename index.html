@@ -9381,9 +9381,9 @@ function evVizThumbText(){
 function vdThumbText(P){return P==='vd'?((document.getElementById('th-input')||{}).value||'').trim():vdVal('ev','th-input');}
 
 // ---- 決算分析：左のサブタブ（決算分析／動画）。動画タブでは右ペインも縦スライドに切り替える ----
-// 開いていたサブタブは、種別（kt-mode）と同じ覚え方：このタブ（sessionStorage）→ 無ければ最後に開いていたもの（localStorage）。リロードで戻す（すみぽん 2026-11-12）
-function ktTabGet(key){try{return sessionStorage.getItem(key)||localStorage.getItem(key+'-last')||'';}catch(e){return '';}}
-function ktTabSet(key,v){try{sessionStorage.setItem(key,v);}catch(e){}try{localStorage.setItem(key+'-last',v);}catch(e){}}
+// 開いていたサブタブは、ブラウザのタブごとに覚える（sessionStorage だけ）。リロードでは戻し、新しいブラウザのタブでは初めのタブで開く（すみぽん 2026-11-12）
+function ktTabGet(key){try{return sessionStorage.getItem(key)||'';}catch(e){return '';}}
+function ktTabSet(key,v){try{sessionStorage.setItem(key,v);}catch(e){}}
 window._earnTab=['main','video','viz','article'].includes(ktTabGet('kt-earn-tab'))?ktTabGet('kt-earn-tab'):'main';
 function switchEarnTab(t){
   // 動画タブが非表示のときは、保存されていたPJが動画タブでも決算分析に戻す
