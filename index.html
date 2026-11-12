@@ -1230,6 +1230,10 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
         body { padding: 24px 12px 48px; gap: 14px; }
         .capture-wrapper { padding: 8px; border-radius: 10px; }
       }
+      /* 手動で作る：答えを貼り付け済みなら、次に押すのは「貼り付け」。「プロンプトをコピー」（毎回 ZIP も保存）は白にして目立たせない（すみぽん 2026-11-12） */
+      /* 印（km-filled）は kmWatch がボタン自体に付ける（:has や、外側の囲みへの印では、Chrome で色が切り替わらないことがあった） */
+      .km-copy.km-filled { background:#fff !important; color:#475569 !important; border:1px solid #cbd5e1 !important; }
+      .km-paste.km-filled { background:#111827 !important; color:#fff !important; border-color:#111827 !important; }
 
     </style>
 </head>
@@ -1366,14 +1370,14 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
                 <button class="main-btn" onclick="geminiFormatEarn(this)" style="flex:1; background:#4f46e5;">📤 出力データ作成</button>
             </div>
             <div id="gem-earn-status" style="display:none; font-size:11px; margin-top:3px;"></div>
-            <details style="margin-top:4px;" ontoggle="if(this.open)evVizLoad().catch(()=>{})">
+            <details class="km-manual" style="margin-top:4px;" ontoggle="if(this.open)evVizLoad().catch(()=>{})">
                 <summary style="font-size:11px; color:var(--text-sub); cursor:pointer;" title="「💬 プロンプトをコピー」でプロンプトのコピーと添付ZIP（決算資料・株探の取得データ・分析レポート）の保存が同時に行われます。ChatGPTにZIPを添付してプロンプトを貼り、返ってきた答えを全部コピーして「📋 貼り付けて展開」を押すと、2. の欄と分析動画のデータに入ります。">手動で作る（ChatGPT など。APIが混んでいるとき）</summary>
                 <div style="font-size:11px; color:var(--text-sub); margin-top:4px;" title="ChatGPTの答えは、右下のコピーボタンで全部コピーしてください。">ZIPを添付してプロンプトを貼り、答えを全部コピーして貼り付け。</div>
                 <div class="input-row" style="margin-top:4px;">
-                    <button class="btn-sm" onclick="earnManualCopy(this)" style="flex:1; min-width:0; background:#475569; color:#fff;">💬 プロンプトをコピー</button>
-                    <button class="btn-sm" onclick="earnManualPaste()" style="flex:1; min-width:0;">📋 貼り付けて展開</button>
+                    <button class="btn-sm km-copy" onclick="earnManualCopy(this)" style="flex:1; min-width:0; background:#475569; color:#fff;">💬 プロンプトをコピー</button>
+                    <button class="btn-sm km-paste" onclick="earnManualPaste()" style="flex:1; min-width:0;">📋 貼り付けて展開</button>
                 </div>
-                <textarea id="earn-manual-paste" placeholder="ChatGPT の答え（テキストと json のコードブロック）をここに貼り付け" style="font-size:11px; height:52px; min-height:40px; margin-top:4px; font-family:monospace;"></textarea>
+                <textarea id="earn-manual-paste" class="km-ta" placeholder="ChatGPT の答え（テキストと json のコードブロック）をここに貼り付け" style="font-size:11px; height:52px; min-height:40px; margin-top:4px; font-family:monospace;"></textarea>
                 <div class="input-row" style="margin-top:4px;">
                     <button class="btn-sm" onclick="earnManualApply()" style="flex:1; min-width:0;">✅ 欄の内容で展開</button>
                 </div>
@@ -1455,13 +1459,13 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
             </div>
             <div id="ev-viz-status" style="display:none;font-size:11px;margin-top:3px;"></div>
             <div style="font-size:11px;color:var(--text-sub);margin-top:4px;">「📤 出力データ作成」で分析動画のデータも同時に作られます。ここのボタンは作り直し用です。</div>
-            <details style="margin-top:6px;">
+            <details class="km-manual" style="margin-top:6px;">
               <summary style="font-size:11px;color:var(--text-sub);cursor:pointer;" title="「💬 プロンプトをコピー」でプロンプトのコピーと添付ZIP（決算資料）の保存が同時に行われます。ChatGPT に ZIP を添付してプロンプトを貼り、返ってきた JSON を貼り付けます">手動で作る（ChatGPT など。API が混んでいるとき）</summary>
               <div class="input-row" style="margin-top:4px;">
-                <button class="btn-sm" onclick="evVizCopyPrompt(this)" style="flex:1;min-width:0;background:#475569;color:#fff;" title="プロンプトをコピーし、添付 ZIP（決算資料）も保存します。ChatGPT に ZIP を添付してプロンプトを貼ってください">💬 プロンプトをコピー</button>
-                <button class="btn-sm" onclick="evVizPaste()" style="flex:1;min-width:0;" title="クリップボードの答え（json）を下の欄に貼ります">📋 貼り付け</button>
+                <button class="btn-sm km-copy" onclick="evVizCopyPrompt(this)" style="flex:1;min-width:0;background:#475569;color:#fff;" title="プロンプトをコピーし、添付 ZIP（決算資料）も保存します。ChatGPT に ZIP を添付してプロンプトを貼ってください">💬 プロンプトをコピー</button>
+                <button class="btn-sm km-paste" onclick="evVizPaste()" style="flex:1;min-width:0;" title="クリップボードの答え（json）を下の欄に貼ります">📋 貼り付け</button>
               </div>
-              <textarea id="ev-viz-paste" placeholder="AI の出力（json のコードブロックのまま）をここに貼り付け" style="font-size:11px;height:60px;min-height:40px;margin-top:4px;font-family:monospace;"></textarea>
+              <textarea id="ev-viz-paste" class="km-ta" placeholder="AI の出力（json のコードブロックのまま）をここに貼り付け" style="font-size:11px;height:60px;min-height:40px;margin-top:4px;font-family:monospace;"></textarea>
               <div class="input-row" style="margin-top:4px;align-items:center;">
                 <button class="btn-prompt" onclick="evVizFcCopy(this)" title="貼った JSON のファクトチェック用プロンプトをコピーします。「ZIP も保存」に印があれば FC 用の添付 ZIP（_FC添付.zip）も保存します。新しいチャットに ZIP を添付して貼ってください">✅ FC</button>
                 <label style="font-size:11px;color:var(--text-sub);display:flex;align-items:center;gap:3px;white-space:nowrap;cursor:pointer;" title="FC 用 ZIP は初回だけ保存すればよいので、貼り付けると印が外れます。別の端末で続けるときなど、もう一度 ZIP が要るときは印を付けてください"><input type="checkbox" id="ev-viz-fc-zip" checked> ZIP も保存</label>
@@ -16672,6 +16676,17 @@ function evVizZipHeader(){
   const names=(window._earnFiles||[]).map(f=>f.name).join('、');
   return `添付のZIPを展開し、中のファイルをすべて読んでから作業してください。PDFは表も含めて全ページ読んでください。\n・${names}：決算資料\n\n`;
 }
+// 手動で作る：答えの欄（.km-ta）に中身があれば、同じ囲み（.km-manual）の「プロンプトをコピー」「貼り付け」に km-filled を付ける（ボタンの色。CSS 側）。
+// 貼り付け・PJ の切り替え・リロードの復元など、プログラムで value を入れたときも拾えるよう、欄の value の書き込みを見張る（すみぽん 2026-11-12）
+function kmWatch(){
+  const desc=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value');
+  document.querySelectorAll('.km-manual .km-ta').forEach(ta=>{
+    const sync=()=>{const d=ta.closest('.km-manual');if(!d)return;const on=!!String(desc.get.call(ta)||'').trim();d.querySelectorAll('.km-copy,.km-paste').forEach(b=>b.classList.toggle('km-filled',on));};
+    Object.defineProperty(ta,'value',{configurable:true,get(){return desc.get.call(this);},set(v){desc.set.call(this,v);sync();}});
+    ta.addEventListener('input',sync);sync();
+  });
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',kmWatch);else kmWatch();
 // 添付 ZIP（決算資料だけ）を保存。suffix でファイル名を分ける
 async function evVizZipSave(suffix,okMsg){
   const files=window._earnFiles||[];
