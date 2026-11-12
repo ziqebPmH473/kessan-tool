@@ -17171,20 +17171,23 @@ async function evVizCutLoad(){
   }
   if(ids.length<2)return hide();
   const f=await evVizPcm(full.blob),total=f.pcm.length/f.rate,qz=evVizQuiet(f.pcm,f.rate);
-  let cuts,auto=false;
+  // head＝頭で落とした秒数。部品は、台本より前に読まれた部分（Gemini 3.8 TTS が読む速さの指示文）を落として1文目から始める（すみぽん 2026-11-12）
+  let cuts,auto=false,head=0;
   if(Array.isArray(full.cuts)&&full.cuts.length===ids.length-1){
     if(segs.some(r=>r.src!==full.at))return hide();   // 1シーンだけ作り直した音声がある
-    cuts=full.cuts.slice();
+    cuts=full.cuts.slice();head=Number(full.head)||0;
   }else{
-    // 部品が切ったばかりの音声：各シーンの長さを足して切れ目を求め、声の手前に寄せてから切り直す
+    // 部品が切ったばかりの音声：各シーンの長さを足して切れ目を求め、声の手前に寄せてから切り直す。元の1本より短い分は頭で落とした分
     const lens=[];for(const r of segs){const p=await evVizPcm(r.blob);lens.push(p.pcm.length/p.rate);}
-    if(Math.abs(lens.reduce((x,y)=>x+y,0)-total)>0.3)return hide();
-    let acc=0;cuts=[];for(let i=0;i<lens.length-1;i++){acc+=lens[i];cuts.push(evVizSnapCut(Math.min(total,acc),qz,f.rate));}
-    for(let i=1;i<cuts.length;i++)if(cuts[i]<=cuts[i-1]+0.1)cuts[i]=cuts[i-1]+0.1;
+    const sum=lens.reduce((x,y)=>x+y,0);
+    if(sum>total+0.3||total-sum>20)return hide();
+    head=total-sum>0.05?total-sum:0;
+    let acc=head;cuts=[];for(let i=0;i<lens.length-1;i++){acc+=lens[i];cuts.push(evVizSnapCut(Math.min(total,acc),qz,f.rate));}
+    for(let i=0;i<cuts.length;i++){const lo=(i>0?cuts[i-1]:head)+0.1;if(cuts[i]<=lo)cuts[i]=lo;}
     auto=true;
   }
   if(_evCut&&_evCut.full.url)URL.revokeObjectURL(_evCut.full.url);
-  _evCut={full:{...f,qz,blob:full.blob,url:URL.createObjectURL(full.blob),rec:full},ids,texts,cuts,orig:cuts.slice(),total};
+  _evCut={full:{...f,qz,blob:full.blob,url:URL.createObjectURL(full.blob),rec:full},ids,texts,cuts,orig:cuts.slice(),total,head};
   if(auto)await evVizCutApply(null,true);else evVizCutDraw();
 }
 function evVizCutDraw(){
@@ -17208,7 +17211,7 @@ function evVizCutDraw(){
 }
 function evVizCutMove(i,d){
   const c=_evCut;if(!c)return;
-  const lo=(i>0?c.cuts[i-1]:0)+0.1,hi=(i<c.cuts.length-1?c.cuts[i+1]:c.total)-0.1;
+  const lo=(i>0?c.cuts[i-1]:(c.head||0))+0.1,hi=(i<c.cuts.length-1?c.cuts[i+1]:c.total)-0.1;
   c.cuts[i]=Math.round(Math.min(hi,Math.max(lo,c.cuts[i]+d))*100)/100;evVizCutDraw();
 }
 // 切れ目の前後を聞く：前の2秒 → 0.4秒止める → 後ろの2秒（どこで切れるかが分かるように）
@@ -17226,13 +17229,13 @@ async function evVizCutApply(btn,quiet){
   const c=_evCut;if(!c)return;
   if(btn){btn.disabled=true;btn.innerText='切り直し中…';}
   try{
-    const {pcm,rate,qz}=c.full,bounds=[0,...c.cuts.map(t=>Math.round(t*rate)),pcm.length],at=c.full.rec.at||Date.now();
+    const {pcm,rate,qz}=c.full,bounds=[Math.round((c.head||0)*rate),...c.cuts.map(t=>Math.round(t*rate)),pcm.length],at=c.full.rec.at||Date.now();
     const secs={};
     for(let i=0;i<c.ids.length;i++){
       const part=evVizTrim(pcm,rate,qz,bounds[i],bounds[i+1]),sec=Math.round(part.length/rate*10)/10;
       await KT_TTS.put('ev:viz:nar:'+c.ids[i],{blob:evVizWav(part,rate),text:c.texts[i],seconds:sec,src:at});secs[c.ids[i]]=sec;
     }
-    c.full.rec={...c.full.rec,at,cuts:c.cuts.slice()};
+    c.full.rec={...c.full.rec,at,cuts:c.cuts.slice(),head:c.head||0};
     await KT_TTS.put('ev:viz:full',c.full.rec);
     const el=document.getElementById('ev-viz-settings'),st=evVizSettings();
     if(el&&st&&st.narration){const nar={...st.narration};for(const id of c.ids){const n=nar[id];if(n&&(n.text||'').trim()===c.texts[c.ids.indexOf(id)])nar[id]={...n,seconds:secs[id]};}el.value=JSON.stringify({...st,narration:nar});if(typeof saveState==='function')saveState();}
