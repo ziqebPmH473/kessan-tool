@@ -17218,6 +17218,10 @@ async function evVizCutLoad(){
   let cuts,auto=false,head=0,end=total;
   // 1シーンだけ作り直した音声（元の1本に無い）は、切り直しても上書きしない（keep）。すみぽん 2026-11-13
   const keep=ids.filter((id,i)=>segs[i].src!==full.at);
+  // 音声はあるのに設定に秒数が無いシーン（前の切り直しで消えた）は、音声の秒数を入れ直す。無いと既定の秒数でシーンが終わり、読み上げが途中で切れる
+  {const el=document.getElementById('ev-viz-settings');if(el&&st.narration){let fixed=false;const nar={...st.narration};
+    ids.forEach((id,i)=>{const n=nar[id],sec=Number(segs[i].seconds);if(n&&!(Number(n.seconds)>0)&&sec>0&&(n.text||'').trim()===texts[i]){nar[id]={...n,seconds:sec};fixed=true;}});
+    if(fixed){el.value=JSON.stringify({...st,narration:nar});if(typeof saveState==='function')saveState();if(_evVizHandle){try{_evVizHandle.unmount();}catch(e){}_evVizHandle=null;}await evVizMount(true);}}}
   if(Array.isArray(full.cuts)&&full.cuts.length===ids.length-1){
     cuts=full.cuts.slice();head=Number(full.head)||0;end=Math.min(total,Number(full.end)||total);
   }else{
@@ -17366,7 +17370,8 @@ async function evVizCutApply(btn,quiet){
     c.full.rec={...c.full.rec,at,cuts:c.cuts.slice(),head:c.head||0,end:c.end||c.total};
     await KT_TTS.put('ev:viz:full',c.full.rec);
     const el=document.getElementById('ev-viz-settings'),st=evVizSettings();
-    if(el&&st&&st.narration){const nar={...st.narration};for(const id of c.ids){const n=nar[id];if(n&&(n.text||'').trim()===c.texts[c.ids.indexOf(id)])nar[id]={...n,seconds:secs[id]};}el.value=JSON.stringify({...st,narration:nar});if(typeof saveState==='function')saveState();}
+    // 切り直したシーンだけ秒数を入れ直す（上書きしなかったシーン＝keep の秒数を消すと、そのシーンが既定の秒数で切れる。アシックスの決算ハイライト 2026-11-13）
+    if(el&&st&&st.narration){const nar={...st.narration};for(const id of c.ids){const n=nar[id];if(secs[id]!=null&&n&&(n.text||'').trim()===c.texts[c.ids.indexOf(id)])nar[id]={...n,seconds:secs[id]};}el.value=JSON.stringify({...st,narration:nar});if(typeof saveState==='function')saveState();}
     // 部品は音声を最初に描くときに読むので、描き直す
     if(_evVizHandle){try{_evVizHandle.unmount();}catch(e){}_evVizHandle=null;}
     await evVizMount(true);
