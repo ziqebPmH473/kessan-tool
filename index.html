@@ -17216,8 +17216,9 @@ async function evVizCutLoad(){
   const f=await evVizPcm(full.blob),total=f.pcm.length/f.rate,qz=evVizQuiet(f.pcm,f.rate);
   // head＝頭で落とした秒数、end＝使う最後の位置（秒）。部品は、台本より前に読まれた部分（速さの指示文）と、読み終えたあとの雑音を落とす（どちらも Gemini 3.8 TTS。すみぽん 2026-11-12）
   let cuts,auto=false,head=0,end=total;
+  // 1シーンだけ作り直した音声（元の1本に無い）は、切り直しても上書きしない（keep）。すみぽん 2026-11-13
+  const keep=ids.filter((id,i)=>segs[i].src!==full.at);
   if(Array.isArray(full.cuts)&&full.cuts.length===ids.length-1){
-    if(segs.some(r=>r.src!==full.at))return hide();   // 1シーンだけ作り直した音声がある
     cuts=full.cuts.slice();head=Number(full.head)||0;end=Math.min(total,Number(full.end)||total);
   }else{
     // 部品が切ったばかりの音声：各シーンの長さを足して切れ目を求め、声の手前に寄せてから切り直す
@@ -17236,12 +17237,16 @@ async function evVizCutLoad(){
       head=offs[0][0]/f.rate;
       const last=offs[offs.length-1];end=Math.min(total,(last[0]+last[1])/f.rate);if(total-end<0.05)end=total;
       cuts=offs.slice(1).map(o=>Math.round(o[0]/f.rate*100)/100);
+    }else if(total-sum>0.05){
+      // 部品が頭・最後・各シーンの無音を詰めた音声で、どこかのシーンの位置が見つからない（1シーンだけ作り直したなど）。
+      // 前は「詰めた分は全部頭」とみなして切り直していたが、各シーンの無音も詰めるようになってから切れ目が後ろへずれ、文の頭が切れていた。
+      // 切れ目が分からないので、部品が切ったままの音声を使い、切り直さない（アシックス・三井住友FG 2026-11-13）
+      return hide();
     }else{
-      head=total-sum>0.05?total-sum:0;
-      let acc=head;cuts=[];for(let i=0;i<lens.length-1;i++){acc+=lens[i];cuts.push(evVizSnapCut(Math.min(total,acc),qz,f.rate));}
+      let acc=0;cuts=[];for(let i=0;i<lens.length-1;i++){acc+=lens[i];cuts.push(evVizSnapCut(Math.min(total,acc),qz,f.rate));}
     }
     for(let i=0;i<cuts.length;i++){const lo=(i>0?cuts[i-1]:head)+0.1;if(cuts[i]<=lo)cuts[i]=lo;}
-    auto=true;
+    auto=!!offs;   // 位置が合ったときは、切れ目を覚えるだけ（音声は部品が切ったまま。開くたびに切り直さない。すみぽん 2026-11-13）
   }
   // 前に作った音声（頭・最後を落とす前の版）：まだ確かめていなければ、文字起こしを1回だけ呼んで、1文目の読み始めより前（読まれた速さの指示文）と、
   // 最後の文字を読み終えたあと（雑音）を落として切り直す。読み上げは使わない。確かめたら leadChecked・tailChecked を残し、次からは呼ばない（すみぽん 2026-11-12）
@@ -17263,9 +17268,13 @@ async function evVizCutLoad(){
     }catch(e){console.warn('[viz] 読み上げの頭と最後を確かめられませんでした',e);evVizStatus('読み上げの頭と最後を確かめられませんでした（'+((e&&e.message)||e)+'）','error');}
   }
   if(_evCut&&_evCut.full.url)URL.revokeObjectURL(_evCut.full.url);
-  _evCut={full:{...f,qz,blob:full.blob,url:URL.createObjectURL(full.blob),rec:full},ids,texts,cuts,orig:cuts.slice(),total,head,end};
-  if(auto||edgeFixed){await evVizCutApply(null,true);if(edgeFixed)evVizStatus('前に作った読み上げの頭の指示文・最後の雑音を落としました（読み上げは使っていません）','ok');}
-  else evVizCutDraw();
+  _evCut={full:{...f,qz,blob:full.blob,url:URL.createObjectURL(full.blob),rec:full},ids,texts,cuts,orig:cuts.slice(),total,head,end,keep};
+  if(edgeFixed){await evVizCutApply(null,true);evVizStatus('前に作った読み上げの頭の指示文・最後の雑音を落としました（読み上げは使っていません）','ok');}
+  else{
+    // 部品が切ったばかりの音声は、切れ目を覚えるだけ（次からは覚えた切れ目を読む）。音声は上書きしない
+    if(auto){const rec={...full,cuts:cuts.slice(),head,end};_evCut.full.rec=rec;try{await KT_TTS.put('ev:viz:full',rec);}catch(e){}}
+    evVizCutDraw();
+  }
 }
 // 一部（part）の波形が、元の1本（full）のどこから始まるか（サンプル）。from から 20 秒以内を探す。見つからなければ null
 function evVizFindOffset(full,part,rate,from=0){
@@ -17292,7 +17301,37 @@ function evVizCutDraw(){
   <div style="display:flex;gap:4px;margin-top:6px;">
     <button class="btn-sm" onclick="evVizCutApply(this)" ${changed?'':'disabled'} style="flex:1;min-width:0;background:#4f46e5;color:#fff;">✂ この切れ目で切り直す</button>
     <button class="btn-sm" onclick="_evCut.cuts=_evCut.orig.slice();evVizCutDraw();" ${changed?'':'disabled'} style="flex:none;min-width:0;">元に戻す</button>
-  </div></details>`;
+  </div>
+  <button class="btn-sm" onclick="evVizCutRedo(this)" style="width:100%;margin-top:4px;" title="元の1本を文字起こし（1回）して、台本どおりの切れ目を出し直し、切り直します。読み上げは使いません${c.keep&&c.keep.length?'。1つだけ作り直したシーン（'+esc(c.keep.map(name).join('・'))+'）はそのまま':''}">🔁 文字起こしで切れ目を出し直す</button></details>`;
+}
+// 元の1本を文字起こしして、台本どおりの切れ目（頭・各シーンの境目・最後）を出し直し、切り直す。読み上げは使わない。
+// 速さの指示文は台本の前の1文として照合し、指示文の読み終わり〜1文目の読み始めの間の無音で切る（各シーンの境目と同じ決め方）。すみぽん 2026-11-13
+async function evVizCutRedo(btn){
+  const c=_evCut;if(!c)return;
+  if(btn){btn.disabled=true;btn.innerText='文字起こし中…';}
+  try{
+    const {pcm,rate}=c.full,sil=vdSilences(pcm,rate,0.12).filter(s=>s.end>rate*0.3&&s.start<pcm.length-rate*0.3);
+    const first=String(c.full.rec.text||'').split(/\n\n+/).map(t=>t.trim()).filter(Boolean)[0]||'';
+    const hint=/^次の文章を.*この指示文は読まない/.test(first)?first:null;
+    const {words}=await evVizTranscribe(c.full.blob);
+    const b=vdAlignBounds(hint?[hint,...c.texts]:c.texts,words);
+    if(!b)throw new Error('台本と文字起こしが合いませんでした');
+    // 境目：前の文を読み終えてから次を読み始めるまでの、いちばん長い無音で切る（無ければ読み始めの手前の無音、それも無ければ 0.1 秒前）
+    const at=({prevEnd,start})=>{
+      const a0=Math.round(Math.min(prevEnd,start)*rate)-Math.round(rate*0.1),b0=Math.round(Math.max(prevEnd,start)*rate)+Math.round(rate*0.15);
+      const g=sil.filter(x=>x.end>a0&&x.start<b0).sort((x,y)=>y.len-x.len)[0];if(g)return vdCutIn(g,rate);
+      const s=Math.round(start*rate),n=sil.filter(x=>x.end<=s+rate*0.15&&x.end>=s-rate*1.2).sort((x,y)=>y.end-x.end)[0];
+      return n?vdCutIn(n,rate):Math.max(0,s-Math.round(rate*0.1));
+    };
+    const all=b.map(at);
+    const headS=hint?all.shift():vdLeadCut(b.first,sil,rate);
+    let endS=vdTailCut(b.last,pcm.length,rate);if(endS<=all[all.length-1]+rate*0.3)endS=pcm.length;
+    if(!all.every((x,i)=>x>(i?all[i-1]:headS)))throw new Error('切れ目の順番がおかしくなりました');
+    c.head=Math.round(headS/rate*100)/100;c.end=endS>=pcm.length?c.total:Math.round(endS/rate*100)/100;
+    c.cuts=all.map(x=>Math.round(x/rate*100)/100);
+    await evVizCutApply(null,true);
+    evVizStatus('文字起こしで切れ目を出し直し、切り直しました（読み上げは使っていません）','ok');
+  }catch(e){evVizStatus('切れ目を出し直せませんでした（'+((e&&e.message)||e)+'）','error');if(btn){btn.disabled=false;btn.innerText='🔁 文字起こしで切れ目を出し直す';}}
 }
 function evVizCutMove(i,d){
   const c=_evCut;if(!c)return;
@@ -17318,6 +17357,7 @@ async function evVizCutApply(btn,quiet){
     const bounds=[Math.round((c.head||0)*rate),...c.cuts.map(t=>Math.round(t*rate)),endS],at=c.full.rec.at||Date.now();
     const secs={};
     for(let i=0;i<c.ids.length;i++){
+      if((c.keep||[]).includes(c.ids[i]))continue;   // 1シーンだけ作り直した音声は上書きしない
       let part=evVizTrim(pcm,rate,qz,bounds[i],bounds[i+1]);
       if(i===c.ids.length-1&&endS<pcm.length)part=vdFadeOut(part,rate);   // 最後の雑音を落としたところは絞って終わらせる
       const sec=Math.round(part.length/rate*10)/10;
