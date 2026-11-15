@@ -1809,7 +1809,7 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
           </div>
           <!-- SNS：書き出し（部品が #dg-export に描く。縦・横のボタン）→ インスタ・TikTok の紹介文 → YouTube（概要欄・タイトル案）→ YouTube の URL → X の投稿文（並びは すみぽん 2026-11-12） -->
           <div class="tool-section" id="dg-pane-sns" style="display:none;">
-            <div class="section-heading">SNS（書き出し・概要欄・投稿文）</div>
+            <div class="section-heading" style="display:flex;align-items:center;gap:6px;">SNS（書き出し・概要欄・投稿文）<button class="btn-sm" onclick="if(confirm('紹介文・概要欄・タイトル案・X の投稿文を、全部作り直しますか？（手で直した文は消えます）'))dgDescRender(true,true)" style="flex:none;margin-left:auto;font-size:10px;padding:1px 8px;" title="紹介文（インスタ・TikTok）・概要欄・タイトル案・X の投稿文を、いまの銘柄・時間でまとめて作り直します（手で直した文は消えます）">🔄 全部作り直す</button></div>
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
               <span style="font-size:11px;font-weight:700;flex:none;">動画の書き出し</span>
               <div id="dg-export" style="flex:1;min-width:0;"></div>
@@ -1819,14 +1819,14 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
               <!-- 縦版（インスタ・TikTok）の紹介文。URL は入れず「プロフィールのリンクから」。開始時間は縦の動画の長さ（すみぽん 2026-11-08） -->
               <div style="font-size:11px;font-weight:700;" title="縦版（TikTok・インスタ）の投稿に貼る文。URL は入れず、ブログ・note はプロフィールのリンクに案内します。開始時間は縦の動画の長さから自動で入ります">📱 紹介文（インスタ・TikTok）</div>
               <div class="input-row" style="margin-top:4px;">
-                <button class="btn-sm" onclick="dgSnsRender(true)" style="flex:1;min-width:0;" title="いまの銘柄・時間で紹介文を作り直します（手で直した文は消えます）">🔄 作り直す</button>
+                <button class="btn-sm" onclick="dgSnsRender(true)" style="flex:1;min-width:0;" title="いまの銘柄・時間で、この紹介文だけを作り直します（手で直した文は消えます。ほかの欄はそのまま）">🔄 作り直す</button>
                 <button class="btn-sm" onclick="dgCopy('dg-sns',this)" style="flex:1;min-width:0;background:#16a34a;color:#fff;">📋 コピー</button>
                 <span data-kw="dg-sns|1" style="display:contents;"></span>
               </div>
               <textarea id="dg-sns" style="font-size:11px;height:100px;min-height:60px;margin-top:4px;line-height:1.5;"></textarea>
               <div style="font-size:11px;font-weight:700;margin-top:10px;" title="YouTube の概要欄に貼る文。目次の開始時間は動画の長さから自動で入ります。note の URL と「最後の文」の初期値は ⚙ 設定 › 決算まとめ">📝 概要欄（YouTube。目次の時間は自動）</div>
               <div class="input-row" style="margin-top:4px;">
-                <button class="btn-sm" onclick="dgDescRender(true)" style="flex:1;min-width:0;" title="いまの銘柄・時間で概要欄を作り直します（手で直した文は消えます）">🔄 作り直す</button>
+                <button class="btn-sm" onclick="dgDescRender(true,false)" style="flex:1;min-width:0;" title="いまの銘柄・時間で、この概要欄だけを作り直します（手で直した文は消えます。ほかの欄はそのまま）">🔄 作り直す</button>
                 <button class="btn-sm" onclick="dgCopy('dg-desc',this)" style="flex:1;min-width:0;background:#16a34a;color:#fff;">📋 コピー</button>
                 <span data-kw="dg-desc|1" style="display:contents;"></span>
               </div>
@@ -1834,6 +1834,7 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
               <div class="input-row" style="margin-top:4px;gap:4px;align-items:center;">
                 <label style="font-size:11px;color:var(--text-sub);flex:none;">タイトル案</label>
                 <input type="text" id="dg-yt-title" style="flex:1;min-width:0;font-size:11px;">
+                <button class="btn-sm" onclick="dgTitleRender(true)" style="flex:none;" title="いまの銘柄で、このタイトル案だけを作り直します（手で直した文は消えます）">🔄</button>
                 <button class="btn-sm" onclick="dgCopy('dg-yt-title',this)" style="flex:none;" title="コピー">📋</button>
                 <span data-kw="dg-yt-title|0" style="display:contents;"></span>
               </div>
@@ -1848,7 +1849,7 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
                 <span id="dg-x-count" style="font-size:10px;color:var(--text-sub);" title="X の数え方（全角は2・半角は1・URL は23。280 まで）"></span>
               </div>
               <div class="input-row" style="margin-top:4px;">
-                <button class="btn-sm" onclick="dgXRender(true)" style="flex:1;min-width:0;" title="いまの銘柄・URL で投稿文を作り直します（手で直した文は消えます）">🔄 作り直す</button>
+                <button class="btn-sm" onclick="dgXRender(true)" style="flex:1;min-width:0;" title="いまの銘柄・URL で、この投稿文だけを作り直します（手で直した文は消えます。ほかの欄はそのまま）">🔄 作り直す</button>
                 <button class="btn-sm" onclick="dgCopy('dg-x',this)" style="flex:1;min-width:0;background:#16a34a;color:#fff;">📋 コピー</button>
                 <span data-kw="dg-x|1" style="display:contents;"></span>
               </div>
@@ -17720,7 +17721,9 @@ const dgAudioStore={
 function dgDescSoon(){clearTimeout(_dgDescTimer);_dgDescTimer=setTimeout(()=>dgDescRender(false),400);}
 function dgMmss(sec){const s=Math.floor(sec);return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');}
 // force=false：手で直した概要欄は上書きしない（前にツールが作った文と同じときだけ作り直す）
-async function dgDescRender(force){
+// forceOthers：タイトル案・紹介文・X も手で直した文ごと作り直すか（省けば force と同じ）。概要欄の「🔄 作り直す」は false（その欄だけ）、「🔄 全部作り直す」は true（すみぽん 2026-11-15）
+async function dgDescRender(force,forceOthers){
+  const fo=forceOthers===undefined?force:forceOthers;
   const ta=document.getElementById('dg-desc');if(!ta)return;
   let KV;try{KV=await evVizLoad();}catch(e){return;}
   const settings={...KV.digest.defaultSettings(dgVal('dg-date')||undefined),...(dgSettings()||{})};
@@ -17762,10 +17765,18 @@ async function dgDescRender(force){
   const au=document.getElementById('dg-desc-auto');const prev=au?au.value:'';
   if(force||!ta.value.trim()||ta.value===prev){ta.value=text;if(au)au.value=text;if(typeof saveState==='function')saveState();}
   // タイトル案（日付を前に。すみぽん 2026-11-12）：11月11日の注目決算｜DOWAが急騰【三井金属/DOWA/レゾナック/リクルートほか】明暗分かれた決算の理由を図解
-  const tt=document.getElementById('dg-yt-title');
-  if(tt){const t=dgYtTitle(items,jp);const ta2=document.getElementById('dg-yt-title-auto');const pv=ta2?ta2.value:'';if(force||!tt.value.trim()||tt.value===pv){tt.value=t;if(ta2)ta2.value=t;}}
-  dgSnsRender(force,{KV,settings,items,jp});
-  dgXRender(force,{items,jp});
+  dgTitleRender(fo,{items,jp});
+  dgSnsRender(fo,{KV,settings,items,jp});
+  dgXRender(fo,{items,jp});
+}
+// タイトル案。force=false：手で直した文は上書きしない。ctx＝dgDescRender から渡される（items・jp）
+function dgTitleRender(force,ctx){
+  const tt=document.getElementById('dg-yt-title');if(!tt)return;
+  let items,jp;
+  if(ctx){({items,jp}=ctx);}
+  else{items=_dgItems;const d=dgVal('dg-date');const m=String(d).match(/(\d{4})-(\d{2})-(\d{2})/);jp=m?parseInt(m[2],10)+'月'+parseInt(m[3],10)+'日':'';}
+  const t=dgYtTitle(items,jp);const ta2=document.getElementById('dg-yt-title-auto');const pv=ta2?ta2.value:'';
+  if(force||!tt.value.trim()||tt.value===pv){tt.value=t;if(ta2)ta2.value=t;if(typeof saveState==='function')saveState();}
 }
 // X 用の投稿文（すみぽんの文案 2026-11-12）。1行目（日付・場中／引け後・銘柄数）→ ブログの案内 → タグ（#決算分析 ＋ 銘柄名）→ YouTube の URL（欄 dg-yt-url。空なら行ごと入れない）
 //   例：11月11日に注目された決算と引け後に発表された決算、計5銘柄をまとめて解説。／詳しい分析はブログでも公開中。プロフィールのリンクからご覧いただけます。／#決算分析 #三井金属 #DOWA …／https://youtu.be/…
