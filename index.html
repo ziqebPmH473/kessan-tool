@@ -1809,7 +1809,7 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
           </div>
           <!-- SNS：書き出し（部品が #dg-export に描く。縦・横のボタン）→ インスタ・TikTok の紹介文 → YouTube（概要欄・タイトル案）→ YouTube の URL → X の投稿文（並びは すみぽん 2026-11-12） -->
           <div class="tool-section" id="dg-pane-sns" style="display:none;">
-            <div class="section-heading" style="display:flex;align-items:center;gap:6px;">SNS（書き出し・概要欄・投稿文）<button class="btn-sm" onclick="if(confirm('紹介文・概要欄・タイトル案・X の投稿文を、全部作り直しますか？（手で直した文は消えます）'))dgDescRender(true,true)" style="flex:none;margin-left:auto;font-size:10px;padding:1px 8px;" title="紹介文（インスタ・TikTok）・概要欄・タイトル案・X の投稿文を、いまの銘柄・時間でまとめて作り直します（手で直した文は消えます）">🔄 全部作り直す</button></div>
+            <div class="section-heading" style="display:flex;align-items:center;gap:6px;">SNS（書き出し・概要欄・投稿文）<button class="btn-sm" onclick="if(confirm('紹介文・概要欄・タイトル案・X の投稿文を、全部作り直しますか？（手で直した文は消えます）'))dgDescRender(true,true)" style="flex:none;margin-left:auto;font-size:10px;padding:1px 8px;background:#fff;color:#334155;border:1px solid #cbd5e1;" title="紹介文（インスタ・TikTok）・概要欄・タイトル案・X の投稿文を、いまの銘柄・時間でまとめて作り直します（手で直した文は消えます）">🔄 全部作り直す</button></div>
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
               <span style="font-size:11px;font-weight:700;flex:none;">動画の書き出し</span>
               <div id="dg-export" style="flex:1;min-width:0;"></div>
@@ -1819,23 +1819,23 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
               <!-- 縦版（インスタ・TikTok）の紹介文。URL は入れず「プロフィールのリンクから」。開始時間は縦の動画の長さ（すみぽん 2026-11-08） -->
               <div style="font-size:11px;font-weight:700;" title="縦版（TikTok・インスタ）の投稿に貼る文。URL は入れず、ブログ・note はプロフィールのリンクに案内します。開始時間は縦の動画の長さから自動で入ります">📱 紹介文（インスタ・TikTok）</div>
               <div class="input-row" style="margin-top:4px;">
-                <button class="btn-sm" onclick="dgSnsRender(true)" style="flex:1;min-width:0;" title="いまの銘柄・時間で、この紹介文だけを作り直します（手で直した文は消えます。ほかの欄はそのまま）">🔄 作り直す</button>
-                <button class="btn-sm" onclick="dgCopy('dg-sns',this)" style="flex:1;min-width:0;background:#16a34a;color:#fff;">📋 コピー</button>
+                <button class="btn-sm" onclick="dgSnsRender(true)" style="flex:1;min-width:0;background:#fff;color:#334155;border:1px solid #cbd5e1;" title="いまの銘柄・時間で、この紹介文だけを作り直します（手で直した文は消えます。ほかの欄はそのまま）">🔄 作り直す</button>
+                <button class="btn-sm" onclick="dgCopy('dg-sns',this)" style="flex:1;min-width:0;background:#4f46e5;color:#fff;border:none;">📋 コピー</button>
                 <span data-kw="dg-sns|1" style="display:contents;"></span>
               </div>
               <textarea id="dg-sns" style="font-size:11px;height:100px;min-height:60px;margin-top:4px;line-height:1.5;"></textarea>
               <div style="font-size:11px;font-weight:700;margin-top:10px;" title="YouTube の概要欄に貼る文。目次の開始時間は動画の長さから自動で入ります。note の URL と「最後の文」の初期値は ⚙ 設定 › 決算まとめ">📝 概要欄（YouTube。目次の時間は自動）</div>
               <div class="input-row" style="margin-top:4px;">
-                <button class="btn-sm" onclick="dgDescRender(true,false)" style="flex:1;min-width:0;" title="いまの銘柄・時間で、この概要欄だけを作り直します（手で直した文は消えます。ほかの欄はそのまま）">🔄 作り直す</button>
-                <button class="btn-sm" onclick="dgCopy('dg-desc',this)" style="flex:1;min-width:0;background:#16a34a;color:#fff;">📋 コピー</button>
+                <button class="btn-sm" onclick="dgDescRender(true,false)" style="flex:1;min-width:0;background:#fff;color:#334155;border:1px solid #cbd5e1;" title="いまの銘柄・時間で、この概要欄だけを作り直します（手で直した文は消えます。ほかの欄はそのまま）">🔄 作り直す</button>
+                <button class="btn-sm" onclick="dgCopy('dg-desc',this)" style="flex:1;min-width:0;background:#4f46e5;color:#fff;border:none;">📋 コピー</button>
                 <span data-kw="dg-desc|1" style="display:contents;"></span>
               </div>
               <textarea id="dg-desc" style="font-size:11px;height:100px;min-height:60px;margin-top:4px;line-height:1.5;"></textarea>
               <div class="input-row" style="margin-top:4px;gap:4px;align-items:center;">
                 <label style="font-size:11px;color:var(--text-sub);flex:none;">タイトル案</label>
                 <input type="text" id="dg-yt-title" style="flex:1;min-width:0;font-size:11px;">
-                <button class="btn-sm" onclick="dgTitleRender(true)" style="flex:none;" title="いまの銘柄で、このタイトル案だけを作り直します（手で直した文は消えます）">🔄</button>
-                <button class="btn-sm" onclick="dgCopy('dg-yt-title',this)" style="flex:none;" title="コピー">📋</button>
+                <button class="btn-sm" onclick="dgTitleRender(true)" style="flex:none;background:#fff;color:#334155;border:1px solid #cbd5e1;" title="いまの銘柄で、このタイトル案だけを作り直します（手で直した文は消えます）">🔄</button>
+                <button class="btn-sm" onclick="dgCopy('dg-yt-title',this)" style="flex:none;background:#4f46e5;color:#fff;border:none;" title="コピー">📋</button>
                 <span data-kw="dg-yt-title|0" style="display:contents;"></span>
               </div>
               <!-- X 用の投稿文（すみぽん 2026-11-12）。インスタの紹介文を短くした形：1行目（日付・銘柄数）→ 説明 → タグ → YouTube の URL。URL は下の欄（入れると最後の行に入る） -->
@@ -1849,8 +1849,8 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
                 <span id="dg-x-count" style="font-size:10px;color:var(--text-sub);" title="X の数え方（全角は2・半角は1・URL は23。280 まで）"></span>
               </div>
               <div class="input-row" style="margin-top:4px;">
-                <button class="btn-sm" onclick="dgXRender(true)" style="flex:1;min-width:0;" title="いまの銘柄・URL で、この投稿文だけを作り直します（手で直した文は消えます。ほかの欄はそのまま）">🔄 作り直す</button>
-                <button class="btn-sm" onclick="dgCopy('dg-x',this)" style="flex:1;min-width:0;background:#16a34a;color:#fff;">📋 コピー</button>
+                <button class="btn-sm" onclick="dgXRender(true)" style="flex:1;min-width:0;background:#fff;color:#334155;border:1px solid #cbd5e1;" title="いまの銘柄・URL で、この投稿文だけを作り直します（手で直した文は消えます。ほかの欄はそのまま）">🔄 作り直す</button>
+                <button class="btn-sm" onclick="dgCopy('dg-x',this)" style="flex:1;min-width:0;background:#4f46e5;color:#fff;border:none;">📋 コピー</button>
                 <span data-kw="dg-x|1" style="display:contents;"></span>
               </div>
               <textarea id="dg-x" oninput="dgXCount()" style="font-size:11px;height:72px;min-height:50px;margin-top:4px;line-height:1.5;"></textarea>
@@ -2149,12 +2149,12 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
                     <button class="btn-sm" onclick="dgThKeyGen(this)" style="flex:none;background:#4f46e5;color:#fff;" title="各銘柄の一言・判定・株価の動きから、一文を3案作ります（モデルは ⚙ 設定 › AIのモデル › 決算まとめ）">✨ API で作る</button>
                 </div>
                 <div id="dg-th-key-status" style="display:none;font-size:11px;"></div>
-                <div style="display:flex;gap:4px;align-items:center;"><span style="font-size:11px;color:var(--text-sub);">横（3段）の文</span><span style="margin-left:auto;display:flex;gap:4px;" data-kw="dg-th|0"></span><button class="btn-sm" onclick="dgThRedo('h')" style="flex:none;padding:1px 6px;font-size:10px;" title="横サムネの文だけを、いまの日付・銘柄で作り直します（手で直した文は消えます。縦の文はそのまま）">🔄 作り直す</button></div>
+                <div style="display:flex;gap:4px;align-items:center;"><span style="font-size:11px;color:var(--text-sub);">横（3段）の文</span><span style="margin-left:auto;display:flex;gap:4px;" data-kw="dg-th|0"></span><button class="btn-sm" onclick="dgThRedo('h')" style="flex:none;padding:1px 6px;font-size:10px;background:#fff;color:#334155;border:1px solid #cbd5e1;" title="横サムネの文だけを、いまの日付・銘柄で作り直します（手で直した文は消えます。縦の文はそのまま）">🔄 作り直す</button></div>
                 <textarea id="dg-th" oninput="dgThInput()" placeholder="上段：中段：下段（銘柄を読むと自動で入ります）" style="height:46px;min-height:46px;"></textarea>
                 <input type="text" id="dg-th-auto" style="display:none;">
                 <p style="font-size:10px;color:var(--text-sub);margin:0;">「：」で上段・中段・下段を区切る。色指定: <span style="color:#ff914d">*オレンジ*</span>　<span style="color:#5ce1e6">#水色#</span>　<span style="color:#ffde59">%黄色%</span></p>
                 <!-- 縦（2段）の文。直していなければ横の1段目に追従（すみぽん 2026-11-15） -->
-                <div style="display:flex;gap:4px;align-items:center;"><label style="font-size:11px;color:var(--text-sub);" title="縦サムネ（中段なしの2段）の文。「：」で上段と下段を区切り、段の中は改行で2行に。直していなければ、横の1段目に合わせて自動で入ります">縦（2段）の文</label><span style="margin-left:auto;display:flex;gap:4px;" data-kw="dg-th-v|0"></span><button class="btn-sm" onclick="dgThRedo('v')" style="flex:none;padding:1px 6px;font-size:10px;" title="縦サムネの文だけを、横の1段目から作り直します（手で直した文は消えます）">🔄 作り直す</button></div>
+                <div style="display:flex;gap:4px;align-items:center;"><label style="font-size:11px;color:var(--text-sub);" title="縦サムネ（中段なしの2段）の文。「：」で上段と下段を区切り、段の中は改行で2行に。直していなければ、横の1段目に合わせて自動で入ります">縦（2段）の文</label><span style="margin-left:auto;display:flex;gap:4px;" data-kw="dg-th-v|0"></span><button class="btn-sm" onclick="dgThRedo('v')" style="flex:none;padding:1px 6px;font-size:10px;background:#fff;color:#334155;border:1px solid #cbd5e1;" title="縦サムネの文だけを、横の1段目から作り直します（手で直した文は消えます）">🔄 作り直す</button></div>
                 <textarea id="dg-th-v" oninput="dgThInput()" placeholder="上段：下段（段の中は改行で2行。空なら自動）" style="height:62px;min-height:62px;"></textarea>
                 <textarea id="dg-th-v-auto" style="display:none;"></textarea><!-- 改行を含むので textarea（input だと改行が消えて「直していない」と分からなくなる） -->
                 <div style="display:flex;gap:8px;align-items:flex-start;">
@@ -2437,7 +2437,7 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
                     <span id="ev-th-orient" style="font-size:11px;font-weight:700;color:#0d9488;" title="縦・横は、動画の「向き」に合わせて切り替わります"></span>
                     <span id="ev-th-st" style="font-size:11px;color:var(--text-sub);margin-left:auto;"></span>
                     <span data-kw="ev-viz-th-h,ev-viz-th-v|0" style="display:contents;"></span>
-                    <button class="btn-sm" onclick="evThRedo()" style="flex:none;padding:1px 6px;font-size:10px;" title="サムネの文（上段：中段：下段）だけを、データから作り直します（手で直した文は消えます。縦2段の欄は、直していなければ追従します）">🔄 作り直す</button>
+                    <button class="btn-sm" onclick="evThRedo()" style="flex:none;padding:1px 6px;font-size:10px;background:#fff;color:#334155;border:1px solid #cbd5e1;" title="サムネの文（上段：中段：下段）だけを、データから作り直します（手で直した文は消えます。縦2段の欄は、直していなければ追従します）">🔄 作り直す</button>
                     <button class="btn-sm" onclick="evThDownload('h',this)" style="flex:none;padding:1px 6px;font-size:10px;" title="横のサムネ（1920×1080・jpg）をダウンロード。YouTube の横動画用">🖼 横</button>
                     <button class="btn-sm" onclick="evThDownload('v',this)" style="flex:none;padding:1px 6px;font-size:10px;" title="縦のサムネ（1080×1920・jpg・3段）をダウンロード。YouTube ショート用。縦の文が空なら横の文で作ります">🖼 縦</button>
                     <button class="btn-sm" onclick="evThDownload('v2',this)" style="flex:none;padding:1px 6px;font-size:10px;" title="縦のサムネの2段構成（1080×1920・jpg）をダウンロード。インスタ・TikTok 用。文は同じで、上段＝評価と株価の動きを2行、下段＝銘柄名、3段目の文は左上のラベルに">🖼 縦2段</button>
@@ -9428,7 +9428,7 @@ function ktWordApply(ids,mode,tags,btn){
   if(btn){const o=btn.textContent;btn.textContent=changed?'✅':'なし';btn.disabled=true;setTimeout(()=>{btn.textContent=o;btn.disabled=false;},1000);}
 }
 // 欄の横に置く「✂ 削除」「🔁 変換」のボタン
-function ktWordBtns(ids,tags){const w=tags?'ハッシュタグの中から':'この欄から';const st='flex:none;padding:1px 6px;font-size:10px;';
+function ktWordBtns(ids,tags){const w=tags?'ハッシュタグの中から':'この欄から';const st='flex:none;padding:1px 6px;font-size:10px;background:#fff;color:#334155;border:1px solid #cbd5e1;';
   return `<button class="btn-sm" onclick="ktWordApply('${ids}','del',${tags?1:0},this)" style="${st}" title="${w}、⚙ 共通設定の「社名で削る・言い換える言葉」のうち「→」なしの言葉を削ります（作り直すと元に戻ります）">✂ 削除</button><button class="btn-sm" onclick="ktWordApply('${ids}','conv',${tags?1:0},this)" style="${st}" title="${w}、⚙ 共通設定の「言葉→言い換え」の行で言い換えます（作り直すと元に戻ります）">🔁 変換</button>`;}
 function ktShortName(name){const s=String(name||'');const t=s.replace(/[\s　・･·]*ホールディングス/g,'').trim();return t||s.trim();}
 // 決算分析のサムネ文言：整形データから組む（上段=今回の評価、中段=社名、下段=通期予想の状態 or 問い）
