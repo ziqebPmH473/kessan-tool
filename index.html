@@ -7633,7 +7633,11 @@ async function downloadAll(){
     const a=document.createElement('a');
     a.href=url;a.download=`${info.code||'stock'}_${info.name||'analysis'}_slides.zip`;a.click();
     URL.revokeObjectURL(url);
-    setStatus('✓ ダウンロード完了！',3000);
+    // サムネ（note用の横）も、ZIPとは別のファイルで保存（すみぽん 2026-11-15）
+    let thumbOk=false;
+    try{setStatus('サムネ レンダリング中...');thumbOk=await saDownloadNoteThumb(`${info.code||'stock'}_${info.name||'analysis'}_00_サムネイル.png`);}
+    catch(e){console.warn('thumb skipped',e);}
+    setStatus(thumbOk?'✓ ダウンロード完了！（ZIP＋サムネの画像）':'✓ ダウンロード完了！（サムネの文言が空なので、サムネは出していません）',4000);
   }catch(e){setStatus('エラー: '+e.message);}
   btn.disabled=false;
 }
@@ -16182,6 +16186,20 @@ async function thumbPngBlob(text){
     const canvas=await html2canvas(el,{width:SLIDE_W,height:SLIDE_H,scale:2,useCORS:true,allowTaint:true,backgroundColor:'#000000',logging:false});
     return await new Promise(res=>canvas.toBlob(res,'image/png'));
   }finally{cont.innerHTML='';}
+}
+// 株価分析のスライドZIPと一緒に出す、note用の横サムネ。サムネの画面が YouTube 用のときも、note用の文言・型で作る
+async function saDownloadNoteThumb(fileName){
+  const g=id=>document.getElementById(id),ctx=(g('th-ctx')||{}).value||'note';
+  const text=String(ctx==='note'?(g('th-input')||{}).value:(g('th-note-text')||{}).value||'').trim();
+  if(!text)return false;
+  const pr=ctx==='note'?null:THUMB_PRESETS[(g('th-note-preset')||{}).value||'note'];
+  const keep={offsetTop:THUMB.offsetTop,offsetMid:THUMB.offsetMid,offsetBot:THUMB.offsetBot};
+  if(pr)Object.assign(THUMB,{offsetTop:pr.offsetTop,offsetMid:pr.offsetMid,offsetBot:pr.offsetBot});
+  let blob;try{blob=await thumbPngBlob(text);}finally{Object.assign(THUMB,keep);}
+  await new Promise(r=>setTimeout(r,800));   // 2つ目のダウンロードは少しあとに（同時だと止められることがある）
+  const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=fileName;a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),5000);
+  return true;
 }
 async function downloadThumb(){
   const text=document.getElementById('th-input').value.trim();
