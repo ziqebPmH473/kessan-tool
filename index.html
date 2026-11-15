@@ -2149,12 +2149,12 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
                     <button class="btn-sm" onclick="dgThKeyGen(this)" style="flex:none;background:#4f46e5;color:#fff;" title="各銘柄の一言・判定・株価の動きから、一文を3案作ります（モデルは ⚙ 設定 › AIのモデル › 決算まとめ）">✨ API で作る</button>
                 </div>
                 <div id="dg-th-key-status" style="display:none;font-size:11px;"></div>
-                <div style="display:flex;gap:4px;align-items:center;"><span style="font-size:11px;color:var(--text-sub);">横（3段）の文</span><span style="margin-left:auto;display:flex;gap:4px;" data-kw="dg-th|0"></span></div>
+                <div style="display:flex;gap:4px;align-items:center;"><span style="font-size:11px;color:var(--text-sub);">横（3段）の文</span><span style="margin-left:auto;display:flex;gap:4px;" data-kw="dg-th|0"></span><button class="btn-sm" onclick="dgThRedo('h')" style="flex:none;padding:1px 6px;font-size:10px;" title="横サムネの文だけを、いまの日付・銘柄で作り直します（手で直した文は消えます。縦の文はそのまま）">🔄 作り直す</button></div>
                 <textarea id="dg-th" oninput="dgThInput()" placeholder="上段：中段：下段（銘柄を読むと自動で入ります）" style="height:46px;min-height:46px;"></textarea>
                 <input type="text" id="dg-th-auto" style="display:none;">
                 <p style="font-size:10px;color:var(--text-sub);margin:0;">「：」で上段・中段・下段を区切る。色指定: <span style="color:#ff914d">*オレンジ*</span>　<span style="color:#5ce1e6">#水色#</span>　<span style="color:#ffde59">%黄色%</span></p>
                 <!-- 縦（2段）の文。直していなければ横の1段目に追従（すみぽん 2026-11-15） -->
-                <div style="display:flex;gap:4px;align-items:center;"><label style="font-size:11px;color:var(--text-sub);" title="縦サムネ（中段なしの2段）の文。「：」で上段と下段を区切り、段の中は改行で2行に。直していなければ、横の1段目に合わせて自動で入ります">縦（2段）の文</label><span style="margin-left:auto;display:flex;gap:4px;" data-kw="dg-th-v|0"></span></div>
+                <div style="display:flex;gap:4px;align-items:center;"><label style="font-size:11px;color:var(--text-sub);" title="縦サムネ（中段なしの2段）の文。「：」で上段と下段を区切り、段の中は改行で2行に。直していなければ、横の1段目に合わせて自動で入ります">縦（2段）の文</label><span style="margin-left:auto;display:flex;gap:4px;" data-kw="dg-th-v|0"></span><button class="btn-sm" onclick="dgThRedo('v')" style="flex:none;padding:1px 6px;font-size:10px;" title="縦サムネの文だけを、横の1段目から作り直します（手で直した文は消えます）">🔄 作り直す</button></div>
                 <textarea id="dg-th-v" oninput="dgThInput()" placeholder="上段：下段（段の中は改行で2行。空なら自動）" style="height:62px;min-height:62px;"></textarea>
                 <textarea id="dg-th-v-auto" style="display:none;"></textarea><!-- 改行を含むので textarea（input だと改行が消えて「直していない」と分からなくなる） -->
                 <div style="display:flex;gap:8px;align-items:flex-start;">
@@ -2437,6 +2437,7 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
                     <span id="ev-th-orient" style="font-size:11px;font-weight:700;color:#0d9488;" title="縦・横は、動画の「向き」に合わせて切り替わります"></span>
                     <span id="ev-th-st" style="font-size:11px;color:var(--text-sub);margin-left:auto;"></span>
                     <span data-kw="ev-viz-th-h,ev-viz-th-v|0" style="display:contents;"></span>
+                    <button class="btn-sm" onclick="evThRedo()" style="flex:none;padding:1px 6px;font-size:10px;" title="サムネの文（上段：中段：下段）だけを、データから作り直します（手で直した文は消えます。縦2段の欄は、直していなければ追従します）">🔄 作り直す</button>
                     <button class="btn-sm" onclick="evThDownload('h',this)" style="flex:none;padding:1px 6px;font-size:10px;" title="横のサムネ（1920×1080・jpg）をダウンロード。YouTube の横動画用">🖼 横</button>
                     <button class="btn-sm" onclick="evThDownload('v',this)" style="flex:none;padding:1px 6px;font-size:10px;" title="縦のサムネ（1080×1920・jpg・3段）をダウンロード。YouTube ショート用。縦の文が空なら横の文で作ります">🖼 縦</button>
                     <button class="btn-sm" onclick="evThDownload('v2',this)" style="flex:none;padding:1px 6px;font-size:10px;" title="縦のサムネの2段構成（1080×1920・jpg）をダウンロード。インスタ・TikTok 用。文は同じで、上段＝評価と株価の動きを2行、下段＝銘柄名、3段目の文は左上のラベルに">🖼 縦2段</button>
@@ -16985,6 +16986,13 @@ function evThAutoFill(){
   });
   au.value=t;evTh2Fill(false);if(typeof saveState==='function')saveState();evThPreview();
 }
+// サムネの文（横・縦）だけを、データから作り直す（手で直した文も消す。縦2段は直していなければ追従。すみぽん 2026-11-15）
+function evThRedo(){
+  const t=evVizThumbText();if(!t){alert('サムネの文を作るデータがありません（📤 出力データ作成を先に）');return;}
+  ['h','v'].forEach(k=>{const el=document.getElementById('ev-viz-th-'+k);if(el)el.value=t;});
+  const au=document.getElementById('ev-viz-th-auto');if(au)au.value=t;
+  evTh2Fill(false);evThInput(_evThKind||'h');
+}
 // 画像（1920px までの JPEG の data URL。動画側の取り込みと同じ形）
 async function evThImage(k,text){
   let src;
@@ -17937,6 +17945,13 @@ function dgThAuto(){
   if(!el.value.trim()||el.value===au.value){el.value=t;au.value=t;if(typeof saveState==='function')saveState();}
   dgTh2Auto();
   dgThPreview();
+}
+// サムネの文だけを作り直す（k：'h'＝横、'v'＝縦。手で直した文も消す。すみぽん 2026-11-15）。横を作り直したら、直していない縦は追従する
+function dgThRedo(k){
+  const id=k==='v'?'dg-th-v':'dg-th',el=document.getElementById(id),au=document.getElementById(id+'-auto');if(!el)return;
+  const t=k==='v'?dgTh2AutoText():dgThText();el.value=t;if(au)au.value=t;
+  if(k!=='v')dgTh2Auto();
+  if(typeof saveState==='function')saveState();dgThPreview();
 }
 function dgThInput(){if(typeof saveState==='function')saveState();clearTimeout(_dgThTimer);_dgThTimer=setTimeout(()=>{dgTh2Auto();dgThPreview();},300);}
 // 縦サムネの HTML（中段なしの2段。決算分析の2段と同じ部品 buildVThumb2。上の日付バー・下の「タップで動画を再生」あり）
