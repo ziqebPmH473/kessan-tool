@@ -1821,18 +1821,21 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
               <div class="input-row" style="margin-top:4px;">
                 <button class="btn-sm" onclick="dgSnsRender(true)" style="flex:1;min-width:0;" title="いまの銘柄・時間で紹介文を作り直します（手で直した文は消えます）">🔄 作り直す</button>
                 <button class="btn-sm" onclick="dgCopy('dg-sns',this)" style="flex:1;min-width:0;background:#16a34a;color:#fff;">📋 コピー</button>
+                <span data-kw="dg-sns|1" style="display:contents;"></span>
               </div>
               <textarea id="dg-sns" style="font-size:11px;height:100px;min-height:60px;margin-top:4px;line-height:1.5;"></textarea>
               <div style="font-size:11px;font-weight:700;margin-top:10px;" title="YouTube の概要欄に貼る文。目次の開始時間は動画の長さから自動で入ります。note の URL と「最後の文」の初期値は ⚙ 設定 › 決算まとめ">📝 概要欄（YouTube。目次の時間は自動）</div>
               <div class="input-row" style="margin-top:4px;">
                 <button class="btn-sm" onclick="dgDescRender(true)" style="flex:1;min-width:0;" title="いまの銘柄・時間で概要欄を作り直します（手で直した文は消えます）">🔄 作り直す</button>
                 <button class="btn-sm" onclick="dgCopy('dg-desc',this)" style="flex:1;min-width:0;background:#16a34a;color:#fff;">📋 コピー</button>
+                <span data-kw="dg-desc|1" style="display:contents;"></span>
               </div>
               <textarea id="dg-desc" style="font-size:11px;height:100px;min-height:60px;margin-top:4px;line-height:1.5;"></textarea>
               <div class="input-row" style="margin-top:4px;gap:4px;align-items:center;">
                 <label style="font-size:11px;color:var(--text-sub);flex:none;">タイトル案</label>
                 <input type="text" id="dg-yt-title" style="flex:1;min-width:0;font-size:11px;">
                 <button class="btn-sm" onclick="dgCopy('dg-yt-title',this)" style="flex:none;" title="コピー">📋</button>
+                <span data-kw="dg-yt-title|0" style="display:contents;"></span>
               </div>
               <!-- X 用の投稿文（すみぽん 2026-11-12）。インスタの紹介文を短くした形：1行目（日付・銘柄数）→ 説明 → タグ → YouTube の URL。URL は下の欄（入れると最後の行に入る） -->
               <div class="input-row" style="margin-top:10px;gap:4px;align-items:center;">
@@ -1847,6 +1850,7 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
               <div class="input-row" style="margin-top:4px;">
                 <button class="btn-sm" onclick="dgXRender(true)" style="flex:1;min-width:0;" title="いまの銘柄・URL で投稿文を作り直します（手で直した文は消えます）">🔄 作り直す</button>
                 <button class="btn-sm" onclick="dgCopy('dg-x',this)" style="flex:1;min-width:0;background:#16a34a;color:#fff;">📋 コピー</button>
+                <span data-kw="dg-x|1" style="display:contents;"></span>
               </div>
               <textarea id="dg-x" oninput="dgXCount()" style="font-size:11px;height:72px;min-height:50px;margin-top:4px;line-height:1.5;"></textarea>
             </div>
@@ -2144,11 +2148,12 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
                     <button class="btn-sm" onclick="dgThKeyGen(this)" style="flex:none;background:#4f46e5;color:#fff;" title="各銘柄の一言・判定・株価の動きから、一文を3案作ります（モデルは ⚙ 設定 › AIのモデル › 決算まとめ）">✨ API で作る</button>
                 </div>
                 <div id="dg-th-key-status" style="display:none;font-size:11px;"></div>
+                <div style="display:flex;gap:4px;align-items:center;"><span style="font-size:11px;color:var(--text-sub);">横（3段）の文</span><span style="margin-left:auto;display:flex;gap:4px;" data-kw="dg-th|0"></span></div>
                 <textarea id="dg-th" oninput="dgThInput()" placeholder="上段：中段：下段（銘柄を読むと自動で入ります）" style="height:46px;min-height:46px;"></textarea>
                 <input type="text" id="dg-th-auto" style="display:none;">
                 <p style="font-size:10px;color:var(--text-sub);margin:0;">「：」で上段・中段・下段を区切る。色指定: <span style="color:#ff914d">*オレンジ*</span>　<span style="color:#5ce1e6">#水色#</span>　<span style="color:#ffde59">%黄色%</span></p>
                 <!-- 縦（2段）の文。直していなければ横の1段目に追従（すみぽん 2026-11-15） -->
-                <label style="font-size:11px;color:var(--text-sub);" title="縦サムネ（中段なしの2段）の文。「：」で上段と下段を区切り、段の中は改行で2行に。直していなければ、横の1段目に合わせて自動で入ります">縦（2段）の文</label>
+                <div style="display:flex;gap:4px;align-items:center;"><label style="font-size:11px;color:var(--text-sub);" title="縦サムネ（中段なしの2段）の文。「：」で上段と下段を区切り、段の中は改行で2行に。直していなければ、横の1段目に合わせて自動で入ります">縦（2段）の文</label><span style="margin-left:auto;display:flex;gap:4px;" data-kw="dg-th-v|0"></span></div>
                 <textarea id="dg-th-v" oninput="dgThInput()" placeholder="上段：下段（段の中は改行で2行。空なら自動）" style="height:62px;min-height:62px;"></textarea>
                 <textarea id="dg-th-v-auto" style="display:none;"></textarea><!-- 改行を含むので textarea（input だと改行が消えて「直していない」と分からなくなる） -->
                 <div style="display:flex;gap:8px;align-items:flex-start;">
@@ -2430,6 +2435,7 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
                     <span class="sa-sub" style="margin:0;">サムネ</span>
                     <span id="ev-th-orient" style="font-size:11px;font-weight:700;color:#0d9488;" title="縦・横は、動画の「向き」に合わせて切り替わります"></span>
                     <span id="ev-th-st" style="font-size:11px;color:var(--text-sub);margin-left:auto;"></span>
+                    <span data-kw="ev-viz-th-h,ev-viz-th-v|0" style="display:contents;"></span>
                     <button class="btn-sm" onclick="evThDownload('h',this)" style="flex:none;padding:1px 6px;font-size:10px;" title="横のサムネ（1920×1080・jpg）をダウンロード。YouTube の横動画用">🖼 横</button>
                     <button class="btn-sm" onclick="evThDownload('v',this)" style="flex:none;padding:1px 6px;font-size:10px;" title="縦のサムネ（1080×1920・jpg・3段）をダウンロード。YouTube ショート用。縦の文が空なら横の文で作ります">🖼 縦</button>
                     <button class="btn-sm" onclick="evThDownload('v2',this)" style="flex:none;padding:1px 6px;font-size:10px;" title="縦のサムネの2段構成（1080×1920・jpg）をダウンロード。インスタ・TikTok 用。文は同じで、上段＝評価と株価の動きを2行、下段＝銘柄名、3段目の文は左上のラベルに">🖼 縦2段</button>
@@ -2442,6 +2448,7 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
                 <div id="ev-th2" style="display:none;flex-direction:column;gap:3px;border-top:1px dashed var(--border);padding-top:4px;">
                     <div style="display:flex;align-items:center;gap:6px;">
                         <span style="font-size:11px;font-weight:700;color:var(--text-sub);">縦2段の文（ラベル／上段／下段。改行で行を分ける）</span>
+                        <span data-kw="ev-viz-th2-top,ev-viz-th2-bot|0" style="display:contents;"></span>
                         <button class="btn-sm" onclick="evTh2Fill(true)" style="flex:none;padding:1px 6px;font-size:10px;margin-left:auto;" title="上の文（上段：中段：下段）から3つの欄を作り直します。上段は橙→黄色にして、株価の動きは上昇なら橙・下落なら水色、「で」の後ろで改行、下段は銘柄名をグループ・HD の前で改行、ラベルは3段目の文">📥 上の文から作り直す</button>
                     </div>
                     <div style="display:flex;gap:4px;">
@@ -9394,6 +9401,32 @@ async function downloadVideoSlides(P){
 
 // サムネ・タイトル・概要欄に出す短い社名：「ホールディングス」と、その前の「・」・空白を外す（すみぽん 2026-11-12）。外すと空になるときは元のまま。
 //   例：レゾナック・ホールディングス → レゾナック、DOWAホールディングス → DOWA。動画の部品（kessan-visualizer の shortCompanyName）にも同じ決まりがある
+// 社名の長い言葉を削る・言い換える（⚙ 共通設定「社名で削る・言い換える言葉」。1行に1つ「言葉→言い換え」。すみぽん 2026-11-15）
+//   ボタンを押したときだけ、その欄の今の文を変える（自動ではしない）。ハッシュタグの欄はタグ（#…）の中だけ、タイトル・サムネは文全体。作り直すと元に戻る
+//   動画の部品（kessan-visualizer の applyWords / applyWordsToTags）にも同じ決まりがある
+function ktWordRules(){return String(kgGet('name-words')||'').split(/\r?\n/).map(l=>{const m=l.split(/→|->|⇒/);const from=(m[0]||'').trim(),to=(m.length>1?m.slice(1).join(''):'').trim();return from?{from,to}:null;}).filter(Boolean);}
+function ktWordRe(w){const chars=[...String(w).replace(/[\s　・･·]/g,'')];if(!chars.length)return null;const sep='[\\s　・･·]*';return new RegExp(sep+chars.map(c=>c.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join(sep),'g');}
+// 画面の data-kw="欄のid|タグだけ(1/0)" の所にボタンを入れる（起動時）
+function ktWordBtnsInit(){document.querySelectorAll('[data-kw]').forEach(el=>{if(el.dataset.kwDone)return;const [ids,t]=el.dataset.kw.split('|');el.innerHTML=ktWordBtns(ids,t==='1');el.dataset.kwDone='1';});}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',ktWordBtnsInit);else ktWordBtnsInit();
+function ktWordsText(text,mode,rules){let t=String(text||'');for(const r of(rules||ktWordRules())){const re=ktWordRe(r.from);if(re)t=t.replace(re,mode==='conv'?r.to:'');}return t;}
+function ktWordsTags(text,mode,rules){return String(text||'').replace(/#[^\s#（）()【】｜|、。,]+/g,tok=>{const n=ktWordsText(tok.slice(1),mode,rules).trim();return n?'#'+n:tok;});}
+// ids：欄の id（「,」で複数）。tags＝ハッシュタグの中だけ
+function ktWordApply(ids,mode,tags,btn){
+  const rules=ktWordRules();
+  if(!rules.length){alert('⚙ 共通設定 › 投稿文 の「社名で削る・言い換える言葉」に、言葉を入れてください');return;}
+  let changed=false;
+  String(ids).split(',').forEach(id=>{
+    const el=document.getElementById(id.trim());if(!el)return;
+    const v=el.value,nv=tags?ktWordsTags(v,mode,rules):ktWordsText(v,mode,rules);if(nv===v)return;
+    el.value=nv;changed=true;el.dispatchEvent(new Event('input',{bubbles:true}));
+  });
+  if(changed){if(typeof saveState==='function')saveState();}
+  if(btn){const o=btn.textContent;btn.textContent=changed?'✅':'なし';btn.disabled=true;setTimeout(()=>{btn.textContent=o;btn.disabled=false;},1000);}
+}
+// 欄の横に置く「✂ 削除」「🔁 変換」のボタン
+function ktWordBtns(ids,tags){const w=tags?'ハッシュタグの中から':'この欄から';const st='flex:none;padding:1px 6px;font-size:10px;';
+  return `<button class="btn-sm" onclick="ktWordApply('${ids}','del',${tags?1:0},this)" style="${st}" title="${w}、⚙ 共通設定の「社名で削る・言い換える言葉」を削ります（作り直すと元に戻ります）">✂ 削除</button><button class="btn-sm" onclick="ktWordApply('${ids}','conv',${tags?1:0},this)" style="${st}" title="${w}、⚙ 共通設定の言葉を「→」の右の言葉に言い換えます（右が空なら削ります。作り直すと元に戻ります）">🔁 変換</button>`;}
 function ktShortName(name){const s=String(name||'');const t=s.replace(/[\s　・･·]*ホールディングス/g,'').trim();return t||s.trim();}
 // 決算分析のサムネ文言：整形データから組む（上段=今回の評価、中段=社名、下段=通期予想の状態 or 問い）
 function evThumbText(){
@@ -16411,6 +16444,7 @@ const KG_ITEMS=[
   {g:'reelgen',key:'reel-nt1@gen',label:'note：見出し',ids:[],def:'もっと詳しい｜分析は',tip:'*で囲んだ所が緑になります。「｜」で行を分けます（3行まで）'},
   {g:'reelgen',key:'reel-nt2@gen',label:'note：説明',ids:[],def:'noteで',tip:'線の下に出ます。「｜」で行を分けます。「note」の文字はロゴ付きで出ます'},
   {g:'post',key:'yt-p-fixed',label:'概要欄の定型文（使用ツール・AIの注意書き）',ids:['yt-p-fixed'],area:1,def:YT_POST_FIXED},
+  {g:'post',key:'name-words',label:'社名で削る・言い換える言葉',ids:[],area:1,def:'フィナンシャルグループ→FG',tip:'1行に1つ。「言葉→言い換え」と書く（言い換えが無ければ言葉だけ）。決算まとめ・決算分析の欄の横の「✂ 削除」で削り、「🔁 変換」で「→」の右に言い換えます。言葉の間に「・」や空白があっても当たります（フィナンシャル・グループ も）。作り直すと元に戻ります'},
   {g:'post',key:'vd-yt-fixed',label:'縦動画の概要欄の定型文（YouTubeショート）',ids:[],area:1,def:VD_YT_FIXED_DEF,tip:'株価分析の縦動画の、YouTubeショートの概要欄に入れる定型文（使用ツール・AIの注意書き）'},
   {g:'digest',key:'note-url',label:'note のトップURL',ids:[],def:'',tip:'決算まとめの概要欄の「▼ noteはこちら」と、最後のスライドの QR コードに使います（https://note.com/… ）。空なら note のトップ https://note.com/ になります'},
   {g:'digest',key:'blog-url',label:'ブログのURL',ids:[],def:'https://sumikko-money.com/',tip:'決算まとめの概要欄の「■ ブログで各銘柄の詳しい決算解説を公開中」と、決算の分析動画の概要欄（ブログの記事URLが空のとき）に使います'},
@@ -17433,7 +17467,7 @@ async function evVizMount(force){
   if(d.analysis){try{vizNow=KV.build(d.analysis,evVizExtras());}catch(e){console.warn('viz rebuild',e);}}
   let st0=evVizSettings()||evVizDefaultSettings(KV);
   if(Object.keys(EV_COVER_KEY).some(f=>typeof st0[f]==='string'&&st0[f].startsWith('data:')))st0=await evCoverStore(st0).then(s2=>{const el=document.getElementById('ev-viz-settings');if(el)el.value=JSON.stringify(s2);if(typeof saveState==='function')saveState();return s2;});   // 古い PJ：JSON の中の表紙をファイルへ
-  const props={visualization:vizNow,settings:await evCoverLoad(st0),controlsEl:document.getElementById('ev-viz-controls'),importCoverImage:evVizCoverImage,tts:evVizTts,audioStore:evVizAudioStore,importBgm:evVizImportBgm,transcribe:evVizTranscribe,ytDescExtra:evVizYtExtra(),snsEl:document.getElementById('ev-viz-sns'),onChange:(st)=>{evVizSettingsWrite(st);const k=st&&st.orientation==='portrait'?'v':'h';if(k!==_evThKind)evThSwitch(k);}};
+  const props={visualization:vizNow,settings:await evCoverLoad(st0),controlsEl:document.getElementById('ev-viz-controls'),importCoverImage:evVizCoverImage,tts:evVizTts,audioStore:evVizAudioStore,importBgm:evVizImportBgm,transcribe:evVizTranscribe,ytDescExtra:evVizYtExtra(),wordRules:ktWordRules,snsEl:document.getElementById('ev-viz-sns'),onChange:(st)=>{evVizSettingsWrite(st);const k=st&&st.orientation==='portrait'?'v':'h';if(k!==_evThKind)evThSwitch(k);}};
   if(_evVizHandle){_evVizHandle.update(props);}else{_evVizHandle=KV.mount(host,props);}
   _evVizLastJson=json;
   evVizCutRenderSoon();
