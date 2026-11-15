@@ -2146,7 +2146,11 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
                 <div id="dg-th-key-status" style="display:none;font-size:11px;"></div>
                 <textarea id="dg-th" oninput="dgThInput()" placeholder="上段：中段：下段（銘柄を読むと自動で入ります）" style="height:46px;min-height:46px;"></textarea>
                 <input type="text" id="dg-th-auto" style="display:none;">
-                <p style="font-size:10px;color:var(--text-sub);margin:0;">「：」で上段・中段・下段を区切る。色指定: <span style="color:#ff914d">*オレンジ*</span>　<span style="color:#5ce1e6">#水色#</span>　<span style="color:#ffde59">%黄色%</span>。縦は中段なしの2段：上段「11月8日（白）／注目銘柄（黄色）」、下段「図解で／決算解説」（上段の日付は横の1段目から）</p>
+                <p style="font-size:10px;color:var(--text-sub);margin:0;">「：」で上段・中段・下段を区切る。色指定: <span style="color:#ff914d">*オレンジ*</span>　<span style="color:#5ce1e6">#水色#</span>　<span style="color:#ffde59">%黄色%</span></p>
+                <!-- 縦（2段）の文。直していなければ横の1段目に追従（すみぽん 2026-11-15） -->
+                <label style="font-size:11px;color:var(--text-sub);" title="縦サムネ（中段なしの2段）の文。「：」で上段と下段を区切り、段の中は改行で2行に。直していなければ、横の1段目に合わせて自動で入ります">縦（2段）の文</label>
+                <textarea id="dg-th-v" oninput="dgThInput()" placeholder="上段：下段（段の中は改行で2行。空なら自動）" style="height:62px;min-height:62px;"></textarea>
+                <textarea id="dg-th-v-auto" style="display:none;"></textarea><!-- 改行を含むので textarea（input だと改行が消えて「直していない」と分からなくなる） -->
                 <div style="display:flex;gap:8px;align-items:flex-start;">
                     <div id="dg-th-prev" style="position:relative;overflow:hidden;border:1px solid var(--border);border-radius:4px;flex:none;display:none;"><div id="dg-th-prev-in"></div></div>
                     <div id="dg-th-prev-v" style="position:relative;overflow:hidden;border:1px solid var(--border);border-radius:4px;flex:none;display:none;"><div id="dg-th-prev-v-in"></div></div>
@@ -17825,12 +17829,25 @@ function dgThText(){
 }
 // 縦（2段）の文（すみぽん 2026-11-08）：上段＝「11月8日」（白）と「注目銘柄」（黄色）の2行、下段＝「図解で」「決算解説」の2行。ラベル（左上の丸帯）は無し。中段の一文は横だけに使う
 //   上段は横の1段目の文から（色指定は外し、「の」の前を日付の行、後ろを黄色の行に）。横の1段目を手で直していれば、それに追従する
-function dgTh2Parts(){
+//   縦の欄（dg-th-v）に「上段：下段」で入れた文があればそれを使う（手で直せる。すみぽん 2026-11-15）
+function dgTh2AutoText(){
   const parts=thumbParts(dgThVal()).map(x=>x.replace(/\s*\n\s*/g,''));
   const plain=parts[0]?parseThumbnailMarkup(parts[0]).map(x=>x.text).join('').trim():'';
   const i=plain.indexOf('の');
   const top=i>0&&i<plain.length-1?plain.slice(0,i)+'\n%'+plain.slice(i+1)+'%':'%'+(plain||'注目銘柄')+'%';
-  return {label:'',top,bot:'図解で\n決算解説',no_date:true};   // no_date：上のバーの日付を出さない（上段に日付があるので2つになる。すみぽん 2026-11-08）
+  return top+'：図解で\n決算解説';
+}
+function dgTh2Parts(){
+  const v=((document.getElementById('dg-th-v')||{}).value||'').trim()||dgTh2AutoText();
+  const k=v.search(/[：:]/);
+  const top=(k<0?v:v.slice(0,k)).trim(),bot=(k<0?'':v.slice(k+1)).trim();
+  return {label:'',top,bot,no_date:true};   // no_date：上のバーの日付を出さない（上段に日付があるので2つになる。すみぽん 2026-11-08）
+}
+// 縦の欄：空か、前に自動で入れた文のままなら入れ直す（直した文は残す）
+function dgTh2Auto(){
+  const el=document.getElementById('dg-th-v'),au=document.getElementById('dg-th-v-auto');if(!el||!au)return;
+  const t=dgTh2AutoText();
+  if(!el.value.trim()||el.value===au.value){if(el.value!==t||au.value!==t){el.value=t;au.value=t;if(typeof saveState==='function')saveState();}}
 }
 function dgThKeyInput(){if(typeof saveState==='function')saveState();dgThAuto();}
 function dgThCandPick(sel){if(!sel.value)return;const el=document.getElementById('dg-th-key');if(el)el.value=sel.value;sel.value='';dgThKeyInput();}
@@ -17872,9 +17889,10 @@ function dgThAuto(){
   const el=document.getElementById('dg-th'),au=document.getElementById('dg-th-auto');if(!el||!au)return;
   const t=dgThText();
   if(!el.value.trim()||el.value===au.value){el.value=t;au.value=t;if(typeof saveState==='function')saveState();}
+  dgTh2Auto();
   dgThPreview();
 }
-function dgThInput(){if(typeof saveState==='function')saveState();clearTimeout(_dgThTimer);_dgThTimer=setTimeout(dgThPreview,300);}
+function dgThInput(){if(typeof saveState==='function')saveState();clearTimeout(_dgThTimer);_dgThTimer=setTimeout(()=>{dgTh2Auto();dgThPreview();},300);}
 // 縦サムネの HTML（中段なしの2段。決算分析の2段と同じ部品 buildVThumb2。上の日付バー・下の「タップで動画を再生」あり）
 const dgThHtmlV=()=>buildVThumb2('',null,null,false,dgTh2Parts());
 function dgThPreview(){
