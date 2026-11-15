@@ -5424,6 +5424,7 @@ risk_3=`;
             if (ktPreReset) ['earnings', 'stock', 'price'].forEach(k => { if (!KTStore.cur[k]) try { kgInitModels(k); } catch (e) {} });
             window._ktKind = ktMode0; ktPjFill();
             KTStore.titleOf = (kind, fields) => ktTabTitle(kind, fields);
+            KTStore.readyOf = kind => ktTabReady(kind);
             try { await KTStore.refreshRows(); } catch (e) {}
             ktPjFill();
             KTStore.onChange = () => ktPjFill();
@@ -15542,6 +15543,14 @@ function ktLoadModal(on,label,onCancel){
   clearTimeout(window._ktLoadT);window._ktLoadT=setTimeout(()=>{if(ov.isConnected)ov.style.display='flex';},200);
 }
 // 種別ごとの見出し（サーバーの PJ 一覧に出す）：コードと名前をつなぐ
+// 新しい PJ を保存してよいか：決算分析・株価分析はコードが入っている、決算まとめは銘柄を選んでいる（すみぽん 2026-11-15）。ほかの種別はいつでも
+function ktTabReady(tab){
+  const v=id=>String((document.getElementById(id)||{}).value||'').trim();
+  if(tab==='earnings')return !!v('p-code');
+  if(tab==='price')return !!v('inp-ticker');
+  if(tab==='digest')return typeof dgIds==='function'&&dgIds().length>0;
+  return true;
+}
 function ktTabTitle(tab,fields){
   const t=TAB_IO[tab];if(!t)return '';
   const cd=t.codeId?fields[t.codeId]:'';let nm=t.nameId?fields[t.nameId]:'';

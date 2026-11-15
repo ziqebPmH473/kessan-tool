@@ -42,6 +42,8 @@
     base: {},               // kind → 空で開いているときの、いちばん最近の JSON（ユーザーが触るまで追いかける）
     touched: {},            // kind → 'input'（欄を打った・貼った）| 'click'（何か押した）。空の PJ に行を作る合図
     titleOf: null,          // (kind, fields) → 見出し。行の中身（持ち越し込み）から作る
+    readyOf: null,          // (kind) → 新しい PJ の行を作ってよいか（コードが入っている・銘柄を選んだ。画面の欄を見る）。false のあいだは行を作らない（すみぽん 2026-11-15）
+    deferred: {},           // kind → 行を作れるまで待たせたファイルの保存（行を作ったら送る。PJ を切り替えたら捨てる）
     force: {},              // kind → true（ファイルを入れたので行を作る）
     versions: {},           // id → サーバーの version
     last: {},               // id → 最後にサーバーと合った JSON 文字列
@@ -220,7 +222,10 @@
           // 押しただけ：開いた直後の状態から欄が変わっていれば作る。まだ覚えていなければ（開いてすぐ押した）、いまを覚えて作らない
           if (touched === 'click' && (S.base[t] === undefined || j === S.base[t])) { S.base[t] = j; return; }
         }
+        // コード未入力（決算まとめは銘柄が未選択）の新しい PJ は保存しない。入れたら、そのときに行を作る（すみぽん 2026-11-15）
+        if (typeof S.readyOf === 'function' && !S.readyOf(t)) return;
         id = newId(t); S.cur[t] = id; S.created[id] = nowIso(); S.loaded[t] = true; delete S.touched[t]; delete S.base[t]; curSave();
+        const dq = S.deferred[t]; if (dq) { delete S.deferred[t]; setTimeout(() => dq.forEach(f => { try { f(); } catch (e) {} }), 0); }   // 待たせていたファイルを送る
       }
       delete S.force[t];
       if (j === S.last[id]) return;
@@ -378,7 +383,7 @@
     const kindOf = (opts && opts.kindOf) || (() => '_common');
     S.ns[ns] = { local, kindOf, legacy: (opts && opts.legacy) || (k => ({ kind: kindOf(k), key: k })) };
     // 空の PJ にファイルを書くのは、ユーザーが触ったあとだけ（初期化の書き込みで PJ を作らない）
-    const full = (key, create) => { const k = kindOf(key); if (k !== '_common' && create && !S.cur[k] && !S.touched[k] && !S.force[k]) return null; const pid = k === '_common' ? '_common' : pidFor(k, create); return pid ? pid + '/' + key : null; };
+    const full = (key, create) => { const k = kindOf(key); if (k !== '_common' && create && !S.cur[k] && !S.touched[k] && !S.force[k]) return null; if (k !== '_common' && create && !S.cur[k] && typeof S.readyOf === 'function' && !S.readyOf(k)) return { defer: k }; const pid = k === '_common' ? '_common' : pidFor(k, create); return pid ? pid + '/' + key : null; };
     return {
       async get(key) {
         await S.readyWait;
@@ -402,6 +407,7 @@
       async put(key, val) {
         await S.readyWait;
         const fk = full(key, true); if (!fk) return;
+        if (fk.defer) { (S.deferred[fk.defer] = S.deferred[fk.defer] || []).push(() => this.put(key, val)); return; }   // コード未入力の新しい PJ：行を作るまで待つ
         await local.put(fk, val);
         if (S.mode !== 'server') return;
         S.mediaQueue[ns + '/' + fk] = 1; metaSave(); runMedia();
@@ -558,6 +564,7 @@
   // signal で中止できる。中止・失敗したときは開いている PJ を変えない（取り出しが終わってから切り替える）
   async function openProject(kind, id, signal) {
     S.loaded[kind] = false;   // 画面に入れ終えるまで（呼ぶ側が markLoaded するまで）この kind は保存しない
+    delete S.deferred[kind];   // 前の（まだ保存していない）PJ で待たせていたファイルは捨てる
     await flush();
     let doc = null;
     if (id && S.mode === 'server') {
@@ -775,6 +782,7 @@
     // その PJ に、端末に残った未送信の変更があるか（PJ の一覧に印を出す）
     hasPending(id) { return !!S.pending[id] || !!lsGet(PEND_PREFIX + id); },
     set titleOf(fn) { S.titleOf = fn; },
+    set readyOf(fn) { S.readyOf = fn; },
     get cur() { return Object.assign({}, S.cur); },
     get rows() { return S.rows; },
     get mode() { return S.mode; },
