@@ -1819,24 +1819,24 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
               <!-- 縦版（インスタ・TikTok）の紹介文。URL は入れず「プロフィールのリンクから」。開始時間は縦の動画の長さ（すみぽん 2026-11-08） -->
               <div style="font-size:11px;font-weight:700;" title="縦版（TikTok・インスタ）の投稿に貼る文。URL は入れず、ブログ・note はプロフィールのリンクに案内します。開始時間は縦の動画の長さから自動で入ります">📱 紹介文（インスタ・TikTok）</div>
               <div class="input-row" style="margin-top:4px;">
-                <button class="btn-sm" onclick="dgSnsRender(true)" style="flex:1;min-width:0;background:#fff;color:#334155;border:1px solid #cbd5e1;" title="いまの銘柄・時間で、この紹介文だけを作り直します（手で直した文は消えます。ほかの欄はそのまま）">🔄 作り直す</button>
+                <button class="btn-sm" onclick="if(confirm('紹介文（インスタ・TikTok）を作り直しますか？（手で直した文は消えます）'))dgSnsRender(true)" style="flex:1;min-width:0;background:#fff;color:#334155;border:1px solid #cbd5e1;" title="いまの銘柄・時間で、この紹介文だけを作り直します（手で直した文は消えます。ほかの欄はそのまま）">🔄 作り直す</button>
                 <button class="btn-sm" onclick="dgCopy('dg-sns',this)" style="flex:1;min-width:0;background:#4f46e5;color:#fff;border:none;">📋 コピー</button>
-                <span data-kw="dg-sns|1" style="display:contents;"></span>
+                <span data-kw="dg-sns|1|c" style="display:contents;"></span>
               </div>
               <textarea id="dg-sns" style="font-size:11px;height:100px;min-height:60px;margin-top:4px;line-height:1.5;"></textarea>
               <div style="font-size:11px;font-weight:700;margin-top:10px;" title="YouTube の概要欄に貼る文。目次の開始時間は動画の長さから自動で入ります。note の URL と「最後の文」の初期値は ⚙ 設定 › 決算まとめ">📝 概要欄（YouTube。目次の時間は自動）</div>
               <div class="input-row" style="margin-top:4px;">
-                <button class="btn-sm" onclick="dgDescRender(true,false)" style="flex:1;min-width:0;background:#fff;color:#334155;border:1px solid #cbd5e1;" title="いまの銘柄・時間で、この概要欄だけを作り直します（手で直した文は消えます。ほかの欄はそのまま）">🔄 作り直す</button>
+                <button class="btn-sm" onclick="if(confirm('概要欄を作り直しますか？（手で直した文は消えます）'))dgDescRender(true,false)" style="flex:1;min-width:0;background:#fff;color:#334155;border:1px solid #cbd5e1;" title="いまの銘柄・時間で、この概要欄だけを作り直します（手で直した文は消えます。ほかの欄はそのまま）">🔄 作り直す</button>
                 <button class="btn-sm" onclick="dgCopy('dg-desc',this)" style="flex:1;min-width:0;background:#4f46e5;color:#fff;border:none;">📋 コピー</button>
-                <span data-kw="dg-desc|1" style="display:contents;"></span>
+                <span data-kw="dg-desc|1|c" style="display:contents;"></span>
               </div>
               <textarea id="dg-desc" style="font-size:11px;height:100px;min-height:60px;margin-top:4px;line-height:1.5;"></textarea>
               <div class="input-row" style="margin-top:4px;gap:4px;align-items:center;">
                 <label style="font-size:11px;color:var(--text-sub);flex:none;">タイトル案</label>
                 <input type="text" id="dg-yt-title" style="flex:1;min-width:0;font-size:11px;">
-                <button class="btn-sm" onclick="dgTitleRender(true)" style="flex:none;background:#fff;color:#334155;border:1px solid #cbd5e1;" title="いまの銘柄で、このタイトル案だけを作り直します（手で直した文は消えます）">🔄</button>
+                <button class="btn-sm" onclick="if(confirm('タイトル案を作り直しますか？（手で直した文は消えます）'))dgTitleRender(true)" style="flex:none;background:#fff;color:#334155;border:1px solid #cbd5e1;" title="いまの銘柄で、このタイトル案だけを作り直します（手で直した文は消えます）">🔄</button>
                 <button class="btn-sm" onclick="dgCopy('dg-yt-title',this)" style="flex:none;background:#4f46e5;color:#fff;border:none;" title="コピー">📋</button>
-                <span data-kw="dg-yt-title|0" style="display:contents;"></span>
+                <span data-kw="dg-yt-title|0|c" style="display:contents;"></span>
               </div>
               <!-- X 用の投稿文（すみぽん 2026-11-12）。インスタの紹介文を短くした形：1行目（日付・銘柄数）→ 説明 → タグ → YouTube の URL。URL は下の欄（入れると最後の行に入る） -->
               <div class="input-row" style="margin-top:10px;gap:4px;align-items:center;">
@@ -1849,9 +1849,9 @@ body:not(.kt-yt) #yt-root>.sa-subtabs{position:static;}
                 <span id="dg-x-count" style="font-size:10px;color:var(--text-sub);" title="X の数え方（全角は2・半角は1・URL は23。280 まで）"></span>
               </div>
               <div class="input-row" style="margin-top:4px;">
-                <button class="btn-sm" onclick="dgXRender(true)" style="flex:1;min-width:0;background:#fff;color:#334155;border:1px solid #cbd5e1;" title="いまの銘柄・URL で、この投稿文だけを作り直します（手で直した文は消えます。ほかの欄はそのまま）">🔄 作り直す</button>
+                <button class="btn-sm" onclick="if(confirm('X の投稿文を作り直しますか？（手で直した文は消えます）'))dgXRender(true)" style="flex:1;min-width:0;background:#fff;color:#334155;border:1px solid #cbd5e1;" title="いまの銘柄・URL で、この投稿文だけを作り直します（手で直した文は消えます。ほかの欄はそのまま）">🔄 作り直す</button>
                 <button class="btn-sm" onclick="dgCopy('dg-x',this)" style="flex:1;min-width:0;background:#4f46e5;color:#fff;border:none;">📋 コピー</button>
-                <span data-kw="dg-x|1" style="display:contents;"></span>
+                <span data-kw="dg-x|1|c" style="display:contents;"></span>
               </div>
               <textarea id="dg-x" oninput="dgXCount()" style="font-size:11px;height:72px;min-height:50px;margin-top:4px;line-height:1.5;"></textarea>
             </div>
@@ -9425,26 +9425,29 @@ async function downloadVideoSlides(P){
 function ktWordRules(){return String(kgGet('name-words')||'').split(/\r?\n/).map(l=>{const m=l.split(/→|->|⇒/);const from=(m[0]||'').trim(),to=(m.length>1?m.slice(1).join(''):'').trim();return from?{from,to,conv:m.length>1}:null;}).filter(Boolean);}
 function ktWordRe(w){const chars=[...String(w).replace(/[\s　・･·]/g,'')];if(!chars.length)return null;const sep='[\\s　・･·]*';return new RegExp(sep+chars.map(c=>c.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join(sep),'g');}
 // 画面の data-kw="欄のid|タグだけ(1/0)" の所にボタンを入れる（起動時）
-function ktWordBtnsInit(){document.querySelectorAll('[data-kw]').forEach(el=>{if(el.dataset.kwDone)return;const [ids,t]=el.dataset.kw.split('|');el.innerHTML=ktWordBtns(ids,t==='1');el.dataset.kwDone='1';});}
+function ktWordBtnsInit(){document.querySelectorAll('[data-kw]').forEach(el=>{if(el.dataset.kwDone)return;const [ids,t,c]=el.dataset.kw.split('|');el.innerHTML=ktWordBtns(ids,t==='1',c==='c');el.dataset.kwDone='1';});}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',ktWordBtnsInit);else ktWordBtnsInit();
 function ktWordsText(text,mode,rules){let t=String(text||'');for(const r of(rules||ktWordRules())){if(!!r.conv!==(mode==='conv'))continue;const re=ktWordRe(r.from);if(re)t=t.replace(re,mode==='conv'?r.to:'');}return t;}
 function ktWordsTags(text,mode,rules){return String(text||'').replace(/#[^\s#（）()【】｜|、。,]+/g,tok=>{const n=ktWordsText(tok.slice(1),mode,rules).trim();return n?'#'+n:tok;});}
 // ids：欄の id（「,」で複数）。tags＝ハッシュタグの中だけ
-function ktWordApply(ids,mode,tags,btn){
+// ask＝変える前に確認を出す（決算まとめの投稿文。押し間違え防止。すみぽん 2026-11-16）。当てはまる言葉が無いときは出さない
+function ktWordApply(ids,mode,tags,btn,ask){
   const rules=ktWordRules();
   if(!rules.some(r=>!!r.conv===(mode==='conv'))){alert(mode==='conv'?'⚙ 共通設定 › 投稿文 の「社名で削る・言い換える言葉」に、「言葉→言い換え」の行を入れてください（変換は「→」付きの行だけ使います）':'⚙ 共通設定 › 投稿文 の「社名で削る・言い換える言葉」に、「→」なしで削る言葉を入れてください（削除は「→」なしの行だけ使います）');return;}
-  let changed=false;
+  const todo=[];
   String(ids).split(',').forEach(id=>{
     const el=document.getElementById(id.trim());if(!el)return;
-    const v=el.value,nv=tags?ktWordsTags(v,mode,rules):ktWordsText(v,mode,rules);if(nv===v)return;
-    el.value=nv;changed=true;el.dispatchEvent(new Event('input',{bubbles:true}));
+    const v=el.value,nv=tags?ktWordsTags(v,mode,rules):ktWordsText(v,mode,rules);if(nv!==v)todo.push([el,nv]);
   });
+  if(todo.length&&ask&&!confirm(`この欄の言葉を${mode==='conv'?'言い換え':'削り'}ますか？（作り直すと元に戻ります）`))return;
+  const changed=todo.length>0;
+  todo.forEach(([el,nv])=>{el.value=nv;el.dispatchEvent(new Event('input',{bubbles:true}));});
   if(changed){if(typeof saveState==='function')saveState();}
   if(btn){const o=btn.textContent;btn.textContent=changed?'✅':'なし';btn.disabled=true;setTimeout(()=>{btn.textContent=o;btn.disabled=false;},1000);}
 }
 // 欄の横に置く「✂ 削除」「🔁 変換」のボタン
-function ktWordBtns(ids,tags){const w=tags?'ハッシュタグの中から':'この欄から';const st='flex:none;padding:1px 6px;font-size:10px;background:#fff;color:#334155;border:1px solid #cbd5e1;';
-  return `<button class="btn-sm" onclick="ktWordApply('${ids}','del',${tags?1:0},this)" style="${st}" title="${w}、⚙ 共通設定の「社名で削る・言い換える言葉」のうち「→」なしの言葉を削ります（作り直すと元に戻ります）">✂ 削除</button><button class="btn-sm" onclick="ktWordApply('${ids}','conv',${tags?1:0},this)" style="${st}" title="${w}、⚙ 共通設定の「言葉→言い換え」の行で言い換えます（作り直すと元に戻ります）">🔁 変換</button>`;}
+function ktWordBtns(ids,tags,ask){const w=tags?'ハッシュタグの中から':'この欄から';const st='flex:none;padding:1px 6px;font-size:10px;background:#fff;color:#334155;border:1px solid #cbd5e1;';
+  return `<button class="btn-sm" onclick="ktWordApply('${ids}','del',${tags?1:0},this,${ask?1:0})" style="${st}" title="${w}、⚙ 共通設定の「社名で削る・言い換える言葉」のうち「→」なしの言葉を削ります（作り直すと元に戻ります）">✂ 削除</button><button class="btn-sm" onclick="ktWordApply('${ids}','conv',${tags?1:0},this,${ask?1:0})" style="${st}" title="${w}、⚙ 共通設定の「言葉→言い換え」の行で言い換えます（作り直すと元に戻ります）">🔁 変換</button>`;}
 function ktShortName(name){const s=String(name||'');const t=s.replace(/[\s　・･·]*ホールディングス/g,'').trim();return t||s.trim();}
 // 決算分析のサムネ文言：整形データから組む（上段=今回の評価、中段=社名、下段=通期予想の状態 or 問い）
 function evThumbText(){
