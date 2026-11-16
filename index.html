@@ -8394,7 +8394,8 @@ async function geminiVideoSns(P,btnEl){
   return true;
 }
 function vdShowPreview(P){
-  if(P==='vd'){setMode('video');}
+  // 縦（自動）を開いているときは、できた台本・スライド文を自動動画へ読み直す（右側も自動動画のまま）
+  if(P==='vd'){if(ytOrient()==='a'){setMode('pv');pvOpen(true);}else setMode('video');}
   else{switchEarnTab('video');}
 }
 
