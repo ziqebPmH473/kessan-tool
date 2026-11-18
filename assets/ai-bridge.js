@@ -44,10 +44,11 @@
     if (d.type === 'counts') { api.counts = d.counts || {}; return; }
     if (d.type === 'result' && d.job) {
       var j = d.job;
-      if (applied[j.id]) { post({ type: 'ack', id: j.id }); return; }
+      var key = j.id + '@' + (j.v || 0);   // 読み直し・もう一度入れる のときは v が変わるので、もう一度入れる
+      if (applied[key]) { post({ type: 'ack', id: j.id }); return; }
       var ok = false;
       try { ok = !!(onResult && onResult(j)); } catch (e) { ok = false; }
-      if (ok) { applied[j.id] = true; post({ type: 'ack', id: j.id }); }
+      if (ok) { applied[key] = true; post({ type: 'ack', id: j.id }); }
       return;
     }
     if (d.type === 'step' && d.step) {
