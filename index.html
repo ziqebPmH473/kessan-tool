@@ -5765,16 +5765,18 @@ function buildAnalysisText(){
   return p;
 }
 
-function copyAnalysis(btn){copyText(buildAnalysisText(),btn);}
+function copyAnalysis(btn){const t=buildAnalysisText();saBridgeJob(btn,t,'analysis');copyText(t,btn);}
 function saCopyFactCheck(btn){
   const report=document.getElementById('ta-report').value.trim();
   if(!report){alert('レポートを貼り付けてください');return;}
   // 文は決算分析のファクトチェック（copyFactCheck）と同じ（「件数が多くてもすべて指摘」「レイアウトや出力形式の指摘は不要」を足した。すみぽん 2026-11-08）
-  copyText(`以下のレポートは、以下の指示でAIが生成したものです。\nレポートのファクトチェックを行い、誤っている箇所と指示に沿っていない箇所のみを指摘してください。\n指摘は件数が多くても構わないので、すべて指摘してください。\n指摘がある場合には、指摘箇所、指摘内容、修正後内容を記載してください。\n不明点や確認点があればすべて調査し、レポートに記載できる形式で修正後内容を提示してください。\nレイアウトや出力形式に関する指摘は不要です。\n\n--指示--\n${buildAnalysisText()}\n\n--レポート--\n\n${report}`,btn);
+  saCopyStep(btn,'fc',`以下のレポートは、以下の指示でAIが生成したものです。\nレポートのファクトチェックを行い、誤っている箇所と指示に沿っていない箇所のみを指摘してください。\n指摘は件数が多くても構わないので、すべて指摘してください。\n指摘がある場合には、指摘箇所、指摘内容、修正後内容を記載してください。\n不明点や確認点があればすべて調査し、レポートに記載できる形式で修正後内容を提示してください。\nレイアウトや出力形式に関する指摘は不要です。\n\n--指示--\n${buildAnalysisText()}\n\n--レポート--\n\n${report}`);
 }
 // 文は決算分析の FC CK（copyFactCheckVerify。2026-11-07 の文）と同じ（すみぽん 2026-11-08）
-function copyRecheck(btn){copyText('指摘箇所、指摘内容から指摘箇所の修正を行うことが妥当か、修正後内容が正しいか確認してください。\n正しくない場合には、不明点や確認点があればすべて調査し、レポートに記載できる形式で修正後内容を提示してください。\n結果はそのまま読むので、コードブロックには入れないでください。引用・出典・脚注も付けないでください。',btn);}
-function copyCorrection(btn){copyText('指摘箇所を指示の内容に沿って修正し、全文出力してください。\nただし、指摘していない箇所は一切変更しないでください。',btn);}
+function copyRecheck(btn){saCopyStep(btn,'ck','指摘箇所、指摘内容から指摘箇所の修正を行うことが妥当か、修正後内容が正しいか確認してください。\n正しくない場合には、不明点や確認点があればすべて調査し、レポートに記載できる形式で修正後内容を提示してください。\n結果はそのまま読むので、コードブロックには入れないでください。引用・出典・脚注も付けないでください。');}
+function copyCorrection(btn){saCopyStep(btn,'fix','指摘箇所を指示の内容に沿って修正し、全文出力してください。\nただし、指摘していない箇所は一切変更しないでください。');}
+// コピーと同時に、AI ブリッジ（拡張）があれば ChatGPT へ送る準備をする（ボタンの文字が「コピーしました」に変わる前に名前を読む）
+function saCopyStep(btn,step,text){saBridgeJob(btn,text,step);copyText(text,btn);}
 function copyNBPrompt(btn){copyText(NB_PROMPT,btn);}
 
 // ============================================================
@@ -18382,13 +18384,38 @@ async function eaBlogZip(btn){
 
 // AI ブリッジ（Chrome 拡張。リポジトリ xppen-shortcut-tool。すみぽん 2026-11-18）。拡張が無ければ何もしない（今までどおり保存）。
 // 拡張があれば、ブログ用 ZIP を保存せずに sumikko-console へ渡す。受け取った側が「まとめて貼る」と同じに取り込み、プレビューを押したところで止める
+// 株分析の ①分析〜④修正 を ChatGPT へ（コピーは今までどおり）。①は「株分析動画作成」の PJ の新しい会話、②ファクトは「株分析動画FC」の PJ の新しい会話、③再CK・④修正 は②の会話の続き。
+// ①と④の返答は、その銘柄を開いていれば「ChatGPTのレポート」の欄に入る（貼り付けを押したのと同じ）。②③の返答は ChatGPT で読む
+function saBridgeKey(){return String((typeof getTicker==='function'&&getTicker())||(typeof getName==='function'&&getName())||'').trim();}
+function saBridgeJob(btn,prompt,step){
+  if(!window.AiBridge||!AiBridge.connected||!prompt)return;
+  const key=saBridgeKey(),fc=step!=='analysis';
+  const name=String(btn&&(btn.dataset.orig||btn.textContent)||'').trim();
+  AiBridge.job({
+    thread:'kessan:sa:'+(key||'-')+':'+(fc?'fc':'make'),
+    newChat:step==='analysis'||step==='fc',
+    project:fc?'fc':'make',
+    prompt,
+    label:((typeof getName==='function'&&getName())||key||'株分析')+' / '+name,
+    extract:'auto',
+    returnTo:(step==='analysis'||step==='fix')?{act:'sa-report',key}:null
+  });
+}
+function saBridgeApply(job){
+  const r=job&&job.returnTo;
+  if(!r||r.act!=='sa-report'||r.key!==saBridgeKey())return false;   // 別の銘柄を開いているときは入れない（拡張が持っておき、その銘柄を開くと入る）
+  const ta=document.getElementById('ta-report');if(!ta)return false;
+  ta.value=String(job.text||'');
+  if(typeof ytUpdateFreeInfo==='function')ytUpdateFreeInfo();
+  return true;
+}
 async function kbHandoffZip(blob,name,label){
   if(!window.AiBridge||!AiBridge.connected)return false;
   try{return await AiBridge.handoff({to:'sumikko',action:'importZip',file:new File([blob],name,{type:'application/zip'}),name,hash:'#post-new',label});}
   catch(e){console.warn('[aib] handoff',e);return false;}
 }
 if(window.AiBridge){
-  AiBridge.init('kessan',null);
+  AiBridge.init('kessan',saBridgeApply);
   // 分析動画の MP4 の書き出し中は拡張に知らせる（タブが前に無いと書き出しが止まるので、その間は拡張がタブを切り替えない）
   setInterval(()=>{
     const K=window.KessanViz;if(!K||typeof K.exportMp4!=='function'||K.__aibWrapped)return;
