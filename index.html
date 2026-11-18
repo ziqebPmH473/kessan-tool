@@ -18395,6 +18395,8 @@ function saBridgeJob(btn,prompt,step){
     thread:'kessan:sa:'+(key||'-')+':'+(fc?'fc':'make'),
     newChat:step==='analysis'||step==='fc',
     project:fc?'fc':'make',
+    step:fc?step:'make',
+    stepRef:{key},
     prompt,
     label:((typeof getName==='function'&&getName())||key||'株分析')+' / '+name,
     extract:'auto',
@@ -18409,13 +18411,22 @@ function saBridgeApply(job){
   if(typeof ytUpdateFreeInfo==='function')ytUpdateFreeInfo();
   return true;
 }
+// 拡張から「FC の次の段」を頼まれたら、③再CK か ④修正 を押す（同じ銘柄を開いているときだけ。開いていなければ、開いたときにまた頼まれる）
+function saBridgeStep(ref,step){
+  if(!ref||ref.key!==saBridgeKey())return false;
+  const fn=step==='ck'?'copyRecheck':step==='fix'?'copyCorrection':'';
+  const btn=fn&&document.querySelector(`button[onclick^="${fn}("]`);
+  if(!btn)return false;
+  btn.click();
+  return true;
+}
 async function kbHandoffZip(blob,name,label){
   if(!window.AiBridge||!AiBridge.connected)return false;
   try{return await AiBridge.handoff({to:'sumikko',action:'importZip',file:new File([blob],name,{type:'application/zip'}),name,hash:'#post-new',label});}
   catch(e){console.warn('[aib] handoff',e);return false;}
 }
 if(window.AiBridge){
-  AiBridge.init('kessan',saBridgeApply);
+  AiBridge.init('kessan',saBridgeApply,{onStep:saBridgeStep});
   // 分析動画の MP4 の書き出し中は拡張に知らせる（タブが前に無いと書き出しが止まるので、その間は拡張がタブを切り替えない）
   setInterval(()=>{
     const K=window.KessanViz;if(!K||typeof K.exportMp4!=='function'||K.__aibWrapped)return;

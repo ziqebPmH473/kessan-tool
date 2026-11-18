@@ -7,7 +7,10 @@
  *       tool … ツールの名前（'affiri' / 'kessan' / 'tosho' / 'sumikko'）
  *       onResult(job) … ChatGPT の返答が届いたら呼ばれる。入れられたら true（false なら、入れられるようになるまで拡張が持っておく）
  *       opts.onHandoff(handoff, file) … 別のツールからファイルが届いたら呼ばれる。Promise で { ok, message } を返す
- *   AiBridge.job({ thread, newChat, prompt, returnTo, label, extract }) … プロンプトを「準備」として渡す（ACK05 のボタン1で送る）
+ *       opts.onStep(ref, step) … FC の次の段（'ck'：FC CK／'fix'：修正）を頼まれたら呼ばれる。ref はジョブに付けた stepRef。
+ *                              そのボタンを押して AiBridge.job が呼ばれたら true（その記事を開いていないなどで押せなければ false。開いたらまた頼まれる）
+ *   AiBridge.job({ thread, newChat, project, step, stepRef, prompt, returnTo, label, extract }) … プロンプトを「準備」として渡す（ACK05 の送るボタンで送る）
+ *       project … 'fc'（FC のプロジェクト）／'make'（作成のプロジェクト）。step … 'fc' / 'ck' / 'fix' / 'make'
  *   AiBridge.handoff({ to, action, file, name, hash, label }) … ファイルを別のツールへ渡す。Promise（受け付けたら true）
  *   AiBridge.busy(true / false) … 動画の書き出しの始まりと終わり（書き出し中は拡張がタブを切り替えない）
  *   AiBridge.connected … 拡張とつながっているか
@@ -20,6 +23,7 @@
   var applied = {};
   var waiting = {};
   var seq = 0;
+  var stepping = null;   // 次の段のボタンを押している間：その押下で作られるジョブを「次の段」として送る
   var api = { connected: false, counts: {} };
 
   function post(msg) {
@@ -44,6 +48,16 @@
       var ok = false;
       try { ok = !!(onResult && onResult(j)); } catch (e) { ok = false; }
       if (ok) { applied[j.id] = true; post({ type: 'ack', id: j.id }); }
+      return;
+    }
+    if (d.type === 'step' && d.step) {
+      var s = d.step;
+      if (applied['step:' + s.parent] || !opts.onStep) return;
+      stepping = { parent: s.parent, at: Date.now() };
+      var ok = false;
+      try { ok = !!opts.onStep(s.ref || {}, s.step); } catch (e) { ok = false; }
+      if (ok) applied['step:' + s.parent] = true;
+      else stepping = null;
       return;
     }
     if (d.type === 'handoff-accepted' && waiting[d.ref]) {
@@ -74,6 +88,8 @@
   };
   api.job = function (job, sendNow) {
     if (!api.connected || !job || !job.prompt) return false;
+    if (stepping && Date.now() - stepping.at < 5000) { job.parent = stepping.parent; sendNow = true; }
+    stepping = null;
     post({ type: 'job', job: job, send: !!sendNow });
     return true;
   };
