@@ -35,6 +35,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"></script>
     <script src="./assets/store.js"></script>
+    <script src="./assets/ai-bridge.js"></script>
     <style>
         :root {
             --bg: #f8fafc;
@@ -11244,9 +11245,11 @@ async function saBlogZip(btn){
     zip.file('記事.txt',blocks);
     st('ZIP にまとめています…');
     const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:3}});
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${code||'stock'}_${getName()||'article'}_記事.zip`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+    const zipName=`${code||'stock'}_${getName()||'article'}_記事.zip`;
+    const handed=await kbHandoffZip(blob,zipName,`${code} ${getName()||''} の株価分析`);
+    if(!handed){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=zipName;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);}
     const notes=[th?'アイキャッチ1枚':'アイキャッチなし（サムネイルの文が無い）',sl.note,hasPaid?'':'「## 2.」の見出しが無いので有料の区切りは入れていません',v('art-url')?'':'note の URL は空（公開後に記事URLを入れて作り直すとブログから案内できます）'].filter(Boolean);
-    st(`✅ 保存しました（${(blob.size/1024).toFixed(0)} KB・${notes.join('・')}）`,'ok');
+    st(`✅ ${handed?'ブログのコンソールに渡しました':'保存しました'}（${(blob.size/1024).toFixed(0)} KB・${notes.join('・')}）`,'ok');
   }catch(e){st('❌ '+(e&&e.message||e),'error');}
   finally{if(btn){btn.disabled=false;btn.textContent=o;}}
 }
@@ -18367,10 +18370,32 @@ async function eaBlogZip(btn){
     zip.file('記事.txt',blocks);
     st('ZIP にまとめています…');
     const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:3}});
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${code||'code'}_${name||'article'}_記事.zip`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);
-    st(`✅ 保存しました（${(blob.size/1024/1024).toFixed(1)} MB・画像${used.length}枚・動画1本${dropped?`・場面に無い画像の枠${dropped}行は外しました`:''}）`,'ok');
+    const zipName=`${code||'code'}_${name||'article'}_記事.zip`;
+    const zipNote=`${(blob.size/1024/1024).toFixed(1)} MB・画像${used.length}枚・動画1本${dropped?`・場面に無い画像の枠${dropped}行は外しました`:''}`;
+    st('ブログのコンソールに渡しています…');
+    if(await kbHandoffZip(blob,zipName,`${code} ${name} の決算記事`)){st(`✅ ブログのコンソールに渡しました（${zipNote}）。取り込んでプレビューまで進めます`,'ok');return;}
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=zipName;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+    st(`✅ 保存しました（${zipNote}）`,'ok');
   }catch(e){st('❌ '+(e&&e.message||e),'error');}
   finally{if(btn){btn.disabled=false;btn.textContent=o;}}
+}
+
+// AI ブリッジ（Chrome 拡張。リポジトリ xppen-shortcut-tool。すみぽん 2026-11-18）。拡張が無ければ何もしない（今までどおり保存）。
+// 拡張があれば、ブログ用 ZIP を保存せずに sumikko-console へ渡す。受け取った側が「まとめて貼る」と同じに取り込み、プレビューを押したところで止める
+async function kbHandoffZip(blob,name,label){
+  if(!window.AiBridge||!AiBridge.connected)return false;
+  try{return await AiBridge.handoff({to:'sumikko',action:'importZip',file:new File([blob],name,{type:'application/zip'}),name,hash:'#post-new',label});}
+  catch(e){console.warn('[aib] handoff',e);return false;}
+}
+if(window.AiBridge){
+  AiBridge.init('kessan',null);
+  // 分析動画の MP4 の書き出し中は拡張に知らせる（タブが前に無いと書き出しが止まるので、その間は拡張がタブを切り替えない）
+  setInterval(()=>{
+    const K=window.KessanViz;if(!K||typeof K.exportMp4!=='function'||K.__aibWrapped)return;
+    const f=K.exportMp4;
+    K.exportMp4=function(){AiBridge.busy(true);return Promise.resolve(f.apply(this,arguments)).finally(()=>AiBridge.busy(false));};
+    K.__aibWrapped=true;
+  },1000);
 }
 
 async function dgCopy(id,btn){
