@@ -18411,10 +18411,10 @@ function saBridgeApply(job){
   if(typeof ytUpdateFreeInfo==='function')ytUpdateFreeInfo();
   return true;
 }
-// 拡張から「FC の次の段」を頼まれたら、③再CK か ④修正 を押す（同じ銘柄を開いているときだけ。開いていなければ、開いたときにまた頼まれる）
+// 拡張から「FC の次の段」を頼まれたら、③再CK か ④修正（FC 繰り返しの次の周は ②ファクト）を押す（同じ銘柄を開いているときだけ。開いていなければ、開いたときにまた頼まれる）
 function saBridgeStep(ref,step){
   if(!ref||ref.key!==saBridgeKey())return false;
-  const fn=step==='ck'?'copyRecheck':step==='fix'?'copyCorrection':'';
+  const fn=step==='ck'?'copyRecheck':step==='fix'?'copyCorrection':step==='fc'?'saCopyFactCheck':'';   // fc：FC 繰り返しの次の周（直したレポートで②ファクト）
   const btn=fn&&document.querySelector(`button[onclick^="${fn}("]`);
   if(!btn)return false;
   btn.click();
