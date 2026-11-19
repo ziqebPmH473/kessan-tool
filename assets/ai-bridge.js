@@ -46,7 +46,8 @@
   var isBusy = false;    // 動画の書き出し中
   var lastUser = 0;      // あなたが最後にキーを打った・入力した時刻（ツールのタブで）
   var lastOpen = 0;      // 自動で開いた時刻
-  var lastDone = 0;      // 返答を入れた・次の段を押した時刻（ツールが処理し終わるのを待つ）
+  var lastDone = 0;
+  var quietUntil = 0;    // この時刻までは、次の段として押したもの以外のコピーを渡さない      // 返答を入れた・次の段を押した時刻（ツールが処理し終わるのを待つ）
   // 書き出した動画・画像を覚えておく（URL.createObjectURL で作られ、a.click でダウンロードされたもの。新しい順に 8 つまで）
   var blobs = {};   // blob の URL → Blob
   var savedList = [];
@@ -97,7 +98,13 @@
       if (applied[key]) { post({ type: 'ack', id: j.id }); return; }
       var ok = false;
       try { ok = !!(onResult && onResult(j)); } catch (e) { ok = false; }
-      if (ok) { applied[key] = true; lastDone = Date.now(); post({ type: 'ack', id: j.id }); }
+      if (ok) {
+        applied[key] = true; lastDone = Date.now();
+        // 全自動の途中の取り込み：取り込んだあとにツールが自分でコピーする次のプロンプト（FC など）は、拡張に渡さない。
+        // 次の段は拡張がボタンを押して作る（2026-11-20 すみぽん：毎周「準備 FC」が増えていた）
+        if (j.auto) quietUntil = Date.now() + 5000;
+        post({ type: 'ack', id: j.id });
+      }
       return;
     }
     if (d.type === 'step' && d.step) {
@@ -151,6 +158,7 @@
   api.job = function (job, sendNow) {
     if (!api.connected || !job || !job.prompt) return false;
     if (stepping && Date.now() - stepping.at < 60000) { job.parent = stepping.parent; sendNow = true; }
+    else if (Date.now() < quietUntil) { stepping = null; return true; }   // 全自動の取り込みに続くコピー（渡さない）
     stepping = null;
     post({ type: 'job', job: job, send: !!sendNow });
     return true;
