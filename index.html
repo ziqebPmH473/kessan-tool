@@ -5765,7 +5765,7 @@ function buildAnalysisText(){
   return p;
 }
 
-function copyAnalysis(btn){const t=buildAnalysisText();saBridgeJob(btn,t,'analysis');copyText(t,btn);}
+function copyAnalysis(btn){copyText(buildAnalysisText(),btn);}
 function saCopyFactCheck(btn){
   const report=document.getElementById('ta-report').value.trim();
   if(!report){alert('レポートを貼り付けてください');return;}
@@ -5776,7 +5776,7 @@ function saCopyFactCheck(btn){
 function copyRecheck(btn){saCopyStep(btn,'ck','指摘箇所、指摘内容から指摘箇所の修正を行うことが妥当か、修正後内容が正しいか確認してください。\n正しくない場合には、不明点や確認点があればすべて調査し、レポートに記載できる形式で修正後内容を提示してください。\n結果はそのまま読むので、コードブロックには入れないでください。引用・出典・脚注も付けないでください。');}
 function copyCorrection(btn){saCopyStep(btn,'fix','指摘箇所を指示の内容に沿って修正し、全文出力してください。\nただし、指摘していない箇所は一切変更しないでください。');}
 // コピーと同時に、AI ブリッジ（拡張）があれば ChatGPT へ送る準備をする（ボタンの文字が「コピーしました」に変わる前に名前を読む）
-function saCopyStep(btn,step,text){saBridgeJob(btn,text,step);copyText(text,btn);}
+function saCopyStep(btn,step,text){copyText(text,btn);}   // AI ブリッジへは copyText の中で渡る（kbOnCopy）
 function copyNBPrompt(btn){copyText(NB_PROMPT,btn);}
 
 // ============================================================
@@ -18382,40 +18382,158 @@ async function eaBlogZip(btn){
   finally{if(btn){btn.disabled=false;btn.textContent=o;}}
 }
 
-// AI ブリッジ（Chrome 拡張。リポジトリ xppen-shortcut-tool。すみぽん 2026-11-18）。拡張が無ければ何もしない（今までどおり保存）。
-// 拡張があれば、ブログ用 ZIP を保存せずに sumikko-console へ渡す。受け取った側が「まとめて貼る」と同じに取り込み、プレビューを押したところで止める
-// 株分析の ①分析〜④修正 を ChatGPT へ（コピーは今までどおり）。①は「株分析動画作成」の PJ の新しい会話、②ファクトは「株分析動画FC」の PJ の新しい会話、③再CK・④修正 は②の会話の続き。
-// ①と④の返答は、その銘柄を開いていれば「ChatGPTのレポート」の欄に入る（貼り付けを押したのと同じ）。②③の返答は ChatGPT で読む
-function saBridgeKey(){return String((typeof getTicker==='function'&&getTicker())||(typeof getName==='function'&&getName())||'').trim();}
-function saBridgeJob(btn,prompt,step){
-  if(!window.AiBridge||!AiBridge.connected||!prompt)return;
-  const key=saBridgeKey(),fc=step!=='analysis';
-  const name=String(btn&&(btn.dataset.orig||btn.textContent)||'').trim();
-  AiBridge.job({
-    thread:'kessan:sa:'+(key||'-')+':'+(fc?'fc':'make'),
-    newChat:step==='analysis'||step==='fc',
-    project:fc?'fc':'make',
-    step:fc?step:'make',
-    stepRef:{key},
-    prompt,
-    label:((typeof getName==='function'&&getName())||key||'株分析')+' / '+name,
-    extract:'auto',
-    returnTo:(step==='analysis'||step==='fix')?{act:'sa-report',key}:null
-  });
+// AI ブリッジ（Chrome 拡張。リポジトリ xppen-shortcut-tool。すみぽん 2026-11-18〜19）。拡張が無ければ何もしない（今までどおりコピー・保存）。
+// 拡張があれば、ブログ用 ZIP を保存せずに sumikko-console へ渡す。受け取った側が「まとめて貼る」と同じに取り込み、プレビューを押したところで止める。
+// ChatGPT 用のボタン（下の KB_SECS）は、押すとコピーと同時に拡張へ「送る準備」として渡す（ACK05 の送るボタンで送る）。
+//   ・添付 ZIP があるボタン（決算の「手動で作る」・分析動画）は、ZIP を保存せずに拡張へ渡し、ChatGPT に添付して送る
+//   ・作成・修正の返答は、その欄の「📋 貼り付け」を、クリップボードの代わりに返答の文で押したのと同じに取り込む
+//   ・FC の段（✅ FC → 🔍 FC CK → 🔧 修正）は、拡張に頼まれたら、そのボタンを押す（次へ進める・FC 全自動・FC 繰り返し）
+//   ・全自動のときは、作成 → 欄へ取り込み → FC → FC CK → 修正 → 欄へ と続く（2026-11-19 すみぽん「ChatGPT→貼付、このあと CK の流れ」）
+// 欄（sec）ごとに、作成・FC・FC CK・修正 のボタン（onclick の頭）と、取り込みの「📋 貼り付け」のボタン（onclick そのもの）を書く。
+// key：返答を取り込むとき、同じ銘柄（決算は証券コード・社名、株分析はティッカー）を開いているか確かめるのに使う
+const KB_SECS={
+  er:{name:'決算レポート',key:'earn',make:'copyChatGPT(',fc:'copyFactCheck(',ck:'copyFactCheckVerify(',fix:'copyFactCheckFix(',paste:'pasteFactCheckReport()'},
+  em:{name:'決算 出力データ',key:'earn',make:'earnManualCopy(',fc:'earnManualFcCopy(',ck:'copyFactCheckVerify(',fix:'earnManualFixCopy(',paste:'earnManualPaste()',zip:['make','fc'],zipCk:'earn-manual-fc-zip'},
+  ev:{name:'分析動画',key:'earn',make:'evVizCopyPrompt(',fc:'evVizFcCopy(',ck:'evVizFcVerify(',fix:'evVizFixCopy(',paste:'evVizPaste()',zip:['make','fc'],zipCk:'ev-viz-fc-zip'},
+  sa:{name:'株分析',key:'sa',make:'copyAnalysis(',fc:'saCopyFactCheck(',ck:'copyRecheck(',fix:'copyCorrection(',paste:'pasteReport()'},
+  saf:{name:'株分析 出力データ',key:'sa',make:'saCopyFormatPrompt(',paste:'saPasteFormat()'},
+  saa:{name:'株分析 記事',key:'sa',make:'saCopyArticlePrompt(',paste:'saPasteArticle()'},
+  ea:{name:'決算 記事（note・ブログ）',key:'earn',make:'eaCopyPrompt(this)',paste:'eaArtPaste()'},
+  ean:{name:'決算 note の記事',key:'earn',make:"eaCopyPrompt(this,'n')",paste:"eaArtPaste('n')"},
+  eab:{name:'決算 ブログの記事',key:'earn',make:"eaCopyPrompt(this,'b')",paste:"eaArtPaste('b')"},
+  yts:{name:'YouTube スライド',key:'yt',make:'copyText(ytSlideDesignerPrompt()',zipFn:'ytDownloadSlideZip'},
+  ytf:{name:'YouTube スライドの直し',key:'yt',make:'copyText(ytFixPrompt()',cont:'yts'},
+  ytp:{name:'YouTube 投稿文',key:'yt',make:'copyText(ytPostPrompt()',paste:"ytPaste('post',ytPostApply)"},
+  ytps:{name:'YouTube SNS の投稿文',key:'yt',make:'copyText(ytPostPromptSns()',paste:"ytPaste('post',ytPostApply)"}
+};
+const KB_STEP_NAME={make:'作成',fc:'FC',ck:'FC CK',fix:'修正'};
+function kbVal(id){const el=document.getElementById(id);return el?String(el.value||'').trim():'';}
+function kbKey(kind){
+  if(kind==='sa')return String((typeof getTicker==='function'&&getTicker())||(typeof getName==='function'&&getName())||'').trim();
+  if(kind==='yt')return(typeof ytVal==='function')?[ytVal('code'),ytVal('name')].map(s=>String(s||'').trim()).filter(Boolean).join('_'):'';
+  return[kbVal('p-code'),kbVal('p-name')].filter(Boolean).join('_');
 }
-function saBridgeApply(job){
-  const r=job&&job.returnTo;
-  if(!r||r.act!=='sa-report'||r.key!==saBridgeKey())return false;   // 別の銘柄を開いているときは入れない（拡張が持っておき、その銘柄を開くと入る）
-  const ta=document.getElementById('ta-report');if(!ta)return false;
-  ta.value=String(job.text||'');
-  if(typeof ytUpdateFreeInfo==='function')ytUpdateFreeInfo();
+/** 押したボタンが、どの欄のどの段か。{ sec, step } か null（ChatGPT 用でないボタン） */
+function kbSpecOf(btn){
+  const oc=btn&&btn.getAttribute?String(btn.getAttribute('onclick')||''):'';
+  if(!oc)return null;
+  // 動画の記事・OP／ED の台本（欄が種類ごとに分かれている）
+  let m=oc.match(/ygArticlePrompt\('(\w+)'\)/);
+  if(m){const sec='yg'+m[1];KB_SECS[sec]=KB_SECS[sec]||{name:'YouTube 記事（'+m[1]+'）',key:'yt',make:"ygArticlePrompt('"+m[1]+"')",paste:"ygArtPaste('"+m[1]+"')"};return{sec,step:'make'};}
+  m=oc.match(/ytOpedDraftPrompt\('(\w+)'\)/);
+  if(m){const sec='yo'+m[1];KB_SECS[sec]=KB_SECS[sec]||{name:'YouTube 台本（'+m[1]+'）',key:'yt',make:"ytOpedDraftPrompt('"+m[1]+"')",paste:"ytPaste('oped-raw',ytOpedPasteApply)"};return{sec,step:'make'};}
+  // FC CK（copyFactCheckVerify）は決算レポートと決算の手動で同じ関数。同じ行に「✅ FC」（earnManualFcCopy）があれば手動の方
+  if(oc.startsWith('copyFactCheckVerify(')){
+    const row=btn.parentElement;
+    return{sec:row&&row.querySelector('button[onclick^="earnManualFcCopy("]')?'em':'er',step:'ck'};
+  }
+  for(const sec in KB_SECS){
+    const s=KB_SECS[sec];
+    for(const step of['make','fc','ck','fix']){
+      const p=s[step];if(!p)continue;
+      if(oc.includes(p))return{sec,step};
+    }
+  }
+  return null;
+}
+// ZIP の受け取り：ボタンが ZIP を保存しようとしたら（<a download=…zip>.click()）、保存せずに拡張へ渡す（kbCap があるときだけ）
+let kbCap=null;
+const kbBlobs=new Map();
+(function(){
+  const ou=URL.createObjectURL.bind(URL);
+  URL.createObjectURL=function(o){const u=ou(o);if(o instanceof Blob){kbBlobs.set(u,o);if(kbBlobs.size>30)kbBlobs.delete(kbBlobs.keys().next().value);}return u;};
+  const ac=HTMLAnchorElement.prototype.click;
+  HTMLAnchorElement.prototype.click=function(){
+    if(kbCap&&kbCap.wantZip&&/\.zip$/i.test(this.download||'')&&kbBlobs.has(this.href)){
+      kbCap.files.push(new File([kbBlobs.get(this.href)],this.download,{type:'application/zip'}));
+      kbCap.gotZip();
+      return;
+    }
+    return ac.call(this);
+  };
+})();
+/** ChatGPT 用のボタンが押された（コピーの直前）。拡張へ「送る準備」として渡す */
+function kbOnCopy(text,btn){
+  if(!window.AiBridge||!AiBridge.connected||!text)return;
+  const sp=kbSpecOf(btn);if(!sp)return;
+  const s=KB_SECS[sp.sec],step=sp.step;
+  const key=kbKey(s.key);
+  const label=s.name+' / '+String(btn.dataset.orig||btn.textContent||'').trim()+(key?'（'+key+'）':'');
+  const wantZip=!!(s.zipFn&&step==='make')||!!(s.zip&&s.zip.includes(step));
+  const cap={wantZip,files:[]};
+  const send=()=>{
+    const cont=s.cont?KB_SECS[s.cont]:null;
+    AiBridge.job({
+      thread:'kessan:'+(s.cont||sp.sec)+':'+(key||'-')+':'+(step==='make'?'make':'fc'),
+      newChat:!s.cont&&(step==='make'||step==='fc'),
+      project:step==='make'?'make':'fc',
+      step,
+      stepRef:{sec:sp.sec,key,fcable:!!s.fc},
+      prompt:text,
+      label,
+      extract:'auto',
+      returnTo:(step==='make'||step==='fix')&&s.paste?{sec:sp.sec,key,paste:s.paste}:null,
+      files:cap.files
+    });
+  };
+  if(!wantZip){send();return;}
+  // 添付 ZIP を待つ（ボタンの処理が ZIP を作って保存しようとしたところで受け取る）。FC の ZIP は毎回要る（新しいチャットに添付するので）
+  const ck=s.zipCk&&document.getElementById(s.zipCk);
+  const ckWas=ck?ck.checked:null;
+  if(ck&&step==='fc')ck.checked=true;
+  if(kbCap&&kbCap.cancel)kbCap.cancel();
+  kbCap=cap;
+  let to=null;
+  const end=()=>{clearTimeout(to);if(kbCap===cap)kbCap=null;if(ck&&ckWas!=null&&step==='fc'){ck.checked=ckWas;}};
+  cap.gotZip=()=>{end();send();};
+  cap.cancel=end;
+  to=setTimeout(()=>{end();alert('添付の ZIP を作れなかったので、ChatGPT へは送りません（'+label+'）');},90000);
+  // ZIP が別のボタンで作られる欄（YouTube のスライド）は、そのボタンの処理を呼ぶ
+  if(s.zipFn&&typeof window[s.zipFn]==='function'){
+    const zb=document.querySelector('button[onclick^="'+s.zipFn+'("]');
+    setTimeout(()=>{try{window[s.zipFn](zb||undefined);}catch(e){end();alert(e.message||e);}},0);
+  }
+}
+(function(){
+  const ct=window.copyText;
+  if(typeof ct==='function')window.copyText=function(text,btn){try{kbOnCopy(text,btn);}catch(e){console.warn('[aib]',e);}return ct.apply(this,arguments);};
+  const cc=window.copyToClipboard;
+  if(typeof cc==='function')window.copyToClipboard=function(text,btn){try{kbOnCopy(text,btn);}catch(e){console.warn('[aib]',e);}return cc.apply(this,arguments);};
+})();
+/** クリップボードの代わりに text を読ませて fn を動かす（「📋 貼り付け」のボタンを、返答の文で押す） */
+function kbWithClip(text,fn){
+  const c=navigator.clipboard;if(!c){fn();return;}
+  const own=Object.prototype.hasOwnProperty.call(c,'readText'),orig=c.readText;
+  let done=false;
+  const restore=()=>{if(done)return;done=true;if(own)c.readText=orig;else delete c.readText;};
+  c.readText=function(){restore();return Promise.resolve(text);};
+  try{fn();}finally{setTimeout(restore,3000);}
+}
+/** 拡張から返答が届いた：その欄の「📋 貼り付け」を、返答の文で押す。同じ銘柄を開いていなければ false（開いたときに取り込む） */
+function kbApply(job){
+  let r=job&&job.returnTo;
+  if(r&&r.act==='sa-report')r={sec:'sa',key:r.key,paste:'pasteReport()'};   // 前の形（2026-11-18〜19 の株分析）
+  if(!r||!r.sec||!r.paste)return false;
+  const s=KB_SECS[r.sec];
+  if(s&&r.key&&r.key!==kbKey(s.key))return false;
+  const btn=[...document.querySelectorAll('button')].find(b=>b.getAttribute('onclick')===r.paste);
+  if(!btn)return false;
+  kbWithClip(String(job.text||''),()=>btn.click());
   return true;
 }
-// 拡張から「FC の次の段」を頼まれたら、③再CK か ④修正（FC 繰り返しの次の周は ②ファクト）を押す（同じ銘柄を開いているときだけ。開いていなければ、開いたときにまた頼まれる）
-function saBridgeStep(ref,step){
-  if(!ref||ref.key!==saBridgeKey())return false;
-  const fn=step==='ck'?'copyRecheck':step==='fix'?'copyCorrection':step==='fc'?'saCopyFactCheck':'';   // fc：FC 繰り返しの次の周（直したレポートで②ファクト）
-  const btn=fn&&document.querySelector(`button[onclick^="${fn}("]`);
+/** 拡張から「FC の次の段」を頼まれた：その欄の ✅ FC／🔍 FC CK／🔧 修正 を押す（同じ銘柄を開いていなければ false） */
+function kbStep(ref,step){
+  if(!ref)return false;
+  const sec=ref.sec||'sa',s=KB_SECS[sec];
+  if(!s||!s[step])return false;
+  if(ref.key&&ref.key!==kbKey(s.key))return false;
+  const fcBtn=document.querySelector('button[onclick^="'+s.fc+'"]');
+  let btn=null;
+  if(step==='fc')btn=fcBtn;
+  else{
+    const row=fcBtn&&fcBtn.parentElement;
+    btn=(row&&row.querySelector('button[onclick^="'+s[step]+'"]'))||document.querySelector('button[onclick^="'+s[step]+'"]');
+  }
   if(!btn)return false;
   btn.click();
   return true;
@@ -18426,7 +18544,7 @@ async function kbHandoffZip(blob,name,label){
   catch(e){console.warn('[aib] handoff',e);return false;}
 }
 if(window.AiBridge){
-  AiBridge.init('kessan',saBridgeApply,{onStep:saBridgeStep});
+  AiBridge.init('kessan',kbApply,{onStep:kbStep});
   // 分析動画の MP4 の書き出し中は拡張に知らせる（タブが前に無いと書き出しが止まるので、その間は拡張がタブを切り替えない）
   setInterval(()=>{
     const K=window.KessanViz;if(!K||typeof K.exportMp4!=='function'||K.__aibWrapped)return;
