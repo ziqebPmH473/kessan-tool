@@ -18591,7 +18591,7 @@ const KB_SNS={
     if(url&&v('yt-p-x').includes(url))out.push({sns:'x',text:v('yt-p-x')});else why.push('X（YouTubeのURLを入れて、投稿文に URL が入ってから）');
     return {out,why};
   }},
-  // 株価分析の縦動画：縦の動画 → YouTube ショート。
+  // 株価分析：縦の動画 → YouTube ショート・Instagram。横の動画 → X（2026-11-19 すみぽん「インスタ→縦」「X は横。基本しない」）。
   // リール動画（🎬 リール動画。ショートURL の QR 入り）→ TikTok。ショートURL を入れてから作ったものだけ（2026-11-19 すみぽん「順序がある」）
   'vd-x':{name:'株価分析',key:'sa',plan:(v,last)=>{
     const out=[],why=[];
@@ -18601,16 +18601,19 @@ const KB_SNS={
       else if(kbShortAt.vd&&last.at<kbShortAt.vd)why.push('TikTok（ショートURL を入れたあとに 🎬 リール動画 を作り直してください）');
       else out.push({sns:'tiktok',text:v('vd-tiktok'),video:last.file});
     }
-    else if(last.orient==='portrait')out.push({sns:'youtube',title:v('vd-yt-title'),description:v('vd-yt-desc'),video:last.file});
-    else why.push('直前の動画（'+last.file.name+'）は横の動画です。ショートは縦の動画を書き出してください');
+    else if(last.orient==='portrait')out.push({sns:'youtube',title:v('vd-yt-title'),description:v('vd-yt-desc'),video:last.file},{sns:'instagram',text:v('vd-insta'),video:last.file});
+    else out.push({sns:'x',text:v('vd-x'),video:last.file});   // X は横の動画（ふだんは投稿しない。投稿するときだけ横を書き出して押す）
     return {out,why};
   }},
-  // 決算分析の縦動画：縦の動画 → Instagram・TikTok
-  'ev-x':{name:'決算分析',key:'',plan:(v,last)=>{
+  // 決算分析：縦の動画 → Instagram・TikTok（YouTube ショートは一部だけなので、チェックを入れたときだけ）。横の動画 → X（2026-11-19 すみぽん）
+  'ev-x':{name:'決算分析',key:'',opt:'YouTube ショートにも入れる',plan:(v,last,opt)=>{
     const out=[],why=[];
     if(!last)why.push('動画をこのタブでまだ書き出していません');
-    else if(last.orient==='portrait'){out.push({sns:'instagram',text:v('ev-insta'),video:last.file});out.push({sns:'tiktok',text:v('ev-tiktok'),video:last.file});}
-    else why.push('直前の動画（'+last.file.name+'）は横の動画です');
+    else if(last.orient==='portrait'){
+      out.push({sns:'instagram',text:v('ev-insta'),video:last.file},{sns:'tiktok',text:v('ev-tiktok'),video:last.file});
+      if(opt)out.push({sns:'youtube',title:v('ev-yt-title'),description:v('ev-yt-desc'),video:last.file});else why.push('YouTube ショート（入れるときは「YouTube ショートにも入れる」にチェック）');
+    }
+    else out.push({sns:'x',text:v('ev-x'),video:last.file});
     return {out,why};
   }},
   // 決算まとめ：横の動画 → YouTube。縦の動画 → Instagram・TikTok。
@@ -18635,7 +18638,8 @@ async function kbSnsGo(anchor,btn){
   st.textContent='直前の動画を調べています…';btn.disabled=true;
   try{
     const last=await AiBridge.lastSaved('video');
-    const p=s.plan(kbSnsVal,last);
+    const ck=btn.parentElement.querySelector('input[type=checkbox]');
+    const p=s.plan(kbSnsVal,last,!!(ck&&ck.checked));
     const sent=kbSnsSent(),items=[],skip=p.why.slice();
     p.out.forEach(it=>{
       const id=[anchor,key,it.sns,it.video?it.video.name+':'+it.video.size:'',(it.text||it.title||'').slice(0,80)].join('|');
@@ -18657,7 +18661,8 @@ setInterval(()=>{
     const el=document.getElementById(anchor);if(!el)return;
     const box=el.closest('.sa-card, .tool-section')||el.parentElement;if(!box||box.querySelector('.kb-sns-bar'))return;
     const bar=document.createElement('div');bar.className='kb-sns-bar';bar.style.cssText='margin:4px 0 8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;';
-    bar.innerHTML='<button type="button" class="btn-sm" style="background:#0f766e;color:#fff;border:none;" title="このタブで直前に書き出した動画に合わせて、SNS の投稿画面を拡張が裏で開いて入れます（横の動画→YouTube など）。投稿のボタンは押しません">📤 SNS の投稿画面に入れる</button><span style="font-size:11px;color:var(--text-sub);"></span>';
+    bar.innerHTML='<button type="button" class="btn-sm" style="background:#0f766e;color:#fff;border:none;" title="このタブで直前に書き出した動画に合わせて、SNS の投稿画面を拡張が裏で開いて入れます（横の動画→YouTube など）。投稿のボタンは押しません">📤 SNS の投稿画面に入れる</button><span style="font-size:11px;color:var(--text-sub);"></span>'+
+      (KB_SNS[anchor].opt?'<label style="font-size:11px;display:flex;gap:3px;align-items:center;"><input type="checkbox">'+KB_SNS[anchor].opt+'</label>':'');
     bar.firstChild.onclick=function(){kbSnsGo(anchor,this);};
     const h=box.querySelector('h2, .section-heading');
     if(h&&h.parentElement===box)h.insertAdjacentElement('afterend',bar);else box.insertBefore(bar,box.firstChild);
