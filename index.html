@@ -18526,7 +18526,7 @@ function kbStep(ref,step){
   if(!ref)return false;
   const sec=ref.sec||'sa',s=KB_SECS[sec];
   if(!s||!s[step])return false;
-  if(ref.key&&ref.key!==kbKey(s.key))return false;
+  if(ref.key&&ref.key!==kbKey(s.key))return '別の銘柄を開いています。「'+ref.key+'」を開くと進みます';
   const fcBtn=document.querySelector('button[onclick^="'+s.fc+'"]');
   let btn=null;
   if(step==='fc')btn=fcBtn;
@@ -18534,7 +18534,7 @@ function kbStep(ref,step){
     const row=fcBtn&&fcBtn.parentElement;
     btn=(row&&row.querySelector('button[onclick^="'+s[step]+'"]'))||document.querySelector('button[onclick^="'+s[step]+'"]');
   }
-  if(!btn)return false;
+  if(!btn)return '「'+s.name+'」の'+(KB_STEP_NAME[step]||step)+'のボタンが見つかりません（その画面を開くと進みます）';
   btn.click();
   return true;
 }

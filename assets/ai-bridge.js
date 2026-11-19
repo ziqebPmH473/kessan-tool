@@ -7,8 +7,9 @@
  *       tool … ツールの名前（'affiri' / 'kessan' / 'tosho' / 'sumikko'）
  *       onResult(job) … ChatGPT の返答が届いたら呼ばれる。入れられたら true（false なら、入れられるようになるまで拡張が持っておく）
  *       opts.onHandoff(handoff, file) … 別のツールからファイルが届いたら呼ばれる。Promise で { ok, message } を返す
- *       opts.onStep(ref, step) … FC の次の段（'ck'：FC CK／'fix'：修正）を頼まれたら呼ばれる。ref はジョブに付けた stepRef。
- *                              そのボタンを押して AiBridge.job が呼ばれたら true（その記事を開いていないなどで押せなければ false。開いたらまた頼まれる）
+ *       opts.onStep(ref, step) … FC の次の段（'fc'／'ck'：FC CK／'fix'：修正）を頼まれたら呼ばれる。ref はジョブに付けた stepRef。
+ *                              そのボタンを押して AiBridge.job が呼ばれたら true。押せなければ false か、押せない理由の文
+ *                              （例「別の記事を開いています」）。理由は拡張の一覧に出る。開いたらまた頼まれる
  *   AiBridge.job({ thread, newChat, project, step, stepRef, prompt, returnTo, label, extract }) … プロンプトを「準備」として渡す（ACK05 の送るボタンで送る）
  *       project … 'fc'（FC のプロジェクト）／'make'（作成のプロジェクト）。step … 'fc' / 'ck' / 'fix' / 'make'
  *       files … ChatGPT に添付するファイル（File の配列。ZIP など）。stepRef.fcable … 作成のあと FC へ続けられる（全自動）
@@ -24,7 +25,8 @@
   var applied = {};
   var waiting = {};
   var seq = 0;
-  var stepping = null;   // 次の段のボタンを押している間：その押下で作られるジョブを「次の段」として送る
+  var stepping = null;
+  var waitNote = {};     // 次の段を押せなかった理由（同じものを何度も送らない）   // 次の段のボタンを押している間：その押下で作られるジョブを「次の段」として送る
   var api = { connected: false, counts: {} };
 
   function post(msg) {
@@ -57,9 +59,16 @@
       if (applied['step:' + s.parent] || !opts.onStep) return;
       stepping = { parent: s.parent, at: Date.now() };
       var ok = false;
-      try { ok = !!opts.onStep(s.ref || {}, s.step); } catch (e) { ok = false; }
-      if (ok) applied['step:' + s.parent] = true;
-      else stepping = null;
+      try { ok = opts.onStep(s.ref || {}, s.step); } catch (e) { ok = String(e && e.message || e); }
+      if (ok === true) { applied['step:' + s.parent] = true; return; }
+      stepping = null;
+      // 押せなかった理由を拡張へ（一覧に出る）。同じ理由は1分に1回だけ
+      var why = typeof ok === 'string' && ok ? ok : 'ボタンを押せませんでした';
+      var last = waitNote[s.parent];
+      if (!last || last.why !== why || Date.now() - last.at > 60000) {
+        waitNote[s.parent] = { why: why, at: Date.now() };
+        post({ type: 'step-wait', parent: s.parent, why: why });
+      }
       return;
     }
     if (d.type === 'handoff-accepted' && waiting[d.ref]) {
