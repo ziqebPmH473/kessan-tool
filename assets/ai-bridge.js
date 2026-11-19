@@ -15,6 +15,8 @@
  *       files … ChatGPT に添付するファイル（File の配列。ZIP など）。stepRef.fcable … 作成のあと FC へ続けられる（全自動）
  *   AiBridge.handoff({ to, action, file, name, hash, label }) … ファイルを別のツールへ渡す。Promise（受け付けたら true）
  *   AiBridge.busy(true / false) … 動画の書き出しの始まりと終わり（書き出し中は拡張がタブを切り替えない）
+ *   AiBridge.mayOpen() … 返答・次の段のために、ツールが別の記事・銘柄を自動で開いてよいか。よければ true、だめなら理由の文
+ *                        （書き出し中・入力中・直前に開いた／入れたばかり）。開いたら AiBridge.opened() を呼ぶ（2026-11-19）
  *   AiBridge.connected … 拡張とつながっているか
  */
 (function (g) {
@@ -28,6 +30,14 @@
   var stepping = null;
   var waitNote = {};     // 次の段を押せなかった理由（同じものを何度も送らない）   // 次の段のボタンを押している間：その押下で作られるジョブを「次の段」として送る
   var api = { connected: false, counts: {} };
+  // 自動で開いてよいかの見分け（2026-11-19 すみぽん：返答が届いたら、その記事・銘柄を自動で開く。ただし作業の邪魔はしない）
+  var isBusy = false;    // 動画の書き出し中
+  var lastUser = 0;      // あなたが最後にキーを打った・入力した時刻（ツールのタブで）
+  var lastOpen = 0;      // 自動で開いた時刻
+  var lastDone = 0;      // 返答を入れた・次の段を押した時刻（ツールが処理し終わるのを待つ）
+  ['keydown', 'input', 'paste', 'compositionstart'].forEach(function (t) {
+    g.addEventListener(t, function (e) { if (e.isTrusted) lastUser = Date.now(); }, true);
+  });
 
   function post(msg) {
     msg.source = 'ai-bridge-tool';
@@ -51,7 +61,7 @@
       if (applied[key]) { post({ type: 'ack', id: j.id }); return; }
       var ok = false;
       try { ok = !!(onResult && onResult(j)); } catch (e) { ok = false; }
-      if (ok) { applied[key] = true; post({ type: 'ack', id: j.id }); }
+      if (ok) { applied[key] = true; lastDone = Date.now(); post({ type: 'ack', id: j.id }); }
       return;
     }
     if (d.type === 'step' && d.step) {
@@ -60,7 +70,7 @@
       stepping = { parent: s.parent, at: Date.now() };
       var ok = false;
       try { ok = opts.onStep(s.ref || {}, s.step); } catch (e) { ok = String(e && e.message || e); }
-      if (ok === true) { applied['step:' + s.parent] = true; return; }
+      if (ok === true) { applied['step:' + s.parent] = true; lastDone = Date.now(); return; }
       stepping = null;
       // 押せなかった理由を拡張へ（一覧に出る）。同じ理由は1分に1回だけ
       var why = typeof ok === 'string' && ok ? ok : 'ボタンを押せませんでした';
@@ -112,7 +122,15 @@
       post({ type: 'handoff', ref: ref, to: h.to, action: h.action, name: h.name || h.file.name || 'file', hash: h.hash || '', label: h.label || '', blob: h.file });
     });
   };
-  api.busy = function (b) { if (api.connected) post({ type: 'busy', busy: !!b }); };
+  api.busy = function (b) { isBusy = !!b; if (api.connected) post({ type: 'busy', busy: !!b }); };
+  api.mayOpen = function () {
+    var now = Date.now();
+    if (isBusy) return '動画の書き出し中です。終わったら自動で開きます';
+    if (now - lastUser < 30000) return 'ツールで入力中なので待っています。手を止めて 30 秒たつと自動で開きます';
+    if (now - lastOpen < 20000 || now - lastDone < 20000) return 'もうすぐ自動で開きます';
+    return true;
+  };
+  api.opened = function () { lastOpen = Date.now(); };
 
   g.AiBridge = api;
 })(window);

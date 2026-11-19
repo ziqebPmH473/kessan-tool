@@ -18468,11 +18468,11 @@ function kbOnCopy(text,btn){
       newChat:!s.cont&&(step==='make'||step==='fc'),
       project:step==='make'?'make':'fc',
       step,
-      stepRef:{sec:sp.sec,key,fcable:!!s.fc},
+      stepRef:{sec:sp.sec,key,fcable:!!s.fc,pj:kbPj()},
       prompt:text,
       label,
       extract:'auto',
-      returnTo:(step==='make'||step==='fix')&&s.paste?{sec:sp.sec,key,paste:s.paste}:null,
+      returnTo:(step==='make'||step==='fix')&&s.paste?{sec:sp.sec,key,paste:s.paste,pj:kbPj()}:null,
       files:cap.files
     });
   };
@@ -18510,12 +18510,40 @@ function kbWithClip(text,fn){
   try{fn();}finally{setTimeout(restore,3000);}
 }
 /** 拡張から返答が届いた：その欄の「📋 貼り付け」を、返答の文で押す。同じ銘柄を開いていなければ false（開いたときに取り込む） */
+/** 送ったときに開いていた PJ（種別と id）。返答が届いたとき、その PJ を自動で開くのに使う */
+function kbPj(){
+  try{
+    const kind=window._ktKind;
+    if(typeof KTStore==='undefined'||!kind)return null;
+    if(!KTStore.cur[kind]&&typeof saveStateNow==='function')saveStateNow();   // 新規のPJなら、ここで一覧に入る
+    return KTStore.cur[kind]?{kind,id:KTStore.cur[kind]}:null;
+  }catch(e){return null;}
+}
+/** 送ったときと同じ PJ・銘柄を開いているか */
+function kbHere(ref,s){
+  if(window._ktSwitching)return false;
+  if(ref.pj&&ref.pj.id&&typeof KTStore!=='undefined')return window._ktKind===ref.pj.kind&&KTStore.cur[ref.pj.kind]===ref.pj.id;
+  return !(s&&ref.key&&ref.key!==kbKey(s.key));
+}
+/** 返答・次の段のために、送ったときの PJ を自動で開く（2026-11-19 すみぽん：複数の銘柄を動かしているとき、開くのを待たずに進める）。
+ *  動画の書き出し中・入力中・直前に開いたときは開かずに、理由の文を返す。開き始めたら true */
+function kbOpen(ref){
+  const name='「'+(ref.key||'その銘柄')+'」';
+  if(window._ktSwitching)return 'PJ を開いている途中です';
+  if(!ref.pj||!ref.pj.id||typeof KTStore==='undefined'||typeof ktOpen!=='function')return '別の銘柄を開いています。'+name+'を開くと進みます';
+  if(KTStore.rows&&!KTStore.rows[ref.pj.id])return name+'の PJ が一覧に見つかりません（消したかもしれません）';
+  const can=window.AiBridge&&AiBridge.mayOpen?AiBridge.mayOpen():'自動で開けません';
+  if(can!==true)return '別の銘柄を開いています（'+name+'）。'+can;
+  AiBridge.opened();
+  ktOpen(ref.pj.kind,ref.pj.id);
+  return true;
+}
 function kbApply(job){
   let r=job&&job.returnTo;
   if(r&&r.act==='sa-report')r={sec:'sa',key:r.key,paste:'pasteReport()'};   // 前の形（2026-11-18〜19 の株分析）
   if(!r||!r.sec||!r.paste)return false;
   const s=KB_SECS[r.sec];
-  if(s&&r.key&&r.key!==kbKey(s.key))return false;
+  if(!kbHere(r,s)){kbOpen(r);return false;}   // 開けたら、次に届いたときに入れる
   const btn=[...document.querySelectorAll('button')].find(b=>b.getAttribute('onclick')===r.paste);
   if(!btn)return false;
   kbWithClip(String(job.text||''),()=>btn.click());
@@ -18526,7 +18554,7 @@ function kbStep(ref,step){
   if(!ref)return false;
   const sec=ref.sec||'sa',s=KB_SECS[sec];
   if(!s||!s[step])return false;
-  if(ref.key&&ref.key!==kbKey(s.key))return '別の銘柄を開いています。「'+ref.key+'」を開くと進みます';
+  if(!kbHere(ref,s)){const o=kbOpen(ref);return o===true?'「'+(ref.key||'その銘柄')+'」を自動で開きました。すぐ進みます':o;}
   const fcBtn=document.querySelector('button[onclick^="'+s.fc+'"]');
   let btn=null;
   if(step==='fc')btn=fcBtn;
