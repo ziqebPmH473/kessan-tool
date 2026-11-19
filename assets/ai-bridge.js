@@ -6,6 +6,7 @@
  *   AiBridge.init(tool, onResult, opts)
  *       tool … ツールの名前（'affiri' / 'kessan' / 'tosho' / 'sumikko'）
  *       onResult(job) … ChatGPT の返答が届いたら呼ばれる。入れられたら true（false なら、入れられるようになるまで拡張が持っておく）
+ *                       画像のジョブ（kind: 'image'）は job.images に File の配列（ChatGPT が作った画像）が入る
  *       opts.onHandoff(handoff, file) … 別のツールからファイルが届いたら呼ばれる。Promise で { ok, message } を返す
  *       opts.onStep(ref, step) … FC の次の段（'fc'／'ck'：FC CK／'fix'：修正）を頼まれたら呼ばれる。ref はジョブに付けた stepRef。
  *                              そのボタンを押して AiBridge.job が呼ばれたら true。押せなければ false か、押せない理由の文
@@ -13,6 +14,7 @@
  *   AiBridge.job({ thread, newChat, project, step, stepRef, prompt, returnTo, label, extract }) … プロンプトを「準備」として渡す（ACK05 の送るボタンで送る）
  *       project … 'fc'（FC のプロジェクト）／'make'（作成のプロジェクト）。step … 'fc' / 'ck' / 'fix' / 'make'
  *       files … ChatGPT に添付するファイル（File の配列。ZIP など）。stepRef.fcable … 作成のあと FC へ続けられる（全自動）
+ *       kind: 'image' … 画像生成のプロンプト。拡張の一覧に「ためて」おき、「画像をまとめて作る」で作る（2026-11-19 段2）
  *   AiBridge.handoff({ to, action, file, name, hash, label }) … ファイルを別のツールへ渡す。Promise（受け付けたら true）
  *   AiBridge.busy(true / false) … 動画の書き出しの始まりと終わり（書き出し中は拡張がタブを切り替えない）
  *   AiBridge.mayOpen() … 返答・次の段のために、ツールが別の記事・銘柄を自動で開いてよいか。よければ true、だめなら理由の文
