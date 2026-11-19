@@ -18575,42 +18575,90 @@ if(window.AiBridge){
   AiBridge.init('kessan',kbApply,{onStep:kbStep});
 
 // ---- SNS の投稿の準備（段5。2026-11-19）：各 SNS の欄に「📤 SNS の投稿画面に入れる」を出す。
-// 押すと、その欄の文と、このタブで書き出した最新の動画（YouTube は横・リール／TikTok は縦）を拡張に渡す。
-// 拡張が各 SNS の投稿画面を裏のタブで開いて入れる。投稿のボタンは押さない（自分で確かめて押す）
-const KB_SNS=[
-  {anchor:'yt-p-x',name:'YT動画 SNS',key:'yt',items:v=>[
-    {sns:'youtube',title:v('yt-p-t1'),description:v('yt-p-desc'),video:'landscape',image:'landscape'},
-    {sns:'x',text:v('yt-p-x')},
-    {sns:'instagram',text:v('yt-p-ig'),video:'portrait'},
-    {sns:'tiktok',text:[v('yt-p-ttt'),v('yt-p-tt')].filter(Boolean).join('\n\n'),video:'portrait'}]},
-  ...['vd','ev'].map(P=>({anchor:P+'-x',name:(P==='vd'?'株価分析':'決算分析')+' 縦動画 SNS',key:P==='vd'?'sa':'',items:v=>[
-    {sns:'youtube',title:v(P+'-yt-title'),description:v(P+'-yt-desc'),video:'portrait'},
-    {sns:'x',text:v(P+'-x')},
-    {sns:'instagram',text:v(P+'-insta'),video:'portrait'},
-    {sns:'tiktok',text:v(P+'-tiktok'),video:'portrait'}]})),
-  {anchor:'dg-x',name:'決算まとめ SNS',key:'',items:v=>[
-    {sns:'youtube',title:v('dg-yt-title'),description:v('dg-desc'),video:'landscape',image:'landscape'},
-    {sns:'x',text:v('dg-x')},
-    {sns:'instagram',text:v('dg-sns'),video:'portrait'},
-    {sns:'tiktok',text:v('dg-sns'),video:'portrait'}]}
-];
+// 押すと、**このタブで直前に書き出した動画**に応じて入れ先を決める（2026-11-19 すみぽん「直前に作った動画に応じて投稿先が変わるほうがいい」）。
+// 順番があるもの（YouTube の URL を入れてから作り直す X、ショートの URL を入れてから作るリール動画の TikTok）は、その準備ができてから。
+// 一度渡したもの（同じ欄・同じ SNS・同じ動画／同じ文）は、もう一度押しても渡さない。投稿のボタンは押さない（自分で確かめて押す）
+const KB_SNS={
+  // YT動画「3. SNS」：横の動画 → YouTube。リール動画（縦のサムネ → YouTube の QR → note）→ Instagram。
+  // X は「YouTubeのURL」を入れて投稿文に URL が入ってから（URL は投稿文に自動で入る）
+  'yt-p-x':{name:'YT動画',key:'yt',plan:(v,last)=>{
+    const out=[],why=[];
+    if(!last)why.push('動画をこのタブでまだ書き出していません');
+    else if(last.orient==='landscape')out.push({sns:'youtube',title:v('yt-p-t1'),description:v('yt-p-desc'),video:last.file,image:'landscape'});
+    else if(/リール/.test(last.file.name))out.push({sns:'instagram',text:v('yt-p-ig'),video:last.file});
+    else why.push('直前の動画（'+last.file.name+'）の入れ先が決まっていません');
+    const url=v('yt-p-yturl');
+    if(url&&v('yt-p-x').includes(url))out.push({sns:'x',text:v('yt-p-x')});else why.push('X（YouTubeのURLを入れて、投稿文に URL が入ってから）');
+    return {out,why};
+  }},
+  // 株価分析の縦動画：縦の動画 → YouTube ショート。
+  // リール動画（🎬 リール動画。ショートURL の QR 入り）→ TikTok。ショートURL を入れてから作ったものだけ（2026-11-19 すみぽん「順序がある」）
+  'vd-x':{name:'株価分析',key:'sa',plan:(v,last)=>{
+    const out=[],why=[];
+    if(!last)why.push('動画をこのタブでまだ書き出していません');
+    else if(/リール/.test(last.file.name)){
+      if(!v('vd-short-url'))why.push('TikTok（「ショートURL」を入れてから 🎬 リール動画 を作ってください）');
+      else if(kbShortAt.vd&&last.at<kbShortAt.vd)why.push('TikTok（ショートURL を入れたあとに 🎬 リール動画 を作り直してください）');
+      else out.push({sns:'tiktok',text:v('vd-tiktok'),video:last.file});
+    }
+    else if(last.orient==='portrait')out.push({sns:'youtube',title:v('vd-yt-title'),description:v('vd-yt-desc'),video:last.file});
+    else why.push('直前の動画（'+last.file.name+'）は横の動画です。ショートは縦の動画を書き出してください');
+    return {out,why};
+  }},
+  // 決算分析の縦動画：縦の動画 → Instagram・TikTok
+  'ev-x':{name:'決算分析',key:'',plan:(v,last)=>{
+    const out=[],why=[];
+    if(!last)why.push('動画をこのタブでまだ書き出していません');
+    else if(last.orient==='portrait'){out.push({sns:'instagram',text:v('ev-insta'),video:last.file});out.push({sns:'tiktok',text:v('ev-tiktok'),video:last.file});}
+    else why.push('直前の動画（'+last.file.name+'）は横の動画です');
+    return {out,why};
+  }},
+  // 決算まとめ：横の動画 → YouTube。縦の動画 → Instagram・TikTok。
+  // X は YouTube に上げたあと「YouTubeのURL」を貼り、作り直した投稿文（URL 入り）だけ（2026-11-19 すみぽん）
+  'dg-x':{name:'決算まとめ',key:'',plan:(v,last)=>{
+    const out=[],why=[];
+    if(!last)why.push('動画をこのタブでまだ書き出していません');
+    else if(last.orient==='landscape')out.push({sns:'youtube',title:v('dg-yt-title'),description:v('dg-desc'),video:last.file,image:'landscape'});
+    else out.push({sns:'instagram',text:v('dg-sns'),video:last.file},{sns:'tiktok',text:v('dg-sns'),video:last.file});
+    const url=v('dg-yt-url');
+    if(url&&v('dg-x').includes(url))out.push({sns:'x',text:v('dg-x')});else why.push('X（YouTubeのURLを貼って、X の投稿文を作り直してから）');
+    return {out,why};
+  }}
+};
+// ショートURL を入れた時刻（このあとに作ったリール動画だけを TikTok に使う）
+const kbShortAt={};
+let kbShortWas=null;setInterval(()=>{const e=document.getElementById('vd-short-url');const v=e?String(e.value||'').trim():'';if(kbShortWas!==null&&v!==kbShortWas&&v)kbShortAt.vd=Date.now();kbShortWas=v;},1000);   // 📋 貼付（値を入れるだけで input が出ない）でも気づけるよう、値の変化を見る
 function kbSnsVal(id){const e=document.getElementById(id);return e?String(e.value||'').trim():'';}
-function kbSnsGo(i,btn){
-  const s=KB_SNS[i],st=btn.nextElementSibling,key=s.key?kbKey(s.key):kbKey('');
-  const items=s.items(kbSnsVal).map(it=>Object.assign(it,{label:'kessan '+s.name+(key?'（'+key+'）':''),ref:s.anchor+':'+key+':'+it.sns}));
-  st.textContent='拡張に渡しています…（動画が大きいと少しかかります）';btn.disabled=true;
-  AiBridge.snsSend(items).then(r=>{
-    st.textContent=(r.sent.length?'拡張に渡しました：'+r.sent.join('・')+'（投稿画面に入れたら、拡張の一覧に「投稿待ち」と出ます）':'')+(r.skipped.length?(r.sent.length?'　':'')+'入れなかったもの：'+r.skipped.join('、'):'');
-  },e=>{st.textContent='渡せませんでした：'+(e&&e.message||e);}).finally(()=>{btn.disabled=false;});
+function kbSnsSent(){try{return JSON.parse(sessionStorage.getItem('kb-sns-sent')||'{}');}catch(e){return {};}}
+async function kbSnsGo(anchor,btn){
+  const s=KB_SNS[anchor],st=btn.nextElementSibling,key=kbKey(s.key);
+  st.textContent='直前の動画を調べています…';btn.disabled=true;
+  try{
+    const last=await AiBridge.lastSaved('video');
+    const p=s.plan(kbSnsVal,last);
+    const sent=kbSnsSent(),items=[],skip=p.why.slice();
+    p.out.forEach(it=>{
+      const id=[anchor,key,it.sns,it.video?it.video.name+':'+it.video.size:'',(it.text||it.title||'').slice(0,80)].join('|');
+      if(sent[id]){skip.push(({youtube:'YouTube',x:'X',instagram:'Instagram',tiktok:'TikTok'})[it.sns]+'（同じものを渡し済み）');return;}
+      it._id=id;it.label='kessan '+s.name+(key?'（'+key+'）':'');it.ref=anchor+':'+key+':'+it.sns;items.push(it);
+    });
+    st.textContent=items.length?'拡張に渡しています…（動画が大きいと少しかかります）':'';
+    const r=items.length?await AiBridge.snsSend(items):{sent:[],skipped:[]};
+    const ok=kbSnsSent();items.forEach(it=>{ok[it._id]=Date.now();});try{sessionStorage.setItem('kb-sns-sent',JSON.stringify(ok));}catch(e){}
+    st.textContent=(last?'直前の動画：'+last.file.name+'（'+(last.orient==='portrait'?'縦':'横')+'）　':'')+
+      (r.sent.length?'拡張に渡しました：'+r.sent.join('・')+'　':'')+
+      (skip.concat(r.skipped).length?'まだ入れないもの：'+skip.concat(r.skipped).join('、'):'');
+  }catch(e){st.textContent='渡せませんでした：'+(e&&e.message||e);}
+  finally{btn.disabled=false;}
 }
 setInterval(()=>{
   if(!window.AiBridge||!AiBridge.connected)return;
-  KB_SNS.forEach((s,i)=>{
-    const el=document.getElementById(s.anchor);if(!el)return;
+  Object.keys(KB_SNS).forEach(anchor=>{
+    const el=document.getElementById(anchor);if(!el)return;
     const box=el.closest('.sa-card, .tool-section')||el.parentElement;if(!box||box.querySelector('.kb-sns-bar'))return;
     const bar=document.createElement('div');bar.className='kb-sns-bar';bar.style.cssText='margin:4px 0 8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;';
-    bar.innerHTML='<button type="button" class="btn-sm" style="background:#0f766e;color:#fff;border:none;" title="YouTube・X・Instagram・TikTok の投稿画面を拡張が裏で開いて、この欄の文と、このタブで書き出した最新の動画を入れます。投稿のボタンは押しません">📤 SNS の投稿画面に入れる</button><span style="font-size:11px;color:var(--text-sub);"></span>';
-    bar.firstChild.onclick=function(){kbSnsGo(i,this);};
+    bar.innerHTML='<button type="button" class="btn-sm" style="background:#0f766e;color:#fff;border:none;" title="このタブで直前に書き出した動画に合わせて、SNS の投稿画面を拡張が裏で開いて入れます（横の動画→YouTube など）。投稿のボタンは押しません">📤 SNS の投稿画面に入れる</button><span style="font-size:11px;color:var(--text-sub);"></span>';
+    bar.firstChild.onclick=function(){kbSnsGo(anchor,this);};
     const h=box.querySelector('h2, .section-heading');
     if(h&&h.parentElement===box)h.insertAdjacentElement('afterend',bar);else box.insertBefore(bar,box.firstChild);
   });

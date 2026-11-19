@@ -24,6 +24,7 @@
  *   AiBridge.saved(re) … このタブで書き出した（ダウンロードした）動画・画像のうち、名前が re に合う最新のもの（File か null）。
  *                        SNS の投稿に、書き出したばかりの動画を付けるのに使う（ダウンロードは今までどおり）
  *   AiBridge.savedBy(kind, orient) … 書き出した動画（kind 'video'）・画像（'image'）のうち、横長（'landscape'）／縦長（'portrait'）の最新のもの（Promise）
+ *   AiBridge.lastSaved(kind) … このタブで最後に書き出した動画・画像と、その向き（Promise）
  *   AiBridge.snsSend(items) … 複数の SNS の投稿の準備をまとめて頼む（動画は向きで選べる）。Promise で { sent, skipped }
  *   AiBridge.fileFromUrl(url, name) … アップロード済みの動画・画像の URL を File にする（Promise）
  *   AiBridge.mayOpen() … 返答・次の段のために、ツールが別の記事・銘柄を自動で開いてよいか。よければ true、だめなら理由の文
@@ -192,6 +193,20 @@
       return probe(s).then(function (o) { return !orient || o === orient ? new File([s.blob], s.name, { type: s.blob.type }) : next(); });
     };
     return next();
+  };
+  /** このタブで最後に書き出した動画（kind 'video'）・画像（'image'）。Promise で { file, orient: 'landscape'／'portrait'／null, at } か null */
+  api.lastSaved = function (kind) {
+    var s = savedList.filter(function (x) { return x.blob.type.indexOf(kind + '/') === 0; })[0];
+    if (!s) return Promise.resolve(null);
+    return new Promise(function (resolve) {
+      var u = URL.createObjectURL(s.blob), fin = false;
+      var done = function (w, h) { if (fin) return; fin = true; URL.revokeObjectURL(u); resolve({ file: new File([s.blob], s.name, { type: s.blob.type }), orient: w && h ? (w >= h ? 'landscape' : 'portrait') : null, at: s.at }); };
+      if (kind === 'video') {
+        var v = document.createElement('video'); v.preload = 'metadata'; v.muted = true;
+        v.onloadedmetadata = function () { done(v.videoWidth, v.videoHeight); }; v.onerror = function () { done(0, 0); }; v.src = u;
+      } else { var im = new Image(); im.onload = function () { done(im.naturalWidth, im.naturalHeight); }; im.onerror = function () { done(0, 0); }; im.src = u; }
+      setTimeout(function () { done(0, 0); }, 8000);
+    });
   };
   api.fileFromUrl = function (url, name) {
     return fetch(url).then(function (r) {
