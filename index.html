@@ -7785,6 +7785,12 @@ function vdBuildTabHtml(P){
   return `
   <div class="sa-card">
     <button class="btn btn-full" id="${P}-gen-btn" onclick="geminiVideo('${P}',this)" style="background:#7c3aed;color:#fff;">${c.genLabel}</button>
+    ${P==='vd'?`<details id="vd-manual" style="margin-top:4px;"><summary style="font-size:11px;color:var(--text-sub);cursor:pointer;" title="プロンプトにはレポートと基本情報が入っています。ChatGPTに貼って、返ってきた文をまるごとコピーしてから「📋 貼り付け」を押すと、上のボタンで作ったときと同じように台本・縦スライド・投稿文の欄へ分けて入ります">手動で作る（ChatGPT など。APIが混んでいるとき）</summary>
+      <div class="row" style="flex-wrap:nowrap;margin-top:4px;">
+        <button class="btn-sm" onclick="vdCopyVideoPrompt('vd',this)" style="flex:1;min-width:0;background:#475569;color:#fff;">💬 プロンプト</button>
+        <button class="btn-sm" onclick="vdPasteVideo('vd')" style="flex:1;min-width:0;">📋 貼り付け</button>
+      </div>
+    </details>`:''}
     <div id="${P}-status" style="display:none;font-size:11px;margin-top:3px;"></div>
   </div>
   <div class="sa-subtabs" style="margin-top:6px;">
@@ -8322,29 +8328,51 @@ function vdNormalizeXPost(t){
   return lines.join('\n').replace(/\n{3,}/g,'\n\n').trim();
 }
 
-async function geminiVideo(P,btnEl){
-  let resources,prompt;
+// 台本・縦スライド・投稿文を作る材料とプロンプト。足りなければ知らせて null（API と手動で同じもの）
+function vdVideoInput(P){
   if(P==='ev'){
     const data=((document.getElementById('input-data')||{}).value||'').trim();
-    if(!data){alert('「2. データ入力」の整形済みデータが空です。先に整形してください');return;}
+    if(!data){alert('「2. データ入力」の整形済みデータが空です。先に整形してください');return null;}
     const a=document.getElementById('ev-count-auto');if(a)a.textContent=evAutoCount()+'枚';
-    resources=[{label:'決算分析の整形済みデータ',text:data},{label:'基本情報',text:vdBasicInfo('ev')}];
-    prompt=videoPromptEv(evCount());
-  }else{
-    const report=(document.getElementById('ta-report').value||'').trim();
-    if(!report){alert('「2. ChatGPT分析」のレポートを貼り付けてください');return;}
-    resources=[{label:'株価分析レポート',text:report},{label:'基本情報',text:vdBasicInfo('vd')}];
-    prompt=VIDEO_PROMPT_VD;
+    return{resources:[{label:'決算分析の整形済みデータ',text:data},{label:'基本情報',text:vdBasicInfo('ev')}],prompt:videoPromptEv(evCount())};
   }
-  const n=VD_CFG[P].labels().length;
+  const report=(document.getElementById('ta-report').value||'').trim();
+  if(!report){alert('「2. ChatGPT分析」のレポートを貼り付けてください');return null;}
+  return{resources:[{label:'株価分析レポート',text:report},{label:'基本情報',text:vdBasicInfo('vd')}],prompt:VIDEO_PROMPT_VD};
+}
+async function geminiVideo(P,btnEl){
+  const inp=vdVideoInput(P);if(!inp)return;
+  const md=document.getElementById(P+'-manual');if(md)md.open=false;
   const ov=vdVal(P,'model');
   const o=btnEl?btnEl.textContent:'';
   if(btnEl){btnEl.disabled=true;btnEl.textContent='生成中…';}
   vdStatus(P,aiName(ov)+'で台本・スライド・投稿文を生成中…（30秒〜1分）','info');
-  const r=await saCallGeminiAnalyze(prompt,resources,{cls:'high',temperature:0.7,modelOverride:ov});
+  const r=await saCallGeminiAnalyze(inp.prompt,inp.resources,{cls:'high',temperature:0.7,modelOverride:ov});
   if(btnEl){btnEl.disabled=false;btnEl.textContent=o;}
   if(!r.ok){vdStatus(P,'エラー: '+r.error,'error');return false;}
-  const p=parseVideoOutput(r.text,n);
+  return vdApplyVideoOutput(P,r.text,`${r.model||'gemini'}${fallNote(r)}${saTokenNote(r.usage)}`);
+}
+// 手動：API と同じプロンプト（資料つき）をコピーする
+function vdCopyVideoPrompt(P,btn){
+  const inp=vdVideoInput(P);if(!inp)return;
+  copyText(saManualPrompt(inp.prompt,inp.resources),btn);
+}
+// 手動：ChatGPT の返答をまるごと貼ると、API で作ったときと同じように各欄へ分けて入れる
+async function vdPasteVideo(P){
+  let t;
+  try{t=await navigator.clipboard.readText();}catch(e){alert('クリップボードへのアクセスが拒否されました。「📄 データ」タブの「生成全文」に貼ってから、もう一度お試しください');return;}
+  t=String(t||'').trim();   // ``` の囲みは parseVideoOutput がブロックごとに外す（全体の外側だけ外すと、複数のブロックのときに崩れる）
+  if(!t){alert('クリップボードが空です');return;}
+  const p=parseVideoOutput(t,VD_CFG[P].labels().length);
+  if(!p.s1&&!p.slides){alert('台本・縦スライドの見出しが見つかりませんでした。ChatGPT の返答をまるごとコピーしてください');return;}
+  const hasTts=Object.keys(window._vdTts[P]||{}).length>0;
+  if(hasTts&&!confirm('いまの台本・縦スライド・投稿文を貼った文で置き換え、作った音声も消します。よろしいですか？'))return;
+  return vdApplyVideoOutput(P,t,'手動');
+}
+// AI の返答（API・手動とも）を台本・縦スライド・投稿文の欄へ分けて入れる
+async function vdApplyVideoOutput(P,text,srcNote){
+  const n=VD_CFG[P].labels().length;
+  const p=parseVideoOutput(text,n);
   vdBuildScriptBoxes(P,true);
   if(P==='ev'){const t=vdEl('ev','th-input');if(t)t.value=evThumbText();}   // サムネ文言はAIに作らせない（株価分析はサムネイルタブの文言を流用）
   // AIの台本①〜は表示中の欄へ順に入れる。使わない欄（3枚のときの通期予想）は前回の台本を残さない
@@ -8357,13 +8385,13 @@ async function geminiVideo(P,btnEl){
   vdEl(P,'insta').value=vdAddFixedTags(P,deJargonP0(p.insta||''),VD_INSTA_MAX_TAGS);   // Instagramはタグ5個まで
   vdEl(P,'tiktok').value=vdTiktokCompose(P,p.tiktok);
   if(P==='vd')vdYtApply(P,p.yt||'');
-  vdEl(P,'raw').value=r.text;
+  vdEl(P,'raw').value=text;
   await vdClearAllTts(P);   // 台本が変わったので前の音声は破棄
   const tm=vdEl(P,'timing');if(tm)tm.value='';   // 前の音声のタイミング（枚数違いのことも）が残って紛らわしいので消す
   vdUpdateScriptStats(P);
   if(typeof saveState==='function')saveState();
   const missing=[!(p.s1&&p['s'+n])&&'台本',!p.slides&&'縦スライド',!p.x&&'X',!p.insta&&'Instagram',!p.tiktok&&'TikTok',P==='vd'&&!p.yt&&'YouTubeショート'].filter(Boolean);
-  vdStatus(P,`生成完了（${r.model||'gemini'}${fallNote(r)}${saTokenNote(r.usage)}）${missing.length?' ※'+missing.join('・')+'は全文から確認':''}`,missing.length?'info':'ok');
+  vdStatus(P,`生成完了（${srcNote}）${missing.length?' ※'+missing.join('・')+'は全文から確認':''}`,missing.length?'info':'ok');
   vdShowPreview(P);
   return true;
 }
