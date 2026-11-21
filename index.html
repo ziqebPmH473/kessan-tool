@@ -18644,6 +18644,18 @@ const KB_SNS={
     else out.push({sns:'x',text:v('ev-x'),video:last.file});
     return {out,why};
   }},
+  // 決算分析の「分析動画」→ SNS（部品が #ev-viz-sns に描く。欄に id が無いので見出しで読む：evv:sns・evv:yt_title・evv:yt_desc・evv:x）。
+  // 入れ先は決算分析と同じ：縦 → Instagram・TikTok（YouTube ショートはチェックしたときだけ）、横 → X（2026-11-22 すみぽん「自動投稿ってなくしたんだっけ」でつなぎ漏れに気づいた）
+  'ev-viz-sns':{name:'決算分析 分析動画',key:'',opt:'YouTube ショートにも入れる',plan:(v,last,opt)=>{
+    const out=[],why=[];
+    if(!last)why.push('動画をこのタブでまだ書き出していません（「縦動画」「横動画」で書き出してから押してください）');
+    else if(last.orient==='portrait'){
+      out.push({sns:'instagram',text:v('evv:sns'),video:last.file},{sns:'tiktok',text:v('evv:sns'),video:last.file});
+      if(opt)out.push({sns:'youtube',title:v('evv:yt_title'),description:v('evv:yt_desc'),video:last.file});else why.push('YouTube ショート（入れるときは「YouTube ショートにも入れる」にチェック）');
+    }
+    else out.push({sns:'x',text:v('evv:x'),video:last.file});
+    return {out,why};
+  }},
   // 決算まとめ：横の動画 → YouTube。縦の動画 → Instagram・TikTok。
   // X は YouTube に上げたあと「YouTubeのURL」を貼り、作り直した投稿文（URL 入り）だけ（2026-11-19 すみぽん）
   'dg-x':{name:'決算まとめ',key:'',plan:(v,last)=>{
@@ -18659,7 +18671,27 @@ const KB_SNS={
 // ショートURL を入れた時刻（このあとに作ったリール動画だけを TikTok に使う）
 const kbShortAt={};
 let kbShortWas=null;setInterval(()=>{const e=document.getElementById('vd-short-url');const v=e?String(e.value||'').trim():'';if(kbShortWas!==null&&v!==kbShortWas&&v)kbShortAt.vd=Date.now();kbShortWas=v;},1000);   // 📋 貼付（値を入れるだけで input が出ない）でも気づけるよう、値の変化を見る
-function kbSnsVal(id){const e=document.getElementById(id);return e?String(e.value||'').trim():'';}
+function kbSnsVal(id){
+  if(/^evv:/.test(id))return kbEvVizPost(id.slice(4));
+  const e=document.getElementById(id);return e?String(e.value||'').trim():'';
+}
+/** 分析動画の SNS の欄（部品の textarea）を見出しで読む。見出し：Instagram・TikTok／YouTube タイトル／YouTube 概要欄／X。
+ *  見出しで見つからなければ、部品の並び順（Instagram・TikTok → YouTube タイトル → YouTube 概要欄 → X）で読む */
+function kbEvVizPost(k){
+  const pane=document.getElementById('ev-viz-sns');if(!pane)return '';
+  const LABEL={sns:'Instagram・TikTok',yt_title:'YouTube タイトル',yt_desc:'YouTube 概要欄',x:'X'};
+  const tas=[...pane.querySelectorAll('textarea')];
+  const hit=tas.find(ta=>{
+    // textarea の前にある、いちばん近い見出し（同じまとまりの中の文）
+    let n=ta,box=null;
+    for(let i=0;i<4&&n&&!box;i++){n=n.parentElement;if(n&&n!==pane&&n.querySelector('textarea')===ta&&n.textContent.replace(ta.value,'').trim())box=n;}
+    const head=box?box.textContent.replace(ta.value,'').trim():'';
+    return k==='x'?/^X(\s|\d|$)/.test(head):head.indexOf(LABEL[k])===0;
+  });
+  const order=['sns','yt_title','yt_desc','x'];
+  const ta=hit||(tas.length===4?tas[order.indexOf(k)]:null);
+  return ta?String(ta.value||'').trim():'';
+}
 function kbSnsSent(){try{return JSON.parse(sessionStorage.getItem('kb-sns-sent')||'{}');}catch(e){return {};}}
 async function kbSnsGo(anchor,btn){
   const s=KB_SNS[anchor],st=btn.nextElementSibling,key=kbKey(s.key);

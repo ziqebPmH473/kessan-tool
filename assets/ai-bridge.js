@@ -124,6 +124,11 @@
       }
       return;
     }
+    if (d.type === 'posts' && waiting[d.ref]) {
+      waiting[d.ref](d);
+      delete waiting[d.ref];
+      return;
+    }
     if (d.type === 'post-accepted' && waiting[d.ref]) {
       waiting[d.ref](d);
       delete waiting[d.ref];
@@ -225,6 +230,16 @@
       var n = name || (q ? decodeURIComponent(q) : '') || String(url).split('?')[0].split('/').pop() || 'file';
       if (!/\.\w{2,4}$/.test(n)) n += /mp4/.test(b.type) ? '.mp4' : /quicktime/.test(b.type) ? '.mov' : /png/.test(b.type) ? '.png' : /jpe?g/.test(b.type) ? '.jpg' : /webp/.test(b.type) ? '.webp' : '';
       return new File([b], n, { type: b.type });
+    });
+  };
+  /** このツールの SNS の投稿の様子（拡張の一覧と同じ。読むだけ）。Promise で [{ id, sns, ref, state, note, error, loggedIn }] */
+  api.posts = function () {
+    if (!api.connected) return Promise.resolve([]);
+    var ref = 'r' + (++seq);
+    return new Promise(function (resolve) {
+      waiting[ref] = function (d) { resolve(d.posts || []); };
+      post({ type: 'posts', ref: ref });
+      setTimeout(function () { if (waiting[ref]) { delete waiting[ref]; resolve([]); } }, 5000);
     });
   };
   api.post = function (p) {
