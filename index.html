@@ -2236,7 +2236,7 @@ FCF|マイナス|黒字化|営業CFが投資CFを上回る状態
           <input type="hidden" id="th-ctx" value="note"><input type="hidden" id="th-note-text"><input type="hidden" id="th-note-preset" value="note">
           <input type="hidden" id="yt-th-text"><input type="hidden" id="yt-th-preset" value="youtube">
           <input type="hidden" id="yg-th-text"><input type="hidden" id="yg-th-preset" value="youtube">
-          <textarea id="th-input" oninput="debouncedThumb()" style="height:52px;min-height:52px;">最高値から*40％下落*：ユニチカ：#底値#と%５つの反転サイン%</textarea>
+          <textarea id="th-input" oninput="debouncedThumb()" style="height:52px;min-height:52px;">最高値から*40％下落*：ユニチカ：#底値#と%４つの反転サイン%</textarea>
         </div>
       </div>
       <p style="font-size:10px;color:var(--text-sub);margin:0;">「：」で上段・中段・下段を区切る。色指定: <span style="color:#ff914d">*オレンジ*</span>　<span style="color:#5ce1e6">#水色#</span>　<span style="color:#ffde59">%黄色%</span></p>
@@ -16513,7 +16513,7 @@ function dgFixedMigrate(){try{const v=String(kgGet('dg-fixed')||'').trim();if(v&
 const DG_OUTRO_DEF='今回ご紹介した決算は、ブログでさらに詳しく解説しています。noteでも、個別銘柄の分析を発信しています。どちらも概要欄のリンクからご覧ください。';
 const DG_OUTRO_OLD='noteでも、決算の解説を発信しています。詳しくは概要欄のリンクか、QRコードを読み込んでご覧ください。';   // 前の既定（ブログの案内を足す前。すみぽん 2026-11-03）
 const KG_ITEMS=[
-  {g:'thumb',key:'th3',label:'株価分析：3段目の初期値',ids:[],def:'#底値#と%５つの反転サイン%'},
+  {g:'thumb',key:'th3',label:'株価分析：3段目の初期値',ids:[],def:'#底値#と%４つの反転サイン%'},
   ...[['thv1','上段','{期間}｜{変動}'],['thv2','中段','{中段}'],['thv3','下段','{下段}']].map(([k,n,d])=>({g:'thumb',key:k,label:'株価分析：縦サムネの'+n,ids:[],def:d,
     tip:'縦のサムネの'+n+'の欄の型。{上段}{中段}{下段}＝横のサムネの各段、{期間}＝横の上段の「で」まで（例：１ヶ月で）、{変動}＝その後ろ（例：*40％下落*）、｜＝改行。決まった文も書けます（色指定: *オレンジ* #水色# %黄色%）。変えたあとは、サムネの画面の「📥 上の文から作り直す」で欄に入ります（直していない欄は自動で追従）'})),
   {g:'thumb',key:'ev-th3',label:'決算の分析動画：3段目',ids:[],def:'図解で%決算解説%',tip:'決算の分析動画のサムネの3段目（決まった文）。上段＝今回の評価と株価の動き、中段＝社名は自動。色指定: *オレンジ* #水色# %黄色%'},
