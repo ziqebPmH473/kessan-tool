@@ -5521,6 +5521,8 @@ const ANALYSIS_CORE=`# 命令書
 ## 私の目的
 株価が [PERIOD][TREND] している [NAME] について、12ヶ月（1年）程度の時間軸を基本とし、投資家が「[GOAL]」を自己判断するための、客観的で深い洞察に満ちた分析レポートを作成すること。目的は、特定の売買タイミングや売買行動を提示することではなく、現在株価の評価、想定されるリスクとリターン、評価が変化する条件を明らかにすることとする。分析の結果、12か月後の期待リターンがマイナスになる場合は、数値を丸めずその結果をそのまま示し、現在株価に対して下方リスクが優勢であることを明確にしてよい。
 
+[PRICE_MOVE]
+
 ## 投資判断に関する制約
 本レポートは、読者が自ら投資判断を行うための分析材料を提供することを目的とし、特定の売買行動を推奨・指示しない。
 * 「買うべき」「売るべき」「待つべき」「見送るべき」「仕込む」「エントリーする」「ナンピンする」「利確する」「損切りする」など、読者に具体的な売買行動を促す表現は使用しない。
@@ -5760,7 +5762,9 @@ function buildAnalysisText(){
   const ticker=getTicker();
   const nameWithCode=ticker?`${name}（${ticker}）`:name;
   const period=getPeriod()||'【期間を入力】';
-  let p=ANALYSIS_CORE.replaceAll('[NAME]',nameWithCode).replaceAll('[PERIOD]',period);
+  const mv=priceMoveLines();
+  let p=ANALYSIS_CORE.replaceAll('[NAME]',nameWithCode).replaceAll('[PERIOD]',period)
+    .replace('[PRICE_MOVE]\n\n',mv?`## 株価の値動き（確定値）\n${mv.join('\n')}\n\n`:'');
   for(const[k,v]of Object.entries(mode)) p=p.replaceAll(k,v);
   return p;
 }
@@ -6514,7 +6518,8 @@ async function artComplianceCheck(btnEl,silent,opt){
 function saArticleInputs(){
   const report=(document.getElementById('ta-report').value||'').trim();
   if(!report){alert('「2. ChatGPT分析」のレポートを貼り付けてください');return null;}
-  return{prompt:(document.getElementById('gem-article-prompt').textContent||'').trim(),resources:[{label:'株価分析レポート',text:report}]};
+  const mv=priceMoveLines();
+  return{prompt:(document.getElementById('gem-article-prompt').textContent||'').trim(),resources:[...(mv?[{label:'株価の値動き（確定値）',text:mv.join('\n')}]:[]),{label:'株価分析レポート',text:report}]};
 }
 // 手動用は、各ブロックを ``` で囲ませない（ChatGPTの画面は長いコードブロックの表示が遅い。ツールは【見出し】だけで分けるので囲みは要らない）
 const SA_MANUAL_NOFENCE='\n\n【手動用の補足（上の指示より優先）】\n6つのブロックは、コードブロック（```）で囲まない。「【タイトル】」「【本　文】」「【サムネ構成案】」「【ハッシュタグ】」「【X（旧Twitter）告知文】」「【証券管理ツール用データ】」の見出しを行頭に置き、その次の行から中身をそのまま書く。ブロックの前後に説明や感想は書かない。';
@@ -6745,6 +6750,21 @@ function chartPeriodLabel(chartLines){
   return `直近${y}年${m?m+'ヶ月':''}`;
 }
 
+// 株価の値動き（ツールが自動取得・計算した確定値）。レポート・記事・縦動画のAIに「主として使う数字」として渡す。
+// AIに「〇ヶ月で〇%」の言葉だけを渡すと、終値や別の日付で計算し直した数字を本文・タイトルに使っていた（日本製鋼所 2026-11-26）
+function priceMoveLines(){
+  const g=id=>((document.getElementById(id)||{}).value||'').trim();
+  const bd=g('inp-base-date'),bp=g('inp-base-price'),cd=g('inp-cur-date'),cp=g('inp-cur-price'),period=getPeriod();
+  if(!bp||!cp||!period)return null;
+  const f=window._fetched||{},num=s=>String(s||'').replace(/[,，円$\s]/g,'');
+  const down=getDir()==='down',ext=down?f.high:f.low;
+  const label=(ext&&ext.price&&num(ext.price)===num(bp)&&(!bd||ext.date===bd))?(down?'高値':'安値'):'株価';
+  const code=getTicker();
+  return[
+    `・${bd?bd+' の':''}${label} ${fmtPrice(bp,code)} → ${cd?cd+' の':''}株価 ${fmtPrice(cp,code)}：${period}${down?'下落':'上昇'}`,
+    '・値動きの大きさは、この日付と数字を主として書く。'
+  ];
+}
 function getSourceText(){
   const f=window._fetched;
   if(!f)return null;
@@ -8176,6 +8196,7 @@ function vdBasicInfo(P){
   if(cp)L.push(`現在株価：${cp}${cd?'（'+cd+'）':''}`);
   if(bp)L.push(`基準株価：${bp}${bd?'（'+bd+'）':''}`);
   const period=getPeriod();if(period)L.push(`期間・変動：${period}`);
+  if(bp&&cp&&period)L.push('値動きの大きさは、この基準株価・現在株価・期間・変動の数字を主として書く。');
   const f=window._fetched;
   if(f&&f.business)L.push(`事業内容：${f.business}`);
   return L.join('\n');
@@ -18752,7 +18773,7 @@ async function dgCopy(id,btn){
 
 【出力形式（重要：必ず6つのブロックに分ける）】
 1. 【タイトル】：記事の魅力を凝縮し、クリックしたくなるタイトル案をテキスト用コードブロックで囲む。
-   - 構造：「【銘柄名（証券コード）】〇ヶ月で〇％下落！＋その銘柄固有の材料・疑問（1文）＋底値と反転サインを分析」の順で1行にする。冒頭は必ず「【銘柄名（証券コード）】〇ヶ月で〇％下落！」、末尾は必ず「底値と反転サインを分析」で終えること。レポートが上昇のときは、冒頭を「【銘柄名（証券コード）】〇ヶ月で〇％上昇！」、末尾を「天井と反転サインを分析」にする。汎用的な定型文（例：「〜の状況下で、〜を知る」など）への当てはめは禁止。
+   - 構造：「【銘柄名（証券コード）】〇ヶ月で〇％下落！＋その銘柄固有の材料・疑問（1文）＋底値と反転サインを分析」の順で1行にする。冒頭は必ず「【銘柄名（証券コード）】〇ヶ月で〇％下落！」、末尾は必ず「底値と反転サインを分析」で終えること。レポートが上昇のときは、冒頭を「【銘柄名（証券コード）】〇ヶ月で〇％上昇！」、末尾を「天井と反転サインを分析」にする。「〇ヶ月で〇％」は、資料の【株価の値動き（確定値）】の数字を使う。汎用的な定型文（例：「〜の状況下で、〜を知る」など）への当てはめは禁止。
    - 銘柄の固有性（絶対条件）：他の銘柄にも使い回せるような表現（「大暴落」「本当の底値」のみで構成するなど）は避け、必ず「その企業特有の事業内容、主力製品、具体的な悪材料/好材料、またはMoat」を示す具体的なキーワードを1つ以上タイトルに組み込むこと。
    - 厳守事項：「増益で株価上昇」といった視聴者が納得して好奇心が停止する順当な結論は厳禁。固有の文脈に基づくギャップや、「〇〇事業の不振はどこまで織り込まれたか？」といった具体的な疑問を生み出すこと。
 
@@ -18769,7 +18790,7 @@ async function dgCopy(id,btn){
    - タグ選定：汎用的すぎて検索価値の低いタグ（例：「#投資初心者」「#投資」単体など、どの記事にも付く定型タグ）は原則使わないこと。代わりに、①銘柄名 ②証券コード ③業種・セクター（例：電子部品、半導体） ④この記事固有のテーマ・材料（例：MLCC、AIサーバー、業績下方修正、PBR）を中心に、実際に検索・回遊されやすい具体的なタグを選ぶこと。銘柄名と証券コードは必ず含める。
 
 5. 【X（旧Twitter）告知文】：本文は115文字以内で作成し、テキスト用コードブロックで囲む（記事URLはツールが後から1行追加するため、URLやリンクの文言は書かない。X上でURLは23文字換算なので、合計140文字に収めるため本文を115文字以内にする）。
-   - 内容：記事の核心的な「問いかけ」や「注目ポイント（ギャップ）」を基に、Xからのトラフィックを最大化する文章にする。結論（想定株価レンジなど）の記載は厳禁。冒頭の1行目は必ず「【 #銘柄名（証券コード）｜〇ヶ月で〇％下落】」だけの行にすること（この行の直下にURLが挿入される）
+   - 内容：記事の核心的な「問いかけ」や「注目ポイント（ギャップ）」を基に、Xからのトラフィックを最大化する文章にする。結論（想定株価レンジなど）の記載は厳禁。冒頭の1行目は必ず「【 #銘柄名（証券コード）｜〇ヶ月で〇％下落】」だけの行にすること（この行の直下にURLが挿入される。「〇ヶ月で〇％」はタイトルと同じ数字）
    - フォーマット：絵文字を交えつつ「空行なし（詰め）」で構成する。段落分けのための連続改行（空白行の作成）は禁止。ハッシュタグも本文直後の行に空行を挟まず配置すること。
 
 6. 【証券管理ツール用データ】：レポートから株価データを機械的に抽出し、テキスト用コードブロックで以下の7行のみを出力する（解説・注記・追加行は一切禁止）。
