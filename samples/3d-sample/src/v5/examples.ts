@@ -51,7 +51,12 @@ export const GROW: ShortData = {
 // 材料：2Q（中間）の決算・予想は据え置き・増配・事業の1つが赤字（架空）。保存データでいちばん多い形
 export const MID: ShortData = {
   company: 'サンプル電機',
+  code: '0000',
   period: '2027年3月期 第2四半期',
+  headline: '電子部品の受注が伸び、半年で営業利益の予想の半分に到達',
+  verdict: '増収増益',
+  focus: ['電子部品の受注', '新規事業の赤字', '配当の引き上げ'],
+  conclusion: { strength: '電子部品の受注が好調', feature: '半年で予想の半分まで進んだ', concern: '新規事業の赤字が広がった', next: '下期の受注の勢い' },
   metric: '営業利益',
   unit: '億円',
   periodType: 'Q2',
@@ -68,11 +73,20 @@ export const MID: ShortData = {
     { name: '新規事業', rev: 60, prevRev: 42, op: -9, prevOp: -6 },
   ],
   pl: { sales: 1010, cost: 690, sga: 220 },
+  plSteps: [
+    { key: 'revenue', label: '売上', v: 1010, kind: 'total' },
+    { key: 'cost_of_sales', label: '売上原価', v: 690, kind: 'minus' },
+    { key: 'gross_profit', label: '売上総利益', v: 320, kind: 'subtotal' },
+    { key: 'sga', label: '販管費', v: 220, kind: 'minus' },
+    { key: 'other_income', label: 'その他の収益', v: 12, kind: 'plus' },
+    { key: 'other_expenses', label: 'その他の費用', v: 12, kind: 'minus' },
+    { key: 'operating_income', label: '営業利益', v: 100, kind: 'result' },
+  ],
   margins: [{ name: '粗利率', prev: 30.8, cur: 31.7 }, { name: '営業利益率', prev: 8.9, cur: 9.9 }],
   netgap: { steps: [{ key: 'operating_income', name: '営業利益', v: 100 }, { key: 'ordinary_income', name: '経常利益', v: 104 }, { key: 'pretax_income', name: '税引前利益', v: 103 }, { key: 'net_income', name: '純利益', v: 71 }], prevOp: 82, prevNet: 57 },
   forecast: { basis: 'this', items: [{ key: 'revenue', name: '売上', cur: 2000, next: 2150 }, { key: 'operating_income', name: '営業利益', cur: 172, next: 200 }, { key: 'net_income', name: '純利益', cur: 118, next: 140 }] },
   progress: { pace: 50, items: [{ key: 'revenue', name: '売上', actual: 1010, forecast: 2150 }, { key: 'operating_income', name: '営業利益', actual: 100, forecast: 200 }, { key: 'net_income', name: '純利益', actual: 71, forecast: 140 }] },
-  revision: { label: '2Qの発表時', items: [{ key: 'revenue', name: '売上', before: 2150, after: 2150 }, { key: 'operating_income', name: '営業利益', before: 200, after: 200 }, { key: 'net_income', name: '純利益', before: 140, after: 140 }] },
+  revision: { label: '2Qの発表時', reason: '上期は計画どおりに進んだため、通期の予想は変えない', items: [{ key: 'revenue', name: '売上', before: 2150, after: 2150 }, { key: 'operating_income', name: '営業利益', before: 200, after: 200 }, { key: 'net_income', name: '純利益', before: 140, after: 140 }] },
   dividend: { before: 50, after: 56, label: '年間' },
   topics: [{ icon: '🔁', title: '自社株買い', sub: '上限30億円' }],
   kpis: [
@@ -82,7 +96,18 @@ export const MID: ShortData = {
     { key: 'net_income', name: '純利益', prev: 57, cur: 71 },
   ],
   bs: { assets: 2400, liabilities: 1010, equity: 1390, prevEquityRatio: 56.2 },
-  cf: { begin: 310, operating: 120, investing: -70, financing: -35, end: 325 },
+  bsBlocks: [
+    { key: 'cash', label: '現金', side: 'asset', v: 325, prev: 310 },
+    { key: 'receivables', label: '売掛金', side: 'asset', v: 420, prev: 380 },
+    { key: 'inventory', label: '在庫', side: 'asset', v: 360, prev: 300 },
+    { key: 'other_current_assets', label: 'その他流動資産', v: 95, side: 'asset', prev: 90 },
+    { key: 'fixed_assets', label: '固定資産', side: 'asset', v: 1200, prev: 1170 },
+    { key: 'payables', label: '買掛金', side: 'liability', v: 260, prev: 240 },
+    { key: 'debt', label: '有利子負債', side: 'liability', v: 380, prev: 400 },
+    { key: 'other_liabilities', label: 'その他負債', side: 'liability', v: 370, prev: 365 },
+    { key: 'equity', label: '純資産', side: 'equity', v: 1390, prev: 1235 },
+  ],
+  cf: { begin: 310, operating: 120, investing: -70, financing: -35, other: 0, end: 325 },
   quarter: { label: '2Q単独（7〜9月）', items: [{ key: 'revenue', name: '売上', prev: 470, cur: 522 }, { key: 'operating_income', name: '営業利益', prev: 44, cur: 55 }, { key: 'net_income', name: '純利益', prev: 30, cur: 39 }] },
   ratings: [
     { label: '成長性', grade: 'good' },
@@ -91,13 +116,25 @@ export const MID: ShortData = {
     { label: 'お金を生む力', grade: 'neutral' },
     { label: '資本効率', grade: 'caution' },
   ],
-  points: { good: ['電子部品の受注が好調', '半年で営業利益の予想の50%'], watch: ['新規事業の赤字が広がった'] },
+  points: {
+    good: [
+      { t: '営業利益率が改善', metric: '営業利益率', before: '8.9%', after: '9.9%', change: '+1.0pt' },
+      { t: '電子部品の受注が好調', metric: '電子部品の売上', before: '540億円', after: '620億円', change: '+14.8%' },
+      '配当の予想を引き上げ',
+    ],
+    watch: [{ t: '新規事業の赤字が広がった', metric: '新規事業の利益', before: '−6億円', after: '−9億円' }, { t: '在庫が増えた', metric: '在庫', before: '300億円', after: '360億円', change: '+20.0%' }],
+  },
   stock: { prices: [2010, 2030, 2015, 2040, 2052, 2048, 2060, 2075, 2070, 2066, 2081, 2090, 2210], at: 12, days: '発表の翌日', pre: 2090, post: 2210 },
 };
 
 // 材料：本業は黒字に戻ったが、最後は赤字（米国の会社・億ドル。架空）
 export const TURN: ShortData = {
   company: 'サンプル・インク',
+  code: 'SMPL',
+  headline: '本業は黒字に戻ったが、利息の支払いで最終赤字',
+  verdict: '営業黒字転換',
+  focus: ['北米の売上', '借入れの利息', '7〜9月の勢い'],
+  conclusion: { strength: '北米の売上が大きく伸びた', feature: '本業は黒字に戻った', concern: '利息の支払いが重い', next: '借入れを減らせるか' },
   period: '2026年12月期 第3四半期',
   metric: '営業利益',
   unit: '億ドル',

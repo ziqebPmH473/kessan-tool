@@ -1,7 +1,7 @@
 import React from 'react';
 import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from 'remotion';
 import { Bar, K, Label } from '../v2/kit';
-import { PALE, PartProps, Scene3D, Titles, UNIT, clamp, floorLabel, fmt, grow, isRev, oku, pct } from './parts';
+import { PALE, Legend, PartProps, Scene3D, Titles, UNIT, clamp, floorLabel, fmt, grow, isRev, oku, pct } from './parts';
 
 // 売上と利益をいっしょに見せる部品（業績の推移・来期の予想・予想の修正）
 
@@ -92,9 +92,9 @@ export const TrendPart: React.FC<PartProps> = ({ d, mode, dur, caption }) => {
         sub={`売上 ${oku(p.rev)} → ${oku(c.rev)}（${pct(p.rev, c.rev)}）`}
         caption={caption}
       />
-      <div style={{ position: 'absolute', top: '83.5%', left: 0, right: 0, textAlign: 'center', fontFamily: '"Noto Sans JP"', fontWeight: 700, fontSize: 30, color: K.sub }}>
+      <Legend>
         <span style={{ color: K.blue }}>■</span> 売上　<span style={{ color: UPC }}>■</span> 営業利益（{UNIT}）{hasFc ? '　うすい＝会社予想' : ''}
-      </div>
+      </Legend>
     </AbsoluteFill>
   );
 };
@@ -192,9 +192,9 @@ export const ForecastPart: React.FC<PartProps> = ({ d, mode, dur, caption }) => 
         sub={`${op.name} ${oku(op.a)} → ${oku(op.b)}${rv ? `／売上 ${pct(rv.a, rv.b)}` : ''}`}
         caption={caption}
       />
-      <div style={{ position: 'absolute', top: '83.5%', left: 0, right: 0, textAlign: 'center', fontFamily: '"Noto Sans JP"', fontWeight: 700, fontSize: 30, color: K.sub }}>
+      <Legend>
         {nx.leg}
-      </div>
+      </Legend>
     </AbsoluteFill>
   );
 };
@@ -219,7 +219,7 @@ export const revisionWord = (items: { key?: string; name: string; before: number
   return { word: '項目で向きがちがう修正', color: MIX };
 };
 
-export const RevisionPart: React.FC<PartProps> = ({ d, mode, dur, caption }) => {
+export const RevisionPart: React.FC<PartProps> = ({ d, mode, dur, caption, ctx }) => {
   const f = useCurrentFrame();
   if (!d.revision) return null;
   const main = mode === 'main';
@@ -285,6 +285,7 @@ export const RevisionPart: React.FC<PartProps> = ({ d, mode, dur, caption }) => 
         at={Math.round(a0 + len)}
         brief={!main}
         big={<span style={{ color: v.color }}>{v.word}</span>}
+        sub={ctx === 'video' && d.revision.reason ? d.revision.reason : undefined}
         caption={caption}
       />
     </AbsoluteFill>

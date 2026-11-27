@@ -1,5 +1,7 @@
 # 超ショートの「選び方」をAIに出させる（案）
 
+※ 2026-11-27 時点では AI を使わない：`src/v5/autoPlan.ts` が材料から決める（主役は「起きたことの大きさ」の順、まとめ3行は分析データの総括から）。この案は、AIに任せたくなったとき用。
+
 分析（kessan-visualizer の `prompt.ts` の分析JSON）に `short_plan` を1つ足す。材料（数字）は分析データから機械的に作るので、AIが選ぶのは「どれを主役にするか・どれをさらっと・何を一言で言うか」だけ。
 型は `src/v5/types.ts` の `ShortPlan`。実際に動かした例は `src/v5/examples.ts`（5本とも人が書いた想定の値。AIにはまだ出させていない）。
 材料は `src/v5/fromAnalysis.ts` が分析JSON（決算PJの ev-viz-json）から作る。AIには、その会社で**使える部品だけ**（`availableParts`、条件は `src/v5/availability.ts`）を一覧で渡す。

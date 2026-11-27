@@ -7,10 +7,14 @@ import { K, Text2D } from '../v2/kit';
 import { Kpi3D } from './parts2';
 import { setUnit } from './parts';
 import { PARTS4_TEXT } from './parts4';
+import { PARTS5_TEXT } from './parts5';
 import { PARTS } from './registry';
 import type { ShortData, ShortPlan } from './types';
 
 // 20秒：冒頭（結論）→ 決算ハイライト（毎回）→ 主役 → さらっと（0〜2個）→ まとめ
+// 部品に出てくる文字（フォントを先に読み込むため）
+export const PART_TEXT = 'の推移なぜ増えた？減ったこの先は来期予想実績今期赤字に転落数字のほかに今回の決算まとめ結果理由くわしい解説は本編で前年今年約割決算ハイライト■前年今年（億円）財務の安全性自己資本比率前期末借金に頼らない度合い持っているものお金の出どころ資産負債純資産入り（キャッシュフロー）自由に使える稼いだ投資営業期首期末か月ごとの利益四半期直近の同じ時期会社予想の修正上方下方修正前後注目ポイントGOODWATCH黒字の予想赤字の予想は（）業績の推移・売上営業利益億円濃い＝今期の実績うすい＝来期の予想増益減益黒字に戻る赤字になる据え置き利益だけ上方下方修正項目で向きがちがう2Q3Qで修正営業赤字に転落営業黒字に転換±赤字転落黒字転換拡大縮小株価の反応発表前後前日から' + PARTS4_TEXT + PARTS5_TEXT;
+
 export const FPS = 30;
 export const SHORT_TOTAL = 20 * FPS;
 const OPEN = 45; // 1.5秒
@@ -65,7 +69,7 @@ const Sum: React.FC<{ plan: ShortPlan }> = ({ plan }) => {
         return (
           <div key={i} style={{ position: 'absolute', top: `${33 + i * 9}%`, left: 100, right: 100, opacity: o, transform: `translateX(${x}px)`, display: 'flex', alignItems: 'center', gap: 28, background: '#fff', borderRadius: 20, padding: '26px 34px', boxShadow: '0 8px 30px rgba(15,23,42,0.07)' }}>
             <div style={{ fontWeight: 700, fontSize: 32, color: '#fff', background: K.blue, borderRadius: 12, padding: '6px 16px', minWidth: 104, textAlign: 'center' }}>{keys[i]}</div>
-            <div style={{ fontWeight: 700, fontSize: 44, color: K.ink, whiteSpace: 'nowrap' }}>{v}</div>
+            <div style={{ fontWeight: 700, fontSize: v.length > 14 ? 38 : 44, color: K.ink, lineHeight: 1.3 }}>{v}</div>
           </div>
         );
       })}
@@ -79,7 +83,7 @@ export const Short: React.FC<{ data: ShortData; plan: ShortPlan; only?: React.Re
   const [hd] = useState(() => delayRender('fonts'));
   const [ok, setOk] = useState(false);
   useEffect(() => {
-    const txt = CHARS + JSON.stringify(data) + JSON.stringify(plan) + 'の推移なぜ増えた？減ったこの先は来期予想実績今期赤字に転落数字のほかに今回の決算まとめ結果理由くわしい解説は本編で前年今年約割決算ハイライト■前年今年（億円）財務の安全性自己資本比率前期末借金に頼らない度合い持っているものお金の出どころ資産負債純資産入り（キャッシュフロー）自由に使える稼いだ投資営業期首期末か月ごとの利益四半期直近の同じ時期会社予想の修正上方下方修正前後注目ポイントGOODWATCH黒字の予想赤字の予想は（）業績の推移・売上営業利益億円濃い＝今期の実績うすい＝来期の予想増益減益黒字に戻る赤字になる据え置き利益だけ上方下方修正項目で向きがちがう2Q3Qで修正営業赤字に転落営業黒字に転換±赤字転落黒字転換拡大縮小株価の反応発表前後前日から' + PARTS4_TEXT;
+    const txt = CHARS + JSON.stringify(data) + JSON.stringify(plan) + PART_TEXT;
     Promise.all([document.fonts.load(`900 100px ${FONT}`, txt), document.fonts.load(`700 100px ${FONT}`, txt)]).then(() => {
       setOk(true);
       continueRender(hd);

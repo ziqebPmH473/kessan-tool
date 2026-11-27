@@ -126,7 +126,7 @@ export const fromAnalysis = (json: J): ShortData => {
   const revRows = rows.filter((r) => has(r.before_oku, r.after_oku));
   const revision =
     fc && ['up', 'down', 'flat', 'other'].includes(fc.status_kind) && revRows.length
-      ? { label: `${pt === 'FY' ? '通期' : pt.replace('Q', '') + 'Q'}の発表時`, items: revRows.map((r) => ({ key: r.key as ItemKey, name: shortName(r.label), before: r.before_oku, after: r.after_oku })) }
+      ? { label: `${pt === 'FY' ? '通期' : pt.replace('Q', '') + 'Q'}の発表時`, reason: typeof fc.reason === 'string' && fc.reason ? fc.reason : undefined, items: revRows.map((r) => ({ key: r.key as ItemKey, name: shortName(r.label), before: r.before_oku, after: r.after_oku })) }
       : null;
   // 配当：「（株式分割前）」「（中間）」のような注記つき、2倍以上・半分以下の変化は、くらべ方が揃っていないおそれがあるので出さない
   // （保存データ：サンリオ 69円（分割前）→16円（分割後）、三井不動産 18.5円（中間）→37円（年間））
@@ -157,21 +157,39 @@ export const fromAnalysis = (json: J): ShortData => {
   const bs = has(ta, tl, te, per) && v.balance_sheet?.balance_check?.ok !== false && ta! > 0 ? { assets: ta!, liabilities: tl!, equity: te!, prevEquityRatio: per } : null;
   const cfc = a.cash_flow?.current ?? {};
   const cfv = [M(cfc.cash_begin), M(cfc.operating), M(cfc.investing), M(cfc.financing), M(cfc.cash_end)];
-  const cf = has(...cfv) && cfv[0]! > 0 ? { begin: cfv[0]!, operating: cfv[1]!, investing: cfv[2]!, financing: cfv[3]!, end: cfv[4]! } : null;
+  // 換算差額など（期首＋3区分と期末の差）
+  const cfOther = has(...cfv) ? cfv[4]! - (cfv[0]! + cfv[1]! + cfv[2]! + cfv[3]!) : 0;
+  const cf = has(...cfv) && cfv[0]! > 0 ? { begin: cfv[0]!, operating: cfv[1]!, investing: cfv[2]!, financing: cfv[3]!, other: Math.abs(cfOther) > Math.abs(cfv[0]!) * 0.001 ? cfOther : 0, end: cfv[4]! } : null;
+  // 損益の段（visualization の waterfall。その他の収益・費用を含む）
+  const plSteps = (v.income_statement?.waterfall ?? [])
+    .filter((w: J) => has(w.value) && ['total', 'minus', 'plus', 'subtotal', 'result'].includes(w.kind))
+    .map((w: J) => ({ key: w.key, label: shortName(w.label), v: w.value * F, kind: w.kind }));
+  // 貸借対照表の内訳
+  const bsBlocks = (v.balance_sheet?.blocks ?? [])
+    .filter((b: J) => has(b.value) && ['asset', 'liability', 'equity'].includes(b.side))
+    .map((b: J) => ({ key: b.key, label: b.label, side: b.side, v: b.value * F, prev: has(b.previous_value) ? b.previous_value * F : null }));
 
   // 株価：発表の前の40日分＋発表の翌日
   const sp = v.stock_price;
   let stock: ShortData['stock'] = null;
   if (sp?.points?.length && has(sp.pre?.value, sp.post?.value)) {
     const ai = Math.min(sp.announcement_index ?? sp.points.length - 1, sp.points.length - 1);
-    const pre = sp.points.slice(Math.max(0, ai - 39), ai + 1).map((p: J) => p.close);
+    // 全部の期間（分析動画で使う）。超ショートは部品の側で発表前の40日に切る
+    const pre = sp.points.slice(0, ai + 1).map((p: J) => p.close);
     const prices = [...pre, sp.post.value];
-    stock = { prices, at: prices.length - 1, days: '発表の翌日', pre: sp.pre.value, post: sp.post.value, unit: sp.price_unit };
+    stock = { prices, at: prices.length - 1, days: '発表の翌日', pre: sp.pre.value, post: sp.post.value, unit: sp.price_unit, period: sp.period_label };
   }
 
-  const text = (x: J) => (typeof x === 'string' ? x : x?.title ?? x?.text ?? '');
+  const point = (x: J) =>
+    typeof x === 'string' ? x : { t: x?.title ?? x?.text ?? '', metric: x?.metric_label ?? undefined, before: x?.before ?? undefined, after: x?.after ?? undefined, change: x?.change ?? undefined };
+  const cc = v.conclusion ?? {};
   return {
     company: co.name ?? '',
+    code: co.code ?? undefined,
+    headline: v.summary?.headline ?? undefined,
+    verdict: v.summary?.verdict || undefined,
+    focus: (v.summary?.focus_points ?? []).filter(Boolean),
+    conclusion: cc.strength || cc.feature || cc.concern || cc.next_watch ? { strength: cc.strength, feature: cc.feature, concern: cc.concern, next: cc.next_watch } : null,
     period: co.fiscal_period_label ?? '',
     metric: nameOf('operating_income', '営業利益'),
     unit: v.display_unit ?? '億円',
@@ -180,6 +198,7 @@ export const fromAnalysis = (json: J): ShortData => {
     segLabel,
     segments,
     pl,
+    plSteps,
     margins,
     netgap,
     forecast,
@@ -191,10 +210,11 @@ export const fromAnalysis = (json: J): ShortData => {
     stock,
     bs,
     cf,
+    bsBlocks,
     quarter,
     ratings: (v.ratings ?? [])
       .filter((r: J) => r.available !== false && GRADES.includes(r.grade))
       .map((r: J) => ({ label: RATING_LABEL[r.key] ?? r.label, grade: r.grade as Grade, reason: r.reason })),
-    points: { good: (v.highlights?.good ?? []).map(text).filter(Boolean), watch: (v.highlights?.watch ?? []).map(text).filter(Boolean) },
+    points: { good: (v.highlights?.good ?? []).map(point).filter((x: J) => (typeof x === 'string' ? x : x.t)), watch: (v.highlights?.watch ?? []).map(point).filter((x: J) => (typeof x === 'string' ? x : x.t)) },
   };
 };

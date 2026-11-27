@@ -32,6 +32,8 @@ npm run render -- Parts-Grow-Trend out/a.mp4     # 1本書き出す（名前は�
 | ShortWater | 3本目（縦。売上の水だけ）。切り取り方が狭いので没 | `src/v3/` |
 | ShortResult | 4本目（縦。結果・理由・この先） | `src/v4/` |
 | Parts-Grow-Trend／Parts-Grow-Seg／Parts-Loss | 5本目＝いまの形。部品を選んで組む20秒の超ショート | `src/v5/` |
+| Video-Mid／Video-Turn | **横の分析動画を3Dの部品で**（1920×1080。場面の順と秒数は、いまの分析動画と同じ） | `src/v5/Video.tsx` |
+| Auto-Mid／Auto-Turn | 超ショートを**AIを使わずに**組む（主役・さらっと・まとめを材料から決める） | `src/v5/autoPlan.ts` |
 | Parts-Mid／Parts-Turn | 2Q決算（進み具合が主役）／本業は黒字・最終赤字の米国の会社（億ドル） | `src/v5/` |
 | Catalog-Grow／Catalog-Loss／Catalog-Mid／Catalog-Turn | 全部の部品を主役版→さらっと版で並べたカタログ（その会社で使えない部品は「使わない」と出る） | `src/v5/Catalog.tsx` |
 
@@ -87,3 +89,11 @@ npx remotion render src/index.ts Parts-Grow-Trend out/Parts-Grow-Trend.mp4 --gl=
 - 直した部品：直近の3か月（quarter。データは「直近の1四半期だけ」なので、その形に）、業績の推移（会社予想の年をうすく）、会社予想（四半期の決算は「今期の予想」）、億ドル・小さい金額の小数、会社ごとの呼び名（売上収益・事業利益・親会社株主に帰属する〜）
 - 分析JSON → 材料の変換：`src/v5/fromAnalysis.ts`。部品ごとの使える条件：`src/v5/availability.ts`
 - 静止画で確かめる：`node stills.mjs <コンポジション名> <出力フォルダ> <コマ,…> [props.json]`。実データは `fromAnalysis` で変換した `{"data": …}` を props に渡す（実データの画像はコミットしない）
+
+## 横の分析動画も3Dの部品で出す（2026-11-27）
+
+いまの分析動画（kessan-visualizer）の13場面を、3Dの部品で組めるようにした。部品は縦（超ショート）と横（分析動画）の両方で使える。くわしくは `docs/impl/2026-11-27_超ショートの部品_実データで不足を足す.md` の後半。
+
+- 横のときは左に文字の列、右に3D（カメラの写る範囲を右へずらす）。`Titles`・`Legend`・`Scene3D` が縦横を見分ける
+- 足した場面：表紙・総括（`parts5.tsx`）。中身を足した場面：損益の構造（その他の収益・費用）、貸借対照表（内訳が前期末から今期末へ動く）、キャッシュフロー（換算差額など）、株価（取れた期間すべて）、注目ポイント（前後の数字）、予想の修正（理由）
+- 実データで出すとき：`npx remotion render src/index.ts Video-Mid <出力.mp4> --props=<props.json> --gl=angle`（props は `{"data": fromAnalysis(分析JSON)}`）。書き出しはプロジェクトの外に置く

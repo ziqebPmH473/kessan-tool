@@ -1,7 +1,7 @@
 import React from 'react';
 import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from 'remotion';
 import { Bar, K, Label, Text2D } from '../v2/kit';
-import { PALE, PartProps, Scene3D, Titles, UNIT, clamp, floorLabel, fmt, grow, isRev, oku, yoyText } from './parts';
+import { PALE, Legend, PartProps, Scene3D, Titles, UNIT, clamp, floorLabel, fmt, grow, isRev, oku, yoyText } from './parts';
 import type { Grade } from './types';
 
 // 保存済みの決算データ（99件）を読んで、足りなかった場面を部品にしたもの（2026-11-27）
@@ -83,9 +83,9 @@ export const ProgressPart: React.FC<PartProps> = ({ d, mode, dur, caption }) => 
         sub={`${PACE_WORD[pace] ?? 'この時期'}の目安は${pace}%：${st.t}`}
         caption={caption}
       />
-      <Text2D at={4} size={30} top="83.5%" left="50%" color={K.sub} weight={700} rise={false}>
+      <Legend>
         箱の高さ＝通期の会社予想（{UNIT}）　<span style={{ color: K.orange }}>━</span> 目安
-      </Text2D>
+      </Legend>
     </AbsoluteFill>
   );
 };
@@ -273,9 +273,9 @@ export const SegProfitPart: React.FC<PartProps> = ({ d, mode, dur, caption }) =>
         sub={losses ? `赤字の${label}が ${losses}つ` : `${oku(focus.prevOp)} → ${oku(focus.op)}`}
         caption={caption}
       />
-      <Text2D at={4} size={30} top="83.5%" left="50%" color={K.sub} weight={700} rise={false}>
+      <Legend>
         <span style={{ color: '#94a3b8' }}>■</span> 前年　<span style={{ color: K.blue }}>■</span> 今年（{UNIT}）
-      </Text2D>
+      </Legend>
     </AbsoluteFill>
   );
 };
@@ -339,9 +339,9 @@ export const MarginPart: React.FC<PartProps> = ({ d, mode, dur, caption }) => {
         sub={`前年 ${focus.prev.toFixed(1)}% → 今年 ${focus.cur.toFixed(1)}%`}
         caption={caption}
       />
-      <Text2D at={4} size={30} top="83.5%" left="50%" color={K.sub} weight={700} rise={false}>
+      <Legend>
         <span style={{ color: '#94a3b8' }}>■</span> 前年　<span style={{ color: K.blue }}>■</span> 今年
-      </Text2D>
+      </Legend>
     </AbsoluteFill>
   );
 };

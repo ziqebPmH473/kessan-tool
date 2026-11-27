@@ -2,12 +2,14 @@ import React from 'react';
 import * as THREE from 'three';
 import { AbsoluteFill, Easing, interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
 import { ThreeCanvas } from '@remotion/three';
+import { useThree } from '@react-three/fiber';
 import { CameraRig, FONT, RenderAfter, fmt as fmtInt } from '../lib';
 import { Bar, K, Label, LightStage, Text2D } from '../v2/kit';
 import type { ShortData } from './types';
 
 // 部品：どれも「主役版（main）」と「さらっと版（brief）」を持つ。長さ dur に合わせて動く
-export type PartProps = { d: ShortData; mode: 'main' | 'brief'; dur: number; caption?: string };
+// ctx：'short'＝超ショート（縦20秒）、'video'＝分析動画（横）。株価の期間などが変わる
+export type PartProps = { d: ShortData; mode: 'main' | 'brief'; dur: number; caption?: string; ctx?: 'short' | 'video' };
 
 export const PALE = '#dbe3ee';
 export const clamp = { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' } as const;
@@ -33,28 +35,102 @@ export const floorLabel = (text: string, x: number, color: string, z = 0.95) => 
   <Label text={text} height={0.28} position={[x, 0.02, z]} rotation={[-Math.PI / 2, 0, 0]} color={color} />
 );
 
+// 横（分析動画 1920×1080）か縦（超ショート 1080×1920）か。横は左に文字の列、右に3Dを置く
+export const SPLIT = 0.36; // 横のとき、文字の列の幅（画面の割合）
+export const useLand = () => {
+  const { width, height } = useVideoConfig();
+  return width > height;
+};
+
+// 横のときのカメラ：画面いっぱいに描き、写る範囲を右へずらす（左の文字の列を空ける。境目が出ない）
+const LandRig: React.FC<{ pos: [number, number, number]; look: [number, number, number]; shift: number; w: number; h: number }> = ({ pos, look, shift, w, h }) => {
+  const { camera } = useThree();
+  React.useLayoutEffect(() => {
+    const c = camera as THREE.PerspectiveCamera;
+    c.position.set(...pos);
+    c.fov = 40;
+    c.setViewOffset(w, h, -shift, 0, w, h);
+    c.updateProjectionMatrix();
+    c.lookAt(...look);
+  });
+  return null;
+};
+
 export const Scene3D: React.FC<{ children: React.ReactNode; cx: number; cy: number; dist: number; pos?: [number, number, number] }> = ({ children, cx, cy, dist, pos }) => {
   const { width, height } = useVideoConfig();
-  const p = pos ?? ([cx + dist * 0.18, cy + dist * 0.22, dist] as [number, number, number]);
+  const land = width > height;
+  // 縦に合わせた距離なので、横（同じ高さで横に広い）では寄せる
+  const dd = land ? dist * 0.66 : dist;
+  const p = pos ? (land ? ([cx + (pos[0] - cx) * 0.66, cy + (pos[1] - cy) * 0.66, pos[2] * 0.66] as [number, number, number]) : pos) : ([cx + dd * 0.18, cy + dd * 0.22, dd] as [number, number, number]);
   return (
     <ThreeCanvas width={width} height={height} shadows="soft" flat camera={{ fov: 40, position: p }}>
       <LightStage center={[cx, 0, 0]} shadowSize={9} />
-      <CameraRig pos={p} look={[cx, cy, 0]} fov={40} />
+      {land ? <LandRig pos={p} look={[cx, cy, 0]} shift={Math.round(width * (SPLIT / 2))} w={width} h={height} /> : <CameraRig pos={p} look={[cx, cy, 0]} fov={40} />}
       {children}
       <RenderAfter />
     </ThreeCanvas>
   );
 };
 
-// 画面上の文字の置き場所（縦）：部品の名前・大きい一言・小さい補足・下の字幕
-export const Titles: React.FC<{ tag: string; big?: React.ReactNode; sub?: string; caption?: string; at: number; brief: boolean }> = ({ tag, big, sub, caption, at, brief }) => (
-  <>
-    <Text2D at={0} size={brief ? 40 : 46} top="9%" left="50%" color={K.sub} weight={700}>{tag}</Text2D>
-    {big && <Text2D at={at} size={brief ? 62 : 72} top="15.5%" left="50%">{big}</Text2D>}
-    {sub && <Text2D at={at + 8} size={brief ? 40 : 44} top="21.5%" left="50%" color={K.sub} weight={700}>{sub}</Text2D>}
-    {caption && <Text2D at={at + 14} size={brief ? 40 : 44} top="88%" left="50%" weight={700} band>{caption}</Text2D>}
-  </>
-);
+// 横のときの文字（左の列。折り返す）
+const LandText: React.FC<{ at: number; size: number; color?: string; weight?: number; children: React.ReactNode; band?: boolean }> = ({ at, size, color = K.ink, weight = 900, children, band }) => {
+  const f = useCurrentFrame();
+  if (f < at) return null;
+  const o = interpolate(f, [at, at + 8], [0, 1], clamp);
+  const y = interpolate(f, [at, at + 12], [20, 0], { ...clamp, easing: Easing.out(Easing.cubic) });
+  return (
+    <div style={{ opacity: o, transform: `translateY(${y}px)`, fontFamily: FONT, fontWeight: weight, fontSize: size, color, lineHeight: 1.3, ...(band ? { background: 'rgba(255,255,255,0.9)', padding: '14px 22px', borderRadius: 14, boxShadow: '0 6px 24px rgba(15,23,42,0.08)' } : {}) }}>
+      {children}
+    </div>
+  );
+};
+
+// 画面上の文字の置き場所：部品の名前・大きい一言・小さい補足・字幕
+// 縦：上から順に中央ぞろえ。横：左の列に見出し（青い線）→ 大きい一言 → 補足、字幕は左下
+export const Titles: React.FC<{ tag: string; big?: React.ReactNode; sub?: string; caption?: string; at: number; brief: boolean; children?: React.ReactNode }> = ({ tag, big, sub, caption, at, brief, children }) => {
+  const land = useLand();
+  const { width } = useVideoConfig();
+  if (land) {
+    const colW = Math.round(width * SPLIT) - 110;
+    return (
+      <>
+        <div style={{ position: 'absolute', top: 48, left: 64, display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{ width: 8, height: 46, background: K.blue, borderRadius: 2 }} />
+          <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: 40, color: K.ink, whiteSpace: 'nowrap' }}>{tag}</div>
+        </div>
+        <div style={{ position: 'absolute', top: 190, left: 64, width: colW, display: 'flex', flexDirection: 'column', gap: 22 }}>
+          {big && <LandText at={at} size={54}>{big}</LandText>}
+          {sub && <LandText at={at + 8} size={34} color={K.sub} weight={700}>{sub}</LandText>}
+          {children}
+        </div>
+        {caption && (
+          <div style={{ position: 'absolute', bottom: 110, left: 64, width: colW }}>
+            <LandText at={at + 14} size={36} weight={700} band>{caption}</LandText>
+          </div>
+        )}
+      </>
+    );
+  }
+  return (
+    <>
+      <Text2D at={0} size={brief ? 40 : 46} top="9%" left="50%" color={K.sub} weight={700}>{tag}</Text2D>
+      {big && <Text2D at={at} size={brief ? 62 : 72} top="15.5%" left="50%">{big}</Text2D>}
+      {sub && <Text2D at={at + 8} size={brief ? 40 : 44} top="21.5%" left="50%" color={K.sub} weight={700}>{sub}</Text2D>}
+      {children}
+      {caption && <Text2D at={at + 14} size={brief ? 40 : 44} top="88%" left="50%" weight={700} band>{caption}</Text2D>}
+    </>
+  );
+};
+
+// 凡例（■前年 ■今年 など）。縦は下、横は3Dの下
+export const Legend: React.FC<{ children: React.ReactNode; top?: string }> = ({ children, top }) => {
+  const land = useLand();
+  return (
+    <Text2D at={4} size={land ? 26 : 30} top={land ? '86%' : top ?? '83.5%'} left={land ? '64px' : '50%'} align={land ? 'left' : 'center'} color={K.sub} weight={700} rise={false}>
+      {children}
+    </Text2D>
+  );
+};
 
 // ---------- 事業ごと：売上の割合（立体の円グラフ）。注目の事業だけ持ち上がって前に出る ----------
 const Slice: React.FC<{ a0: number; len: number; h: number; color: string; out: number }> = ({ a0, len, h, color, out }) => {
@@ -78,11 +154,15 @@ const Slice: React.FC<{ a0: number; len: number; h: number; color: string; out: 
 
 export const SegmentsPart: React.FC<PartProps> = ({ d, mode, dur, caption }) => {
   const f = useCurrentFrame();
+  const land = useLand();
   const segs = d.segments;
   const total = segs.reduce((a, s) => a + s.rev, 0);
   const yoy = (s: { rev: number; prevRev: number }) => (s.rev - s.prevRev) / s.prevRev;
   // 注目：前年からの増減がいちばん大きい事業
-  const top = segs.reduce((a, s) => (Math.abs(s.rev - s.prevRev) > Math.abs(a.rev - a.prevRev) ? s : a), segs[0]);
+  // 「その他」「調整額」は注目にしない
+  const named = segs.filter((s) => !/その他|調整|消去|全社/.test(s.name));
+  const pool = named.length ? named : segs;
+  const top = pool.reduce((a, s) => (Math.abs(s.rev - s.prevRev) > Math.abs(a.rev - a.prevRev) ? s : a), pool[0]);
   const main = mode === 'main';
   const sweep = interpolate(f, [4, main ? dur * 0.35 : 22], [0, Math.PI * 2], { ...clamp, easing: Easing.inOut(Easing.cubic) });
   const popAt = main ? dur * 0.42 : 26;
@@ -131,20 +211,20 @@ export const SegmentsPart: React.FC<PartProps> = ({ d, mode, dur, caption }) => 
         sub={`売上の約${Math.round((top.rev / total) * 10)}割を占める${d.segLabel ?? '事業'}`}
         caption={caption}
       />
-      {/* 事業名と割合は下に一覧で（縦の画面は横が狭いので） */}
-      <div style={{ position: 'absolute', top: '64%', left: 150, right: 150, fontFamily: FONT }}>
-        {slices.map(({ s, i }) => {
+      {/* 事業名と割合は一覧で（縦は下、横は左の列の下） */}
+      <div style={land ? { position: 'absolute', top: 520, left: 64, width: Math.round(1920 * 0.36) - 110, fontFamily: FONT } : { position: 'absolute', top: '64%', left: 150, right: 150, fontFamily: FONT }}>
+        {slices.slice(0, land ? 7 : 6).map(({ s, i }) => {
           const at = (main ? dur * 0.35 : 22) + i * 4;
           const o = interpolate(f, [at, at + 8], [0, 1], clamp);
           const isTop = s === top;
           const col = isTop ? (up ? K.green : K.red) : colors[Math.min(i, colors.length - 1)];
           const g = yoy(s);
           return (
-            <div key={s.name} style={{ opacity: o, display: 'flex', alignItems: 'center', gap: 20, padding: '10px 0', borderBottom: '2px solid #e2e8f0', fontWeight: 700, fontSize: isTop ? 42 : 36, color: isTop ? K.ink : K.sub }}>
-              <div style={{ width: 26, height: 26, borderRadius: 6, background: col }} />
-              <div style={{ flex: 1 }}>{s.name}</div>
-              <div style={{ width: 120, textAlign: 'right' }}>{Math.round((s.rev / total) * 100)}%</div>
-              <div style={{ width: 170, textAlign: 'right', color: isTop ? col : K.sub }}>{`${g >= 0 ? '+' : ''}${(g * 100).toFixed(1)}%`}</div>
+            <div key={s.name} style={{ opacity: o, display: 'flex', alignItems: 'center', gap: land ? 14 : 20, padding: land ? '6px 0' : '10px 0', borderBottom: '2px solid #e2e8f0', fontWeight: 700, fontSize: land ? (isTop ? 30 : 26) : isTop ? 42 : 36, color: isTop ? K.ink : K.sub }}>
+              <div style={{ width: land ? 20 : 26, height: land ? 20 : 26, borderRadius: 6, background: col, flexShrink: 0 }} />
+              <div style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.name}</div>
+              <div style={{ width: land ? 80 : 120, textAlign: 'right' }}>{Math.round((s.rev / total) * 100)}%</div>
+              <div style={{ width: land ? 120 : 170, textAlign: 'right', color: isTop ? col : K.sub }}>{`${g >= 0 ? '+' : ''}${(g * 100).toFixed(1)}%`}</div>
             </div>
           );
         })}
@@ -154,73 +234,105 @@ export const SegmentsPart: React.FC<PartProps> = ({ d, mode, dur, caption }) => 
   );
 };
 
-// ---------- 売上→利益の構造：売上の棒から原価・販管費の分が抜け出し、営業利益が残る ----------
+// ---------- 売上→利益の構造：売上の棒から、原価・販管費・その他の費用が抜け、その他の収益が足され、営業利益が残る ----------
+// plSteps（分析データの段。その他の収益・費用を含む）があればそれで、無ければ 売上・原価・販管費 から組む
+const PL_NAME: Record<string, string> = { 売上原価: '原価', 売上総利益: '粗利', その他の費用: '他費用', その他の収益: '他収益' };
+type PLStep = { key: string; label: string; v: number; kind: 'total' | 'minus' | 'plus' | 'subtotal' | 'result' };
+export const plStepsOf = (d: ShortData): PLStep[] => {
+  if (d.plSteps && d.plSteps.length >= 2) return d.plSteps;
+  if (!d.pl) return [];
+  const { sales, cost, sga } = d.pl;
+  return [
+    { key: 'revenue', label: '売上', v: sales, kind: 'total' },
+    { key: 'cost_of_sales', label: '原価', v: cost, kind: 'minus' },
+    { key: 'gross_profit', label: '粗利', v: sales - cost, kind: 'subtotal' },
+    { key: 'sga', label: '販管費', v: sga, kind: 'minus' },
+    { key: 'operating_income', label: '営業利益', v: sales - cost - sga, kind: 'result' },
+  ];
+};
 export const PLPart: React.FC<PartProps> = ({ d, mode, dur, caption }) => {
   const f = useCurrentFrame();
-  if (!d.pl) return null;
-  const { sales, cost, sga } = d.pl;
-  const gross = sales - cost;
-  const op = gross - sga;
-  const lo = Math.min(0, op);
-  const S = 5 / (sales - lo);
+  const steps = plStepsOf(d);
+  if (steps.length < 2) return null;
+  const main = mode === 'main';
+  // 段ごとに、その前後の高さ（running）を出す
+  let run = 0;
+  const cols = steps.map((st) => {
+    const from = run;
+    if (st.kind === 'total' || st.kind === 'subtotal' || st.kind === 'result') run = st.v;
+    else if (st.kind === 'minus') run = run - Math.abs(st.v);
+    else run = run + Math.abs(st.v);
+    return { ...st, from, to: run };
+  });
+  const all = cols.flatMap((c) => [c.from, c.to, c.kind === 'total' || c.kind === 'subtotal' || c.kind === 'result' ? c.v : 0]);
+  const lo = Math.min(0, ...all);
+  const hi = Math.max(...all);
+  const S = 5 / (hi - lo || 1);
   const Z = lo < 0 ? -lo * S + 0.8 : 0;
   const Y = (v: number) => Z + v * S;
+  const n = cols.length;
   const G = 1.3;
-  const main = mode === 'main';
-  const k = main ? dur / 200 : 0.42; // 主役はゆっくり、さらっとは速く
-  const T = { s: 2, c: 18 * k + 4, cE: 60 * k + 4, g: 64 * k + 4, sg: 90 * k + 4, sgE: 125 * k + 4, o: 130 * k + 4 };
-  const slide = (a: number, b: number, x0: number, x1: number) => {
-    const t = interpolate(f, [a, b], [0, 1], { ...clamp, easing: Easing.inOut(Easing.cubic) });
-    return { x: x0 + (x1 - x0) * t, dy: Math.sin(t * Math.PI) * 0.5, t };
-  };
-  const sH = sales * S * grow(f, T.s, 14);
-  const c = slide(T.c, T.cE, 0, G);
-  const gH = gross * S * grow(f, T.g, 12);
-  const s2 = slide(T.sg, T.sgE, 2 * G, 3 * G);
-  const og = grow(f, T.o, 14);
-  const oSpan = { y0: Math.min(Y(0), Y(op * og)), h: Math.abs(op * og) * S };
+  const per = main ? Math.max(14, (dur * 0.62) / n) : Math.max(5, (dur * 0.5) / n);
+  const last = cols[n - 1];
+  const sales = cols[0].v;
+  const op = last.kind === 'result' ? last.v : last.to;
   const opCol = op >= 0 ? K.green : K.red;
-  const name = (t: string, x: number, col: string) => floorLabel(t, x, col, 0.95);
-  const val = (t: string, x: number, y: number, col: string) => <Label text={t} height={0.3} position={[x, y + 0.4, 0]} color={col} />;
+  const doneAt = 2 + n * per;
   return (
     <AbsoluteFill>
-      <Scene3D cx={2 * G} cy={2.6 + Z * 0.6} dist={16 + Z}>
+      <Scene3D cx={((n - 1) * G) / 2} cy={2.6 + Z * 0.6} dist={Math.max(16, 7 + n * 2.1) + Z}>
         {lo < 0 && (
-          <mesh position={[2 * G, Z, 0]}>
-            <boxGeometry args={[4 * G + 2, 0.03, 1.6]} />
+          <mesh position={[((n - 1) * G) / 2, Z, 0]}>
+            <boxGeometry args={[(n - 1) * G + 2, 0.03, 1.6]} />
             <meshStandardMaterial color="#94a3b8" transparent opacity={0.45} />
           </mesh>
         )}
-        <Bar x={0} y0={Z} h={sH} w={1.0} d={1.0} color={K.blue} />
-        {f >= T.s + 4 && val(fmt(sales), 0, Y(sales), K.blue)}
-        {name('売上高', 0, K.blue)}
-        {f >= T.c && <Bar x={c.x} y0={Y(gross) + c.dy} h={cost * S} w={0.98} d={0.98} color={K.red} />}
-        {c.t >= 1 && val(`−${fmt(cost)}`, G, Y(sales), K.red)}
-        {c.t >= 1 && name('原価', G, K.red)}
-        <Bar x={2 * G} y0={Z} h={gH} w={1.0} d={1.0} color={K.teal} />
-        {f >= T.g + 4 && val(fmt(gross), 2 * G, Y(gross), K.teal)}
-        {f >= T.g && name('粗利', 2 * G, K.teal)}
-        {f >= T.sg && <Bar x={s2.x} y0={Math.min(Y(op), Y(gross)) + s2.dy} h={sga * S} w={0.98} d={0.98} color={K.red} />}
-        {s2.t >= 1 && val(`−${fmt(sga)}`, 3 * G, Y(gross), K.red)}
-        {s2.t >= 1 && name('販管費', 3 * G, K.red)}
-        <Bar x={4 * G} y0={oSpan.y0} h={oSpan.h} w={1.0} d={1.0} color={opCol} />
-        {f >= T.o + 6 && <Label text={`${op < 0 ? '−' : ''}${fmt(Math.abs(op))}`} height={0.36} position={[4 * G, op >= 0 ? Y(op) + 0.42 : Y(op) - 0.42, 0.6]} color={opCol} />}
-        {f >= T.o && name('営業利益', 4 * G, opCol)}
+        {cols.map((c, i) => {
+          const at = 2 + i * per;
+          const x = i * G;
+          const name = PL_NAME[c.label] ?? c.label;
+          if (f < at) return <React.Fragment key={c.key + i}>{floorLabel(name, x, '#cbd5e1', 0.95)}</React.Fragment>;
+          const isBar = c.kind === 'total' || c.kind === 'subtotal' || c.kind === 'result';
+          const col = c.kind === 'total' ? K.blue : c.kind === 'subtotal' ? K.teal : c.kind === 'result' ? opCol : c.kind === 'minus' ? K.red : K.green;
+          if (isBar) {
+            const g = grow(f, at, Math.min(16, per));
+            const v = c.v * g;
+            return (
+              <React.Fragment key={c.key + i}>
+                <Bar x={x} y0={Math.min(Y(0), Y(v))} h={Math.abs(v) * S} w={1.0} d={1.0} color={col} />
+                {g > 0.3 && <Label text={`${c.v < 0 ? '−' : ''}${fmt(Math.abs(c.v))}`} height={c.kind === 'result' ? 0.36 : 0.3} position={[x, c.v >= 0 ? Y(v) + 0.42 : Y(v) - 0.42, 0.55]} color={col} />}
+                {floorLabel(name, x, c.kind === 'result' ? col : K.ink, 0.95)}
+              </React.Fragment>
+            );
+          }
+          // 費用は上から外れて落ちる・収益は下から入る（前の段の高さから）
+          const t = interpolate(f, [at, at + Math.min(18, per)], [0, 1], { ...clamp, easing: Easing.inOut(Easing.cubic) });
+          const y0 = Math.min(Y(c.from), Y(c.to));
+          const lift = c.kind === 'minus' ? (1 - t) * 0 + Math.sin(t * Math.PI) * 0.5 : -Math.sin(t * Math.PI) * 0.5;
+          const xx = (i - 1) * G + G * t;
+          return (
+            <React.Fragment key={c.key + i}>
+              <Bar x={xx} y0={y0 + lift} h={Math.abs(c.to - c.from) * S} w={0.98} d={0.98} color={col} />
+              {t >= 1 && <Label text={`${c.kind === 'minus' ? '−' : '+'}${fmt(Math.abs(c.v))}`} height={0.28} position={[x, Math.max(Y(c.from), Y(c.to)) + 0.4, 0]} color={col} />}
+              {floorLabel(name, x, col, 0.95)}
+            </React.Fragment>
+          );
+        })}
       </Scene3D>
       <Titles
         tag="売上から利益へ"
-        at={Math.round(T.o + 10)}
+        at={Math.round(doneAt)}
         brief={!main}
         big={
           op >= 0 ? (
             <>
-              営業利益率 <span style={{ color: K.green }}>{((op / sales) * 100).toFixed(1)}%</span>
+              {last.label}率 <span style={{ color: K.green }}>{((op / sales) * 100).toFixed(1)}%</span>
             </>
           ) : (
             <span style={{ color: K.red }}>費用が売上を上回った</span>
           )
         }
-        sub={`売上 ${oku(sales)} → 営業利益 ${oku(op)}`}
+        sub={`${cols[0].label} ${oku(sales)} → ${last.label} ${oku(op)}`}
         caption={caption}
       />
     </AbsoluteFill>
@@ -230,16 +342,17 @@ export const PLPart: React.FC<PartProps> = ({ d, mode, dur, caption }) => {
 // ---------- 数字以外（配当・自社株買い・M&A など） ----------
 export const TopicPart: React.FC<PartProps> = ({ d, mode, caption }) => {
   const f = useCurrentFrame();
+  const land = useLand();
   const items = mode === 'main' ? d.topics : d.topics.slice(0, 1);
   return (
     <AbsoluteFill style={{ fontFamily: FONT }}>
-      <Text2D at={0} size={mode === 'main' ? 46 : 40} top="9%" left="50%" color={K.sub} weight={700}>数字のほかに</Text2D>
+      <Titles tag="数字のほかに" at={20} brief={mode !== 'main'} caption={caption} />
       {items.map((t, i) => {
         const at = 6 + i * 12;
         const o = interpolate(f, [at, at + 8], [0, 1], clamp);
         const y = interpolate(f, [at, at + 14], [60, 0], { ...clamp, easing: Easing.out(Easing.back(1.6)) });
         return (
-          <div key={t.title} style={{ position: 'absolute', top: `${34 + i * 15}%`, left: 100, right: 100, opacity: o, transform: `translateY(${y}px)`, background: '#fff', borderRadius: 28, padding: '40px 44px', boxShadow: '0 16px 48px rgba(15,23,42,0.10)', display: 'flex', gap: 34, alignItems: 'center' }}>
+          <div key={t.title} style={{ position: 'absolute', top: land ? `${22 + i * 24}%` : `${34 + i * 15}%`, left: land ? 160 : 100, right: land ? 160 : 100, opacity: o, transform: `translateY(${y}px)`, background: '#fff', borderRadius: 28, padding: '40px 44px', boxShadow: '0 16px 48px rgba(15,23,42,0.10)', display: 'flex', gap: 34, alignItems: 'center' }}>
             <div style={{ fontSize: 96, lineHeight: 1 }}>{t.icon}</div>
             <div>
               <div style={{ fontWeight: 900, fontSize: 60, color: K.ink }}>{t.title}</div>
@@ -248,7 +361,6 @@ export const TopicPart: React.FC<PartProps> = ({ d, mode, caption }) => {
           </div>
         );
       })}
-      {caption && <Text2D at={20} size={40} top="88%" left="50%" weight={700} band>{caption}</Text2D>}
     </AbsoluteFill>
   );
 };
@@ -296,11 +408,15 @@ export const KpiCards: React.FC<PartProps> = ({ d, dur }) => {
 };
 
 // ---------- 株価：決算の前後の値動き。発表の日に印、そこからの動きを強調 ----------
-export const StockPart: React.FC<PartProps> = ({ d, mode, dur, caption }) => {
+export const StockPart: React.FC<PartProps> = ({ d, mode, dur, caption, ctx }) => {
   const f = useCurrentFrame();
   if (!d.stock) return null;
   const main = mode === 'main';
-  const { prices, at, days } = d.stock;
+  // 分析動画は取れた期間すべて、超ショートは発表前の40日＋発表後
+  const cut0 = ctx === 'video' ? 0 : Math.max(0, d.stock.at - 40);
+  const prices = d.stock.prices.slice(cut0);
+  const at = d.stock.at - cut0;
+  const days = d.stock.days;
   const lo = Math.min(...prices), hi = Math.max(...prices);
   const W = 5.6;
   const X = (i: number) => (i / (prices.length - 1)) * W;
@@ -351,7 +467,7 @@ export const StockPart: React.FC<PartProps> = ({ d, mode, dur, caption }) => {
         {floorLabel('発表後', X(at + (prices.length - at) / 2), K.ink, 1.0)}
       </Scene3D>
       <Titles
-        tag="株価の反応"
+        tag={ctx === 'video' && d.stock.period ? `株価の推移（${d.stock.period}）` : '株価の反応'}
         at={Math.round(drawEnd + 2)}
         brief={!main}
         big={<span style={{ color: col }}>{`${up ? '+' : ''}${ch.toFixed(1)}%`}</span>}
