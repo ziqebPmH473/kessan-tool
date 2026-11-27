@@ -1,0 +1,100 @@
+import '@fontsource/noto-sans-jp/700.css';
+import '@fontsource/noto-sans-jp/900.css';
+import React, { useEffect, useState } from 'react';
+import { AbsoluteFill, Easing, Sequence, continueRender, delayRender, interpolate, useCurrentFrame } from 'remotion';
+import { CHARS, FONT } from '../lib';
+import { K, Text2D } from '../v2/kit';
+import { PARTS } from './parts';
+import type { ShortData, ShortPlan } from './types';
+
+// 20秒：冒頭（結論）→ 主役 → さらっと（0〜2個）→ まとめ
+export const FPS = 30;
+export const SHORT_TOTAL = 20 * FPS;
+const OPEN = 54;
+const BRIEF = 78;
+const SUM = 84;
+
+export const timeline = (plan: ShortPlan) => {
+  const briefs = plan.brief.slice(0, 2);
+  const mainLen = SHORT_TOTAL - OPEN - SUM - briefs.length * BRIEF;
+  const items: { id: string; part?: keyof typeof PARTS; mode?: 'main' | 'brief'; from: number; len: number }[] = [];
+  let t = 0;
+  items.push({ id: 'open', from: t, len: OPEN });
+  t += OPEN;
+  items.push({ id: `main:${plan.main}`, part: plan.main, mode: 'main', from: t, len: mainLen });
+  t += mainLen;
+  for (const b of briefs) {
+    items.push({ id: `brief:${b}`, part: b, mode: 'brief', from: t, len: BRIEF });
+    t += BRIEF;
+  }
+  items.push({ id: 'sum', from: t, len: SUM });
+  return items;
+};
+
+const tone = (p: ShortPlan) => (p.verdict_tone === 'good' ? K.green : p.verdict_tone === 'bad' ? K.red : K.blue);
+
+const Open: React.FC<{ plan: ShortPlan }> = ({ plan }) => {
+  const f = useCurrentFrame();
+  const s = interpolate(f, [0, 8, 12], [0.7, 1.06, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+  return (
+    <AbsoluteFill style={{ fontFamily: FONT }}>
+      <div style={{ position: 'absolute', top: '40%', left: '50%', transform: `translate(-50%,-50%) scale(${s})`, background: tone(plan), color: '#fff', fontWeight: 900, fontSize: 120, padding: '24px 64px', borderRadius: 999, whiteSpace: 'nowrap', boxShadow: '0 16px 40px rgba(15,23,42,0.15)' }}>
+        {plan.verdict}
+      </div>
+      <Text2D at={10} size={58} top="53%" left="50%" weight={700}>{plan.headline}</Text2D>
+    </AbsoluteFill>
+  );
+};
+
+const Sum: React.FC<{ plan: ShortPlan }> = ({ plan }) => {
+  const f = useCurrentFrame();
+  const keys = ['結果', '理由', 'この先'];
+  return (
+    <AbsoluteFill style={{ fontFamily: FONT }}>
+      <Text2D at={0} size={56} top="22%" left="50%">今回の決算まとめ</Text2D>
+      {plan.summary.map((v, i) => {
+        const at = 6 + i * 8;
+        const o = interpolate(f, [at, at + 8], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+        const x = interpolate(f, [at, at + 12], [40, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic) });
+        return (
+          <div key={i} style={{ position: 'absolute', top: `${33 + i * 9}%`, left: 100, right: 100, opacity: o, transform: `translateX(${x}px)`, display: 'flex', alignItems: 'center', gap: 28, background: '#fff', borderRadius: 20, padding: '26px 34px', boxShadow: '0 8px 30px rgba(15,23,42,0.07)' }}>
+            <div style={{ fontWeight: 700, fontSize: 32, color: '#fff', background: K.blue, borderRadius: 12, padding: '6px 16px', minWidth: 104, textAlign: 'center' }}>{keys[i]}</div>
+            <div style={{ fontWeight: 700, fontSize: 44, color: K.ink, whiteSpace: 'nowrap' }}>{v}</div>
+          </div>
+        );
+      })}
+      <Text2D at={40} size={54} top="68%" left="50%">くわしい解説は本編で</Text2D>
+    </AbsoluteFill>
+  );
+};
+
+export const Short: React.FC<{ data: ShortData; plan: ShortPlan }> = ({ data, plan }) => {
+  const [hd] = useState(() => delayRender('fonts'));
+  const [ok, setOk] = useState(false);
+  useEffect(() => {
+    const txt = CHARS + JSON.stringify(data) + JSON.stringify(plan) + 'の推移なぜ増えた？減ったこの先は来期予想実績今期赤字に転落数字のほかに今回の決算まとめ結果理由くわしい解説は本編で前年今年約割';
+    Promise.all([document.fonts.load(`900 100px ${FONT}`, txt), document.fonts.load(`700 100px ${FONT}`, txt)]).then(() => {
+      setOk(true);
+      continueRender(hd);
+    });
+  }, [hd, data, plan]);
+  if (!ok) return null;
+  return (
+    <AbsoluteFill style={{ background: K.bg }}>
+      {timeline(plan).map((it) => {
+        const Part = it.part ? PARTS[it.part] : null;
+        return (
+          <Sequence key={it.id} from={it.from} durationInFrames={it.len}>
+            {it.id === 'open' ? <Open plan={plan} /> : it.id === 'sum' ? <Sum plan={plan} /> : Part ? <Part d={data} mode={it.mode!} dur={it.len} caption={plan.captions[it.part!]} /> : null}
+          </Sequence>
+        );
+      })}
+      <div style={{ position: 'absolute', top: 40, left: 0, right: 0, textAlign: 'center', fontFamily: FONT, fontWeight: 700, fontSize: 34, color: K.ink }}>
+        {data.company}｜{data.period} 決算
+      </div>
+      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 28, textAlign: 'center', fontFamily: FONT, fontWeight: 700, fontSize: 26, color: 'rgba(17,24,39,0.45)' }}>
+        サンプル（架空の会社・数値）
+      </div>
+    </AbsoluteFill>
+  );
+};
