@@ -4,23 +4,26 @@ import React, { useEffect, useState } from 'react';
 import { AbsoluteFill, Easing, Sequence, continueRender, delayRender, interpolate, useCurrentFrame } from 'remotion';
 import { CHARS, FONT } from '../lib';
 import { K, Text2D } from '../v2/kit';
-import { PARTS } from './parts';
+import { KpiPart, PARTS } from './parts';
 import type { ShortData, ShortPlan } from './types';
 
-// 20秒：冒頭（結論）→ 主役 → さらっと（0〜2個）→ まとめ
+// 20秒：冒頭（結論）→ 決算ハイライト（毎回）→ 主役 → さらっと（0〜2個）→ まとめ
 export const FPS = 30;
 export const SHORT_TOTAL = 20 * FPS;
 const OPEN = 54;
-const BRIEF = 78;
-const SUM = 84;
+const KPI = 72; // 決算ハイライト（毎回入れる）
+const BRIEF = 72;
+const SUM = 78;
 
 export const timeline = (plan: ShortPlan) => {
   const briefs = plan.brief.slice(0, 2);
-  const mainLen = SHORT_TOTAL - OPEN - SUM - briefs.length * BRIEF;
+  const mainLen = SHORT_TOTAL - OPEN - KPI - SUM - briefs.length * BRIEF;
   const items: { id: string; part?: keyof typeof PARTS; mode?: 'main' | 'brief'; from: number; len: number }[] = [];
   let t = 0;
   items.push({ id: 'open', from: t, len: OPEN });
   t += OPEN;
+  items.push({ id: 'kpi', from: t, len: KPI });
+  t += KPI;
   items.push({ id: `main:${plan.main}`, part: plan.main, mode: 'main', from: t, len: mainLen });
   t += mainLen;
   for (const b of briefs) {
@@ -72,7 +75,7 @@ export const Short: React.FC<{ data: ShortData; plan: ShortPlan }> = ({ data, pl
   const [hd] = useState(() => delayRender('fonts'));
   const [ok, setOk] = useState(false);
   useEffect(() => {
-    const txt = CHARS + JSON.stringify(data) + JSON.stringify(plan) + 'の推移なぜ増えた？減ったこの先は来期予想実績今期赤字に転落数字のほかに今回の決算まとめ結果理由くわしい解説は本編で前年今年約割';
+    const txt = CHARS + JSON.stringify(data) + JSON.stringify(plan) + 'の推移なぜ増えた？減ったこの先は来期予想実績今期赤字に転落数字のほかに今回の決算まとめ結果理由くわしい解説は本編で前年今年約割決算ハイライト赤字転落黒字転換拡大縮小株価の反応発表前後前日から';
     Promise.all([document.fonts.load(`900 100px ${FONT}`, txt), document.fonts.load(`700 100px ${FONT}`, txt)]).then(() => {
       setOk(true);
       continueRender(hd);
@@ -85,7 +88,7 @@ export const Short: React.FC<{ data: ShortData; plan: ShortPlan }> = ({ data, pl
         const Part = it.part ? PARTS[it.part] : null;
         return (
           <Sequence key={it.id} from={it.from} durationInFrames={it.len}>
-            {it.id === 'open' ? <Open plan={plan} /> : it.id === 'sum' ? <Sum plan={plan} /> : Part ? <Part d={data} mode={it.mode!} dur={it.len} caption={plan.captions[it.part!]} /> : null}
+            {it.id === 'open' ? <Open plan={plan} /> : it.id === 'kpi' ? <KpiPart d={data} mode="brief" dur={it.len} /> : it.id === 'sum' ? <Sum plan={plan} /> : Part ? <Part d={data} mode={it.mode!} dur={it.len} caption={plan.captions[it.part!]} /> : null}
           </Sequence>
         );
       })}

@@ -376,6 +376,114 @@ export const TopicPart: React.FC<PartProps> = ({ d, mode, caption }) => {
   );
 };
 
+// ---------- 決算ハイライト（毎回入れる。数字4つを前年比つきで） ----------
+const yoyText = (prev: number, cur: number) => {
+  if (prev > 0 && cur < 0) return { t: '赤字転落', c: K.red };
+  if (prev < 0 && cur > 0) return { t: '黒字転換', c: K.green };
+  if (prev < 0 && cur < 0) return { t: cur < prev ? '赤字拡大' : '赤字縮小', c: cur < prev ? K.red : K.green };
+  const r = ((cur - prev) / Math.abs(prev)) * 100;
+  return { t: `${r >= 0 ? '+' : ''}${r.toFixed(1)}%`, c: r >= 0 ? K.green : K.red };
+};
+export const KpiPart: React.FC<PartProps> = ({ d, dur }) => {
+  const f = useCurrentFrame();
+  return (
+    <AbsoluteFill style={{ fontFamily: FONT }}>
+      <Text2D at={0} size={46} top="9%" left="50%" color={K.sub} weight={700}>決算ハイライト</Text2D>
+      <div style={{ position: 'absolute', top: '16%', left: 64, right: 64, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }}>
+        {d.kpis.map((k, i) => {
+          const at = 2 + i * 4;
+          const o = interpolate(f, [at, at + 6], [0, 1], clamp);
+          const y = interpolate(f, [at, at + 12], [40, 0], { ...clamp, easing: Easing.out(Easing.cubic) });
+          const g = grow(f, at + 2, Math.min(24, dur * 0.4));
+          const yy = yoyText(k.prev, k.cur);
+          const mx = Math.max(Math.abs(k.prev), Math.abs(k.cur));
+          const hb = (v: number) => (Math.abs(v) / mx) * 330 * g;
+          return (
+            <div key={k.name} style={{ opacity: o, transform: `translateY(${y}px)`, background: '#fff', borderRadius: 28, padding: '36px 34px', boxShadow: '0 10px 32px rgba(15,23,42,0.08)' }}>
+              <div style={{ fontWeight: 700, fontSize: 40, color: K.sub }}>{k.name}</div>
+              <div style={{ fontWeight: 900, fontSize: 76, color: k.cur < 0 ? K.red : K.ink, marginTop: 4, whiteSpace: 'nowrap' }}>
+                {k.cur < 0 ? '−' : ''}{fmt(Math.abs(k.cur) * g)}<span style={{ fontSize: 36 }}>億円</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16, height: 340, marginTop: 18 }}>
+                <div style={{ width: 70, height: hb(k.prev), background: k.prev < 0 ? '#f0a3a3' : '#cbd5e1', borderRadius: 8 }} />
+                <div style={{ width: 70, height: hb(k.cur), background: k.cur < 0 ? K.red : K.blue, borderRadius: 8 }} />
+                <div style={{ marginLeft: 'auto', alignSelf: 'flex-start', fontWeight: 900, fontSize: 40, color: '#fff', background: yy.c, borderRadius: 999, padding: '6px 20px', opacity: interpolate(f, [at + 14, at + 20], [0, 1], clamp) }}>{yy.t}</div>
+              </div>
+              <div style={{ fontWeight: 700, fontSize: 30, color: K.sub, marginTop: 10 }}>前年 {k.prev < 0 ? '−' : ''}{fmt(Math.abs(k.prev))}億円</div>
+            </div>
+          );
+        })}
+      </div>
+    </AbsoluteFill>
+  );
+};
+
+// ---------- 株価：決算の前後の値動き。発表の日に印、そこからの動きを強調 ----------
+export const StockPart: React.FC<PartProps> = ({ d, mode, dur, caption }) => {
+  const f = useCurrentFrame();
+  if (!d.stock) return null;
+  const main = mode === 'main';
+  const { prices, at, days } = d.stock;
+  const lo = Math.min(...prices), hi = Math.max(...prices);
+  const W = 5.6;
+  const X = (i: number) => (i / (prices.length - 1)) * W;
+  const Yp = (v: number) => 0.8 + ((v - lo) / (hi - lo)) * 4.2;
+  const drawEnd = main ? dur * 0.55 : 30;
+  const p = interpolate(f, [2, drawEnd], [0, 1], { ...clamp, easing: Easing.inOut(Easing.quad) });
+  const n = Math.max(2, Math.floor(p * (prices.length - 1)) + 1);
+  const pts = prices.slice(0, n).map((v, i) => new THREE.Vector3(X(i), Yp(v), 0));
+  const geo = React.useMemo(() => (pts.length >= 2 ? new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.1), pts.length * 6, 0.07, 10, false) : null), [n]);
+  React.useLayoutEffect(() => () => geo?.dispose(), [geo]);
+  const before = prices[at - 1];
+  const after = prices[prices.length - 1];
+  const ch = ((after - before) / before) * 100;
+  const up = ch >= 0;
+  const col = up ? K.green : K.red;
+  const reached = n - 1 >= at;
+  const lineCol = n - 1 > at ? col : K.blue;
+  return (
+    <AbsoluteFill>
+      <Scene3D cx={W / 2} cy={2.4} dist={main ? 19 : 18.5}>
+        {geo && (
+          <mesh geometry={geo} castShadow>
+            <meshStandardMaterial color={lineCol} roughness={0.4} />
+          </mesh>
+        )}
+        {/* 決算発表の日 */}
+        {reached && (
+          <>
+            <mesh position={[X(at - 0.5), 2.6, -0.05]}>
+              <boxGeometry args={[0.04, 4.6, 0.04]} />
+              <meshBasicMaterial color="#94a3b8" />
+            </mesh>
+            <Label text="決算発表" height={0.3} position={[X(at - 0.5), 0.55, 0.6]} color={K.sub} />
+            <mesh position={[X(at - 1), Yp(before), 0]}>
+              <sphereGeometry args={[0.16, 20, 20]} />
+              <meshStandardMaterial color="#fff" />
+            </mesh>
+          </>
+        )}
+        {p >= 1 && (
+          <mesh position={[X(prices.length - 1), Yp(after), 0]}>
+            <sphereGeometry args={[0.18, 20, 20]} />
+            <meshStandardMaterial color={col} />
+          </mesh>
+        )}
+        {floorLabel('発表前', X(Math.floor(at / 2)), K.sub, 1.0)}
+        {floorLabel('発表後', X(at + (prices.length - at) / 2), K.ink, 1.0)}
+      </Scene3D>
+      <Titles
+        tag="株価の反応"
+        at={Math.round(drawEnd + 2)}
+        brief={!main}
+        big={<span style={{ color: col }}>{`${up ? '+' : ''}${ch.toFixed(1)}%`}</span>}
+        sub={`決算発表の前日から${days}`}
+        caption={caption}
+      />
+    </AbsoluteFill>
+  );
+};
+
 export const PARTS = {
   trend: TrendPart,
   segments: SegmentsPart,
@@ -383,4 +491,5 @@ export const PARTS = {
   forecast: ForecastPart,
   loss: LossPart,
   topic: TopicPart,
+  stock: StockPart,
 } as const;

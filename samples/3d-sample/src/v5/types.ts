@@ -1,7 +1,7 @@
 // 超ショートの「材料」と「選び方」
 // 材料（ShortData）は分析データから機械的に作る。選び方（ShortPlan）は分析の中でAIが出す。
 
-export type PartId = 'trend' | 'segments' | 'pl' | 'forecast' | 'loss' | 'topic';
+export type PartId = 'trend' | 'segments' | 'pl' | 'forecast' | 'loss' | 'topic' | 'stock';
 
 export type ShortData = {
   company: string;
@@ -12,6 +12,8 @@ export type ShortData = {
   pl: { sales: number; cost: number; sga: number } | null; // 売上→利益の構造（営業利益＝売上−原価−販管費）
   forecast: { cur: number; next: number } | null; // 今期の実績と来期の会社予想
   topics: { icon: string; title: string; sub?: string }[]; // 数字以外（配当・自社株買い・M&A など）
+  kpis: { name: string; prev: number; cur: number }[]; // 決算ハイライト（売上・営業利益・経常利益・純利益）
+  stock: { prices: number[]; at: number; days: string } | null; // 終値（古い順）、at＝決算発表の翌営業日の位置、days＝比べる期間の言い方
 };
 
 export type ShortPlan = {
