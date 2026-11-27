@@ -1,8 +1,8 @@
 import React from 'react';
 import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from 'remotion';
-import { FONT, fmt } from '../lib';
+import { FONT } from '../lib';
 import { Bar, K, Label, Text2D } from '../v2/kit';
-import { PALE, PartProps, Scene3D, Titles, clamp, floorLabel, grow, oku, yoyText } from './parts';
+import { PALE, PartProps, Scene3D, Titles, UNIT, clamp, floorLabel, fmt, grow, isRev, oku, yoyText } from './parts';
 
 // いまの分析動画から省いていた場面を、3Dの部品にしたもの（どれも主役版・さらっと版を持つ）
 
@@ -57,7 +57,7 @@ export const Kpi3D: React.FC<PartProps> = ({ d, dur }) => {
       </Scene3D>
       <Text2D at={0} size={46} top="9%" left="50%" color={K.sub} weight={700}>決算ハイライト</Text2D>
       <Text2D at={4} size={34} top="14%" left="50%" color={K.sub} weight={700} rise={false}>
-        <span style={{ color: '#94a3b8' }}>■</span> 前年　<span style={{ color: K.blue }}>■</span> 今年（億円）
+        <span style={{ color: '#94a3b8' }}>■</span> 前年　<span style={{ color: K.blue }}>■</span> 今年（{UNIT}）
       </Text2D>
     </AbsoluteFill>
   );
@@ -155,7 +155,7 @@ export const CFPart: React.FC<PartProps> = ({ d, mode, dur, caption }) => {
         brief={!main}
         big={
           <>
-            自由に使えるお金 <span style={{ color: free >= 0 ? K.green : K.red }}>{signed(free)}億円</span>
+            自由に使えるお金 <span style={{ color: free >= 0 ? K.green : K.red }}>{signed(free)}{UNIT}</span>
           </>
         }
         sub={`稼いだお金 ${signed(operating)} ／ 投資 ${signed(investing)}`}
@@ -165,56 +165,65 @@ export const CFPart: React.FC<PartProps> = ({ d, mode, dur, caption }) => {
   );
 };
 
-// ---------- 四半期単独：3か月ごとの利益を前年の同じ時期と並べる。直近の四半期を強調 ----------
+// ---------- 直近の3か月（四半期単独）：累計では見えない「足もと」を、前年の同じ3か月と並べる。決算ハイライトと同じ形・同じ尺度 ----------
+export const quarterVerdict = (items: { key?: string; name: string; prev: number; cur: number }[]) => {
+  const r = items.find((it) => isRev(it));
+  const p = items.find((it) => it.key === 'operating_income') ?? items.find((it) => !isRev(it));
+  if (!r || !p) return null;
+  const pw = p.prev < 0 && p.cur > 0 ? '黒字転換' : p.prev > 0 && p.cur < 0 ? '赤字転落' : p.cur >= p.prev ? '増益' : '減益';
+  const good = p.cur >= p.prev;
+  return { t: `${r.cur >= r.prev ? '増収' : '減収'}・${pw}`, c: good ? K.green : K.red };
+};
 export const QuarterPart: React.FC<PartProps> = ({ d, mode, dur, caption }) => {
   const f = useCurrentFrame();
-  const qs = mode === 'main' ? d.quarters : d.quarters.slice(-1);
-  if (!qs.length) return null;
-  const n = qs.length;
-  const anyNeg = qs.some((q) => q.prev < 0 || q.cur < 0);
-  const mx = Math.max(...qs.flatMap((q) => [Math.abs(q.prev), Math.abs(q.cur)]));
-  const H = anyNeg ? 3.0 : 4.6;
-  const negMax = Math.max(0, ...qs.flatMap((q) => [-q.prev, -q.cur]));
-  const Z = anyNeg ? (negMax / mx) * H + 0.7 : 0;
-  const G = mode === 'main' ? 1.6 : 2.2;
+  if (!d.quarter || !d.quarter.items.length) return null;
   const main = mode === 'main';
-  const st = qs.map((_, i) => (main ? 4 + i * dur * (0.4 / n) : 4));
-  const last = qs[n - 1];
-  const yy = yoyText(last.prev, last.cur);
+  const qs = main ? d.quarter.items : d.quarter.items.filter((it) => isRev(it) || it.key === 'operating_income').slice(0, 2);
+  const n = qs.length;
+  const H = 4.0;
+  const mx = Math.max(...qs.flatMap((q) => [Math.abs(q.prev), Math.abs(q.cur)]));
+  const negMax = Math.max(0, ...qs.flatMap((q) => [-q.prev, -q.cur]));
+  const Z = negMax > 0 ? (negMax / mx) * H + 0.7 : 0;
+  const G = main ? 1.75 : 2.2;
+  const v = quarterVerdict(d.quarter.items);
+  const lastAt = 2 + (n - 1) * Math.min(8, dur * 0.06) + Math.min(22, dur * 0.3);
   return (
     <AbsoluteFill>
-      <Scene3D cx={((n - 1) * G) / 2} cy={2.4} dist={main ? 17 : 14}>
-        {anyNeg && <ZeroPlate cx={((n - 1) * G) / 2} w={(n - 1) * G + 2} z={Z} />}
+      <Scene3D cx={((n - 1) * G) / 2} cy={(Z + H) / 2 + 0.9} dist={(main ? 17.5 : 15) + Z * 0.8}>
+        {Z > 0 && <ZeroPlate cx={((n - 1) * G) / 2} w={(n - 1) * G + 2} z={Z} />}
         {qs.map((q, i) => {
-          const g = grow(f, st[i], 18);
-          const isLast = i === n - 1;
-          const b = (v: number, x: number, color: string) => {
-            const h = (Math.abs(v) / mx) * H * g;
-            return <Bar x={x} y0={v < 0 ? Z - h : Z} h={h} w={0.6} d={0.6} color={color} />;
+          const at = 2 + i * Math.min(8, dur * 0.06);
+          const g = grow(f, at, Math.min(22, dur * 0.3));
+          const bar = (val: number, x: number, color: string) => {
+            const h = (Math.abs(val) / mx) * H * g;
+            return <Bar x={x} y0={val < 0 ? Z - h : Z} h={h} w={0.6} d={0.6} color={color} />;
           };
+          const x = i * G;
+          const yy = yoyText(q.prev, q.cur);
           const ch = (Math.abs(q.cur) / mx) * H * g;
+          const curTop = q.cur < 0 ? Z : Z + ch;
           return (
-            <React.Fragment key={q.l}>
-              {b(q.prev, i * G - 0.36, PALE)}
-              {b(q.cur, i * G + 0.36, isLast ? (q.cur >= q.prev ? K.green : K.red) : q.cur < 0 ? '#f0a3a3' : '#93c5fd')}
-              {f >= st[i] + 6 && <Label text={signed(q.cur).replace('+', '')} height={0.28} position={[i * G + 0.36, q.cur < 0 ? Z - ch - 0.38 : Z + ch + 0.38, 0.4]} color={isLast ? K.ink : K.sub} />}
-              {floorLabel(q.l, i * G, isLast ? K.ink : K.sub)}
+            <React.Fragment key={q.name}>
+              {bar(q.prev, x - 0.36, q.prev < 0 ? '#f0a3a3' : PALE)}
+              {bar(q.cur, x + 0.36, q.cur < 0 ? K.red : K.blue)}
+              {f >= at + 4 && <Label text={`${q.cur < 0 ? '−' : ''}${fmt(Math.abs(q.cur) * g)}`} height={0.3} position={[x + 0.36, q.cur < 0 ? Z - ch - 0.38 : curTop + 0.38, 0.3]} color={q.cur < 0 ? K.red : K.ink} />}
+              {f >= at + Math.min(22, dur * 0.3) && <Label text={yy.t} height={0.3} position={[x, Math.max(curTop, Z + (Math.max(0, q.prev) / mx) * H) + 1.0, 0]} color="#ffffff" pill={yy.c} weight={900} />}
+              {floorLabel(q.name, x, K.ink, 1.0)}
             </React.Fragment>
           );
         })}
       </Scene3D>
       <Titles
-        tag="3か月ごとの利益（四半期）"
-        at={Math.round(st[n - 1] + 20)}
+        tag={`直近の3か月だけ：${d.quarter.label}`}
+        at={Math.round(lastAt + 4)}
         brief={!main}
-        big={
-          <>
-            直近の3か月は <span style={{ color: yy.c }}>{yy.t}</span>
-          </>
-        }
-        sub={`前年の同じ時期 ${oku(last.prev)} → ${oku(last.cur)}`}
+        big={v ? <span style={{ color: v.c }}>{v.t}</span> : undefined}
+        sub="前年の同じ3か月とくらべて"
         caption={caption}
       />
+      <Text2D at={4} size={30} top="83.5%" left="50%" color={K.sub} weight={700} rise={false}>
+        <span style={{ color: '#94a3b8' }}>■</span> 前年の同じ時期　<span style={{ color: K.blue }}>■</span> 今回（{UNIT}）
+      </Text2D>
     </AbsoluteFill>
   );
 };

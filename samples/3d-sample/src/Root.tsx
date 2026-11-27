@@ -6,7 +6,7 @@ import { SHORT_LEN, ShortWater } from './v3/ShortWater';
 import { SHORT2_LEN, ShortResult } from './v4/ShortResult';
 import { SHORT_TOTAL, Short } from './v5/Short';
 import { CATALOG_LEN, Catalog } from './v5/Catalog';
-import { GROW, LOSS, PLAN_GROW_SEG, PLAN_GROW_TREND, PLAN_LOSS } from './v5/examples';
+import { GROW, LOSS, MID, PLAN_GROW_SEG, PLAN_GROW_TREND, PLAN_LOSS, PLAN_MID, PLAN_TURN, TURN } from './v5/examples';
 
 export const Root: React.FC = () => (
   <>
@@ -19,5 +19,9 @@ export const Root: React.FC = () => (
     <Composition id="Catalog-Grow" component={Catalog} defaultProps={{ data: GROW }} durationInFrames={CATALOG_LEN} fps={30} width={1080} height={1920} />
     <Composition id="Catalog-Loss" component={Catalog} defaultProps={{ data: LOSS }} durationInFrames={CATALOG_LEN} fps={30} width={1080} height={1920} />
     <Composition id="Parts-Loss" component={Short} defaultProps={{ data: LOSS, plan: PLAN_LOSS }} durationInFrames={SHORT_TOTAL} fps={30} width={1080} height={1920} />
+    <Composition id="Parts-Mid" component={Short} defaultProps={{ data: MID, plan: PLAN_MID }} durationInFrames={SHORT_TOTAL} fps={30} width={1080} height={1920} />
+    <Composition id="Parts-Turn" component={Short} defaultProps={{ data: TURN, plan: PLAN_TURN }} durationInFrames={SHORT_TOTAL} fps={30} width={1080} height={1920} />
+    <Composition id="Catalog-Mid" component={Catalog} defaultProps={{ data: MID }} durationInFrames={CATALOG_LEN} fps={30} width={1080} height={1920} />
+    <Composition id="Catalog-Turn" component={Catalog} defaultProps={{ data: TURN }} durationInFrames={CATALOG_LEN} fps={30} width={1080} height={1920} />
   </>
 );

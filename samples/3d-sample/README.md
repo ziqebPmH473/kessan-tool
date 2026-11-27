@@ -32,7 +32,8 @@ npm run render -- Parts-Grow-Trend out/a.mp4     # 1本書き出す（名前は�
 | ShortWater | 3本目（縦。売上の水だけ）。切り取り方が狭いので没 | `src/v3/` |
 | ShortResult | 4本目（縦。結果・理由・この先） | `src/v4/` |
 | Parts-Grow-Trend／Parts-Grow-Seg／Parts-Loss | 5本目＝いまの形。部品を選んで組む20秒の超ショート | `src/v5/` |
-| Catalog-Grow／Catalog-Loss | 全部の部品を主役版→さらっと版で並べたカタログ | `src/v5/Catalog.tsx` |
+| Parts-Mid／Parts-Turn | 2Q決算（進み具合が主役）／本業は黒字・最終赤字の米国の会社（億ドル） | `src/v5/` |
+| Catalog-Grow／Catalog-Loss／Catalog-Mid／Catalog-Turn | 全部の部品を主役版→さらっと版で並べたカタログ（その会社で使えない部品は「使わない」と出る） | `src/v5/Catalog.tsx` |
 
 ## 2本目：いまの分析動画の見た目のまま3Dに（`src/v2/`、`npm run render2`）
 
@@ -77,3 +78,12 @@ npx remotion render src/index.ts Parts-Grow-Trend out/Parts-Grow-Trend.mp4 --gl=
 　全部の部品を主役版→さらっと版の順に並べた「部品カタログ」：`Catalog-Grow`（伸びた会社）、`Catalog-Loss`（赤字の会社）。部品の一覧は `src/v5/registry.ts`。
 
 ※ 業績の推移・赤字転落は売上と営業利益を同じ尺度で。来期の予想と予想の修正は売上・利益の両方を出し、売上と利益は枠を分ける（枠ごとに同じ尺度）。予想の修正の言葉は、項目ごとの向きの組み合わせで決める（`parts3.tsx` の revisionWord）。
+
+## 実データで足りない部品を洗い出して足した（2026-11-27）
+
+保存済みの決算PJ 99件の分析JSONを読み、部品で表せない場面・データの形を洗い出した。くわしくは `docs/impl/2026-11-27_超ショートの部品_実データで不足を足す.md`。
+
+- 足した部品（`src/v5/parts4.tsx`）：通期予想への進み具合（progress）・5つの評価（ratings）・配当（dividend）・事業ごとの利益（segprofit）・利益率（margin）・営業利益から純利益まで（netgap）
+- 直した部品：直近の3か月（quarter。データは「直近の1四半期だけ」なので、その形に）、業績の推移（会社予想の年をうすく）、会社予想（四半期の決算は「今期の予想」）、億ドル・小さい金額の小数、会社ごとの呼び名（売上収益・事業利益・親会社株主に帰属する〜）
+- 分析JSON → 材料の変換：`src/v5/fromAnalysis.ts`。部品ごとの使える条件：`src/v5/availability.ts`
+- 静止画で確かめる：`node stills.mjs <コンポジション名> <出力フォルダ> <コマ,…> [props.json]`。実データは `fromAnalysis` で変換した `{"data": …}` を props に渡す（実データの画像はコミットしない）

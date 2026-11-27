@@ -2,7 +2,7 @@ import React from 'react';
 import * as THREE from 'three';
 import { AbsoluteFill, Easing, interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
 import { ThreeCanvas } from '@remotion/three';
-import { CameraRig, FONT, RenderAfter, fmt } from '../lib';
+import { CameraRig, FONT, RenderAfter, fmt as fmtInt } from '../lib';
 import { Bar, K, Label, LightStage, Text2D } from '../v2/kit';
 import type { ShortData } from './types';
 
@@ -19,7 +19,16 @@ export const pct = (a: number, b: number) => {
   const r = ((b - a) / Math.abs(a)) * 100;
   return `${r >= 0 ? '+' : ''}${r.toFixed(1)}%`;
 };
-export const oku = (v: number) => `${v < 0 ? '−' : ''}${fmt(Math.abs(v))}億円`;
+// 金額：10未満は小数1けた（0.77億円が「1」にならないように）
+export const fmt = (n: number) => (Math.abs(n) < 10 && Math.round(n) !== n ? (Math.round(n * 10) / 10).toFixed(1).replace(/\.0$/, '') : fmtInt(n));
+// 金額の単位（億円・億ドル）。Short が材料を受け取ったときに決める
+export let UNIT = '億円';
+export const setUnit = (u?: string) => {
+  UNIT = u || '億円';
+};
+export const oku = (v: number) => `${v < 0 ? '−' : ''}${fmt(Math.abs(v))}${UNIT}`;
+export { isRev, shortName } from './names';
+import { isRev } from './names';
 export const floorLabel = (text: string, x: number, color: string, z = 0.95) => (
   <Label text={text} height={0.28} position={[x, 0.02, z]} rotation={[-Math.PI / 2, 0, 0]} color={color} />
 );
@@ -108,10 +117,10 @@ export const SegmentsPart: React.FC<PartProps> = ({ d, mode, dur, caption }) => 
             </React.Fragment>
           );
         })}
-        {sweep >= Math.PI * 2 - 0.01 && <Label text={`売上 ${fmt(total)}億円`} height={0.3} position={[0, 0.5, 0]} rotation={[-0.75, 0, 0]} color={K.ink} />}
+        {sweep >= Math.PI * 2 - 0.01 && <Label text={`売上 ${fmt(total)}${UNIT}`} height={0.3} position={[0, 0.5, 0]} rotation={[-0.75, 0, 0]} color={K.ink} />}
       </Scene3D>
       <Titles
-        tag="事業ごとの売上"
+        tag={`${d.segLabel ?? '事業'}ごとの売上`}
         at={Math.round(popAt + 6)}
         brief={!main}
         big={
@@ -119,7 +128,7 @@ export const SegmentsPart: React.FC<PartProps> = ({ d, mode, dur, caption }) => 
             <span style={{ color: up ? K.green : K.red }}>{top.name}</span>が {pct(top.prevRev, top.rev)}
           </>
         }
-        sub={`売上の約${Math.round((top.rev / total) * 10)}割を占める事業`}
+        sub={`売上の約${Math.round((top.rev / total) * 10)}割を占める${d.segLabel ?? '事業'}`}
         caption={caption}
       />
       {/* 事業名と割合は下に一覧で（縦の画面は横が狭いので） */}
@@ -270,14 +279,14 @@ export const KpiCards: React.FC<PartProps> = ({ d, dur }) => {
             <div key={k.name} style={{ opacity: o, transform: `translateY(${y}px)`, background: '#fff', borderRadius: 28, padding: '36px 34px', boxShadow: '0 10px 32px rgba(15,23,42,0.08)' }}>
               <div style={{ fontWeight: 700, fontSize: 40, color: K.sub }}>{k.name}</div>
               <div style={{ fontWeight: 900, fontSize: 76, color: k.cur < 0 ? K.red : K.ink, marginTop: 4, whiteSpace: 'nowrap' }}>
-                {k.cur < 0 ? '−' : ''}{fmt(Math.abs(k.cur) * g)}<span style={{ fontSize: 36 }}>億円</span>
+                {k.cur < 0 ? '−' : ''}{fmt(Math.abs(k.cur) * g)}<span style={{ fontSize: 36 }}>{UNIT}</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16, height: 340, marginTop: 18 }}>
                 <div style={{ width: 70, height: hb(k.prev), background: k.prev < 0 ? '#f0a3a3' : '#cbd5e1', borderRadius: 8 }} />
                 <div style={{ width: 70, height: hb(k.cur), background: k.cur < 0 ? K.red : K.blue, borderRadius: 8 }} />
                 <div style={{ marginLeft: 'auto', alignSelf: 'flex-start', fontWeight: 900, fontSize: 40, color: '#fff', background: yy.c, borderRadius: 999, padding: '6px 20px', opacity: interpolate(f, [at + 14, at + 20], [0, 1], clamp) }}>{yy.t}</div>
               </div>
-              <div style={{ fontWeight: 700, fontSize: 30, color: K.sub, marginTop: 10 }}>前年 {k.prev < 0 ? '−' : ''}{fmt(Math.abs(k.prev))}億円</div>
+              <div style={{ fontWeight: 700, fontSize: 30, color: K.sub, marginTop: 10 }}>前年 {k.prev < 0 ? '−' : ''}{fmt(Math.abs(k.prev))}{UNIT}</div>
             </div>
           );
         })}
@@ -295,15 +304,16 @@ export const StockPart: React.FC<PartProps> = ({ d, mode, dur, caption }) => {
   const lo = Math.min(...prices), hi = Math.max(...prices);
   const W = 5.6;
   const X = (i: number) => (i / (prices.length - 1)) * W;
-  const Yp = (v: number) => 0.8 + ((v - lo) / (hi - lo)) * 4.2;
+  const Yp = (v: number) => 0.8 + ((v - lo) / Math.max(1e-9, hi - lo)) * 4.2;
   const drawEnd = main ? dur * 0.55 : 30;
   const p = interpolate(f, [2, drawEnd], [0, 1], { ...clamp, easing: Easing.inOut(Easing.quad) });
   const n = Math.max(2, Math.floor(p * (prices.length - 1)) + 1);
   const pts = prices.slice(0, n).map((v, i) => new THREE.Vector3(X(i), Yp(v), 0));
   const geo = React.useMemo(() => (pts.length >= 2 ? new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.1), pts.length * 6, 0.07, 10, false) : null), [n]);
   React.useLayoutEffect(() => () => geo?.dispose(), [geo]);
-  const before = prices[at - 1];
-  const after = prices[prices.length - 1];
+  // pre/post があれば「発表の日の終値 → 翌日の終値」で反応を見る
+  const before = d.stock.pre ?? prices[at - 1];
+  const after = d.stock.post ?? prices[prices.length - 1];
   const ch = ((after - before) / before) * 100;
   const up = ch >= 0;
   const col = up ? K.green : K.red;
@@ -311,7 +321,7 @@ export const StockPart: React.FC<PartProps> = ({ d, mode, dur, caption }) => {
   const lineCol = n - 1 > at ? col : K.blue;
   return (
     <AbsoluteFill>
-      <Scene3D cx={W / 2} cy={2.4} dist={main ? 19 : 18.5}>
+      <Scene3D cx={W / 2} cy={2.4} dist={main ? 21.5 : 21}>
         {geo && (
           <mesh geometry={geo} castShadow>
             <meshStandardMaterial color={lineCol} roughness={0.4} />
@@ -345,7 +355,7 @@ export const StockPart: React.FC<PartProps> = ({ d, mode, dur, caption }) => {
         at={Math.round(drawEnd + 2)}
         brief={!main}
         big={<span style={{ color: col }}>{`${up ? '+' : ''}${ch.toFixed(1)}%`}</span>}
-        sub={`決算発表の前日から${days}`}
+        sub={d.stock.pre != null && d.stock.post != null ? `発表の日の終値 → 翌日の終値（${fmt(d.stock.pre)} → ${fmt(d.stock.post)}${d.stock.unit ?? '円'}）` : `決算発表の前日から${days}`}
         caption={caption}
       />
     </AbsoluteFill>
