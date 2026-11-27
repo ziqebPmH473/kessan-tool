@@ -20,18 +20,20 @@ export const Kpi3D: React.FC<PartProps> = ({ d, dur }) => {
   const G = 1.75;
   const n = d.kpis.length;
   const anyNeg = d.kpis.some((k) => k.prev < 0 || k.cur < 0);
-  const H = anyNeg ? 2.8 : 4.2;
+  // 4つとも同じ尺度（売上と利益の大きさの違いがそのまま見える）
+  const H = 4.6;
+  const allMx = Math.max(...d.kpis.flatMap((k) => [Math.abs(k.prev), Math.abs(k.cur)]));
+  const negMax = Math.max(0, ...d.kpis.flatMap((k) => [-k.prev, -k.cur]));
   // 0の線の高さ：いちばん深いマイナスの棒が床に届かないように
-  const negR = Math.max(0, ...d.kpis.map((k) => Math.max(k.prev < 0 ? -k.prev : 0, k.cur < 0 ? -k.cur : 0) / Math.max(Math.abs(k.prev), Math.abs(k.cur))));
-  const Z = anyNeg ? negR * H + 0.7 : 0;
+  const Z = anyNeg ? (negMax / allMx) * H + 0.7 : 0;
   return (
     <AbsoluteFill>
-      <Scene3D cx={((n - 1) * G) / 2} cy={anyNeg ? (Z + H) / 2 + 0.3 : 2.4} dist={anyNeg ? 18.5 + Z * 0.8 : 18.5}>
+      <Scene3D cx={((n - 1) * G) / 2} cy={(Z + H) / 2 + 0.2} dist={18.5 + Z * 0.8}>
         {anyNeg && <ZeroPlate cx={((n - 1) * G) / 2} w={(n - 1) * G + 2} z={Z} />}
         {d.kpis.map((k, i) => {
           const at = 2 + i * Math.min(8, dur * 0.06);
           const g = grow(f, at, Math.min(22, dur * 0.3));
-          const mx = Math.max(Math.abs(k.prev), Math.abs(k.cur));
+          const mx = allMx;
           const bar = (v: number, x: number, color: string) => {
             const h = (Math.abs(v) / mx) * H * g;
             return <Bar x={x} y0={v < 0 ? Z - h : Z} h={h} w={0.6} d={0.6} color={color} />;
@@ -47,7 +49,7 @@ export const Kpi3D: React.FC<PartProps> = ({ d, dur }) => {
               {f >= at + 4 && (
                 <Label text={`${k.cur < 0 ? '−' : ''}${fmt(Math.abs(k.cur) * g)}`} height={0.3} position={[x + 0.36, curTop + 0.38, 0]} color={k.cur < 0 ? K.red : K.ink} />
               )}
-              {showPill && <Label text={yy.t} height={0.3} position={[x, Z + H + 1.25, 0]} color="#ffffff" pill={yy.c} weight={900} />}
+              {showPill && <Label text={yy.t} height={0.3} position={[x, Math.max(curTop, Z + (Math.max(0, k.prev) / mx) * H) + 1.0, 0]} color="#ffffff" pill={yy.c} weight={900} />}
               {floorLabel(k.name, x, K.ink, 1.0)}
             </React.Fragment>
           );
@@ -217,43 +219,71 @@ export const QuarterPart: React.FC<PartProps> = ({ d, mode, dur, caption }) => {
   );
 };
 
-// ---------- 予想の修正：修正前の予想はうすい棒、修正後の予想が伸びる（縮む・0を割る） ----------
+// ---------- 予想の修正：棒は1本。修正前の数字が修正後に変わり、差の分だけ色が付く ----------
 export const RevisionPart: React.FC<PartProps> = ({ d, mode, dur, caption }) => {
   const f = useCurrentFrame();
   if (!d.revision) return null;
   const { before, after, label } = d.revision;
   const main = mode === 'main';
-  const neg = before < 0 || after < 0;
   const mx = Math.max(Math.abs(before), Math.abs(after));
-  const H = neg ? 3.4 : 4.8;
+  const H = 4.6;
   const S = H / mx;
-  const Z = neg ? Math.max(0, -before, -after) * S + 0.7 : 0;
-  const a = main ? dur * 0.3 : 14;
-  const gb = grow(f, 2, main ? 24 : 12);
-  const t = interpolate(f, [a, a + (main ? 28 : 14)], [0, 1], { ...clamp, easing: Easing.inOut(Easing.cubic) });
+  const Z = Math.max(0, -before, -after) > 0 ? Math.max(0, -before, -after) * S + 0.7 : 0;
+  const Y = (v: number) => Z + v * S;
+  const a = main ? dur * 0.3 : 16; // 修正が始まる
+  const len = main ? 34 : 16;
+  const gb = grow(f, 2, main ? 22 : 12);
+  const t = interpolate(f, [a, a + len], [0, 1], { ...clamp, easing: Easing.inOut(Easing.cubic) });
+  const v = (t > 0 ? before + (after - before) * t : before * gb);
   const up = after >= before;
   const col = up ? K.green : K.red;
-  const G = 1.9;
-  const hb = Math.abs(before) * S * gb;
-  const ha = Math.abs(after) * S * t;
-  const flip = before > 0 && after < 0 ? '黒字の予想 → 赤字の予想' : before < 0 && after > 0 ? '赤字の予想 → 黒字の予想' : null;
+  const span = (p: number, q: number) => ({ y0: Math.min(Y(p), Y(q)), h: Math.abs(Y(q) - Y(p)) });
+  const solid = span(0, v);
+  // 差の分：増えたら before→v（緑）。減ったら、0より上で消えた分だけ影（0より下は赤い棒そのもの）
+  const diff = up ? span(before, v) : before > 0 ? span(before, Math.max(v, 0)) : span(before, v);
+  const lo = Math.min(0, before, after);
+  const hi = Math.max(0, before, after);
+  const W = 1.7;
+  const changed = t >= 1;
   return (
     <AbsoluteFill>
-      <Scene3D cx={G / 2} cy={2.6} dist={14.5}>
-        {neg && <ZeroPlate cx={G / 2} w={G + 2.4} z={Z} />}
-        <Bar x={0} y0={before < 0 ? Z - hb : Z} h={hb} w={1.3} d={1.3} color={K.gray} opacity={0.55} />
-        {gb > 0.9 && <Label text={signed(before).replace('+', '')} height={0.3} position={[0, before < 0 ? Z - hb - 0.4 : Z + hb + 0.4, 0.6]} color={K.sub} />}
-        <Bar x={G} y0={after < 0 ? Z - ha : Z} h={ha} w={1.3} d={1.3} color={col} />
-        {t >= 1 && <Label text={signed(after).replace('+', '')} height={0.36} position={[G, after < 0 ? Z - ha - 0.45 : Z + ha + 0.45, 0.6]} color={col} />}
-        {floorLabel('修正前', 0, K.sub, 1.0)}
-        {floorLabel('修正後', G, K.ink, 1.0)}
+      <Scene3D cx={0.6} cy={(Y(lo) + Y(hi)) / 2 + 0.3} dist={14.5}>
+        {Z > 0 && <ZeroPlate cx={0} w={3.6} z={Z} />}
+        <Bar x={0} y0={solid.y0} h={solid.h} w={W} d={W} color={v < 0 ? K.red : K.blue} />
+        {/* 差の分：増えた分は緑で上に、減った分は赤のうすい影で残す */}
+        {t > 0 && diff.h > 0.01 && <Bar x={0} y0={diff.y0} h={diff.h} w={W + 0.04} d={W + 0.04} color={col} opacity={up || before <= 0 ? 1 : 0.3} />}
+        {/* 修正前の高さに細い線と小さな数字 */}
+        {t > 0 && (
+          <>
+            <mesh position={[-0.35, Y(before), 0]}>
+              <boxGeometry args={[W + 1.2, 0.04, W + 0.3]} />
+              <meshBasicMaterial color="#64748b" />
+            </mesh>
+            <Label text={`修正前 ${signed(before).replace('+', '')}`} height={0.24} position={[-1.95, Y(before) + 0.25, 0]} color={K.sub} />
+          </>
+        )}
+        {/* 数字は1つ：修正前 → 修正後へカウント */}
+        <Label
+          text={signed(Math.round(v)).replace('+', '')}
+          height={changed ? 0.5 : 0.4}
+          position={v >= 0 ? [0, Y(v) + 0.55, 0.9] : [-1.7, Y(v) + 0.3, 0.9]}
+          color={t > 0 ? col : K.ink}
+        />
+        {changed && <Label text={signed(after - before)} height={0.34} position={[1.75, (Y(before) + Y(after)) / 2, 0.9]} color={col} pill={undefined} />}
+        {floorLabel(label, 0, K.ink, 1.3)}
       </Scene3D>
       <Titles
-        tag={`会社予想の修正（${label}）`}
-        at={Math.round(a + (main ? 28 : 14))}
+        tag="会社予想の修正"
+        at={Math.round(a + len)}
         brief={!main}
         big={<span style={{ color: col }}>{up ? '上方修正' : '下方修正'}</span>}
-        sub={flip ?? `${oku(before)} → ${oku(after)}（${up ? '+' : ''}${(((after - before) / Math.abs(before)) * 100).toFixed(1)}%）`}
+        sub={
+          before > 0 && after < 0
+            ? '黒字の予想 → 赤字の予想'
+            : before < 0 && after > 0
+              ? '赤字の予想 → 黒字の予想'
+              : `${oku(before)} → ${oku(after)}（${up ? '+' : ''}${(((after - before) / Math.abs(before)) * 100).toFixed(1)}%）`
+        }
         caption={caption}
       />
     </AbsoluteFill>
