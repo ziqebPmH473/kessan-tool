@@ -13,10 +13,11 @@ export const GROW: ShortData = {
     { l: '26/3', v: 120 },
   ],
   segments: [
-    { name: 'A事業', delta: 28 },
-    { name: 'B事業', delta: 6 },
-    { name: 'C事業', delta: 2 },
+    { name: 'A事業', rev: 600, prevRev: 520 },
+    { name: 'B事業', rev: 300, prevRev: 285 },
+    { name: 'C事業', rev: 100, prevRev: 95 },
   ],
+  pl: { sales: 1000, cost: 600, sga: 280 },
   forecast: { cur: 120, next: 150 },
   topics: [{ icon: '💴', title: '増配', sub: '年30円 → 40円' }],
 };
@@ -34,10 +35,11 @@ export const LOSS: ShortData = {
     { l: '26/3', v: -35 },
   ],
   segments: [
-    { name: '素材', delta: -30 },
-    { name: '機械', delta: -15 },
-    { name: 'その他', delta: -2 },
+    { name: '素材', rev: 300, prevRev: 380 },
+    { name: '機械', rev: 200, prevRev: 215 },
+    { name: 'その他', rev: 50, prevRev: 52 },
   ],
+  pl: { sales: 550, cost: 470, sga: 115 },
   forecast: { cur: -35, next: 10 },
   topics: [
     { icon: '✂️', title: '配当を減らす', sub: '年40円 → 20円' },
@@ -54,7 +56,7 @@ export const PLAN_GROW_TREND: ShortPlan = {
   brief: ['segments', 'forecast'],
   captions: {
     trend: '24年3月期の減益から、2年で一気に回復',
-    segments: '伸びたのは主力のA事業',
+    segments: '主力のA事業が売上を伸ばした',
   },
   summary: ['過去最高益（+42.9%）', '主力のA事業が伸びた', '来期も増益の予想'],
 };
@@ -64,9 +66,10 @@ export const PLAN_GROW_SEG: ShortPlan = {
   verdict_tone: 'good',
   headline: '主力のA事業がけん引',
   main: 'segments',
-  brief: ['trend', 'forecast'],
+  brief: ['pl', 'forecast'],
   captions: {
-    segments: '新製品が売れて、A事業の利益が大きく増えた',
+    segments: '新製品が売れて、主力のA事業が伸びた',
+    pl: '売上が増えて、利益率も上がった',
   },
   summary: ['営業利益 +42.9%', 'A事業の新製品が売れた', '来期も増益の予想'],
 };
@@ -76,11 +79,11 @@ export const PLAN_LOSS: ShortPlan = {
   verdict_tone: 'bad',
   headline: '4年続けて利益が減った',
   main: 'loss',
-  brief: ['segments', 'topic'],
+  brief: ['pl', 'topic'],
   captions: {
     loss: '原料の値上がりを、値上げで補えなかった',
-    segments: '足を引っぱったのは素材の事業',
+    pl: '原価が重く、粗利が販管費に届かない',
     topic: '配当も半分に',
   },
-  summary: ['営業赤字に転落', '素材の事業が落ち込んだ', '減配・来期は黒字の予想'],
+  summary: ['営業赤字に転落', '原料高で原価が重い', '減配・来期は黒字の予想'],
 };
