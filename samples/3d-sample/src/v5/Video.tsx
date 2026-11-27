@@ -5,14 +5,14 @@ import { AbsoluteFill, Sequence, continueRender, delayRender, interpolate, useCu
 import { CHARS, FONT } from '../lib';
 import { K } from '../v2/kit';
 import { available } from './availability';
-import { PartProps, setUnit } from './parts';
+import { PartProps, setUnit, useLand } from './parts';
 import { Kpi3D } from './parts2';
 import { CoverPart, ConclusionPart } from './parts5';
 import { PARTS } from './registry';
 import { PART_TEXT } from './Short';
 import type { PartId, ShortData } from './types';
 
-// 分析動画（横 1920×1080）を3Dの部品で組む。場面の順と秒数は、いまの分析動画（kessan-visualizer の SCENE_DEFAULTS）に合わせる
+// 分析動画（縦 1080×1920 が基本。横 1920×1080 も）を3Dの部品で組む。場面の順と秒数は、いまの分析動画（kessan-visualizer の SCENE_DEFAULTS）に合わせる
 // 1つの場面に部品が2つ以上あるとき（予想・事業ごと・総括）は、つづけて出す
 
 export const VFPS = 30;
@@ -55,6 +55,7 @@ const Fade: React.FC<{ len: number; children: React.ReactNode }> = ({ len, child
 
 export const Video: React.FC<{ data: ShortData; note?: string }> = ({ data, note = 'サンプル（架空の会社・数値）' }) => {
   setUnit(data.unit);
+  const land = useLand();
   const [hd] = useState(() => delayRender('fonts'));
   const [ready, setReady] = useState(false);
   useEffect(() => {
@@ -80,11 +81,25 @@ export const Video: React.FC<{ data: ShortData; note?: string }> = ({ data, note
           </Sequence>
         );
       })}
-      <div style={{ position: 'absolute', left: 64, bottom: 34, fontFamily: FONT, fontWeight: 700, fontSize: 26, color: K.sub }}>
-        {data.company}
-        {data.code ? `（${data.code}）` : ''}　{data.period}
-      </div>
-      <div style={{ position: 'absolute', right: 48, bottom: 34, fontFamily: FONT, fontWeight: 700, fontSize: 22, color: 'rgba(17,24,39,0.4)' }}>{note}</div>
+      {land ? (
+        <>
+          <div style={{ position: 'absolute', left: 64, bottom: 34, fontFamily: FONT, fontWeight: 700, fontSize: 26, color: K.sub }}>
+            {data.company}
+            {data.code ? `（${data.code}）` : ''}　{data.period}
+          </div>
+          <div style={{ position: 'absolute', right: 48, bottom: 34, fontFamily: FONT, fontWeight: 700, fontSize: 22, color: 'rgba(17,24,39,0.4)' }}>{note}</div>
+        </>
+      ) : (
+        <>
+          {/* 縦：社名は上（表紙の場面では出さない）、注記は下 */}
+          <Sequence from={Math.round(videoTimeline(data)[0].sec * VFPS)}>
+            <div style={{ position: 'absolute', top: 40, left: 0, right: 0, textAlign: 'center', fontFamily: FONT, fontWeight: 700, fontSize: 32, color: K.ink }}>
+              {data.company}｜{data.period} 決算
+            </div>
+          </Sequence>
+          <div style={{ position: 'absolute', left: 0, right: 0, bottom: 28, textAlign: 'center', fontFamily: FONT, fontWeight: 700, fontSize: 24, color: 'rgba(17,24,39,0.45)' }}>{note}</div>
+        </>
+      )}
     </AbsoluteFill>
   );
 };

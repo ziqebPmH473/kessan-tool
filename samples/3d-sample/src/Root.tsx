@@ -28,6 +28,8 @@ export const Root: React.FC = () => (
     <Composition id="Parts-Mid" component={Short} defaultProps={{ data: MID, plan: PLAN_MID }} durationInFrames={SHORT_TOTAL} fps={30} width={1080} height={1920} />
     <Composition id="Parts-Turn" component={Short} defaultProps={{ data: TURN, plan: PLAN_TURN }} durationInFrames={SHORT_TOTAL} fps={30} width={1080} height={1920} />
     {/* 横の分析動画（3Dの部品で組む）と、AIを使わない超ショート。props の data を差しかえれば実データでも出せる */}
+    <Composition id="Video-Mid-V" component={Video} defaultProps={{ data: MID as ShortData }} calculateMetadata={({ props }) => ({ durationInFrames: videoFrames(props.data) })} durationInFrames={1} fps={30} width={1080} height={1920} />
+    <Composition id="Video-Turn-V" component={Video} defaultProps={{ data: TURN as ShortData }} calculateMetadata={({ props }) => ({ durationInFrames: videoFrames(props.data) })} durationInFrames={1} fps={30} width={1080} height={1920} />
     <Composition id="Video-Mid" component={Video} defaultProps={{ data: MID as ShortData }} calculateMetadata={({ props }) => ({ durationInFrames: videoFrames(props.data) })} durationInFrames={1} fps={30} width={1920} height={1080} />
     <Composition id="Video-Turn" component={Video} defaultProps={{ data: TURN as ShortData }} calculateMetadata={({ props }) => ({ durationInFrames: videoFrames(props.data) })} durationInFrames={1} fps={30} width={1920} height={1080} />
     <Composition id="Auto-Mid" component={AutoShort} defaultProps={{ data: MID as ShortData }} durationInFrames={SHORT_TOTAL} fps={30} width={1080} height={1920} />

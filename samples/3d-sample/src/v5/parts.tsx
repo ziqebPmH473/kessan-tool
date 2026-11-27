@@ -115,7 +115,13 @@ export const Titles: React.FC<{ tag: string; big?: React.ReactNode; sub?: string
     <>
       <Text2D at={0} size={brief ? 40 : 46} top="9%" left="50%" color={K.sub} weight={700}>{tag}</Text2D>
       {big && <Text2D at={at} size={brief ? 62 : 72} top="15.5%" left="50%">{big}</Text2D>}
-      {sub && <Text2D at={at + 8} size={brief ? 40 : 44} top="21.5%" left="50%" color={K.sub} weight={700}>{sub}</Text2D>}
+      {sub && sub.length <= 24 && <Text2D at={at + 8} size={brief ? 40 : 44} top="21.5%" left="50%" color={K.sub} weight={700}>{sub}</Text2D>}
+      {/* 長い補足（修正の理由など）は折り返す */}
+      {sub && sub.length > 24 && (
+        <div style={{ position: 'absolute', top: '20%', left: 90, right: 90, textAlign: 'center' }}>
+          <LandText at={at + 8} size={34} color={K.sub} weight={700}>{sub}</LandText>
+        </div>
+      )}
       {children}
       {caption && <Text2D at={at + 14} size={brief ? 40 : 44} top="88%" left="50%" weight={700} band>{caption}</Text2D>}
     </>

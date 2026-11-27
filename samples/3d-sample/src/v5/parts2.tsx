@@ -341,7 +341,7 @@ export const PointsPart: React.FC<PartProps> = ({ d, mode, dur, caption }) => {
         const j = it.good ? good.indexOf(it as never) : watch.indexOf(it as never);
         const pos = land
           ? { top: 150 + j * 255, left: it.good ? 64 : 990, width: 866 }
-          : { top: `${20 + i * 15}%`, left: 90, right: 90 };
+          : { top: `${(items.some((x) => x.before) ? 17 : 20) + i * (items.some((x) => x.before) ? 17 : 15)}%`, left: 90, right: 90 };
         const nums = it.before && it.after ? `${it.metric ? it.metric + '　' : ''}${it.before} → ${it.after}${it.change ? `（${it.change}）` : ''}` : null;
         return (
           <div
