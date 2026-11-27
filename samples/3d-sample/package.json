@@ -3,10 +3,8 @@
   "private": true,
   "scripts": {
     "studio": "remotion studio src/index.ts",
-    "short2": "remotion render src/index.ts ShortResult out/short2.mp4 --gl=swangle --browser-executable=/opt/pw-browsers/chromium_headless_shell --concurrency=3",
-    "short": "remotion render src/index.ts ShortWater out/short.mp4 --gl=swangle --browser-executable=/opt/pw-browsers/chromium_headless_shell --concurrency=3",
-    "render2": "remotion render src/index.ts Sample2 out/sample2.mp4 --gl=swangle --browser-executable=/opt/pw-browsers/chromium_headless_shell --concurrency=3",
-    "render": "remotion render src/index.ts Sample out/sample.mp4 --gl=swangle --browser-executable=/opt/pw-browsers/chromium_headless_shell --concurrency=3"
+    "render": "remotion render src/index.ts --gl=angle",
+    "render:cloud": "remotion render src/index.ts --gl=swangle --browser-executable=/opt/pw-browsers/chromium_headless_shell --concurrency=3"
   },
   "dependencies": {
     "@fontsource/noto-sans-jp": "^5.3.1",

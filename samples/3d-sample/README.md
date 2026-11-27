@@ -12,13 +12,27 @@
 | 業績の推移（15秒） | `src/Stack.tsx` | 1年ずつ積む。年が進むほど速く積む（だんだん盛り上がる）。減益の年は上が落ちる |
 | 予想の修正（8秒） | `src/Revision.tsx` | 上方修正の分が上から落ちてきて、最後に大きく揺れる |
 
-## 書き出し
+## 動かし方（ローカル）
 
 ```
+cd samples/3d-sample
 npm install
-npm run render      # out/sample.mp4（約3分）
-npm run studio      # ブラウザで見ながら調整
+npm run studio                                   # ブラウザで見ながら調整（左の一覧から動画を選ぶ）
+npm run render -- Parts-Grow-Trend out/a.mp4     # 1本書き出す（名前は下の一覧）
 ```
+
+- `npm run render` は `--gl=angle`（Windows／Mac でGPUを使う）。うまく描けないときは `--gl=swangle` に変えると遅いが確実。
+- クラウドの作業環境（Linux）では `npm run render:cloud -- <名前> <出力>`。
+- 書き出した動画（`out/`）と `node_modules/` はコミットしない。
+
+| 名前（コンポジション） | 中身 | ソース |
+|---|---|---|
+| Sample | 1本目（暗い背景・積み木・水）。安っぽいので没 | `src/*.tsx` |
+| Sample2 | 2本目（白地のまま3D。横） | `src/v2/` |
+| ShortWater | 3本目（縦。売上の水だけ）。切り取り方が狭いので没 | `src/v3/` |
+| ShortResult | 4本目（縦。結果・理由・この先） | `src/v4/` |
+| Parts-Grow-Trend／Parts-Grow-Seg／Parts-Loss | 5本目＝いまの形。部品を選んで組む20秒の超ショート | `src/v5/` |
+| Catalog-Grow／Catalog-Loss | 全部の部品を主役版→さらっと版で並べたカタログ | `src/v5/Catalog.tsx` |
 
 ## 2本目：いまの分析動画の見た目のまま3Dに（`src/v2/`、`npm run render2`）
 
