@@ -1,5 +1,6 @@
-import { ForecastPart, LossPart, PLPart, SegmentsPart, StockPart, TopicPart, TrendPart } from './parts';
-import { BSPart, CFPart, PointsPart, QuarterPart, RevisionPart } from './parts2';
+import { PLPart, SegmentsPart, StockPart, TopicPart } from './parts';
+import { BSPart, CFPart, PointsPart, QuarterPart } from './parts2';
+import { ForecastPart, RevisionPart, TrendPart } from './parts3';
 
 // 部品の一覧（AIが選べるもの）
 export const PARTS = {
@@ -7,7 +8,7 @@ export const PARTS = {
   segments: SegmentsPart,
   pl: PLPart,
   forecast: ForecastPart,
-  loss: LossPart,
+  loss: TrendPart, // 赤字転落も業績の推移の部品で描く（文言が変わる）
   topic: TopicPart,
   stock: StockPart,
   bs: BSPart,

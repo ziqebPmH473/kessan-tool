@@ -76,7 +76,7 @@ export const Short: React.FC<{ data: ShortData; plan: ShortPlan; only?: React.Re
   const [hd] = useState(() => delayRender('fonts'));
   const [ok, setOk] = useState(false);
   useEffect(() => {
-    const txt = CHARS + JSON.stringify(data) + JSON.stringify(plan) + 'の推移なぜ増えた？減ったこの先は来期予想実績今期赤字に転落数字のほかに今回の決算まとめ結果理由くわしい解説は本編で前年今年約割決算ハイライト■前年今年（億円）財務の安全性自己資本比率前期末借金に頼らない度合い持っているものお金の出どころ資産負債純資産入り（キャッシュフロー）自由に使える稼いだ投資営業期首期末か月ごとの利益四半期直近の同じ時期会社予想の修正上方下方修正前後注目ポイントGOODWATCH黒字の予想赤字の予想は（）赤字転落黒字転換拡大縮小株価の反応発表前後前日から';
+    const txt = CHARS + JSON.stringify(data) + JSON.stringify(plan) + 'の推移なぜ増えた？減ったこの先は来期予想実績今期赤字に転落数字のほかに今回の決算まとめ結果理由くわしい解説は本編で前年今年約割決算ハイライト■前年今年（億円）財務の安全性自己資本比率前期末借金に頼らない度合い持っているものお金の出どころ資産負債純資産入り（キャッシュフロー）自由に使える稼いだ投資営業期首期末か月ごとの利益四半期直近の同じ時期会社予想の修正上方下方修正前後注目ポイントGOODWATCH黒字の予想赤字の予想は（）業績の推移・売上営業利益億円濃い＝今期の実績うすい＝来期の予想増益減益黒字に戻る赤字になる据え置き利益だけ上方下方修正項目で向きがちがう2Q3Qで修正営業赤字に転落営業黒字に転換±赤字転落黒字転換拡大縮小株価の反応発表前後前日から';
     Promise.all([document.fonts.load(`900 100px ${FONT}`, txt), document.fonts.load(`700 100px ${FONT}`, txt)]).then(() => {
       setOk(true);
       continueRender(hd);

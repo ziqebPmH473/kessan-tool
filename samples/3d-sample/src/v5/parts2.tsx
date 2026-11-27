@@ -14,7 +14,7 @@ const ZeroPlate: React.FC<{ cx: number; w: number; z: number }> = ({ cx, w, z })
 );
 const signed = (v: number) => `${v < 0 ? '−' : v > 0 ? '+' : ''}${fmt(Math.abs(v))}`;
 
-// ---------- 決算ハイライト（3D）：4つの数字を、前年（灰）と今年の棒の組で。数字ごとに高さの尺度は別 ----------
+// ---------- 決算ハイライト（3D）：4つの数字を、前年（灰）と今年の棒の組で。4つとも同じ尺度 ----------
 export const Kpi3D: React.FC<PartProps> = ({ d, dur }) => {
   const f = useCurrentFrame();
   const G = 1.75;
@@ -213,77 +213,6 @@ export const QuarterPart: React.FC<PartProps> = ({ d, mode, dur, caption }) => {
           </>
         }
         sub={`前年の同じ時期 ${oku(last.prev)} → ${oku(last.cur)}`}
-        caption={caption}
-      />
-    </AbsoluteFill>
-  );
-};
-
-// ---------- 予想の修正：棒は1本。修正前の数字が修正後に変わり、差の分だけ色が付く ----------
-export const RevisionPart: React.FC<PartProps> = ({ d, mode, dur, caption }) => {
-  const f = useCurrentFrame();
-  if (!d.revision) return null;
-  const { before, after, label } = d.revision;
-  const main = mode === 'main';
-  const mx = Math.max(Math.abs(before), Math.abs(after));
-  const H = 4.6;
-  const S = H / mx;
-  const Z = Math.max(0, -before, -after) > 0 ? Math.max(0, -before, -after) * S + 0.7 : 0;
-  const Y = (v: number) => Z + v * S;
-  const a = main ? dur * 0.3 : 16; // 修正が始まる
-  const len = main ? 34 : 16;
-  const gb = grow(f, 2, main ? 22 : 12);
-  const t = interpolate(f, [a, a + len], [0, 1], { ...clamp, easing: Easing.inOut(Easing.cubic) });
-  const v = (t > 0 ? before + (after - before) * t : before * gb);
-  const up = after >= before;
-  const col = up ? K.green : K.red;
-  const span = (p: number, q: number) => ({ y0: Math.min(Y(p), Y(q)), h: Math.abs(Y(q) - Y(p)) });
-  const solid = span(0, v);
-  // 差の分：増えたら before→v（緑）。減ったら、0より上で消えた分だけ影（0より下は赤い棒そのもの）
-  const diff = up ? span(before, v) : before > 0 ? span(before, Math.max(v, 0)) : span(before, v);
-  const lo = Math.min(0, before, after);
-  const hi = Math.max(0, before, after);
-  const W = 1.7;
-  const changed = t >= 1;
-  return (
-    <AbsoluteFill>
-      <Scene3D cx={0.6} cy={(Y(lo) + Y(hi)) / 2 + 0.3} dist={14.5}>
-        {Z > 0 && <ZeroPlate cx={0} w={3.6} z={Z} />}
-        <Bar x={0} y0={solid.y0} h={solid.h} w={W} d={W} color={v < 0 ? K.red : K.blue} />
-        {/* 差の分：増えた分は緑で上に、減った分は赤のうすい影で残す */}
-        {t > 0 && diff.h > 0.01 && <Bar x={0} y0={diff.y0} h={diff.h} w={W + 0.04} d={W + 0.04} color={col} opacity={up || before <= 0 ? 1 : 0.3} />}
-        {/* 修正前の高さに細い線と小さな数字 */}
-        {t > 0 && (
-          <>
-            <mesh position={[-0.35, Y(before), 0]}>
-              <boxGeometry args={[W + 1.2, 0.04, W + 0.3]} />
-              <meshBasicMaterial color="#64748b" />
-            </mesh>
-            <Label text={`修正前 ${signed(before).replace('+', '')}`} height={0.24} position={[-1.95, Y(before) + 0.25, 0]} color={K.sub} />
-          </>
-        )}
-        {/* 数字は1つ：修正前 → 修正後へカウント */}
-        <Label
-          text={signed(Math.round(v)).replace('+', '')}
-          height={changed ? 0.5 : 0.4}
-          position={v >= 0 ? [0, Y(v) + 0.55, 0.9] : [-1.7, Y(v) + 0.3, 0.9]}
-          color={t > 0 ? col : K.ink}
-        />
-        {changed && <Label text={signed(after - before)} height={0.34} position={[1.75, (Y(before) + Y(after)) / 2, 0.9]} color={col} pill={undefined} />}
-        {floorLabel(label, 0, K.ink, 1.3)}
-      </Scene3D>
-      <Titles
-        tag="会社予想の修正"
-        at={Math.round(a + len)}
-        brief={!main}
-        big={<span style={{ color: col }}>{up ? '上方修正' : '下方修正'}</span>}
-        sub={
-          before > 0 && after < 0
-            ? '黒字の予想 → 赤字の予想'
-            : before < 0 && after > 0
-              ? '赤字の予想 → 黒字の予想'
-              : `${oku(before)} → ${oku(after)}（${up ? '+' : ''}${(((after - before) / Math.abs(before)) * 100).toFixed(1)}%）`
-        }
         caption={caption}
       />
     </AbsoluteFill>

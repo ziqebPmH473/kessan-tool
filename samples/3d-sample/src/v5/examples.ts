@@ -6,11 +6,11 @@ export const GROW: ShortData = {
   period: '2026年3月期',
   metric: '営業利益',
   trend: [
-    { l: '22/3', v: 60 },
-    { l: '23/3', v: 75 },
-    { l: '24/3', v: 68 },
-    { l: '25/3', v: 84 },
-    { l: '26/3', v: 120 },
+    { l: '22/3', rev: 800, op: 60 },
+    { l: '23/3', rev: 850, op: 75 },
+    { l: '24/3', rev: 870, op: 68 },
+    { l: '25/3', rev: 900, op: 84 },
+    { l: '26/3', rev: 1000, op: 120 },
   ],
   segments: [
     { name: 'A事業', rev: 600, prevRev: 520 },
@@ -18,7 +18,7 @@ export const GROW: ShortData = {
     { name: 'C事業', rev: 100, prevRev: 95 },
   ],
   pl: { sales: 1000, cost: 600, sga: 280 },
-  forecast: { cur: 120, next: 150 },
+  forecast: { items: [{ name: '売上高', cur: 1000, next: 1100 }, { name: '営業利益', cur: 120, next: 150 }, { name: '純利益', cur: 80, next: 100 }] },
   topics: [{ icon: '💴', title: '増配', sub: '年30円 → 40円' }],
   kpis: [
     { name: '売上高', prev: 900, cur: 1000 },
@@ -34,7 +34,7 @@ export const GROW: ShortData = {
     { l: '3Q', prev: 22, cur: 30 },
     { l: '4Q', prev: 24, cur: 38 },
   ],
-  revision: { before: 130, after: 150, label: '営業利益' },
+  revision: { label: '2Qで修正', items: [{ name: '売上高', before: 1100, after: 1100 }, { name: '営業利益', before: 130, after: 150 }, { name: '経常利益', before: 128, after: 148 }, { name: '純利益', before: 90, after: 100 }] },
   points: { good: ['主力のA事業の新製品が好調', '利益率が12.0%に上がった'], watch: ['販管費（人件費）が増えている', 'B事業の利益率は8%台'] },
   stock: { prices: [1003, 1002, 993, 992, 1001, 1005, 1000, 1001, 1002, 996, 991, 999, 1071, 1071, 1071, 1078, 1079, 1077, 1086, 1101], at: 12, days: '1週間' },
 };
@@ -45,11 +45,11 @@ export const LOSS: ShortData = {
   period: '2026年3月期',
   metric: '営業利益',
   trend: [
-    { l: '22/3', v: 45 },
-    { l: '23/3', v: 38 },
-    { l: '24/3', v: 20 },
-    { l: '25/3', v: 12 },
-    { l: '26/3', v: -35 },
+    { l: '22/3', rev: 700, op: 45 },
+    { l: '23/3', rev: 690, op: 38 },
+    { l: '24/3', rev: 650, op: 20 },
+    { l: '25/3', rev: 600, op: 12 },
+    { l: '26/3', rev: 550, op: -35 },
   ],
   segments: [
     { name: '素材', rev: 300, prevRev: 380 },
@@ -57,7 +57,7 @@ export const LOSS: ShortData = {
     { name: 'その他', rev: 50, prevRev: 52 },
   ],
   pl: { sales: 550, cost: 470, sga: 115 },
-  forecast: { cur: -35, next: 10 },
+  forecast: { items: [{ name: '売上高', cur: 550, next: 580 }, { name: '営業利益', cur: -35, next: 10 }, { name: '純利益', cur: -52, next: 5 }] },
   topics: [
     { icon: '✂️', title: '配当を減らす', sub: '年40円 → 20円' },
     { icon: '🏭', title: '工場を1つ閉じる', sub: '来期から' },
@@ -76,7 +76,7 @@ export const LOSS: ShortData = {
     { l: '3Q', prev: 2, cur: -12 },
     { l: '4Q', prev: 2, cur: -19 },
   ],
-  revision: { before: 5, after: -35, label: '営業利益' },
+  revision: { label: '3Qで修正', items: [{ name: '売上高', before: 600, after: 560 }, { name: '営業利益', before: 5, after: -35 }, { name: '経常利益', before: 8, after: -30 }, { name: '純利益', before: 2, after: -55 }] },
   points: { good: ['機械の事業は減収幅が小さい'], watch: ['原料高を値上げで補えていない', '現金が減っている'] },
   stock: { prices: [1003, 1000, 999, 1007, 1012, 1004, 998, 1001, 1003, 1000, 1005, 1011, 890, 877, 872, 872, 865, 861, 861, 855], at: 12, days: '1週間' },
 };
