@@ -10,17 +10,17 @@ import type { ShortData } from './types';
 export type PartProps = { d: ShortData; mode: 'main' | 'brief'; dur: number; caption?: string };
 
 export const PALE = '#dbe3ee';
-const clamp = { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' } as const;
-const grow = (f: number, a: number, d: number) => {
+export const clamp = { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' } as const;
+export const grow = (f: number, a: number, d: number) => {
   const t = Math.min(1, Math.max(0, (f - a) / Math.max(1, d)));
   return 1 - (1 - t) ** 3;
 };
-const pct = (a: number, b: number) => {
+export const pct = (a: number, b: number) => {
   const r = ((b - a) / Math.abs(a)) * 100;
   return `${r >= 0 ? '+' : ''}${r.toFixed(1)}%`;
 };
-const oku = (v: number) => `${v < 0 ? '−' : ''}${fmt(Math.abs(v))}億円`;
-const floorLabel = (text: string, x: number, color: string, z = 0.95) => (
+export const oku = (v: number) => `${v < 0 ? '−' : ''}${fmt(Math.abs(v))}億円`;
+export const floorLabel = (text: string, x: number, color: string, z = 0.95) => (
   <Label text={text} height={0.28} position={[x, 0.02, z]} rotation={[-Math.PI / 2, 0, 0]} color={color} />
 );
 
@@ -38,7 +38,7 @@ export const Scene3D: React.FC<{ children: React.ReactNode; cx: number; cy: numb
 };
 
 // 画面上の文字の置き場所（縦）：部品の名前・大きい一言・小さい補足・下の字幕
-const Titles: React.FC<{ tag: string; big?: React.ReactNode; sub?: string; caption?: string; at: number; brief: boolean }> = ({ tag, big, sub, caption, at, brief }) => (
+export const Titles: React.FC<{ tag: string; big?: React.ReactNode; sub?: string; caption?: string; at: number; brief: boolean }> = ({ tag, big, sub, caption, at, brief }) => (
   <>
     <Text2D at={0} size={brief ? 40 : 46} top="9%" left="50%" color={K.sub} weight={700}>{tag}</Text2D>
     {big && <Text2D at={at} size={brief ? 62 : 72} top="15.5%" left="50%">{big}</Text2D>}
@@ -376,15 +376,15 @@ export const TopicPart: React.FC<PartProps> = ({ d, mode, caption }) => {
   );
 };
 
-// ---------- 決算ハイライト（毎回入れる。数字4つを前年比つきで） ----------
-const yoyText = (prev: number, cur: number) => {
+// ---------- 決算ハイライト（平面のカード版。3D版は parts2.tsx の Kpi3D） ----------
+export const yoyText = (prev: number, cur: number) => {
   if (prev > 0 && cur < 0) return { t: '赤字転落', c: K.red };
   if (prev < 0 && cur > 0) return { t: '黒字転換', c: K.green };
   if (prev < 0 && cur < 0) return { t: cur < prev ? '赤字拡大' : '赤字縮小', c: cur < prev ? K.red : K.green };
   const r = ((cur - prev) / Math.abs(prev)) * 100;
   return { t: `${r >= 0 ? '+' : ''}${r.toFixed(1)}%`, c: r >= 0 ? K.green : K.red };
 };
-export const KpiPart: React.FC<PartProps> = ({ d, dur }) => {
+export const KpiCards: React.FC<PartProps> = ({ d, dur }) => {
   const f = useCurrentFrame();
   return (
     <AbsoluteFill style={{ fontFamily: FONT }}>
@@ -484,12 +484,5 @@ export const StockPart: React.FC<PartProps> = ({ d, mode, dur, caption }) => {
   );
 };
 
-export const PARTS = {
-  trend: TrendPart,
-  segments: SegmentsPart,
-  pl: PLPart,
-  forecast: ForecastPart,
-  loss: LossPart,
-  topic: TopicPart,
-  stock: StockPart,
-} as const;
+// 部品の一覧は registry.ts
+

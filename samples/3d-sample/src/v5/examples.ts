@@ -26,6 +26,16 @@ export const GROW: ShortData = {
     { name: '経常利益', prev: 82, cur: 118 },
     { name: '純利益', prev: 55, cur: 80 },
   ],
+  bs: { assets: 1500, liabilities: 700, equity: 800, prevEquityRatio: 51.4 },
+  cf: { begin: 200, operating: 150, investing: -60, financing: -40, end: 250 },
+  quarters: [
+    { l: '1Q', prev: 18, cur: 24 },
+    { l: '2Q', prev: 20, cur: 28 },
+    { l: '3Q', prev: 22, cur: 30 },
+    { l: '4Q', prev: 24, cur: 38 },
+  ],
+  revision: { before: 130, after: 150, label: '営業利益' },
+  points: { good: ['主力のA事業の新製品が好調', '利益率が12.0%に上がった'], watch: ['販管費（人件費）が増えている', 'B事業の利益率は8%台'] },
   stock: { prices: [1003, 1002, 993, 992, 1001, 1005, 1000, 1001, 1002, 996, 991, 999, 1071, 1071, 1071, 1078, 1079, 1077, 1086, 1101], at: 12, days: '1週間' },
 };
 
@@ -58,6 +68,16 @@ export const LOSS: ShortData = {
     { name: '経常利益', prev: 15, cur: -30 },
     { name: '純利益', prev: 8, cur: -52 },
   ],
+  bs: { assets: 900, liabilities: 560, equity: 340, prevEquityRatio: 42.0 },
+  cf: { begin: 120, operating: -20, investing: -45, financing: 30, end: 85 },
+  quarters: [
+    { l: '1Q', prev: 5, cur: 2 },
+    { l: '2Q', prev: 3, cur: -6 },
+    { l: '3Q', prev: 2, cur: -12 },
+    { l: '4Q', prev: 2, cur: -19 },
+  ],
+  revision: { before: 5, after: -35, label: '営業利益' },
+  points: { good: ['機械の事業は減収幅が小さい'], watch: ['原料高を値上げで補えていない', '現金が減っている'] },
   stock: { prices: [1003, 1000, 999, 1007, 1012, 1004, 998, 1001, 1003, 1000, 1005, 1011, 890, 877, 872, 872, 865, 861, 861, 855], at: 12, days: '1週間' },
 };
 
@@ -80,12 +100,11 @@ export const PLAN_GROW_SEG: ShortPlan = {
   verdict_tone: 'good',
   headline: '主力のA事業がけん引',
   main: 'segments',
-  brief: ['pl', 'stock'],
+  brief: ['stock', 'forecast'],
   captions: {
     segments: '新製品が売れて、主力のA事業が伸びた',
-    pl: '売上が増えて、利益率も上がった',
   },
-  summary: ['営業利益 +42.9%', 'A事業の新製品が売れた', '株価は発表後に上昇'],
+  summary: ['営業利益 +42.9%', 'A事業の新製品が売れた', '来期も増益の予想'],
 };
 
 export const PLAN_LOSS: ShortPlan = {
