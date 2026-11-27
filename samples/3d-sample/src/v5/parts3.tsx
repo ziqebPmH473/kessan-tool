@@ -178,7 +178,7 @@ export const ForecastPart: React.FC<PartProps> = ({ d, mode, dur, caption }) => 
   );
 };
 
-// ---------- 予想の修正：項目ごとに棒1本。修正前の数字が修正後へ変わり、差の分に色。据え置きは灰色の札 ----------
+// ---------- 予想の修正：項目ごとに棒1本。修正前の数字が修正後へ変わり、差の分に色（修正前の高さの線は付けない）。据え置きは灰色の札 ----------
 export const revisionWord = (items: { name: string; before: number; after: number }[]) => {
   const ch = items.map((it) => ({ ...it, dir: Math.sign(it.after - it.before) }));
   const rev = ch.filter((c) => c.name.startsWith('売上'));
@@ -250,12 +250,6 @@ export const RevisionPart: React.FC<PartProps> = ({ d, mode, dur, caption }) => 
                 <React.Fragment key={it.name}>
                   <Bar x={X} y0={solid.y0} h={solid.h} w={0.95} d={0.95} color={val < 0 ? DNC : isRev ? K.blue : '#60a5fa'} />
                   {t > 0 && !same && diff.h > 0.01 && <Bar x={X} y0={diff.y0} h={diff.h} w={0.99} d={0.99} color={col} opacity={up || it.a <= 0 ? 1 : 0.3} />}
-                  {t > 0 && !same && (
-                    <mesh position={[X, Y(it.a), 0]}>
-                      <boxGeometry args={[1.3, 0.035, 1.2]} />
-                      <meshBasicMaterial color="#64748b" />
-                    </mesh>
-                  )}
                   <Label text={num(Math.round(val))} height={0.28} position={val >= 0 ? [X, Y(val) + 0.36, 0.55] : [X, Y(val) - 0.36, 0.55]} color={t > 0 ? col : K.ink} />
                   {t >= 1 && <Label text={same ? '据え置き' : sgn(it.b - it.a)} height={0.24} position={[X, Y(Math.max(it.a, it.b, 0)) + 0.85, 0]} color="#ffffff" pill={col} weight={900} />}
                   {floorLabel(it.name.replace('売上高', '売上'), X, K.ink, 0.95)}
